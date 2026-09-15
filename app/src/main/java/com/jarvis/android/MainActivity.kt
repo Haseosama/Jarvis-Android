@@ -30,9 +30,20 @@ import com.jarvis.android.ui.theme.JarvisTheme
 
 class MainActivity : ComponentActivity() {
 
+    /** Set right before requesting mic permission from the HUD's start button, so the
+     * callback below knows whether to actually launch the service once granted — as
+     * opposed to onboarding just asking for permission upfront without starting yet. */
+    private var startServiceOnGrant = false
+
     private val requestPermissions = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { /* handled reactively via hasMicPermission() on next recompose */ }
+    ) { results ->
+        val granted = results[Manifest.permission.RECORD_AUDIO] == true
+        if (granted && startServiceOnGrant) {
+            startJarvisService()
+        }
+        startServiceOnGrant = false
+    }
 
     private fun hasMicPermission() =
         ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
@@ -43,6 +54,10 @@ class MainActivity : ComponentActivity() {
             perms += Manifest.permission.POST_NOTIFICATIONS
         }
         requestPermissions.launch(perms.toTypedArray())
+    }
+
+    private fun startJarvisService() {
+        ContextCompat.startForegroundService(this, Intent(this, JarvisVoiceService::class.java))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,11 +93,10 @@ class MainActivity : ComponentActivity() {
                             confirmPending = confirm,
                             onStart = {
                                 if (!hasMicPermission()) {
+                                    startServiceOnGrant = true
                                     requestNeededPermissions()
                                 } else {
-                                    ContextCompat.startForegroundService(
-                                        this@MainActivity, Intent(this@MainActivity, JarvisVoiceService::class.java)
-                                    )
+                                    startJarvisService()
                                 }
                             },
                             onStop = {

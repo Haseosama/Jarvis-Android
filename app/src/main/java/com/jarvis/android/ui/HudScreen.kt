@@ -1,6 +1,7 @@
 package com.jarvis.android.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -93,6 +94,7 @@ private fun ReactorCore(state: JarvisState, onTap: () -> Unit) {
         modifier = Modifier
             .size(160.dp)
             .clip(CircleShape)
+            .clickable(onClick = onTap)
             .background(color.copy(alpha = 0.25f))
             .padding(12.dp)
             .clip(CircleShape)
@@ -104,7 +106,6 @@ private fun ReactorCore(state: JarvisState, onTap: () -> Unit) {
                 .size(72.dp)
                 .clip(CircleShape)
                 .background(color)
-                .then(Modifier)
         )
     }
     Spacer(Modifier.height(8.dp))

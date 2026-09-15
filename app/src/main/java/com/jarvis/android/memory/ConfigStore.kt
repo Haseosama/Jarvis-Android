@@ -67,11 +67,12 @@ class ConfigStore(private val context: Context) {
     companion object {
         private const val KEY_API_KEY = "gemini_api_key"
         /**
-         * Stable, publicly documented Live model as the safe default. Mark-LIII
-         * tracks whatever the newest preview is (e.g. gemini-3.1-flash-live) —
-         * override this from Settings once you have access to a newer one.
+         * Requested default: Gemini Flash 3.6's Live variant. Exact model id naming
+         * for preview models shifts over time — if the socket rejects this at setup,
+         * check aistudio.google.com for the current id and override it from Settings
+         * (Advanced → Live model) rather than editing this constant.
          */
-        const val DEFAULT_MODEL = "models/gemini-2.0-flash-live-001"
+        const val DEFAULT_MODEL = "models/gemini-3.6-flash-live-preview"
         val AVAILABLE_VOICES = listOf("Puck", "Charon", "Kore", "Fenrir", "Aoede")
     }
 }
