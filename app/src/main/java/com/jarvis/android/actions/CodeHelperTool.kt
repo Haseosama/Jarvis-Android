@@ -34,7 +34,7 @@ object CodeHelperTool : Tool {
         }
         val body = payload.toString().toRequestBody("application/json".toMediaType())
         val httpRequest = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey")
+            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$apiKey")
             .post(body)
             .build()
 

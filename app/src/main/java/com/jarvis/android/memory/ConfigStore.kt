@@ -75,7 +75,7 @@ class ConfigStore(private val context: Context) {
          * override it from Settings → Advanced → Live model — no rebuild
          * needed either way.
          */
-        const val DEFAULT_MODEL = "models/gemini-3.6-flash-live-preview"
+        const val DEFAULT_MODEL = "models/gemini-3.6-flash"
         val AVAILABLE_VOICES = listOf("Puck", "Charon", "Kore", "Fenrir", "Aoede")
     }
 }
