@@ -67,16 +67,15 @@ class ConfigStore(private val context: Context) {
     companion object {
         private const val KEY_API_KEY = "gemini_api_key"
         /**
-         * "Gemini Flash 3.6" was requested as the default, but there is no
-         * confirmed, documented Live-API model id by that exact name — Google's
-         * own docs currently reference "Gemini 3.8 Flash" as the newest release,
-         * and preview model ids shift often. Shipping a guessed id caused every
-         * session to fail at setup, so this falls back to a long-documented,
-         * stable Live model. Check aistudio.google.com/apikey for the exact id
-         * of whichever model you want and set it from Settings → Advanced →
-         * Live model — no rebuild needed.
+         * Gemini Flash 3.6's Live variant, as requested. There's no
+         * Google doc page confirming this exact id (their docs reference
+         * "Gemini 3.8 Flash" as of this writing, and preview ids shift), so if
+         * setup ever rejects specifically with a "model not found"-style
+         * message, check aistudio.google.com/apikey for the exact id and
+         * override it from Settings → Advanced → Live model — no rebuild
+         * needed either way.
          */
-        const val DEFAULT_MODEL = "models/gemini-2.0-flash-live-001"
+        const val DEFAULT_MODEL = "models/gemini-3.6-flash-live-preview"
         val AVAILABLE_VOICES = listOf("Puck", "Charon", "Kore", "Fenrir", "Aoede")
     }
 }
