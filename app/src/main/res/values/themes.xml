@@ -1,0 +1,8 @@
+<resources>
+    <!-- The HUD is always dark (matches the desktop app's look), regardless of system theme. -->
+    <style name="Theme.Jarvis" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF0B0F14</item>
+        <item name="android:statusBarColor">#FF0B0F14</item>
+        <item name="android:navigationBarColor">#FF0B0F14</item>
+    </style>
+</resources>
