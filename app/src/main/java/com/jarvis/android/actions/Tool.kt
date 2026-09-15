@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 
 /**
  * One callable skill. Mirrors the shape of Mark-LIII's `TOOL` dict (one per
@@ -23,9 +24,18 @@ interface Tool {
     val name: String
     val description: String
 
-    /** Gemini function-declaration JSON schema, e.g. {"type":"OBJECT","properties":{...}} */
+    /**
+     * Gemini function-declaration JSON schema. Always carries an (possibly
+     * empty) "properties" object — Mark-LIII's `_DEFAULT_PARAMS` does the same
+     * (`{"type": "OBJECT", "properties": {}}`); omitting it is a malformed
+     * declaration the Live API rejects at setup for the *whole session*, not
+     * just this one tool.
+     */
     val parameters: JsonObject
-        get() = buildJsonObject { put("type", "OBJECT") }
+        get() = buildJsonObject {
+            put("type", "OBJECT")
+            putJsonObject("properties") {}
+        }
 
     suspend fun run(args: JsonObject, ctx: JarvisContainer): String
 }

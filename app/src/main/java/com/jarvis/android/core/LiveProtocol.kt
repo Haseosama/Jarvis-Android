@@ -13,7 +13,7 @@ import kotlinx.serialization.json.*
 object LiveProtocol {
 
     const val ENDPOINT =
-        "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
+        "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
 
     /** Audio sent TO Gemini: 16-bit PCM, mono, 16 kHz. */
     const val SEND_SAMPLE_RATE = 16000
