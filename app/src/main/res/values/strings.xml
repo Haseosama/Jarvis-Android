@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mark LIV Android</string>
+    <string name="prototype_notice">Chat Gemini — la clé chiffrée via Android Keystore est restaurée au démarrage. Chaque message et chaque enregistrement vocal sont envoyés à Google ; des frais API peuvent s’appliquer.</string>
+    <string name="api_key">Clé API Gemini</string>
+    <string name="model">Modèle Gemini</string>
+    <string name="load_models">Charger les modèles disponibles</string>
+    <string name="choose_model">Choisir un modèle</string>
+    <string name="send">Envoyer</string>
+    <string name="message_hint">Votre message</string>
+    <string name="new_conversation">Nouvelle conversation</string>
+    <string name="loading">En attente de Gemini…</string>
+    <string name="error_label">Erreur</string>
+    <string name="unexpected_error">Erreur inattendue. Veuillez réessayer.</string>
+    <string name="key_restoring">Lecture du stockage sécurisé…</string>
+    <string name="key_not_saved">Aucune clé enregistrée.</string>
+    <string name="key_restored">Clé restaurée depuis le stockage chiffré.</string>
+    <string name="key_restore_error">Restauration impossible. Réenregistrez votre clé ou supprimez le stockage.</string>
+    <string name="key_changed">Modification non enregistrée ; une ancienne clé peut rester stockée.</string>
+    <string name="key_saved">Clé enregistrée et chiffrée sur ce téléphone.</string>
+    <string name="key_save_error">Enregistrement impossible. Veuillez réessayer.</string>
+    <string name="key_deleted">Clé supprimée du stockage et de cet écran.</string>
+    <string name="key_delete_error">Suppression impossible. Veuillez réessayer.</string>
+    <string name="save_key">Enregistrer la clé</string>
+    <string name="delete_key">Supprimer la clé enregistrée</string>
+    <string name="record">Parler</string>
+    <string name="recording">Enregistrement en cours…</string>
+    <string name="stop">Arrêter</string>
+    <string name="voice_error">Micro indisponible. Vérifiez l’autorisation et réessayez.</string>
+</resources>
