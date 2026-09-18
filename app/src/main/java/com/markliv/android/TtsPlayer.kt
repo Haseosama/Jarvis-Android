@@ -27,6 +27,8 @@ class TtsPlayer(
     private var player: MediaPlayer? = null
     private var tempFile: File? = null
 
+    var onPlaybackStateChanged: ((Boolean) -> Unit)? = null
+
     fun play(wav: ByteArray) {
         synchronized(lock) {
             if (closed) return
@@ -60,6 +62,7 @@ class TtsPlayer(
                     current.setOnPreparedListener {
                         if (version != generation.get() || player !== current) return@setOnPreparedListener
                         try {
+                            onPlaybackStateChanged?.invoke(true)
                             current.start()
                         } catch (_: RuntimeException) {
                             finish(current, version, false)
@@ -84,6 +87,7 @@ class TtsPlayer(
     fun stop() {
         synchronized(lock) {
             if (closed) return
+            onPlaybackStateChanged?.invoke(false)
             val version = generation.incrementAndGet()
             worker.post {
                 if (!releasePlayback()) notifyMain(version, onError)
@@ -108,6 +112,7 @@ class TtsPlayer(
 
     private fun finish(current: MediaPlayer, version: Long, completed: Boolean) {
         if (player !== current) return
+        onPlaybackStateChanged?.invoke(false)
         val released = releasePlayback()
         notifyMain(version, if (completed && released) onComplete else onError)
     }

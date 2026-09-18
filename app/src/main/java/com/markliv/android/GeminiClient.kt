@@ -14,13 +14,18 @@ import java.net.URLEncoder
 import java.util.Base64
 import javax.net.ssl.HttpsURLConnection
 
-data class ChatMessage(val role: String, val text: String)
+data class ChatMessage(val role: String, val text: String = "", val functionCall: JSONObject? = null, val functionResponse: JSONObject? = null)
+
+sealed class GeminiResponse {
+    data class Text(val text: String) : GeminiResponse()
+    data class FunctionCall(val name: String, val args: JSONObject) : GeminiResponse()
+}
 
 class GeminiException(message: String) : Exception(message)
 
 open class GeminiClient {
 
-    open suspend fun generate(apiKey: String, model: String, messages: List<ChatMessage>): String {
+    open suspend fun generate(apiKey: String, model: String, messages: List<ChatMessage>, tools: org.json.JSONArray? = null): GeminiResponse {
         return withContext(Dispatchers.IO) {
             requireValidModel(model)
             if (apiKey.isBlank()) {
@@ -29,7 +34,7 @@ open class GeminiClient {
             if (apiKey.any { it !in '!'..'~' }) {
                 throw GeminiException(ERROR_INVALID_KEY)
             }
-            val request = buildRequestJson(messages)
+            val request = buildRequestJson(messages, tools)
             var connection: HttpsURLConnection? = null
             try {
                 connection = openConnection(model)
@@ -51,7 +56,7 @@ open class GeminiClient {
         }
     }
 
-    open suspend fun generateWithAudio(apiKey: String, model: String, samples: ShortArray, sampleRate: Int): String {
+    open suspend fun generateWithAudio(apiKey: String, model: String, samples: ShortArray, sampleRate: Int): GeminiResponse {
         return withContext(Dispatchers.IO) {
             requireValidModel(model)
             if (apiKey.isBlank()) {
@@ -155,27 +160,47 @@ open class GeminiClient {
         }
     }
 
-    internal fun buildRequestJson(messages: List<ChatMessage>): JSONObject {
-        if (messages.isEmpty() || messages.all { it.text.isBlank() }) {
+    internal fun buildRequestJson(messages: List<ChatMessage>, tools: org.json.JSONArray? = null): JSONObject {
+        if (messages.isEmpty()) {
             throw GeminiException(ERROR_EMPTY_CONVERSATION)
         }
         val contents = JSONArray()
         for (message in messages) {
-            val text = message.text
-            if (text.isBlank()) continue
             val content = JSONObject()
             content.put("role", mapRole(message.role))
-            content.put("parts", JSONArray().put(JSONObject().put("text", text)))
-            contents.put(content)
+            val parts = JSONArray()
+
+            if (message.text.isNotBlank()) {
+                parts.put(JSONObject().put("text", message.text))
+            }
+
+            message.functionCall?.let {
+                parts.put(JSONObject().put("functionCall", it))
+            }
+
+            message.functionResponse?.let {
+                parts.put(JSONObject().put("functionResponse", it))
+            }
+
+            if (parts.length() > 0) {
+                content.put("parts", parts)
+                contents.put(content)
+            }
         }
+
         val systemParts = JSONArray().put(JSONObject().put("text", SYSTEM_INSTRUCTION))
         val request = JSONObject()
         request.put("system_instruction", JSONObject().put("parts", systemParts))
         request.put("contents", contents)
+
+        tools?.let {
+            request.put("tools", JSONArray().put(JSONObject().put("function_declarations", it)))
+        }
+
         return request
     }
 
-    internal fun parseResponseJson(body: String): String {
+    internal fun parseResponseJson(body: String): GeminiResponse {
         if (body.isBlank()) throw GeminiException(ERROR_EMPTY)
         try {
             val root = JSONObject(body)
@@ -196,6 +221,19 @@ open class GeminiClient {
             if (parts == null || parts.length() == 0) {
                 throw GeminiException(ERROR_EMPTY)
             }
+
+            // Check for functionCall first
+            for (index in 0 until parts.length()) {
+                val part = parts.optJSONObject(index) ?: continue
+                if (part.has("functionCall")) {
+                    val fc = part.getJSONObject("functionCall")
+                    return GeminiResponse.FunctionCall(
+                        fc.getString("name"),
+                        fc.optJSONObject("args") ?: JSONObject()
+                    )
+                }
+            }
+
             val builder = StringBuilder()
             for (index in 0 until parts.length()) {
                 val part = parts.optJSONObject(index) ?: continue
@@ -207,7 +245,7 @@ open class GeminiClient {
             if (response.isEmpty()) {
                 throw GeminiException(ERROR_EMPTY)
             }
-            return response
+            return GeminiResponse.Text(response)
         } catch (error: GeminiException) {
             throw error
         } catch (error: JSONException) {
@@ -438,6 +476,7 @@ open class GeminiClient {
     private fun mapRole(role: String): String = when (role) {
         "user" -> "user"
         "model", "assistant" -> "model"
+        "function" -> "function"
         else -> throw GeminiException(ERROR_INVALID_ROLE)
     }
 
@@ -461,11 +500,10 @@ open class GeminiClient {
             "IMAGE_SAFETY", "IMAGE_PROHIBITED_CONTENT", "IMAGE_RECITATION"
         )
 
-        internal val SYSTEM_INSTRUCTION = "Tu es Mark LIV, un assistant qui répond exclusivement en français. " +
-            "Tu es un assistant purement textuel : tu ne peux effectuer aucune action réelle " +
-            "(passer des appels, envoyer des messages, effectuer des achats, contrôler des appareils " +
-            "ou exécuter des ordres sur le téléphone). Si une demande nécessite une telle action, " +
-            "explique clairement que tu ne peux pas le faire et propose une aide textuelle à la place."
+        internal val SYSTEM_INSTRUCTION = "Tu es Mark LIV, une IA sophistiquée basée sur le projet Mark LIV de FatihMakes. " +
+            "Tu réponds exclusivement en français. Tu as désormais la capacité d'interagir avec le téléphone Android de l'utilisateur " +
+            "via des outils (functions). Tu peux régler le volume, lancer des applications, ouvrir des URLs et vérifier l'état du système. " +
+            "Sois proactif, utile et adopte une personnalité élégante et futuriste."
 
         internal const val ERROR_MISSING_KEY = "Clé API manquante. Renseignez votre clé Gemini avant d'envoyer un message."
         internal const val ERROR_INVALID_KEY = "Format de clé API Gemini invalide."

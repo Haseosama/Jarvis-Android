@@ -11,9 +11,9 @@ class ChatSessionTest {
     private class StubClient : GeminiClient() {
         val received = mutableListOf<List<ChatMessage>>()
 
-        override suspend fun generate(apiKey: String, model: String, messages: List<ChatMessage>): String {
+        override suspend fun generate(apiKey: String, model: String, messages: List<ChatMessage>, tools: org.json.JSONArray?): GeminiResponse {
             received.add(messages)
-            return "Réponse ${received.size}"
+            return GeminiResponse.Text("Réponse ${received.size}")
         }
     }
 

@@ -17,13 +17,13 @@ class GeminiClientTest {
 
     @Test
     fun parsesSuccessfulResponse() {
-        assertEquals("Bonjour !", client.parseResponseJson(response(JSONObject().put("text", "Bonjour !"))))
+        assertEquals(GeminiResponse.Text("Bonjour !"), client.parseResponseJson(response(JSONObject().put("text", "Bonjour !"))))
     }
 
     @Test
     fun concatenatesPartsWithoutAddingSeparators() {
         assertEquals(
-            "Bonjour Mark LIV !",
+            GeminiResponse.Text("Bonjour Mark LIV !"),
             client.parseResponseJson(
                 response(
                     JSONObject().put("text", "Bonjour "),
@@ -37,7 +37,7 @@ class GeminiClientTest {
     @Test
     fun ignoresThoughtAndNonTextParts() {
         assertEquals(
-            "Réponse visible",
+            GeminiResponse.Text("Réponse visible"),
             client.parseResponseJson(
                 response(
                     JSONObject().put("thought", true).put("text", "secret"),
@@ -76,7 +76,7 @@ class GeminiClientTest {
     fun acceptsUnspecifiedPromptBlockReason() {
         val root = JSONObject(response(JSONObject().put("text", "Bonjour")))
         root.put("promptFeedback", JSONObject().put("blockReason", "BLOCK_REASON_UNSPECIFIED"))
-        assertEquals("Bonjour", client.parseResponseJson(root.toString()))
+        assertEquals(GeminiResponse.Text("Bonjour"), client.parseResponseJson(root.toString()))
     }
 
     @Test
@@ -93,7 +93,7 @@ class GeminiClientTest {
         val root = JSONObject(response(JSONObject().put("text", "Premier")))
         val second = JSONObject(response(JSONObject().put("text", "Second")))
         root.getJSONArray("candidates").put(second.getJSONArray("candidates").getJSONObject(0))
-        assertEquals("Premier", client.parseResponseJson(root.toString()))
+        assertEquals(GeminiResponse.Text("Premier"), client.parseResponseJson(root.toString()))
     }
 
     @Test

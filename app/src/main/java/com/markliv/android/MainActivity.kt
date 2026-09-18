@@ -87,7 +87,15 @@ private fun MessageScreen(tts: TtsPlayer) {
     val recorder = remember { Recorder() }
     var recording by remember { mutableStateOf(false) }
     val client = remember { GeminiClient() }
-    val session = remember { ChatSession(client) }
+    val toolbox = remember(context) { MarkToolbox(context) }
+    val session = remember { ChatSession(client, toolbox) }
+    var isSpeaking by remember { mutableStateOf(false) }
+
+    LaunchedEffect(tts) {
+        tts.onPlaybackStateChanged = { speaking ->
+            isSpeaking = speaking
+        }
+    }
     val scope = rememberCoroutineScope()
     val unexpectedError = stringResource(R.string.unexpected_error)
     val voiceError = stringResource(R.string.voice_error)
@@ -144,10 +152,20 @@ private fun MessageScreen(tts: TtsPlayer) {
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
-            Text(stringResource(R.string.prototype_notice))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
+                    Text(stringResource(R.string.prototype_notice), style = MaterialTheme.typography.bodySmall)
+                }
+                MarkAvatar(isSpeaking = isSpeaking, modifier = Modifier.size(60.dp))
+            }
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = {
