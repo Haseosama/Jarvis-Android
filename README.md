@@ -197,6 +197,25 @@ on an emulator the record → transcribe → error path with a fake key. Not yet
 the transcription quality, the speech-model auto-detection and the actual playback. It does not stop
 a running Live voice session; use one or the other.
 
+## Instrumented tests
+
+`app/src/androidTest` holds 14 tests that need a real Android runtime: `SecureStore` on the real
+Keystore (round trip, no clear text, backup fallback, a restored file whose key is gone, wrong file
+name), the real `AudioRecorder` and `AudioPlayer` (duration captured, second start refused, streamed
+playback, stop on request, source errors passed on) and a push-to-talk round trip on the real
+recorder and player with a scripted network.
+
+They run inside the app's own process, so they only use a scratch cache directory and throw-away
+Keystore aliases and never touch the stored API keys. **Run them on an emulator, not on a phone
+that holds your key**: Gradle uninstalls the app afterwards, which erases its data.
+
+```
+ANDROID_SERIAL=emulator-5554 ./gradlew :app:connectedDebugAndroidTest
+```
+
+Checked on an emulator (14 of 14 pass). Not covered: `ConfigStore` (the key slots and the migration
+from the old encrypted preferences), because it works on the app's real files.
+
 ## Known gaps / next steps
 
 - The conversation is deliberately ephemeral; `MemoryManager.saveSessionSummary` /
