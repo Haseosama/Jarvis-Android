@@ -134,6 +134,16 @@ The stored key can be removed from **Paramètres → Supprimer la clé enregistr
 confirmation). This stops the running session, erases the key and returns to the key entry
 screen; saving and deleting report whether the write really reached storage.
 
+### Animated reactor core
+
+The circle on the main screen moves with the assistant's state (`ui/ReactorMotion.kt`): still when
+asleep or in error, a slow breath while listening, faster while connecting and thinking. While
+speaking, the inner core also grows with the loudness of the audio actually being played
+(`core/AudioLevel.kt`: RMS of each PCM chunk, exposed as `JarvisEngine.outputLevel`). Checked
+on an emulator (size changes during the connecting state, still once in error). The voice-driven
+part has not been seen on a device with a real spoken answer. The microphone level is not used
+while listening.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

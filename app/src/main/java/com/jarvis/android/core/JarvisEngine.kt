@@ -122,6 +122,11 @@ class JarvisEngine(
     private val _state = MutableStateFlow(JarvisState.ASLEEP)
     val state: StateFlow<JarvisState> = _state.asStateFlow()
 
+    private val _outputLevel = MutableStateFlow(0f)
+
+    /** Loudness (0..1) of the latest audio chunk Jarvis played; only meaningful while speaking. */
+    val outputLevel: StateFlow<Float> = _outputLevel.asStateFlow()
+
     private val _activityLog = MutableStateFlow<List<String>>(emptyList())
     val activityLog: StateFlow<List<String>> = _activityLog.asStateFlow()
 
@@ -434,6 +439,7 @@ class JarvisEngine(
         when (event) {
             is LiveEvent.AudioChunk -> {
                 _state.value = JarvisState.SPEAKING
+                _outputLevel.value = pcm16Level(event.pcm16)
                 withContext(Dispatchers.IO) { audio.playChunk(event.pcm16) }
             }
             is LiveEvent.OutputTranscript -> {

@@ -1,5 +1,13 @@
 package com.jarvis.android.ui
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -46,6 +54,7 @@ fun HudScreen(
     onOpenSettings: () -> Unit,
     onOpenMemory: () -> Unit,
     onOpenChat: () -> Unit = {},
+    outputLevel: Float = 0f,
     conversation: List<ConversationMessage> = emptyList(),
     sessionReady: Boolean = false,
     onSendText: suspend (String) -> Boolean = { false },
@@ -81,7 +90,7 @@ fun HudScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(24.dp))
-            ReactorCore(state = state, onTap = {
+            ReactorCore(state = state, outputLevel = outputLevel, onTap = {
                 when (state) {
                     JarvisState.ASLEEP, JarvisState.ERROR -> onStart()
                     else -> onToggleAwake()
@@ -172,7 +181,7 @@ fun HudScreen(
 }
 
 @Composable
-private fun ReactorCore(state: JarvisState, onTap: () -> Unit) {
+private fun ReactorCore(state: JarvisState, outputLevel: Float, onTap: () -> Unit) {
     val color = when (state) {
         JarvisState.ASLEEP -> MaterialTheme.colorScheme.surfaceVariant
         JarvisState.CONNECTING -> MaterialTheme.colorScheme.secondary
@@ -181,9 +190,29 @@ private fun ReactorCore(state: JarvisState, onTap: () -> Unit) {
         JarvisState.SPEAKING -> MaterialTheme.colorScheme.primary
         JarvisState.ERROR -> Color(0xFFE05252)
     }
+    val motion = reactorMotion(state)
+    val breath by rememberInfiniteTransition(label = "reactor").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(motion.periodMs, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "breath",
+    )
+    val voice by animateFloatAsState(
+        targetValue = if (motion.followsVoice) outputLevel else 0f,
+        animationSpec = tween(90),
+        label = "voice",
+    )
     Box(
         modifier = Modifier
             .size(160.dp)
+            .graphicsLayer {
+                val scale = 1f + motion.pulse * breath
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(CircleShape)
             .clickable(onClick = onTap)
             .background(color.copy(alpha = 0.25f))
@@ -195,6 +224,11 @@ private fun ReactorCore(state: JarvisState, onTap: () -> Unit) {
         Box(
             modifier = Modifier
                 .size(72.dp)
+                .graphicsLayer {
+                    val scale = 1f + motion.pulse * 2f * breath + VOICE_GAIN * voice
+                    scaleX = scale
+                    scaleY = scale
+                }
                 .clip(CircleShape)
                 .background(color)
         )

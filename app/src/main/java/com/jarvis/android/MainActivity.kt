@@ -89,6 +89,7 @@ class MainActivity : ComponentActivity() {
                         val log by container.engine.activityLog.collectAsState()
                         val conversation by container.engine.conversation.collectAsState()
                         val sessionReady by container.engine.sessionReady.collectAsState()
+                        val outputLevel by container.engine.outputLevel.collectAsState()
                         val confirm by container.confirmManager.pending.collectAsState()
 
                         HudScreen(
@@ -114,6 +115,7 @@ class MainActivity : ComponentActivity() {
                             onOpenSettings = { navController.navigate("settings") },
                             onOpenMemory = { navController.navigate("memory") },
                             onOpenChat = { navController.navigate("chat") },
+                            outputLevel = outputLevel,
                             conversation = conversation,
                             sessionReady = sessionReady,
                             onSendText = { container.engine.sendText(it) },
