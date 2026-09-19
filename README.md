@@ -11,11 +11,12 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 Version 0.3.0. The voice loop works end to end on a real phone: microphone →
 Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The
-unit-test suite (96 tests, `./gradlew :app:testDebugUnitTest`) passes. This is an
+unit-test suite (98 tests, `./gradlew :app:testDebugUnitTest`) passes. This is an
 actively in-progress port; see "Not ported" and "Known gaps" below.
 
-Still unverified on a device: reconnection after a real network drop (unit-tested only),
-reminders re-armed after a reboot, timers, flight search, and the wake word.
+Still unverified on a device: reminders re-armed after a reboot, timers, flight search, and
+the wake word. Reconnection after a real network drop was tested by cutting the phone's Wi-Fi
+(see "Connection drops" below).
 
 ## Build variants
 
@@ -101,10 +102,19 @@ established).
 ### Connection drops and stored key
 
 If the connection drops mid-session, the engine reconnects by itself: up to 3 quick attempts
-(1 s, 2 s, 4 s backoff), resuming with the latest server resumption handle so the model keeps
-its context. If the server refuses the handle it starts a fresh session and says so in the
-activity log. A fresh connection that fails during setup (bad key, unsupported model) is not
-retried. The handle lives in memory only and is discarded when you stop the session.
+(1 s, 2 s, 4 s backoff), first trying to resume with the latest server resumption handle. If the
+server closes that resumed attempt, it starts a fresh session instead and says so in the activity
+log. A fresh connection that fails during setup (bad key, unsupported model) is not retried. The
+handle lives in memory only and is discarded when you stop the session.
+
+Measured on a real phone (Wi-Fi cut while a session was running, `models/gemini-3.8-live`): the
+drop is detected after about 6 s and the app is back on a working session a few seconds later
+without user action. **Resuming with the handle did not work**: the server closed every resumed
+attempt with `1011 Internal error encountered`, so the fresh session did not carry the model's
+context (the on-screen transcript is kept, the model does not remember it). The model may still
+answer from long-term memory when it saved a fact with `remember_fact`, which makes "does it
+remember?" questions a poor test of resumption. Whether other Live models resume correctly has
+not been checked.
 
 The API key is stored encrypted with an Android Keystore key, which can never be backed up, so
 the encrypted file is excluded from backups too. If it is ever unreadable anyway (for example

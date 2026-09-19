@@ -40,12 +40,36 @@ class SessionResumptionTest {
     }
 
     @Test
-    fun `a refused handle falls back to a fresh session once`() {
+    fun `a handle refused by the server falls back to a fresh session once`() {
         val r = retry(
-            decideReconnect(wasReady = false, hadHandle = true, hasHandle = true, liveMs = 0, consecutiveDrops = 1)
+            decideReconnect(
+                wasReady = false, hadHandle = true, hasHandle = true, liveMs = 0,
+                consecutiveDrops = 1, serverClosed = true,
+            )
         )
         assertFalse(r.useHandle)
         assertEquals(2, r.drops)
+    }
+
+    @Test
+    fun `a resumed attempt that fails on the network keeps its handle`() {
+        val r = retry(
+            decideReconnect(
+                wasReady = false, hadHandle = true, hasHandle = true, liveMs = 0,
+                consecutiveDrops = 1, serverClosed = false,
+            )
+        )
+        assertTrue(r.useHandle)
+        assertEquals(2, r.drops)
+    }
+
+    @Test
+    fun `repeated transport failures on a resumed attempt still end the loop`() {
+        val decision = decideReconnect(
+            wasReady = false, hadHandle = true, hasHandle = true, liveMs = 0,
+            consecutiveDrops = MAX_CONSECUTIVE_DROPS, serverClosed = false,
+        )
+        assertEquals(ReconnectDecision.GiveUp, decision)
     }
 
     @Test

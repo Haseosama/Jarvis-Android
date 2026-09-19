@@ -78,6 +78,8 @@ internal class ConnectionDropped(
     val wasReady: Boolean,
     val liveMs: Long,
     val detail: String,
+    /** The server itself closed the socket (a close frame), as opposed to a transport failure. */
+    val serverClosed: Boolean = false,
 ) : Exception(detail)
 
 internal sealed interface ReconnectDecision {
@@ -92,8 +94,10 @@ internal sealed interface ReconnectDecision {
  *
  * - A fresh connection that never became ready is a configuration or authentication
  *   problem (bad key, unsupported model, no network at all), not a transient drop: give up.
- * - A resumed connection that never became ready means the handle was refused (for example
- *   expired): retry once from scratch, without the handle.
+ * - A resumed connection that never became ready because the server closed it means the
+ *   handle was refused (for example expired): retry once from scratch, without the handle.
+ *   If it failed for a transport reason (the network was still changing), the handle is
+ *   probably still good: retry with it.
  * - A connection that was ready and dropped is retried, resuming with the last resumable
  *   handle when there is one, with a short exponential backoff. A connection that stayed
  *   ready for [HEALTHY_SESSION_MS] resets the counter, so a long-running session can
@@ -106,12 +110,13 @@ internal fun decideReconnect(
     hasHandle: Boolean,
     liveMs: Long,
     consecutiveDrops: Int,
+    serverClosed: Boolean = false,
 ): ReconnectDecision {
     if (!wasReady && !hadHandle) return ReconnectDecision.GiveUp
     val drops = if (wasReady && liveMs >= HEALTHY_SESSION_MS) 1 else consecutiveDrops + 1
     if (drops > MAX_CONSECUTIVE_DROPS) return ReconnectDecision.GiveUp
     val delayMs = (RECONNECT_BASE_DELAY_MS shl (drops - 1)).coerceAtMost(RECONNECT_MAX_DELAY_MS)
-    val useHandle = hasHandle && wasReady
+    val useHandle = hasHandle && (wasReady || !serverClosed)
     return ReconnectDecision.Retry(delayMs, useHandle, drops)
 }
 
@@ -268,12 +273,13 @@ class JarvisEngine(
         _state.value = JarvisState.ASLEEP
     }
 
-    private fun dropped(detail: String): ConnectionDropped {
+    private fun dropped(detail: String, serverClosed: Boolean = false): ConnectionDropped {
         val readyAt = connectionReadyAt
         return ConnectionDropped(
             wasReady = readyAt > 0L,
             liveMs = if (readyAt > 0L) android.os.SystemClock.elapsedRealtime() - readyAt else 0L,
             detail = detail,
+            serverClosed = serverClosed,
         )
     }
 
@@ -309,6 +315,7 @@ class JarvisEngine(
                         hasHandle = resumeHandle != null,
                         liveMs = drop.liveMs,
                         consecutiveDrops = consecutiveDrops,
+                        serverClosed = drop.serverClosed,
                     )
                 ) {
                     ReconnectDecision.GiveUp -> {
@@ -323,8 +330,8 @@ class JarvisEngine(
                         handleToSend = if (decision.useHandle) resumeHandle else null
                         _state.value = JarvisState.CONNECTING
                         log(
-                            if (decision.useHandle) "Connexion perdue : reprise de la session…"
-                            else "Connexion perdue : nouvelle session, le contexte n’a pas pu être conservé."
+                            if (decision.useHandle) "Connexion perdue (${drop.detail}) : reprise de la session…"
+                            else "Connexion perdue (${drop.detail}) : nouvelle session, le contexte n’a pas pu être conservé."
                         )
                         delay(decision.delayMs)
                     }
@@ -409,7 +416,7 @@ class JarvisEngine(
                                 resumeHandle = event.handle
                             }
                             is LiveEvent.Error -> throw dropped("Erreur réseau.")
-                            is LiveEvent.Closed -> throw dropped("Session fermée (${event.code}) : ${event.reason.take(160)}")
+                            is LiveEvent.Closed -> throw dropped("Session fermée (${event.code}) : ${event.reason.take(160)}", serverClosed = true)
                             else -> if (ready.isCompleted) handleEvent(event, connection)
                         }
                     }
