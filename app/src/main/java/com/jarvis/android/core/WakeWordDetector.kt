@@ -29,7 +29,6 @@ class WakeWordDetector(
     private var recognizer: SpeechRecognizer? = null
     @Volatile private var running = false
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val wakePhrases = listOf("hey jarvis", "hey, jarvis", "ok jarvis", "okay jarvis")
 
     fun start() {
         if (running) return
@@ -38,10 +37,15 @@ class WakeWordDetector(
     }
 
     fun stop() {
+        if (!running && recognizer == null) return
         running = false
         mainHandler.post {
-            recognizer?.destroy()
-            recognizer = null
+            try {
+                recognizer?.destroy()
+            } catch (_: Exception) {
+            } finally {
+                recognizer = null
+            }
         }
     }
 
@@ -55,6 +59,8 @@ class WakeWordDetector(
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "fr-FR")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
@@ -68,19 +74,28 @@ class WakeWordDetector(
             override fun onEndOfSpeech() {}
 
             override fun onError(error: Int) {
-                sr.destroy()
+                try {
+                    sr.destroy()
+                } catch (_: Exception) {
+                }
                 if (running) mainHandler.postDelayed({ listenOnce() }, 250)
             }
 
             override fun onResults(results: Bundle?) {
                 checkMatches(results)
-                sr.destroy()
+                try {
+                    sr.destroy()
+                } catch (_: Exception) {
+                }
                 if (running) mainHandler.post { listenOnce() }
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
                 if (checkMatches(partialResults)) {
-                    sr.stopListening()
+                    try {
+                        sr.stopListening()
+                    } catch (_: Exception) {
+                    }
                 }
             }
 
@@ -90,12 +105,30 @@ class WakeWordDetector(
         sr.startListening(intent)
     }
 
+    internal fun isWakePhrase(text: String): Boolean = Companion.isWakePhrase(text)
+
     private fun checkMatches(bundle: Bundle?): Boolean {
         val matches = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION) ?: return false
-        val hit = matches.any { m -> wakePhrases.any { m.lowercase().contains(it) } }
-        if (hit) {
+        val hit = matches.any { isWakePhrase(it) }
+        if (hit && running) {
+            running = false
+            try {
+                recognizer?.destroy()
+            } catch (_: Exception) {
+            } finally {
+                recognizer = null
+            }
             mainHandler.post { onDetect() }
         }
         return hit
+    }
+
+    companion object {
+        private val wakePhrases = listOf("hey jarvis", "hey, jarvis", "hé jarvis", "ok jarvis", "okay jarvis")
+
+        internal fun isWakePhrase(text: String): Boolean {
+            val lower = text.lowercase()
+            return wakePhrases.any { lower.contains(it) }
+        }
     }
 }

@@ -33,6 +33,7 @@ object LiveProtocol {
             put("generationConfig", buildJsonObject {
                 putJsonArray("responseModalities") { add("AUDIO") }
                 put("speechConfig", buildJsonObject {
+                    put("languageCode", "fr")
                     put("voiceConfig", buildJsonObject {
                         put("prebuiltVoiceConfig", buildJsonObject {
                             put("voiceName", voiceName)

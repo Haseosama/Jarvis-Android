@@ -11,6 +11,17 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.jarvis.android.core.ConversationMessage
+import com.jarvis.android.core.ConversationRole
+import com.jarvis.android.core.MAX_MESSAGE_CHARS
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,26 +44,43 @@ fun HudScreen(
     onCancelConfirm: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenMemory: () -> Unit,
+    conversation: List<ConversationMessage> = emptyList(),
+    sessionReady: Boolean = false,
+    onSendText: suspend (String) -> Boolean = { false },
 ) {
+    var draft by remember { mutableStateOf("") }
+    var sending by remember { mutableStateOf(false) }
+    var sendError by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val conversationScroll = rememberLazyListState()
+    LaunchedEffect(state) {
+        if (state == JarvisState.ASLEEP) {
+            draft = ""
+            sendError = false
+        }
+    }
+    LaunchedEffect(conversation) {
+        if (conversation.isNotEmpty()) conversationScroll.animateScrollToItem(conversation.lastIndex)
+    }
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("JARVIS") },
                 actions = {
-                    IconButton(onClick = onOpenMemory) { Icon(Icons.Filled.Info, contentDescription = "Memory") }
-                    IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Menu, contentDescription = "Settings") }
+                    IconButton(onClick = onOpenMemory) { Icon(Icons.Filled.Info, contentDescription = "Mémoire") }
+                    IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Menu, contentDescription = "Paramètres") }
                 },
             )
         },
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).imePadding().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(24.dp))
             ReactorCore(state = state, onTap = {
                 when (state) {
-                    JarvisState.ASLEEP -> onStart()
+                    JarvisState.ASLEEP, JarvisState.ERROR -> onStart()
                     else -> onToggleAwake()
                 }
             })
@@ -66,12 +94,72 @@ fun HudScreen(
 
             Spacer(Modifier.height(24.dp))
             if (state != JarvisState.ASLEEP) {
-                OutlinedButton(onClick = onStop) { Text("Stop session") }
+                OutlinedButton(onClick = onStop) { Text("Arrêter la session") }
             }
 
-            Spacer(Modifier.height(16.dp))
-            Text("Activity", style = MaterialTheme.typography.labelLarge)
-            LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            Spacer(Modifier.height(12.dp))
+            Text("Conversation éphémère", style = MaterialTheme.typography.labelLarge)
+            LazyColumn(
+                state = conversationScroll,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            ) {
+                if (conversation.isEmpty()) {
+                    item { Text("Les transcriptions apparaîtront ici.", style = MaterialTheme.typography.bodySmall) }
+                }
+                items(conversation) { message ->
+                    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        val (label, color) = when (message.role) {
+                            ConversationRole.USER -> "Vous" to MaterialTheme.colorScheme.primary
+                            ConversationRole.ASSISTANT -> "Jarvis" to MaterialTheme.colorScheme.primary
+                            ConversationRole.SYSTEM -> "Système" to MaterialTheme.colorScheme.secondary
+                        }
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = color,
+                        )
+                        Text(message.text, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+            Text(
+                if (sessionReady) "Texte envoyé dans la session vocale · microphone actif"
+                else "Démarrez une session vocale pour envoyer du texte.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it.take(MAX_MESSAGE_CHARS); sendError = false },
+                    modifier = Modifier.weight(1f),
+                    enabled = sessionReady && !sending,
+                    label = { Text("Votre message") },
+                    maxLines = 3,
+                )
+                TextButton(
+                    enabled = sessionReady && draft.isNotBlank() && !sending,
+                    onClick = {
+                        val text = draft
+                        sending = true
+                        scope.launch {
+                            try {
+                                if (onSendText(text)) {
+                                    draft = ""
+                                    sendError = false
+                                } else {
+                                    sendError = true
+                                }
+                            } finally {
+                                sending = false
+                            }
+                        }
+                    },
+                ) { Text("Envoyer") }
+            }
+            if (sendError) Text("Message non envoyé. Réessayez une fois connecté.", color = MaterialTheme.colorScheme.error)
+            Spacer(Modifier.height(8.dp))
+            Text("Activité", style = MaterialTheme.typography.labelLarge)
+            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 72.dp)) {
                 items(activityLog.asReversed()) { line ->
                     Text(line, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 2.dp))
                 }
@@ -109,7 +197,13 @@ private fun ReactorCore(state: JarvisState, onTap: () -> Unit) {
         )
     }
     Spacer(Modifier.height(8.dp))
-    TextButton(onClick = onTap) { Text(if (state == JarvisState.ASLEEP) "Tap to start" else "Tap to sleep/wake") }
+    TextButton(onClick = onTap) {
+        Text(when (state) {
+            JarvisState.ASLEEP -> "Démarrer"
+            JarvisState.ERROR -> "Réessayer"
+            else -> "Mettre en veille"
+        })
+    }
 }
 
 @Composable
@@ -120,19 +214,19 @@ private fun ConfirmBanner(pending: PendingConfirmation, onConfirm: () -> Unit, o
             Text(pending.detail, style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
             Row {
-                Button(onClick = onConfirm) { Text("CONFIRM") }
+                Button(onClick = onConfirm) { Text("Confirmer") }
                 Spacer(Modifier.width(8.dp))
-                OutlinedButton(onClick = onCancel) { Text("Cancel") }
+                OutlinedButton(onClick = onCancel) { Text("Annuler") }
             }
         }
     }
 }
 
 private fun stateLabel(state: JarvisState): String = when (state) {
-    JarvisState.ASLEEP -> "Asleep"
-    JarvisState.CONNECTING -> "Connecting…"
-    JarvisState.LISTENING -> "Listening"
-    JarvisState.THINKING -> "Thinking…"
-    JarvisState.SPEAKING -> "Speaking"
-    JarvisState.ERROR -> "Error"
+    JarvisState.ASLEEP -> "En veille"
+    JarvisState.CONNECTING -> "Connexion…"
+    JarvisState.LISTENING -> "À l’écoute"
+    JarvisState.THINKING -> "Réflexion…"
+    JarvisState.SPEAKING -> "Réponse en cours"
+    JarvisState.ERROR -> "Session interrompue"
 }

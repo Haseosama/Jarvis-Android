@@ -7,6 +7,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
+import java.nio.file.StandardCopyOption
+import java.text.Normalizer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,21 +39,11 @@ data class MemoryStore(
     )
 }
 
-/**
- * Persistent fact store — Android port of `memory/memory_manager.py`.
- *
- * Same design as the desktop version, ported line-for-line in spirit:
- *   - MEMORY_MAX_CHARS is a runaway guard, not a feature limit — nothing normal
- *     reaches it, and a trim is reported to the activity log, never silent.
- *   - Only a budgeted "core" (identity + most-recently-updated facts, capped
- *     per category) rides in every session's system prompt; the rest is
- *     fetched on demand via [searchMemory], with an index of leftover keys so
- *     the model knows what it can still look up.
- */
-class MemoryManager(context: Context) {
-    private val file = File(context.filesDir, "long_term_memory.json")
+class MemoryManager(private val file: File) {
+    constructor(context: Context) : this(File(context.filesDir, "long_term_memory.json"))
+
     private val mutex = Mutex()
-    private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
+    private val json = Json { prettyPrint = true }
 
     private val identityFields = listOf("name", "age", "birthday", "city", "job", "language", "school", "nationality")
     private val categoryLabels = linkedMapOf(
@@ -70,37 +66,64 @@ class MemoryManager(context: Context) {
     suspend fun load(): MemoryStore = mutex.withLock { loadLocked() }
 
     private fun loadLocked(): MemoryStore {
-        if (!file.exists()) return MemoryStore()
+        val reader = try {
+            Files.newBufferedReader(file.toPath(), Charsets.UTF_8)
+        } catch (e: NoSuchFileException) {
+            return MemoryStore()
+        }
+        val text = reader.use {
+            val buffer = CharArray(8192)
+            val content = StringBuilder()
+            while (true) {
+                val count = it.read(buffer)
+                if (count < 0) break
+                if (content.length + count > memoryMaxChars) {
+                    throw IOException("Fichier mémoire trop volumineux ; aucune modification effectuée.")
+                }
+                content.append(buffer, 0, count)
+            }
+            content.toString()
+        }
         return try {
-            json.decodeFromString(MemoryStore.serializer(), file.readText())
-        } catch (e: Exception) {
-            MemoryStore()
+            json.decodeFromString(MemoryStore.serializer(), text)
+        } catch (e: IllegalArgumentException) {
+            throw IOException("Fichier mémoire illisible ou incompatible ; aucune modification effectuée.", e)
         }
     }
 
-    private fun saveLocked(store: MemoryStore, onTrim: ((String) -> Unit)?) {
-        var text = json.encodeToString(store)
+    private fun saveLocked(store: MemoryStore, onTrim: ((String) -> Unit)? = null) {
+        val text = json.encodeToString(store)
         if (text.length > memoryMaxChars) {
-            val entries = mutableListOf<Triple<String, String, MemEntry>>()
-            store.categories().forEach { (cat, items) -> items.forEach { (k, e) -> entries.add(Triple(cat, k, e)) } }
-            entries.sortBy { it.third.updated }
-            val dropped = mutableListOf<String>()
-            for ((cat, key, _) in entries) {
-                text = json.encodeToString(store)
-                if (text.length <= memoryMaxChars) break
-                store.categories()[cat]?.remove(key)
-                dropped += "$cat/$key"
-            }
-            text = json.encodeToString(store)
-            if (dropped.isNotEmpty()) {
-                onTrim?.invoke("Memory full — forgot ${dropped.size} oldest entries (${dropped.take(3).joinToString(", ")}${if (dropped.size > 3) "…" else ""})")
-            }
+            val message = "Mémoire pleine ; écriture refusée pour préserver les souvenirs existants."
+            onTrim?.invoke(message)
+            throw IOException(message)
         }
-        file.parentFile?.mkdirs()
-        file.writeText(text)
+        val parent = file.absoluteFile.parentFile ?: throw IOException("Dossier mémoire introuvable.")
+        Files.createDirectories(parent.toPath())
+        val temporary = File.createTempFile("memory-", ".tmp", parent)
+        try {
+            FileOutputStream(temporary).use {
+                it.write(text.toByteArray(Charsets.UTF_8))
+                it.fd.sync()
+            }
+            Files.move(
+                temporary.toPath(), file.toPath(),
+                StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING,
+            )
+        } finally {
+            temporary.delete()
+        }
     }
 
-    private fun truncate(v: String) = if (v.length > maxValueLength) v.take(maxValueLength).trimEnd() + "…" else v
+    private fun truncate(v: String): String {
+        if (v.length <= maxValueLength) return v
+        val end = if (v[maxValueLength - 1].isHighSurrogate() && v[maxValueLength].isLowSurrogate())
+            maxValueLength - 1 else maxValueLength
+        return v.take(end).trimEnd() + "…"
+    }
+
+    internal fun normalizeCategory(category: String): String =
+        category.trim().lowercase(Locale.ROOT).takeIf { it in validCategories } ?: "notes"
 
     /** category -> key -> newValue. Writes are additive/overwriting, never destructive of other keys. */
     suspend fun update(update: Map<String, Map<String, String>>, onTrim: ((String) -> Unit)? = null): MemoryStore =
@@ -111,7 +134,7 @@ class MemoryManager(context: Context) {
                 if (cat !in validCategories) continue
                 val target = store.categories()[cat] ?: continue
                 for ((key, value) in kv) {
-                    if (value.isBlank()) continue
+                    if (key.isBlank() || value.isBlank()) continue
                     val newVal = truncate(value)
                     val existing = target[key]
                     if (existing?.value != newVal) {
@@ -124,19 +147,58 @@ class MemoryManager(context: Context) {
             store
         }
 
-    suspend fun remember(key: String, value: String, category: String = "notes"): String {
-        val cat = if (category in validCategories) category else "notes"
-        update(mapOf(cat to mapOf(key to value)))
-        return "Remembered: $cat/$key = $value"
+    internal data class Change(
+        val category: String,
+        val key: String,
+        val before: MemEntry?,
+        val after: MemEntry?,
+        val message: String,
+    ) {
+        val changed: Boolean get() = before != after
     }
 
-    suspend fun forget(key: String, category: String = "notes"): String = mutex.withLock {
+    suspend fun remember(key: String, value: String, category: String = "notes"): String =
+        rememberChange(key, value, category).message
+
+    internal suspend fun rememberChange(key: String, value: String, category: String = "notes"): Change =
+        mutex.withLock {
+            require(key.isNotBlank() && value.isNotBlank()) { "Une clé et une valeur sont nécessaires." }
+            val cat = normalizeCategory(category)
+            val store = loadLocked()
+            val target = store.categories().getValue(cat)
+            val before = target[key]
+            val storedValue = truncate(value)
+            val after = if (before != null && before.value == storedValue) before else MemEntry(storedValue, today())
+            if (before != after) {
+                target[key] = after
+                saveLocked(store)
+            }
+            Change(cat, key, before, after, "Mémorisé : $cat/$key = $storedValue")
+        }
+
+    suspend fun forget(key: String, category: String = "notes"): String =
+        forgetChange(key, category).message
+
+    internal suspend fun forgetChange(key: String, category: String = "notes"): Change = mutex.withLock {
+        require(key.isNotBlank()) { "Une clé est nécessaire." }
+        val cat = normalizeCategory(category)
         val store = loadLocked()
-        val target = store.categories()[category] ?: return@withLock "Not found: $category/$key"
-        return@withLock if (target.remove(key) != null) {
-            saveLocked(store, null)
-            "Forgotten: $category/$key"
-        } else "Not found: $category/$key"
+        val before = store.categories().getValue(cat).remove(key)
+        if (before != null) saveLocked(store)
+        Change(cat, key, before, null, if (before == null) "Introuvable : $cat/$key" else "Supprimé : $cat/$key")
+    }
+
+    internal suspend fun restore(change: Change): String = mutex.withLock {
+        val store = loadLocked()
+        val target = store.categories().getValue(change.category)
+        check(target[change.key] == change.after) {
+            "Ce souvenir a changé depuis cette action ; annulation refusée."
+        }
+        if (change.changed) {
+            if (change.before == null) target.remove(change.key) else target[change.key] = change.before
+            saveLocked(store)
+        }
+        "Annulé : ${change.category}/${change.key}"
     }
 
     private fun pretty(key: String) = key.replace('_', ' ').trim()
@@ -236,14 +298,14 @@ class MemoryManager(context: Context) {
 
     suspend fun search(query: String, limit: Int = 8): String {
         val store = load()
-        val words = query.lowercase().split(Regex("[^\\w]+")).filter { it.length > 1 }
+        val words = searchText(query).split(Regex("[^\\p{L}\\p{N}\\p{M}]+")).filter { it.isNotEmpty() }.distinct()
 
         data class Row(val score: Int, val cat: String, val key: String, val value: String)
         val rows = mutableListOf<Row>()
         for ((cat, items) in store.categories()) {
             for ((key, entry) in items) {
                 if (entry.value.isBlank()) continue
-                val s = if (words.isNotEmpty()) score(words, cat, key, entry.value) else 1
+                val s = if (query.isBlank()) 1 else score(words, cat, key, entry.value)
                 if (s > 0) rows += Row(s, cat, key, entry.value)
             }
         }
@@ -257,9 +319,12 @@ class MemoryManager(context: Context) {
         return "$head\n${lines.joinToString("\n")}$more"
     }
 
+    private fun searchText(value: String): String =
+        Normalizer.normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
+
     private fun score(words: List<String>, cat: String, key: String, value: String): Int {
-        val hayKey = pretty(key).lowercase()
-        val hayVal = value.lowercase()
+        val hayKey = searchText(pretty(key))
+        val hayVal = searchText(value)
         var s = 0
         for (w in words) {
             if (w.isEmpty()) continue

@@ -67,15 +67,15 @@ class ConfigStore(private val context: Context) {
     companion object {
         private const val KEY_API_KEY = "gemini_api_key"
         /**
-         * Gemini Flash 3.6's Live variant, as requested. There's no
-         * Google doc page confirming this exact id (their docs reference
-         * "Gemini 3.8 Flash" as of this writing, and preview ids shift), so if
-         * setup ever rejects specifically with a "model not found"-style
-         * message, check aistudio.google.com/apikey for the exact id and
-         * override it from Settings → Advanced → Live model — no rebuild
-         * needed either way.
+         * Confirmed via this project's own ListModels response (Settings →
+         * Advanced → "List Live-capable models"): there is no
+         * "gemini-3.6-*" model that supports bidiGenerateContent for this key.
+         * "gemini-3.8-live" is the newest one that does — matches Google's own
+         * "Gemini 3.8 Flash is now available" announcement. If your account's
+         * available models differ, override this from Settings — no rebuild
+         * needed.
          */
-        const val DEFAULT_MODEL = "models/gemini-3.6-flash"
+        const val DEFAULT_MODEL = "models/gemini-3.8-live"
         val AVAILABLE_VOICES = listOf("Puck", "Charon", "Kore", "Fenrir", "Aoede")
     }
 }

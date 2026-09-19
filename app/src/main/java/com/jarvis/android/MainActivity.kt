@@ -85,6 +85,8 @@ class MainActivity : ComponentActivity() {
                     composable("hud") {
                         val state by container.engine.state.collectAsState()
                         val log by container.engine.activityLog.collectAsState()
+                        val conversation by container.engine.conversation.collectAsState()
+                        val sessionReady by container.engine.sessionReady.collectAsState()
                         val confirm by container.confirmManager.pending.collectAsState()
 
                         HudScreen(
@@ -100,6 +102,8 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onStop = {
+                                startServiceOnGrant = false
+                                container.engine.stop()
                                 stopService(Intent(this@MainActivity, JarvisVoiceService::class.java))
                             },
                             onToggleAwake = { container.engine.toggleAwake() },
@@ -107,6 +111,9 @@ class MainActivity : ComponentActivity() {
                             onCancelConfirm = { container.confirmManager.cancel() },
                             onOpenSettings = { navController.navigate("settings") },
                             onOpenMemory = { navController.navigate("memory") },
+                            conversation = conversation,
+                            sessionReady = sessionReady,
+                            onSendText = { container.engine.sendText(it) },
                         )
                     }
                     composable("settings") {
