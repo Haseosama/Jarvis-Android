@@ -32,7 +32,16 @@ private const val SETTLE_MS = 700L
 /** The connected service, or the reason the tools cannot act. */
 private suspend fun serviceOrReason(ctx: JarvisContainer): Pair<JarvisAccessibilityService?, String?> {
     if (!ctx.configStore.deviceControlEnabled.first()) return null to ERROR_CONTROL_OFF
-    val service = JarvisAccessibilityService.instance
+    var service = JarvisAccessibilityService.instance
+    if (service == null && com.jarvis.android.device.AccessibilityKeeper.ensureEnabled(ctx.appContext)) {
+        // Just switched back on by the app: give the system a moment to connect it.
+        repeat(10) {
+            if (service == null) {
+                delay(300)
+                service = JarvisAccessibilityService.instance
+            }
+        }
+    }
     if (service == null) {
         try {
             ctx.appContext.startActivity(

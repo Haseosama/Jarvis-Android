@@ -44,6 +44,7 @@ object ToolRegistry {
         ScreenScrollTool,
         ScreenSwipeTool,
         ScreenNavigateTool,
+        TakePhotoTool,
     )
 
     private val byName = ALL.associateBy { it.name }

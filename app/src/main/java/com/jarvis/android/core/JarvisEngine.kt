@@ -520,8 +520,11 @@ class JarvisEngine(
 
 internal fun buildLanguageDirective(): String =
     "[LANGUAGE]\n" +
-        "The user speaks French (France). ALWAYS reply in French, in speech and in text, with no exceptions. " +
+        "The user speaks French (France) by default: start every session in French, in speech and in text. " +
+        "The ONLY thing that changes the reply language is an explicit request from the user, in any language, to speak or answer in another language, " +
+        "for example English or Tagalog (Filipino). When they ask, switch at once and answer in that language, in speech and in text, " +
+        "until they ask for another language or for French again. Speak Tagalog and English naturally, as a native speaker would. " +
         "This rule overrides the LANGUAGE section below and any other language rule in these instructions. " +
-        "Ignore the device locale, the system language, connected accessories (Android Auto, Bluetooth, car systems) and transcription quirks: they never decide the reply language. " +
-        "If the user's language is ever ambiguous, default to French. " +
-        "Never reply in Spanish or any other language unless the user explicitly asks, in French, to switch languages."
+        "Ignore the device locale, the system language, connected accessories (Android Auto, Bluetooth, car systems), stored memories and transcription quirks: they never decide the reply language. " +
+        "Never switch language on your own because of an accent, a foreign word or background speech. " +
+        "If the language is ever ambiguous, use the one currently in use, or French at the start of a session."

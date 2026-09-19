@@ -33,7 +33,8 @@ object LiveProtocol {
             put("generationConfig", buildJsonObject {
                 putJsonArray("responseModalities") { add("AUDIO") }
                 put("speechConfig", buildJsonObject {
-                    put("languageCode", "fr")
+                    // No languageCode: it would pin the voice to one language, and the assistant must be
+                    // able to switch to English or Tagalog on request (the system prompt sets French by default).
                     put("voiceConfig", buildJsonObject {
                         put("prebuiltVoiceConfig", buildJsonObject {
                             put("voiceName", voiceName)

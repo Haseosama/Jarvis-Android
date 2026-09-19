@@ -193,6 +193,47 @@ fun SettingsScreen(
                 },
                 modifier = Modifier.padding(top = 8.dp),
             ) { Text("Ouvrir les réglages d’accessibilité") }
+            OutlinedButton(
+                onClick = {
+                    try {
+                        context.startActivity(
+                            android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                                .setData(android.net.Uri.parse("package:" + context.packageName))
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    } catch (_: Exception) {
+                    }
+                },
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text("Autoriser l’exécution en arrière-plan (batterie)") }
+            OutlinedButton(
+                onClick = {
+                    val autostart = android.content.Intent().setClassName(
+                        "com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity",
+                    ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    try {
+                        context.startActivity(autostart)
+                    } catch (_: Exception) {
+                        try {
+                            context.startActivity(
+                                android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                    .setData(android.net.Uri.parse("package:" + context.packageName))
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        } catch (_: Exception) {
+                        }
+                    }
+                },
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text("Démarrage automatique (Xiaomi) / infos de l’appli") }
+            Text(
+                "Si le service se désactive quand vous fermez l’appli ou après une mise à jour : autorisez le démarrage automatique et l’exécution en arrière-plan avec les deux boutons ci-dessus, " +
+                    "et verrouillez l’appli dans la vue des applications récentes. " +
+                    if (com.jarvis.android.device.AccessibilityKeeper.canSelfEnable(context)) "Réactivation automatique : autorisée."
+                    else "Pour une réactivation automatique, autorisez une fois depuis un ordinateur : adb shell pm grant ${context.packageName} android.permission.WRITE_SECURE_SETTINGS",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
             Text(
                 "Android n’autorise le contrôle des autres applications que via un service d’accessibilité, à activer vous-même : Paramètres > Accessibilité > Jarvis : contrôle du téléphone. " +
                     "Sur Xiaomi (MIUI), si l’option est grisée : Paramètres > Applications > Jarvis > menu ⋮ > Autoriser les paramètres restreints. " +

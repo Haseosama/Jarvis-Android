@@ -35,11 +35,15 @@ class SpokenAlertTest {
     }
 
     @Test
-    fun `language directive pins french and overrides`() {
+    fun `language directive starts in french and only switches on an explicit request`() {
         val directive = buildLanguageDirective()
         assertTrue(directive.contains("French"))
+        assertTrue(directive.contains("start every session in French"))
+        assertTrue(directive.contains("explicit request"))
+        assertTrue(directive.contains("English"))
+        assertTrue(directive.contains("Tagalog"))
         assertTrue(directive.contains("overrides"))
-        assertTrue(directive.contains("Spanish"))
         assertTrue(directive.contains("Android Auto"))
+        assertTrue(directive.contains("Never switch language on your own"))
     }
 }

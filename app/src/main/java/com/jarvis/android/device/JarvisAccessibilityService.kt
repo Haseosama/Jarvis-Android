@@ -198,6 +198,13 @@ class JarvisAccessibilityService : AccessibilityService() {
         return if (dispatch(path, 300)) ActionResult.Done else ActionResult.Failed("Geste refusé par le système.")
     }
 
+    /** Taps at a screen position given as fractions of the screen size (0..1). */
+    internal suspend fun tapAtFraction(x: Float, y: Float): ActionResult {
+        val metrics = resources.displayMetrics
+        return if (dispatchTap(metrics.widthPixels * x, metrics.heightPixels * y)) ActionResult.Done
+        else ActionResult.Failed("Geste refusé par le système.")
+    }
+
     internal fun global(action: String): ActionResult {
         val code = when (action) {
             "back" -> GLOBAL_ACTION_BACK

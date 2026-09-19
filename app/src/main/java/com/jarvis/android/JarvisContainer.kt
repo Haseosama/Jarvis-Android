@@ -40,6 +40,7 @@ class JarvisContainer(val appContext: Context) {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     init {
+        com.jarvis.android.device.AccessibilityKeeper.ensureEnabled(appContext)
         val notifier = com.jarvis.android.core.ConfirmNotifier(appContext)
         appScope.launch { confirmManager.pending.collect { notifier.show(it) } }
     }

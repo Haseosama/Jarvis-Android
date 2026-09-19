@@ -191,6 +191,26 @@ notification, typing into a real text field, Photos/Messenger flows, and anythin
 (the service has to be enabled there first). Apps that mark their window secure or draw their own
 UI without accessibility labels (some games, banking apps) may not be readable.
 
+**Taking a photo.** `take_photo` opens the camera and presses the shutter through the accessibility
+service (`front` for the selfie camera). It reports exactly what it did and never claims the picture
+exists: a phone app cannot see whether the camera saved it. If the service is off, or the shutter
+button cannot be found (first-run screens, permission dialogs, which Jarvis does not answer for you),
+it says no photo was taken. The system prompt also forbids announcing any action as done unless the
+tool result says so. Checked on an emulator: a real photo file was created by the shutter press.
+
+**Keeping the service on.** Xiaomi/MIUI and some other systems switch an accessibility service off
+when the app is updated (a reinstall from a computer does it too) or killed. Jarvis can switch its own
+service back on at start-up and when a tool finds it off, but Android only allows that after a one-time
+grant from a computer: `adb shell pm grant <package> android.permission.WRITE_SECURE_SETTINGS`
+(`device/AccessibilityKeeper.kt`; the settings page says whether it is granted). Without it, re-enable the
+service by hand. The settings also have buttons for the battery exemption and the MIUI auto-start
+screen, which stop MIUI from killing the app in the background.
+
+**Languages.** Sessions start in French. Asking, in any language, to speak English or Tagalog (or another
+language) switches the replies and the voice until you ask for another one; nothing switches on its own
+because of an accent, the phone's locale or a stored memory. The fixed `languageCode` was removed from the
+Live setup so the voice is not pinned to French. Not yet heard with a real voice session.
+
 The debug build also contains a receiver that runs a tool from adb (`DebugToolReceiver`), protected
 by the `DUMP` permission so only adb can call it; it is not in the release build.
 
