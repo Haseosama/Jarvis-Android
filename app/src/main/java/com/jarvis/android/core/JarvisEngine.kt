@@ -30,11 +30,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicLong
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 enum class JarvisState { ASLEEP, CONNECTING, LISTENING, THINKING, SPEAKING, ERROR }
 
@@ -296,7 +291,7 @@ class JarvisEngine(
             }
             val model = container.configStore.snapshotModel()
             val voice = container.configStore.snapshotVoice()
-            val instruction = withContext(Dispatchers.IO) { buildSystemInstruction() }
+            val instruction = withContext(Dispatchers.IO) { buildSystemInstruction(container) }
             currentCoroutineContext().ensureActive()
 
             resumeHandle = null
@@ -477,32 +472,6 @@ class JarvisEngine(
         const val AUTO_SLEEP_MS = 120_000L
         const val HANDSHAKE_TIMEOUT_MS = 20_000L
         const val MAX_PENDING_ANNOUNCEMENTS = 5
-    }
-
-    private suspend fun buildSystemInstruction(): String {
-        val assistantName = container.configStore.snapshotAssistantName()
-        val userName = container.configStore.snapshotUserName()
-        val memoryBlock = container.memoryManager.formatForPrompt()
-        val base = readAsset("system_prompt.txt")
-
-        val now = SimpleDateFormat("EEEE, MMMM d, yyyy — hh:mm a", Locale.getDefault()).format(Date())
-        val timeCtx = "[CURRENT DATE & TIME]\nRight now it is: $now\nUse this to calculate exact times for reminders.\n"
-
-        val addr = if (userName.isNotBlank()) "ADDRESS: Always call the user '$userName'."
-        else "ADDRESS: Address the user with the ordinary respectful form for a superior in the language you are currently speaking."
-        val identityCtx = "[IDENTITY]\nYour name is $assistantName. Always refer to yourself as $assistantName.\n$addr\n"
-
-        return listOf(buildLanguageDirective(), timeCtx, identityCtx, memoryBlock, base).filter { it.isNotBlank() }.joinToString("\n")
-    }
-
-    private fun readAsset(name: String): String {
-        return try {
-            container.appContext.assets.open(name).use { stream ->
-                BufferedReader(InputStreamReader(stream)).readText()
-            }
-        } catch (e: Exception) {
-            ""
-        }
     }
 }
 

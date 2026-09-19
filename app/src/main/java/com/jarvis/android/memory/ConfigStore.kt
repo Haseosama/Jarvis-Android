@@ -22,12 +22,6 @@ import java.security.KeyStore
 private val Context.dataStore by preferencesDataStore(name = "jarvis_settings")
 
 /**
- * App configuration — Android port of `config/api_keys.json` + the UI's
- * live-theming / customization settings. The Gemini API key is kept in
- * `EncryptedSharedPreferences` (AES-256, Android Keystore-backed key) rather
- * than plain DataStore, since it is a credential, not a preference.
- */
-/**
  * Opens the encrypted store, and if it cannot be decrypted (the file survived a reinstall or
  * restore but its Keystore key did not) wipes it once and opens a fresh one. The stored
  * value is unrecoverable at that point anyway; the alternative is a crash on every launch.
@@ -43,6 +37,12 @@ internal fun <T> openOrReset(open: () -> T, reset: () -> Unit): T =
         open()
     }
 
+/**
+ * App configuration — Android port of `config/api_keys.json` + the UI's
+ * live-theming / customization settings. The Gemini API key is kept in
+ * `EncryptedSharedPreferences` (AES-256, Android Keystore-backed key) rather
+ * than plain DataStore, since it is a credential, not a preference.
+ */
 class ConfigStore(private val context: Context) {
 
     private val secure: SharedPreferences = openOrReset(
@@ -92,6 +92,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_USER_NAME = stringPreferencesKey("user_name")
     private val KEY_VOICE = stringPreferencesKey("voice")
     private val KEY_MODEL = stringPreferencesKey("model")
+    private val KEY_REST_MODEL = stringPreferencesKey("rest_model")
     private val KEY_THEME_HUE = floatPreferencesKey("theme_hue")
     private val KEY_WAKE_WORD = booleanPreferencesKey("wake_word_enabled")
 
@@ -99,6 +100,9 @@ class ConfigStore(private val context: Context) {
     val userName: Flow<String> = context.dataStore.data.map { it[KEY_USER_NAME] ?: "" }
     val voice: Flow<String> = context.dataStore.data.map { it[KEY_VOICE] ?: "Puck" }
     val model: Flow<String> = context.dataStore.data.map { it[KEY_MODEL] ?: DEFAULT_MODEL }
+    val restModel: Flow<String> = context.dataStore.data.map {
+        it[KEY_REST_MODEL]?.takeIf { value -> value.isNotBlank() } ?: DEFAULT_REST_MODEL
+    }
     val themeHue: Flow<Float> = context.dataStore.data.map { it[KEY_THEME_HUE] ?: 190f }
     val wakeWordEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_WORD] ?: false }
 
@@ -106,6 +110,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setUserName(v: String) = context.dataStore.edit { it[KEY_USER_NAME] = v }
     suspend fun setVoice(v: String) = context.dataStore.edit { it[KEY_VOICE] = v }
     suspend fun setModel(v: String) = context.dataStore.edit { it[KEY_MODEL] = v }
+    suspend fun setRestModel(v: String) = context.dataStore.edit { it[KEY_REST_MODEL] = v }
     suspend fun setThemeHue(v: Float) = context.dataStore.edit { it[KEY_THEME_HUE] = v }
     suspend fun setWakeWordEnabled(v: Boolean) = context.dataStore.edit { it[KEY_WAKE_WORD] = v }
 
@@ -113,6 +118,7 @@ class ConfigStore(private val context: Context) {
     suspend fun snapshotUserName() = userName.first()
     suspend fun snapshotVoice() = voice.first()
     suspend fun snapshotModel() = model.first()
+    suspend fun snapshotRestModel() = restModel.first()
 
     companion object {
         private const val KEY_API_KEY = "gemini_api_key"
@@ -127,6 +133,9 @@ class ConfigStore(private val context: Context) {
          * needed.
          */
         const val DEFAULT_MODEL = "models/gemini-3.8-live"
+
+        /** Model for the text chat, over plain generateContent (not the Live WebSocket). */
+        const val DEFAULT_REST_MODEL = "models/gemini-3.6-flash"
         val AVAILABLE_VOICES = listOf("Puck", "Charon", "Kore", "Fenrir", "Aoede")
     }
 }

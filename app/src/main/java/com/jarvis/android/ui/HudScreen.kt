@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
@@ -44,6 +45,7 @@ fun HudScreen(
     onCancelConfirm: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenMemory: () -> Unit,
+    onOpenChat: () -> Unit = {},
     conversation: List<ConversationMessage> = emptyList(),
     sessionReady: Boolean = false,
     onSendText: suspend (String) -> Boolean = { false },
@@ -67,6 +69,7 @@ fun HudScreen(
             TopAppBar(
                 title = { Text("JARVIS") },
                 actions = {
+                    IconButton(onClick = onOpenChat) { Icon(Icons.Filled.Chat, contentDescription = "Chat texte") }
                     IconButton(onClick = onOpenMemory) { Icon(Icons.Filled.Info, contentDescription = "Mémoire") }
                     IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Menu, contentDescription = "Paramètres") }
                 },
@@ -207,7 +210,7 @@ private fun ReactorCore(state: JarvisState, onTap: () -> Unit) {
 }
 
 @Composable
-private fun ConfirmBanner(pending: PendingConfirmation, onConfirm: () -> Unit, onCancel: () -> Unit) {
+internal fun ConfirmBanner(pending: PendingConfirmation, onConfirm: () -> Unit, onCancel: () -> Unit) {
     Card {
         Column(Modifier.padding(16.dp)) {
             Text(pending.actionLabel, fontWeight = FontWeight.Bold)

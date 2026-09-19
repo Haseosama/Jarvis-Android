@@ -125,6 +125,21 @@ The stored key can be removed from **Paramètres → Supprimer la clé enregistr
 confirmation). This stops the running session, erases the key and returns to the key entry
 screen; saving and deleting report whether the write really reached storage.
 
+### Text chat (REST)
+
+The chat icon in the top bar opens a text conversation over plain `generateContent`
+(`rest/`), with no microphone and no Live WebSocket, so it works even when the key has no Live
+access. It uses the same system prompt and the same tools as the voice session (a tool call is
+run, its result is sent back, up to 6 rounds); actions that need confirmation show the usual
+banner. The model is set in **Paramètres → Modèle texte (chat)** (default
+`models/gemini-3.6-flash`) and is also used by the key test. History is in memory only; the
+reset button starts over. A failed send restores the draft and shows a specific message
+(invalid key or model 400/401/403, unknown model 404, quota 429, server 5xx, no network, blocked
+answer).
+
+Checked: unit tests with a fake transport, and the error path on an emulator with a fake key.
+Not yet checked on a device with a real key.
+
 ## Known gaps / next steps
 
 - The conversation is deliberately ephemeral; `MemoryManager.saveSessionSummary` /

@@ -22,6 +22,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jarvis.android.core.JarvisVoiceService
+import com.jarvis.android.memory.ConfigStore
+import com.jarvis.android.ui.ChatScreen
 import com.jarvis.android.ui.HudScreen
 import com.jarvis.android.ui.MemoryScreen
 import com.jarvis.android.ui.OnboardingScreen
@@ -111,6 +113,7 @@ class MainActivity : ComponentActivity() {
                             onCancelConfirm = { container.confirmManager.cancel() },
                             onOpenSettings = { navController.navigate("settings") },
                             onOpenMemory = { navController.navigate("memory") },
+                            onOpenChat = { navController.navigate("chat") },
                             conversation = conversation,
                             sessionReady = sessionReady,
                             onSendText = { container.engine.sendText(it) },
@@ -133,6 +136,18 @@ class MainActivity : ComponentActivity() {
                                 }
                                 deleted
                             },
+                        )
+                    }
+                    composable("chat") {
+                        val confirm by container.confirmManager.pending.collectAsState()
+                        val restModel by container.configStore.restModel.collectAsState(initial = ConfigStore.DEFAULT_REST_MODEL)
+                        ChatScreen(
+                            chat = container.restChat,
+                            modelName = restModel,
+                            confirmPending = confirm,
+                            onConfirm = { container.confirmManager.confirm() },
+                            onCancelConfirm = { container.confirmManager.cancel() },
+                            onBack = { navController.popBackStack() },
                         )
                     }
                     composable("memory") {

@@ -6,6 +6,7 @@ import com.jarvis.android.core.JarvisEngine
 import com.jarvis.android.core.UndoManager
 import com.jarvis.android.memory.ConfigStore
 import com.jarvis.android.memory.MemoryManager
+import com.jarvis.android.rest.RestChat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,4 +40,7 @@ class JarvisContainer(val appContext: Context) {
 
     /** One engine per process, shared by the foreground service and the UI. */
     val engine: JarvisEngine by lazy { JarvisEngine(this, appScope) }
+
+    /** Text chat over generateContent; independent of the Live session. */
+    val restChat: RestChat by lazy { RestChat(this) }
 }

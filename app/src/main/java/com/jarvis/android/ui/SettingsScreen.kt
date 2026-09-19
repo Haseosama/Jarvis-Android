@@ -50,6 +50,8 @@ fun SettingsScreen(
     var assistantNameField by remember(assistantName) { mutableStateOf(assistantName) }
     var userNameField by remember(userName) { mutableStateOf(userName) }
     var modelField by remember(model) { mutableStateOf(model) }
+    val restModel by configStore.restModel.collectAsState(initial = ConfigStore.DEFAULT_REST_MODEL)
+    var restModelField by remember(restModel) { mutableStateOf(restModel) }
     var apiKeyField by remember { mutableStateOf("") }
     var voiceMenuOpen by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
@@ -158,6 +160,14 @@ fun SettingsScreen(
                 label = { Text("Modèle Live") },
                 singleLine = true,
                 supportingText = { Text("Saisissez un identifiant ou choisissez-en un dans la liste ci-dessous. Le changement s’applique au prochain démarrage de session.") },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+            OutlinedTextField(
+                value = restModelField,
+                onValueChange = { restModelField = it; scope.launch { configStore.setRestModel(it.trim()) } },
+                label = { Text("Modèle texte (chat)") },
+                singleLine = true,
+                supportingText = { Text("Utilisé par le chat texte et le test de clé (generateContent). Laissez vide pour la valeur par défaut.") },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             OutlinedTextField(
@@ -415,10 +425,12 @@ private suspend fun testApiKey(configStore: ConfigStore): String = withContext(D
     try {
         val key = validatedApiKey(configStore.getApiKey().orEmpty())
             ?: return@withContext "Aucune clé valide enregistrée."
+        val model = configStore.snapshotRestModel().let { if (it.startsWith("models/")) it else "models/$it" }
+        if (!Regex("models/[A-Za-z0-9._-]+").matches(model)) return@withContext "Nom de modèle texte invalide."
         val body = """{"contents":[{"parts":[{"text":"Say OK"}]}]}"""
             .toRequestBody("application/json".toMediaType())
         val request = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent")
+            .url("https://generativelanguage.googleapis.com/v1beta/$model:generateContent")
             .header("x-goog-api-key", key).post(body).build()
         settingsHttp.newCall(request).execute().use { response ->
             if (response.isSuccessful) "REST : succès (HTTP ${response.code}). La clé fonctionne pour l’API standard."
