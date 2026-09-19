@@ -11,7 +11,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 Version 0.3.0. The voice loop works end to end on a real phone: microphone →
 Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The
-unit-test suite (98 tests, `./gradlew :app:testDebugUnitTest`) passes. This is an
+unit-test suite (107 tests, `./gradlew :app:testDebugUnitTest`) passes. This is an
 actively in-progress port; see "Not ported" and "Known gaps" below.
 
 Still unverified on a device: reminders re-armed after a reboot, timers, flight search, and
@@ -89,9 +89,10 @@ just not done yet).
 The default Live model is `models/gemini-3.8-live` (`ConfigStore.DEFAULT_MODEL`). Which
 models accept the Live (`bidiGenerateContent`) WebSocket depends on your key and project,
 and preview ids change often. If a session closes with a "model not found" style error,
-open **Settings → Advanced**: *Tester la clé enregistrée (REST)* checks that the key works
-at all, and the *Modèles compatibles Live* button lists the exact ids your key can use.
-Paste one into the *Live model* field — no rebuild needed.
+open **Paramètres → Options avancées**: *Tester la clé enregistrée (REST)* checks that the key
+works at all, and *Lister les modèles compatibles Live* shows the models your key can use as a
+list — touch one to select it (it fills the *Modèle Live* field; you can still type any id by
+hand). The change applies at the next session start, no rebuild needed.
 
 Close codes seen in practice: `1008 … not found … or is not supported for
 bidiGenerateContent` means the model id is not Live-capable. A generic `1007 Request
@@ -119,6 +120,10 @@ not been checked.
 The API key is stored encrypted with an Android Keystore key, which can never be backed up, so
 the encrypted file is excluded from backups too. If it is ever unreadable anyway (for example
 after a reinstall) the app resets it instead of crashing: you then have to enter the key again.
+
+The stored key can be removed from **Paramètres → Supprimer la clé enregistrée** (after a
+confirmation). This stops the running session, erases the key and returns to the key entry
+screen; saving and deleting report whether the write really reached storage.
 
 ## Known gaps / next steps
 

@@ -1,6 +1,7 @@
 package com.jarvis.android.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -13,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -33,7 +35,11 @@ import java.io.IOException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(configStore: ConfigStore, onBack: () -> Unit) {
+fun SettingsScreen(
+    configStore: ConfigStore,
+    onBack: () -> Unit,
+    onDeleteKey: suspend () -> Boolean = { false },
+) {
     val scope = rememberCoroutineScope()
     val assistantName by configStore.assistantName.collectAsState(initial = "JARVIS")
     val userName by configStore.userName.collectAsState(initial = "")
@@ -48,6 +54,12 @@ fun SettingsScreen(configStore: ConfigStore, onBack: () -> Unit) {
     var voiceMenuOpen by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var testing by remember { mutableStateOf(false) }
+    var hasKey by remember { mutableStateOf<Boolean?>(null) }
+    var keyStatus by remember { mutableStateOf<String?>(null) }
+    var keyBusy by remember { mutableStateOf(false) }
+    var confirmDeleteKey by remember { mutableStateOf(false) }
+    var liveModels by remember { mutableStateOf(emptyList<String>()) }
+    var modelsNote by remember { mutableStateOf<String?>(null) }
     var reminders by remember { mutableStateOf(emptyList<ReminderRecord>()) }
     var reminderText by remember { mutableStateOf("") }
     var reminderWhen by remember { mutableStateOf("") }
@@ -55,6 +67,11 @@ fun SettingsScreen(configStore: ConfigStore, onBack: () -> Unit) {
     var loadingReminders by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        hasKey = withContext(Dispatchers.IO) {
+            try { configStore.hasApiKey() } catch (_: Exception) { false }
+        }
+    }
     LaunchedEffect(Unit) {
         loadingReminders = true
         withContext(Dispatchers.IO) {
@@ -140,7 +157,7 @@ fun SettingsScreen(configStore: ConfigStore, onBack: () -> Unit) {
                 onValueChange = { modelField = it; scope.launch { configStore.setModel(it) } },
                 label = { Text("Modèle Live") },
                 singleLine = true,
-                supportingText = { Text("Utilisez l’identifiant exact retourné par la liste des modèles compatibles ci-dessous.") },
+                supportingText = { Text("Saisissez un identifiant ou choisissez-en un dans la liste ci-dessous. Le changement s’applique au prochain démarrage de session.") },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             OutlinedTextField(
@@ -154,15 +171,45 @@ fun SettingsScreen(configStore: ConfigStore, onBack: () -> Unit) {
             )
             Button(
                 onClick = {
-                    validatedApiKey(apiKeyField)?.let {
-                        configStore.setApiKey(it)
-                        apiKeyField = ""
-                        testResult = "Clé enregistrée sur cet appareil."
+                    val candidate = validatedApiKey(apiKeyField) ?: return@Button
+                    keyBusy = true
+                    keyStatus = null
+                    scope.launch {
+                        try {
+                            if (configStore.saveApiKey(candidate)) {
+                                apiKeyField = ""
+                                hasKey = true
+                                keyStatus = "Clé enregistrée et chiffrée sur cet appareil."
+                            } else {
+                                keyStatus = "Enregistrement impossible. Réessayez."
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            keyStatus = "Enregistrement impossible. Réessayez."
+                        } finally {
+                            keyBusy = false
+                        }
                     }
                 },
-                enabled = validatedApiKey(apiKeyField) != null && !testing,
+                enabled = validatedApiKey(apiKeyField) != null && !testing && !keyBusy,
                 modifier = Modifier.padding(top = 8.dp),
             ) { Text("Enregistrer la clé") }
+            Text(
+                keyStatus ?: when (hasKey) {
+                    true -> "Une clé est enregistrée sur cet appareil."
+                    false -> "Aucune clé enregistrée."
+                    null -> "Lecture du stockage sécurisé…"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            OutlinedButton(
+                onClick = { confirmDeleteKey = true },
+                enabled = hasKey == true && !keyBusy && !testing,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text("Supprimer la clé enregistrée") }
             Spacer(Modifier.height(16.dp))
             Text(
                 "Le diagnostic teste l’API REST standard avec la clé enregistrée, indépendamment de la connexion vocale Live. Un succès ne garantit pas l’accès au modèle Live choisi.",
@@ -187,13 +234,46 @@ fun SettingsScreen(configStore: ConfigStore, onBack: () -> Unit) {
                 onClick = {
                     testing = true
                     testResult = null
+                    modelsNote = null
                     scope.launch {
-                        try { testResult = listLiveModels(configStore) } finally { testing = false }
+                        try {
+                            val listing = listLiveModels(configStore)
+                            liveModels = listing.models
+                            modelsNote = listing.message
+                        } finally {
+                            testing = false
+                        }
                     }
                 },
                 enabled = !testing,
                 modifier = Modifier.padding(top = 8.dp),
             ) { Text(if (testing) "Vérification en cours…" else "Lister les modèles compatibles Live") }
+            modelsNote?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+            }
+            if (liveModels.isNotEmpty()) {
+                Text(
+                    "Touchez un modèle pour l’utiliser :",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                liveModels.forEach { name ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = name == model,
+                                role = Role.RadioButton,
+                                onClick = { scope.launch { configStore.setModel(name) } },
+                            )
+                            .padding(vertical = 4.dp),
+                    ) {
+                        RadioButton(selected = name == model, onClick = null)
+                        Text(name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 12.dp))
+                    }
+                }
+            }
             Spacer(Modifier.height(24.dp))
             Text("Rappels", style = MaterialTheme.typography.titleMedium)
             if (reminderFeedback != null) {
@@ -267,6 +347,46 @@ fun SettingsScreen(configStore: ConfigStore, onBack: () -> Unit) {
             Spacer(Modifier.height(32.dp))
         }
     }
+
+    if (confirmDeleteKey) {
+        AlertDialog(
+            onDismissRequest = { if (!keyBusy) confirmDeleteKey = false },
+            title = { Text("Supprimer la clé API ?") },
+            text = {
+                Text(
+                    "La session en cours sera arrêtée et Jarvis ne pourra plus se connecter tant que vous n’aurez pas saisi une nouvelle clé."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !keyBusy,
+                    onClick = {
+                        keyBusy = true
+                        scope.launch {
+                            try {
+                                if (onDeleteKey()) {
+                                    hasKey = false
+                                    keyStatus = null
+                                } else {
+                                    keyStatus = "Suppression impossible. Réessayez."
+                                }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                                keyStatus = "Suppression impossible. Réessayez."
+                            } finally {
+                                keyBusy = false
+                                confirmDeleteKey = false
+                            }
+                        }
+                    },
+                ) { Text("Supprimer", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(enabled = !keyBusy, onClick = { confirmDeleteKey = false }) { Text("Annuler") }
+            },
+        )
+    }
 }
 
 @Composable
@@ -327,41 +447,72 @@ internal fun parseLiveModelPage(body: String): LiveModelPage {
     return LiveModelPage(names, models.size, root["nextPageToken"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() })
 }
 
-private suspend fun listLiveModels(configStore: ConfigStore): String = withContext(Dispatchers.IO) {
+internal sealed interface LiveModelsResult {
+    /** [partial] is true when paging stopped early (page limit or a repeated token). */
+    data class Found(val names: List<String>, val partial: Boolean) : LiveModelsResult
+
+    data class NoneFound(val total: Int) : LiveModelsResult
+}
+
+internal const val MAX_MODEL_PAGES = 20
+
+/** Follows the paging tokens of ListModels, guarding against loops and endless lists. */
+internal fun collectLiveModels(fetchPage: (String?) -> LiveModelPage): LiveModelsResult {
+    val live = linkedSetOf<String>()
+    val tokens = mutableSetOf<String>()
+    var token: String? = null
+    var total = 0
+    var pages = 0
+    do {
+        val page = fetchPage(token)
+        live.addAll(page.names)
+        total += page.total
+        pages++
+        val next = page.nextPageToken
+        if (next != null && (!tokens.add(next) || pages >= MAX_MODEL_PAGES)) {
+            return LiveModelsResult.Found(live.toList(), partial = true)
+        }
+        token = next
+    } while (token != null)
+    return if (live.isEmpty()) LiveModelsResult.NoneFound(total) else LiveModelsResult.Found(live.toList(), partial = false)
+}
+
+private class ModelListHttpException(val code: Int) : Exception("HTTP $code")
+
+private data class ModelListing(val models: List<String>, val message: String?)
+
+private suspend fun listLiveModels(configStore: ConfigStore): ModelListing = withContext(Dispatchers.IO) {
     try {
         val key = validatedApiKey(configStore.getApiKey().orEmpty())
-            ?: return@withContext "Aucune clé valide enregistrée."
-        val live = linkedSetOf<String>()
-        val tokens = mutableSetOf<String>()
-        var token: String? = null
-        var total = 0
-        var pages = 0
-        do {
+            ?: return@withContext ModelListing(emptyList(), "Aucune clé valide enregistrée.")
+        val result = collectLiveModels { token ->
             val url = "https://generativelanguage.googleapis.com/v1beta/models".toHttpUrl().newBuilder()
                 .addQueryParameter("pageSize", "200")
                 .apply { token?.let { addQueryParameter("pageToken", it) } }.build()
             val request = Request.Builder().url(url).header("x-goog-api-key", key).build()
-            val page = settingsHttp.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext "Liste des modèles indisponible (HTTP ${response.code}). Vérifiez la clé et réessayez plus tard."
+            settingsHttp.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw ModelListHttpException(response.code)
                 parseLiveModelPage(response.body?.string().orEmpty())
             }
-            live.addAll(page.names)
-            total += page.total
-            val nextToken = page.nextPageToken
-            token = nextToken
-            pages++
-            if (nextToken != null && (!tokens.add(nextToken) || pages >= 20)) {
-                return@withContext "Liste partielle des modèles compatibles Live :\n" +
-                    live.joinToString("\n").ifBlank { "Aucun modèle trouvé dans les pages reçues." }
+        }
+        when (result) {
+            is LiveModelsResult.NoneFound ->
+                ModelListing(emptyList(), "Aucun modèle compatible Live dans ce projet (${result.total} modèles vérifiés).")
+            is LiveModelsResult.Found -> when {
+                result.names.isEmpty() ->
+                    ModelListing(emptyList(), "Aucun modèle compatible Live trouvé dans les pages reçues.")
+                result.partial ->
+                    ModelListing(result.names, "Liste partielle : d’autres modèles compatibles peuvent exister.")
+                else -> ModelListing(result.names, null)
             }
-        } while (token != null)
-        if (live.isEmpty()) "Aucun modèle compatible Live dans ce projet ($total modèles vérifiés)."
-        else "Modèles compatibles Live :\n" + live.joinToString("\n")
+        }
     } catch (e: CancellationException) {
         throw e
+    } catch (e: ModelListHttpException) {
+        ModelListing(emptyList(), "Liste des modèles indisponible (HTTP ${e.code}). Vérifiez la clé et réessayez plus tard.")
     } catch (_: IOException) {
-        "Liste des modèles indisponible : connexion impossible ou délai dépassé."
+        ModelListing(emptyList(), "Liste des modèles indisponible : connexion impossible ou délai dépassé.")
     } catch (_: Exception) {
-        "Liste des modèles indisponible : réponse inexploitable ou clé inaccessible."
+        ModelListing(emptyList(), "Liste des modèles indisponible : réponse inexploitable ou clé inaccessible.")
     }
 }

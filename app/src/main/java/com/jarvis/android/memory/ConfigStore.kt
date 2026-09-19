@@ -10,9 +10,11 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.security.GeneralSecurityException
 import java.security.KeyStore
@@ -75,6 +77,16 @@ class ConfigStore(private val context: Context) {
     fun getApiKey(): String? = secure.getString(KEY_API_KEY, null)
     fun setApiKey(value: String) = secure.edit().putString(KEY_API_KEY, value).apply()
     fun hasApiKey(): Boolean = !getApiKey().isNullOrBlank()
+
+    /** Writes the key and reports whether it really reached storage (commit, not apply). */
+    suspend fun saveApiKey(value: String): Boolean = withContext(Dispatchers.IO) {
+        secure.edit().putString(KEY_API_KEY, value).commit()
+    }
+
+    /** Removes the key and reports whether the removal really reached storage. */
+    suspend fun deleteApiKey(): Boolean = withContext(Dispatchers.IO) {
+        secure.edit().remove(KEY_API_KEY).commit()
+    }
 
     private val KEY_ASSISTANT_NAME = stringPreferencesKey("assistant_name")
     private val KEY_USER_NAME = stringPreferencesKey("user_name")

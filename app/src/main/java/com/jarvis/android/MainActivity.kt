@@ -117,7 +117,23 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("settings") {
-                        SettingsScreen(configStore = container.configStore, onBack = { navController.popBackStack() })
+                        SettingsScreen(
+                            configStore = container.configStore,
+                            onBack = { navController.popBackStack() },
+                            onDeleteKey = {
+                                startServiceOnGrant = false
+                                container.engine.stop()
+                                stopService(Intent(this@MainActivity, JarvisVoiceService::class.java))
+                                val deleted = container.configStore.deleteApiKey()
+                                if (deleted) {
+                                    hasKey = false
+                                    navController.navigate("onboarding") {
+                                        popUpTo(navController.graph.id) { inclusive = true }
+                                    }
+                                }
+                                deleted
+                            },
+                        )
                     }
                     composable("memory") {
                         MemoryScreen(memoryManager = container.memoryManager, onBack = { navController.popBackStack() })
