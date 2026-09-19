@@ -1,6 +1,8 @@
 package com.jarvis.android.memory
 
 import android.content.Context
+import android.content.SharedPreferences
+import android.util.Log
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
@@ -11,6 +13,9 @@ import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.io.IOException
+import java.security.GeneralSecurityException
+import java.security.KeyStore
 
 private val Context.dataStore by preferencesDataStore(name = "jarvis_settings")
 
@@ -20,19 +25,52 @@ private val Context.dataStore by preferencesDataStore(name = "jarvis_settings")
  * `EncryptedSharedPreferences` (AES-256, Android Keystore-backed key) rather
  * than plain DataStore, since it is a credential, not a preference.
  */
+/**
+ * Opens the encrypted store, and if it cannot be decrypted (the file survived a reinstall or
+ * restore but its Keystore key did not) wipes it once and opens a fresh one. The stored
+ * value is unrecoverable at that point anyway; the alternative is a crash on every launch.
+ */
+internal fun <T> openOrReset(open: () -> T, reset: () -> Unit): T =
+    try {
+        open()
+    } catch (e: GeneralSecurityException) {
+        reset()
+        open()
+    } catch (e: IOException) {
+        reset()
+        open()
+    }
+
 class ConfigStore(private val context: Context) {
 
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-
-    private val secure = EncryptedSharedPreferences.create(
-        context,
-        "jarvis_secure_prefs",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+    private val secure: SharedPreferences = openOrReset(
+        open = {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            EncryptedSharedPreferences.create(
+                context,
+                SECURE_PREFS_FILE,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+        },
+        reset = ::resetSecureStorage,
     )
+
+    private fun resetSecureStorage() {
+        Log.w("ConfigStore", "Stockage chiffré illisible : réinitialisation, la clé API doit être saisie à nouveau.")
+        context.deleteSharedPreferences(SECURE_PREFS_FILE)
+        try {
+            val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+            if (keyStore.containsAlias(MasterKey.DEFAULT_MASTER_KEY_ALIAS)) {
+                keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+            }
+        } catch (_: Exception) {
+            // Best effort: a stale key is replaced on the next MasterKey build anyway.
+        }
+    }
 
     fun getApiKey(): String? = secure.getString(KEY_API_KEY, null)
     fun setApiKey(value: String) = secure.edit().putString(KEY_API_KEY, value).apply()
@@ -66,6 +104,7 @@ class ConfigStore(private val context: Context) {
 
     companion object {
         private const val KEY_API_KEY = "gemini_api_key"
+        private const val SECURE_PREFS_FILE = "jarvis_secure_prefs"
         /**
          * Confirmed via this project's own ListModels response (Settings →
          * Advanced → "List Live-capable models"): there is no
