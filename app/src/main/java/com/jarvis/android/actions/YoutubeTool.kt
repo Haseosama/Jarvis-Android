@@ -1,34 +1,40 @@
 package com.jarvis.android.actions
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
-/** Search/play YouTube — Android port of `actions/youtube_video.py`. */
 object YoutubeTool : Tool {
     override val name = "youtube_video"
-    override val description = "Search for and play a video on YouTube."
+    override val description = "Ouvrir les résultats d’une recherche YouTube ; l’utilisateur choisit la vidéo."
     override val parameters = objectSchema(required = listOf("query")) {
-        string("query", "What to search for on YouTube.")
+        string("query", "Termes à rechercher sur YouTube.")
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String {
-        val query = args.stringArg("query")
-        if (query.isBlank()) return "What should I search for on YouTube?"
-        val encoded = Uri.encode(query)
-        val appIntent = Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube://results?q=$encoded"))
-            .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=$encoded"))
-            .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-
+        val url = youtubeSearchUrl(args.utilityString("query"))
+            ?: return "Indiquez une recherche YouTube non vide, de 500 caractères maximum."
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
         return try {
-            val pm = ctx.appContext.packageManager
-            if (appIntent.resolveActivity(pm) != null) ctx.appContext.startActivity(appIntent)
-            else ctx.appContext.startActivity(webIntent)
-            "Searching YouTube for '$query'."
-        } catch (e: Exception) {
-            "Could not open YouTube: ${e.message}"
+            try {
+                ctx.appContext.startActivity(Intent(intent).setPackage("com.google.android.youtube"))
+            } catch (_: ActivityNotFoundException) {
+                ctx.appContext.startActivity(intent)
+            }
+            "Résultats YouTube ouverts. Choisissez la vidéo à lire."
+        } catch (_: Exception) {
+            "Impossible d’ouvrir YouTube ou un navigateur."
         }
     }
+}
+
+internal fun youtubeSearchUrl(input: String?): String? {
+    val query = normalizedUtilityQuery(input, 500) ?: return null
+    return "https://www.youtube.com/results".toHttpUrl().newBuilder()
+        .addQueryParameter("search_query", query).build().toString()
 }

@@ -2,6 +2,10 @@ package com.jarvis.android.actions
 
 import com.jarvis.android.JarvisContainer
 import com.jarvis.android.core.UndoEntry
+import com.jarvis.android.core.UndoManager
+import com.jarvis.android.memory.MemoryManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 
 /** Look up a stored fact on demand — backs the "[ALSO REMEMBERED]" index in the system prompt. */
@@ -27,16 +31,21 @@ object RememberTool : Tool {
         string("category", "One of: identity, preferences, projects, relationships, wishes, notes. Default notes.")
     }
 
-    override suspend fun run(args: JsonObject, ctx: JarvisContainer): String {
+    override suspend fun run(args: JsonObject, ctx: JarvisContainer): String =
+        run(args, ctx.memoryManager, ctx.undoManager)
+
+    internal suspend fun run(args: JsonObject, memory: MemoryManager, undo: UndoManager): String {
         val key = args.stringArg("key")
         val value = args.stringArg("value")
         val category = args.stringArg("category", "notes")
-        if (key.isBlank() || value.isBlank()) return "I need both a key and a value to remember."
-        val result = ctx.memoryManager.remember(key, value, category)
-        ctx.undoManager.push(UndoEntry("remember $category/$key") {
-            ctx.memoryManager.forget(key, category)
-        })
-        return result
+        if (key.isBlank() || value.isBlank()) return "Une clé et une valeur sont nécessaires pour mémoriser."
+        return withContext(Dispatchers.IO) {
+            val change = memory.rememberChange(key, value, category)
+            if (change.changed) {
+                undo.push(UndoEntry("mémorisation ${change.category}/$key") { memory.restore(change) })
+            }
+            change.message
+        }
     }
 }
 
@@ -50,7 +59,19 @@ object ForgetMemoryTool : Tool {
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String =
-        ctx.memoryManager.forget(args.stringArg("key"), args.stringArg("category", "notes"))
+        run(args, ctx.memoryManager, ctx.undoManager)
+
+    internal suspend fun run(args: JsonObject, memory: MemoryManager, undo: UndoManager): String {
+        val key = args.stringArg("key")
+        if (key.isBlank()) return "Une clé est nécessaire pour supprimer un souvenir."
+        return withContext(Dispatchers.IO) {
+            val change = memory.forgetChange(key, args.stringArg("category", "notes"))
+            if (change.changed) {
+                undo.push(UndoEntry("suppression ${change.category}/$key") { memory.restore(change) })
+            }
+            change.message
+        }
+    }
 }
 
 /** Reverses the last reversible tool call — voice equivalent of saying "undo". */

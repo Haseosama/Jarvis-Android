@@ -7,6 +7,8 @@ import android.net.Uri
 import android.provider.Settings
 import com.jarvis.android.JarvisContainer
 import com.jarvis.android.core.UndoEntry
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -21,7 +23,7 @@ import kotlinx.serialization.json.JsonObject
 object DeviceSettingsTool : Tool {
     override val name = "device_settings"
     override val description =
-        "Control phone settings: volume (set_volume, 0-100), or open the Wi-Fi / brightness settings panel."
+        "Control phone settings: volume (set_volume, 0-100, asks the user to confirm first), or open the Wi-Fi / brightness settings panel."
     override val parameters = objectSchema(required = listOf("action")) {
         string("action", "One of: set_volume, open_wifi, open_brightness.")
         integer("value", "For set_volume: percent 0-100.")
@@ -36,8 +38,16 @@ object DeviceSettingsTool : Tool {
         }
     }
 
-    private fun setVolume(percent: Int, ctx: JarvisContainer): String {
+    private suspend fun setVolume(percent: Int, ctx: JarvisContainer): String {
         if (percent < 0 || percent > 100) return "Give a volume percentage between 0 and 100."
+        val confirmed = try {
+            withTimeout(CONFIRM_TIMEOUT_MS) {
+                ctx.confirmManager.request("Volume", "Mettre le volume à $percent % ?")
+            }
+        } catch (_: TimeoutCancellationException) {
+            return "Confirmation expirée : volume inchangé."
+        }
+        if (!confirmed) return "Volume inchangé : action refusée."
         val am = ctx.appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         val previous = am.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -60,3 +70,5 @@ object DeviceSettingsTool : Tool {
         }
     }
 }
+
+private const val CONFIRM_TIMEOUT_MS = 60_000L

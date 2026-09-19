@@ -21,10 +21,12 @@ import kotlinx.serialization.json.put
 object ToolRegistry {
     val ALL: List<Tool> = listOf(
         WebSearchTool,
+        FlightSearchTool,
         WeatherTool,
         OpenAppTool,
         BrowserTool,
         ReminderTool,
+        TimerTool,
         SystemMonitorTool,
         DeviceSettingsTool,
         SendMessageTool,
