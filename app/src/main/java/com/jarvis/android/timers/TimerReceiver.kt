@@ -1,4 +1,4 @@
-package com.jarvis.android.actions
+package com.jarvis.android.timers
 
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -6,12 +6,11 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import com.jarvis.android.reminders.ReminderService
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
-class ReminderReceiver : BroadcastReceiver() {
+class TimerReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_FIRE) return
         val id = intent.getIntExtra(EXTRA_ID, 0)
@@ -21,9 +20,9 @@ class ReminderReceiver : BroadcastReceiver() {
         try {
             executor.execute {
                 try {
-                    ReminderService.deliver(context.applicationContext, id, token)
+                    TimerService.deliver(context.applicationContext, id, token)
                 } catch (_: Exception) {
-                    Log.e("JarvisReminders", "Rappel non confirmé : stockage ou notification indisponible.")
+                    Log.e("JarvisTimers", "Minuteur non confirmé : stockage ou notification indisponible.")
                 } finally {
                     result.finish()
                 }
@@ -35,17 +34,16 @@ class ReminderReceiver : BroadcastReceiver() {
 
     companion object {
         const val EXTRA_ID = "id"
-        const val CHANNEL_ID = "jarvis_reminders"
-        private const val EXTRA_TOKEN = "reminder_token"
-        private const val ACTION_FIRE = "com.jarvis.android.reminders.FIRE"
+        private const val EXTRA_TOKEN = "timer_token"
+        private const val ACTION_FIRE = "com.jarvis.android.timers.FIRE"
         private val executor = ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, ArrayBlockingQueue<Runnable>(32))
             .apply { allowCoreThreadTimeOut(true) }
 
         private fun identity(id: Int, token: String): Uri = Uri.Builder()
-            .scheme("jarvis-reminder").authority("local").appendPath(id.toString()).appendPath(token).build()
+            .scheme("jarvis-timer").authority("local").appendPath(id.toString()).appendPath(token).build()
 
         private fun intent(context: Context, id: Int, token: String) =
-            Intent(context, ReminderReceiver::class.java).apply {
+            Intent(context, TimerReceiver::class.java).apply {
                 action = ACTION_FIRE
                 data = identity(id, token)
                 putExtra(EXTRA_ID, id)
