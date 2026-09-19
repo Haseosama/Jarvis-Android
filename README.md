@@ -137,8 +137,9 @@ reset button starts over. A failed send restores the draft and shows a specific 
 (invalid key or model 400/401/403, unknown model 404, quota 429, server 5xx, no network, blocked
 answer).
 
-Checked: unit tests with a fake transport, and the error path on an emulator with a fake key.
-Not yet checked on a device with a real key.
+Checked: unit tests with a fake transport, the error path on an emulator with a fake key, and
+a tool round trip on a real phone with a real key (battery question answered through
+`system_monitor`, matching `dumpsys battery`).
 
 ## Known gaps / next steps
 
