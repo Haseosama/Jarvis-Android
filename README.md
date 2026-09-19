@@ -117,9 +117,18 @@ answer from long-term memory when it saved a fact with `remember_fact`, which ma
 remember?" questions a poor test of resumption. Whether other Live models resume correctly has
 not been checked.
 
-The API key is stored encrypted with an Android Keystore key, which can never be backed up, so
-the encrypted file is excluded from backups too. If it is ever unreadable anyway (for example
-after a reinstall) the app resets it instead of crashing: you then have to enter the key again.
+The API key is kept in `noBackupFilesDir/jarvis_api_key.enc` (`memory/SecureStore.kt`): AES-256-GCM
+with a key held in the Android Keystore, no dependency on the deprecated `security-crypto`
+library for new writes. Files in `noBackupFilesDir` are never backed up, so the file cannot
+outlive its Keystore key after a restore (the cause of an earlier startup crash). A write goes to a
+temporary file, the previous good copy is kept as `.bak`, and the write only counts as successful
+once it reads back identical. If the key is really gone the file is wiped and you enter the key
+again; a momentarily unavailable Keystore leaves the file untouched.
+
+Older builds stored the key in `EncryptedSharedPreferences`. On first launch it is copied to the new
+store and the old one is removed only after the copy has been written and read back
+(`security-crypto` stays as a dependency for that migration only). Checked on an emulator: the key
+moved and the app opened on the main screen. Not exercised on the real phone.
 
 The stored key can be removed from **Paramètres → Supprimer la clé enregistrée** (after a
 confirmation). This stops the running session, erases the key and returns to the key entry

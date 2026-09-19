@@ -77,7 +77,7 @@ class MainActivity : ComponentActivity() {
                     composable("onboarding") {
                         OnboardingScreen(
                             onSave = { key ->
-                                container.configStore.setApiKey(key)
+                                if (!container.configStore.setApiKey(key)) return@OnboardingScreen
                                 hasKey = true
                                 if (!hasMicPermission()) requestNeededPermissions()
                                 navController.navigate("hud") { popUpTo("onboarding") { inclusive = true } }

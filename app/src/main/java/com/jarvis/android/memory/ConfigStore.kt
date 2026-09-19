@@ -2,7 +2,6 @@ package com.jarvis.android.memory
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
@@ -15,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.IOException
 import java.security.GeneralSecurityException
 import java.security.KeyStore
@@ -45,24 +45,46 @@ internal fun <T> openOrReset(open: () -> T, reset: () -> Unit): T =
  */
 class ConfigStore(private val context: Context) {
 
-    private val secure: SharedPreferences = openOrReset(
-        open = {
-            val masterKey = MasterKey.Builder(context)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
-            EncryptedSharedPreferences.create(
-                context,
-                SECURE_PREFS_FILE,
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-            )
-        },
-        reset = ::resetSecureStorage,
+    private val store = SecureStore(
+        dir = context.noBackupFilesDir,
+        name = API_KEY_FILE,
+        keys = KeystoreKeyProvider(API_KEY_ALIAS),
     )
 
-    private fun resetSecureStorage() {
-        Log.w("ConfigStore", "Stockage chiffré illisible : réinitialisation, la clé API doit être saisie à nouveau.")
+    init {
+        migrateLegacyKey()
+    }
+
+    /**
+     * Older versions kept the key in EncryptedSharedPreferences. Moves it to [store] once, and
+     * only removes the old copy after the new one has been written and read back. If the old
+     * file cannot be decrypted the key is unrecoverable and the old storage is wiped.
+     */
+    private fun migrateLegacyKey() {
+        val legacyFile = File(context.applicationInfo.dataDir, "shared_prefs/$SECURE_PREFS_FILE.xml")
+        if (!legacyFile.exists()) return
+        if (store.read() == null) {
+            val legacy = openOrReset(open = ::openLegacy, reset = ::removeLegacyStorage)
+                .getString(KEY_API_KEY, null)
+            if (!legacy.isNullOrBlank() && !store.write(legacy)) return // keep it, retry next launch
+        }
+        removeLegacyStorage()
+    }
+
+    private fun openLegacy(): SharedPreferences {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        return EncryptedSharedPreferences.create(
+            context,
+            SECURE_PREFS_FILE,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+        )
+    }
+
+    private fun removeLegacyStorage() {
         context.deleteSharedPreferences(SECURE_PREFS_FILE)
         try {
             val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -74,19 +96,15 @@ class ConfigStore(private val context: Context) {
         }
     }
 
-    fun getApiKey(): String? = secure.getString(KEY_API_KEY, null)
-    fun setApiKey(value: String) = secure.edit().putString(KEY_API_KEY, value).apply()
+    fun getApiKey(): String? = store.read()
+    fun setApiKey(value: String): Boolean = store.write(value)
     fun hasApiKey(): Boolean = !getApiKey().isNullOrBlank()
 
-    /** Writes the key and reports whether it really reached storage (commit, not apply). */
-    suspend fun saveApiKey(value: String): Boolean = withContext(Dispatchers.IO) {
-        secure.edit().putString(KEY_API_KEY, value).commit()
-    }
+    /** Writes the key and reports whether it really reached storage (written, then read back). */
+    suspend fun saveApiKey(value: String): Boolean = withContext(Dispatchers.IO) { store.write(value) }
 
     /** Removes the key and reports whether the removal really reached storage. */
-    suspend fun deleteApiKey(): Boolean = withContext(Dispatchers.IO) {
-        secure.edit().remove(KEY_API_KEY).commit()
-    }
+    suspend fun deleteApiKey(): Boolean = withContext(Dispatchers.IO) { store.delete() }
 
     private val KEY_ASSISTANT_NAME = stringPreferencesKey("assistant_name")
     private val KEY_USER_NAME = stringPreferencesKey("user_name")
@@ -123,6 +141,8 @@ class ConfigStore(private val context: Context) {
     companion object {
         private const val KEY_API_KEY = "gemini_api_key"
         private const val SECURE_PREFS_FILE = "jarvis_secure_prefs"
+        private const val API_KEY_FILE = "jarvis_api_key.enc"
+        private const val API_KEY_ALIAS = "jarvis_api_key_v2"
         /**
          * Confirmed via this project's own ListModels response (Settings →
          * Advanced → "List Live-capable models"): there is no
