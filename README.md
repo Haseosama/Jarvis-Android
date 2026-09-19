@@ -11,7 +11,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 Version 0.3.0. The voice loop works end to end on a real phone: microphone →
 Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The
-unit-test suite (79 tests, `./gradlew :app:testDebugUnitTest`) passes. This is an
+unit-test suite (96 tests, `./gradlew :app:testDebugUnitTest`) passes. This is an
 actively in-progress port; see "Not ported" and "Known gaps" below.
 
 Still unverified on a device: reconnection after a real network drop (unit-tested only),
@@ -106,9 +106,9 @@ its context. If the server refuses the handle it starts a fresh session and says
 activity log. A fresh connection that fails during setup (bad key, unsupported model) is not
 retried. The handle lives in memory only and is discarded when you stop the session.
 
-The API key is stored encrypted with an Android Keystore key. Both are excluded from backups,
-and if the file is ever unreadable (for example after a reinstall) the app resets it instead
-of crashing: you then have to enter the key again.
+The API key is stored encrypted with an Android Keystore key, which can never be backed up, so
+the encrypted file is excluded from backups too. If it is ever unreadable anyway (for example
+after a reinstall) the app resets it instead of crashing: you then have to enter the key again.
 
 ## Known gaps / next steps
 
