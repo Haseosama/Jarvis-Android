@@ -6,6 +6,30 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+import java.util.Properties
+
+val keystoreProps = Properties().also { p ->
+    val f = rootProject.file("local.properties")
+    if (f.isFile) f.inputStream().use(p::load)
+}
+
+fun keystoreProp(name: String): String? = keystoreProps.getProperty(name)?.takeIf { it.isNotBlank() }
+
+val releaseSigningKeys = listOf(
+    "jarvis.keystore.path",
+    "jarvis.keystore.password",
+    "jarvis.key.alias",
+    "jarvis.key.password",
+)
+val releaseSigningReady = releaseSigningKeys.all { keystoreProp(it) != null }
+if (!releaseSigningReady) {
+    logger.warn(
+        "Signature release désactivée : propriétés manquantes dans local.properties " +
+            "(${releaseSigningKeys.filter { keystoreProp(it) == null }.joinToString()}). " +
+            "Les builds debug ne sont pas affectés ; le release sera non signé."
+    )
+}
+
 android {
     namespace = "com.jarvis.android"
     compileSdk = 34
@@ -14,18 +38,32 @@ android {
         applicationId = "com.jarvis.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 3
+        versionName = "0.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    if (releaseSigningReady) {
+        signingConfigs {
+            create("release") {
+                storeFile = rootProject.file(keystoreProp("jarvis.keystore.path")!!)
+                storePassword = keystoreProp("jarvis.keystore.password")
+                keyAlias = keystoreProp("jarvis.key.alias")
+                keyPassword = keystoreProp("jarvis.key.password")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = true
+            if (releaseSigningReady) signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
             isMinifyEnabled = false
         }
     }

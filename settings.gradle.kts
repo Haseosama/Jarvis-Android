@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Jarvis-Android"
+rootProject.name = "Jarvis-Android-Dev"
 include(":app")
