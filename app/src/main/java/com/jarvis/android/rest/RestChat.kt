@@ -111,6 +111,7 @@ class RestChat internal constructor(
             voice = { container.configStore.snapshotVoice() },
             sendText = { send(it) },
             lastReply = { _messages.value.lastOrNull { it.role == ConversationRole.ASSISTANT }?.text },
+            onMetrics = { android.util.Log.i("JarvisRestVoice", it) },
         )
     }
 

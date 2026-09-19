@@ -39,8 +39,10 @@ class RestVoiceTest {
 
     private class FakeOutput : SpeechOutput {
         val played = mutableListOf<ByteArray>()
-        override suspend fun play(pcm: ByteArray) {
-            played += pcm
+        override suspend fun play(source: suspend (suspend (ByteArray) -> Unit) -> Unit) {
+            val all = java.io.ByteArrayOutputStream()
+            source { all.write(it) }
+            played += all.toByteArray()
         }
 
         override fun stop() {}

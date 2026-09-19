@@ -124,13 +124,18 @@ internal fun buildSpeechRequest(text: String, voice: String): JsonObject {
     }
 }
 
-/** Raw 24 kHz mono 16-bit PCM from a speech response; anything else is refused. */
-internal fun parseSpeechResponse(root: JsonObject): ByteArray {
+/**
+ * The audio of one speech response or streamed event, as raw 24 kHz mono 16-bit PCM. Empty when
+ * the event carries no audio (for example a final event with only a finish reason); anything
+ * that is audio but not in the expected format is refused.
+ */
+internal fun parseSpeechChunk(root: JsonObject): ByteArray {
     try {
         val blockReason = root["promptFeedback"]?.jsonObject?.get("blockReason")?.jsonPrimitive?.contentOrNull
         if (blockReason != null) throw RestChatException(ERROR_BLOCKED)
-        val candidate = root["candidates"]?.jsonArray?.firstOrNull()?.jsonObject
-            ?: throw RestChatException(ERROR_EMPTY)
+        val candidate = root["candidates"]?.jsonArray?.firstOrNull()?.jsonObject ?: return ByteArray(0)
+        val finish = candidate["finishReason"]?.jsonPrimitive?.contentOrNull
+        if (finish != null && finish in BLOCKED_FINISH_REASONS) throw RestChatException(ERROR_BLOCKED)
         val parts = candidate["content"]?.jsonObject?.get("parts")?.jsonArray.orEmpty().map { it.jsonObject }
         val out = java.io.ByteArrayOutputStream()
         for (part in parts) {
@@ -140,18 +145,27 @@ internal fun parseSpeechResponse(root: JsonObject): ByteArray {
             if (!mime.startsWith("audio/l16") && !mime.startsWith("audio/pcm")) throw RestChatException(ERROR_INVALID_AUDIO)
             val rate = Regex("rate=(\\d+)").find(mime)?.groupValues?.get(1)?.toInt()
             if (rate != null && rate != SPEECH_SAMPLE_RATE) throw RestChatException(ERROR_INVALID_AUDIO)
-            val data = Base64.getDecoder().decode(inline["data"]?.jsonPrimitive?.contentOrNull.orEmpty())
-            if (data.size + out.size() > MAX_SPEECH_BYTES) throw RestChatException(ERROR_AUDIO_TOO_LARGE)
-            out.write(data)
+            out.write(Base64.getDecoder().decode(inline["data"]?.jsonPrimitive?.contentOrNull.orEmpty()))
         }
         val pcm = out.toByteArray()
-        if (pcm.isEmpty() || pcm.size % 2 != 0) throw RestChatException(ERROR_INVALID_AUDIO)
+        if (pcm.size % 2 != 0) throw RestChatException(ERROR_INVALID_AUDIO)
         return pcm
     } catch (e: RestChatException) {
         throw e
     } catch (_: Exception) {
         throw RestChatException(ERROR_MALFORMED)
     }
+}
+
+/** Raw 24 kHz mono 16-bit PCM from a whole speech response; anything else is refused. */
+internal fun parseSpeechResponse(root: JsonObject): ByteArray {
+    if (root["promptFeedback"] == null && root["candidates"]?.jsonArray?.firstOrNull() == null) {
+        throw RestChatException(ERROR_EMPTY)
+    }
+    val pcm = parseSpeechChunk(root)
+    if (pcm.isEmpty()) throw RestChatException(ERROR_INVALID_AUDIO)
+    if (pcm.size > MAX_SPEECH_BYTES) throw RestChatException(ERROR_AUDIO_TOO_LARGE)
+    return pcm
 }
 
 /** Names in one ListModels page that can generate content and look like a speech model. */

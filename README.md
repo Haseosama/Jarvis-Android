@@ -175,7 +175,10 @@ a tool round trip on a real phone with a real key (battery question answered thr
 The microphone button in the chat records up to 60 s (16 kHz mono, `rest/VoiceDevices.kt`);
 pressing stop sends the recording to `generateContent` as WAV for a verbatim transcription, sends
 that text as a normal chat message (tools included), then asks a speech model for the answer and
-plays it (24 kHz PCM through an `AudioTrack`). Typed messages are not read aloud. The voice is the
+plays it (24 kHz PCM through an `AudioTrack`). The speech is requested with
+`streamGenerateContent?alt=sse` and played while it is still being produced, after a 0.3 s head
+start, instead of waiting for the whole audio; timings are logged under the `JarvisRestVoice` tag
+(time to first sound, chunk count). Typed messages are not read aloud. The voice is the
 one chosen in the settings. The speech model can be set in **Paramètres → Modèle voix**; when left
 empty the app reads ListModels and takes the first model that supports `generateContent` and has
 "tts" in its name (`SpeechModelResolver`). Each step reports a specific error; if only the speech

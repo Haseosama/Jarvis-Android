@@ -15,7 +15,9 @@ import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -34,8 +36,12 @@ internal interface MicRecorder {
 }
 
 internal interface SpeechOutput {
-    /** Plays 24 kHz mono PCM and returns when it has finished (or was stopped). */
-    suspend fun play(pcm: ByteArray)
+    /**
+     * Plays the 24 kHz mono PCM that [source] hands to its `emit` callback, starting as soon as
+     * enough has arrived rather than waiting for the end. Returns when everything has been played
+     * or [stop] was called; errors thrown by [source] are passed on.
+     */
+    suspend fun play(source: suspend (emit: suspend (ByteArray) -> Unit) -> Unit)
 
     fun stop()
 }
@@ -131,29 +137,31 @@ internal class AudioRecorder(private val context: Context) : MicRecorder {
     }
 }
 
-/** Plays a whole PCM buffer through an [AudioTrack], holding audio focus while it plays. */
+private class PlaybackStopped : Exception()
+
+private const val PREBUFFER_BYTES = SPEECH_SAMPLE_RATE * 2 * 3 / 10 // 0.3 s
+
+/** Streams PCM to an [AudioTrack] while it is still being produced, holding audio focus. */
 internal class AudioPlayer(context: Context) : SpeechOutput {
     private val manager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val lock = Any()
     private var track: AudioTrack? = null
+    @Volatile private var stopRequested = false
 
-    override suspend fun play(pcm: ByteArray) = withContext(Dispatchers.IO) {
-        val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANT)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build()
-            )
+    override suspend fun play(source: suspend (suspend (ByteArray) -> Unit) -> Unit) = withContext(Dispatchers.IO) {
+        val attributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANT)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build()
+        val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(attributes)
+            .build()
+        val minBuffer = AudioTrack.getMinBufferSize(
+            SPEECH_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
+        )
         val player = try {
             AudioTrack.Builder()
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANT)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
+                .setAudioAttributes(attributes)
                 .setAudioFormat(
                     AudioFormat.Builder()
                         .setSampleRate(SPEECH_SAMPLE_RATE)
@@ -161,29 +169,58 @@ internal class AudioPlayer(context: Context) : SpeechOutput {
                         .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                         .build()
                 )
-                .setBufferSizeInBytes(pcm.size)
-                .setTransferMode(AudioTrack.MODE_STATIC)
+                .setBufferSizeInBytes(maxOf(minBuffer, SPEECH_SAMPLE_RATE * 2))
+                .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
         } catch (e: Exception) {
-            Log.w(TAG, "AudioTrack impossible à créer (${pcm.size} octets)", e)
+            Log.w(TAG, "AudioTrack impossible à créer", e)
             throw RestChatException(ERROR_PLAYBACK)
         }
+        var written = 0L
+        var started = false
         try {
-            // A static track only becomes initialized once its data has been written.
-            check(player.write(pcm, 0, pcm.size) == pcm.size)
             check(player.state == AudioTrack.STATE_INITIALIZED)
             manager.requestAudioFocus(focus)
-            synchronized(lock) { track = player }
-            player.play()
-            val totalFrames = pcm.size / 2
-            while (player.playState == AudioTrack.PLAYSTATE_PLAYING && player.playbackHeadPosition < totalFrames) {
+            synchronized(lock) {
+                stopRequested = false
+                track = player
+            }
+            source { chunk ->
+                var offset = 0
+                while (offset < chunk.size) {
+                    currentCoroutineContext().ensureActive()
+                    if (stopRequested) throw PlaybackStopped()
+                    val count = player.write(chunk, offset, chunk.size - offset, AudioTrack.WRITE_BLOCKING)
+                    if (stopRequested) throw PlaybackStopped()
+                    check(count >= 0) { "write=$count" }
+                    offset += count
+                }
+                written += chunk.size
+                // A short head start absorbs network jitter before the first sound.
+                if (!started && written >= PREBUFFER_BYTES) {
+                    player.play()
+                    started = true
+                }
+            }
+            if (!started) player.play()
+            val totalFrames = written / 2
+            val deadline = SystemClock.elapsedRealtime() + totalFrames * 1000 / SPEECH_SAMPLE_RATE + 3_000
+            while (!stopRequested && player.playbackHeadPosition < totalFrames &&
+                SystemClock.elapsedRealtime() < deadline
+            ) {
                 delay(50)
             }
+        } catch (_: PlaybackStopped) {
+            // Stopped on request: not an error.
         } catch (e: CancellationException) {
             throw e
+        } catch (e: RestChatException) {
+            throw e
         } catch (e: Exception) {
-            Log.w(TAG, "Lecture impossible (état ${player.state}, ${pcm.size} octets)", e)
-            throw RestChatException(ERROR_PLAYBACK)
+            if (!stopRequested) {
+                Log.w(TAG, "Lecture impossible (état ${player.state}, $written octets)", e)
+                throw RestChatException(ERROR_PLAYBACK)
+            }
         } finally {
             synchronized(lock) { if (track === player) track = null }
             try {
@@ -197,8 +234,10 @@ internal class AudioPlayer(context: Context) : SpeechOutput {
 
     override fun stop() {
         synchronized(lock) {
+            stopRequested = true
             try {
-                track?.stop()
+                track?.pause()
+                track?.flush()
             } catch (_: Exception) {
             }
         }

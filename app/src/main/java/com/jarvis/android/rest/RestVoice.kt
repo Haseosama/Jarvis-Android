@@ -21,6 +21,8 @@ internal class RestVoice(
     private val voice: suspend () -> String,
     private val sendText: suspend (String) -> String?,
     private val lastReply: () -> String?,
+    private val onMetrics: (String) -> Unit = {},
+    private val now: () -> Long = System::currentTimeMillis,
 ) {
     private val _stage = MutableStateFlow(VoiceStage.IDLE)
     val stage: StateFlow<VoiceStage> = _stage.asStateFlow()
@@ -61,8 +63,23 @@ internal class RestVoice(
             val reply = lastReply() ?: return null
             _stage.value = VoiceStage.SPEAKING
             try {
-                val pcm = parseSpeechResponse(transport.generate(speechModel(), buildSpeechRequest(reply, voice())))
-                output.play(pcm)
+                output.play { emit ->
+                    val request = buildSpeechRequest(reply, voice())
+                    val begun = now()
+                    var bytes = 0
+                    var chunks = 0
+                    transport.stream(speechModel(), request) { event ->
+                        val pcm = parseSpeechChunk(event)
+                        if (pcm.isNotEmpty()) {
+                            bytes += pcm.size
+                            if (bytes > MAX_SPEECH_BYTES) throw RestChatException(ERROR_AUDIO_TOO_LARGE)
+                            if (chunks++ == 0) onMetrics("Voix : premier son reçu après ${now() - begun} ms")
+                            emit(pcm)
+                        }
+                    }
+                    if (chunks == 0) throw RestChatException(ERROR_INVALID_AUDIO)
+                    onMetrics("Voix : $chunks morceaux, $bytes octets, terminé après ${now() - begun} ms")
+                }
             } catch (e: RestChatException) {
                 return e.message
             }

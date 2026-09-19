@@ -1,6 +1,11 @@
 package com.jarvis.android.rest
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -73,9 +78,29 @@ internal sealed interface RestReply {
 
 internal interface GenerateTransport {
     suspend fun generate(model: String, request: JsonObject): JsonObject
+
+    /**
+     * Like [generate], but hands each partial response to [onEvent] as it arrives. The default
+     * delivers the whole answer as a single event, for transports that cannot stream.
+     */
+    suspend fun stream(model: String, request: JsonObject, onEvent: suspend (JsonObject) -> Unit) {
+        onEvent(generate(model, request))
+    }
 }
 
-private val BLOCKED_FINISH_REASONS = setOf(
+/** The JSON payload of one server-sent-events line (`data: {...}`), or null for any other line. */
+internal fun parseSseData(line: String): JsonObject? {
+    if (!line.startsWith("data:")) return null
+    val payload = line.removePrefix("data:").trim()
+    if (payload.isEmpty() || payload == "[DONE]") return null
+    return try {
+        Json.parseToJsonElement(payload).jsonObject
+    } catch (_: Exception) {
+        throw RestChatException(ERROR_MALFORMED)
+    }
+}
+
+internal val BLOCKED_FINISH_REASONS = setOf(
     "SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY",
 )
 
@@ -169,46 +194,104 @@ internal class OkHttpGenerateTransport(
     /** Called with a key that was refused; returns another key to try, or null. */
     private val nextKey: (rejected: String) -> String? = { null },
 ) : GenerateTransport {
-    override suspend fun generate(model: String, request: JsonObject): JsonObject = withContext(Dispatchers.IO) {
-        var key = apiKey()?.takeIf { it.isNotBlank() } ?: throw RestChatException(ERROR_NO_KEY)
-        if (!MODEL_PATTERN.matches(model)) throw RestChatException(ERROR_INVALID_MODEL)
-        val path = if (model.startsWith("models/")) model else "models/$model"
-        val tried = mutableSetOf<String>()
-        var result: JsonObject? = null
-        while (result == null) {
-            try {
-                result = send(path, key, request)
-            } catch (e: KeyRefused) {
-                tried += key
-                key = nextKey(key)?.takeIf { it.isNotBlank() && it !in tried }
-                    ?: throw RestChatException(httpErrorMessage(e.code), e.code)
-            }
-        }
-        result
+    override suspend fun generate(model: String, request: JsonObject): JsonObject =
+        withKeys(model) { path, key -> send(path, key, request) }
+
+    override suspend fun stream(model: String, request: JsonObject, onEvent: suspend (JsonObject) -> Unit) {
+        withKeys(model) { path, key -> receiveStream(path, key, request, onEvent) }
     }
+
+    /** Runs [attempt] with the current key, moving to the next key when one is refused before any data. */
+    private suspend fun <T> withKeys(model: String, attempt: suspend (path: String, key: String) -> T): T =
+        withContext(Dispatchers.IO) {
+            var key = apiKey()?.takeIf { it.isNotBlank() } ?: throw RestChatException(ERROR_NO_KEY)
+            if (!MODEL_PATTERN.matches(model)) throw RestChatException(ERROR_INVALID_MODEL)
+            val path = if (model.startsWith("models/")) model else "models/$model"
+            val tried = mutableSetOf<String>()
+            var result: T? = null
+            var done = false
+            while (!done) {
+                try {
+                    result = attempt(path, key)
+                    done = true
+                } catch (e: KeyRefused) {
+                    tried += key
+                    key = nextKey(key)?.takeIf { it.isNotBlank() && it !in tried }
+                        ?: throw RestChatException(httpErrorMessage(e.code), e.code)
+                }
+            }
+            @Suppress("UNCHECKED_CAST")
+            result as T
+        }
 
     private class KeyRefused(val code: Int) : Exception()
 
-    private suspend fun send(path: String, key: String, request: JsonObject): JsonObject {
-        val http = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/$path:generateContent")
+    private fun buildRequest(url: String, key: String, request: JsonObject): Request =
+        Request.Builder()
+            .url(url)
             .header("x-goog-api-key", key)
             .post(request.toString().toRequestBody("application/json".toMediaType()))
             .build()
+
+    private fun checkStatus(response: Response) {
+        if (response.isSuccessful) return
+        val body = response.body?.string().orEmpty()
+        if (isKeyProblem(response.code, body)) throw KeyRefused(response.code)
+        throw RestChatException(httpErrorMessage(response.code), response.code)
+    }
+
+    private suspend fun send(path: String, key: String, request: JsonObject): JsonObject {
+        val http = buildRequest("https://generativelanguage.googleapis.com/v1beta/$path:generateContent", key, request)
         return try {
             client.newCall(http).await().use { response ->
-                val body = response.body?.string().orEmpty()
-                if (!response.isSuccessful) {
-                    if (isKeyProblem(response.code, body)) throw KeyRefused(response.code)
-                    throw RestChatException(httpErrorMessage(response.code), response.code)
-                }
+                checkStatus(response)
                 try {
-                    Json.parseToJsonElement(body).jsonObject
+                    Json.parseToJsonElement(response.body?.string().orEmpty()).jsonObject
                 } catch (_: Exception) {
                     throw RestChatException(ERROR_MALFORMED)
                 }
             }
         } catch (e: IOException) {
+            throw RestChatException(ERROR_NETWORK)
+        }
+    }
+
+    private suspend fun receiveStream(
+        path: String,
+        key: String,
+        request: JsonObject,
+        onEvent: suspend (JsonObject) -> Unit,
+    ) {
+        val http = buildRequest(
+            "https://generativelanguage.googleapis.com/v1beta/$path:streamGenerateContent?alt=sse", key, request,
+        )
+        val call = client.newCall(http)
+        try {
+            coroutineScope {
+                // Reading the body blocks, so cancelling this scope must cancel the call itself.
+                val watcher = launch {
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        call.cancel()
+                    }
+                }
+                try {
+                    call.await().use { response ->
+                        checkStatus(response)
+                        val source = response.body?.source() ?: throw RestChatException(ERROR_MALFORMED)
+                        while (true) {
+                            currentCoroutineContext().ensureActive()
+                            val line = source.readUtf8Line() ?: break
+                            parseSseData(line)?.let { onEvent(it) }
+                        }
+                    }
+                } finally {
+                    watcher.cancel()
+                }
+            }
+        } catch (e: IOException) {
+            currentCoroutineContext().ensureActive()
             throw RestChatException(ERROR_NETWORK)
         }
     }
