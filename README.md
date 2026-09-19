@@ -14,8 +14,8 @@ Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. T
 unit-test suite (79 tests, `./gradlew :app:testDebugUnitTest`) passes. This is an
 actively in-progress port; see "Not ported" and "Known gaps" below.
 
-Still unverified on a device: reminders re-armed after a reboot, timers, flight
-search, and the wake word.
+Still unverified on a device: reconnection after a real network drop (unit-tested only),
+reminders re-armed after a reboot, timers, flight search, and the wake word.
 
 ## Build variants
 
@@ -98,10 +98,20 @@ contains an invalid argument` that repeats for every model, while the REST test 
 was fixed here by creating a fresh key at aistudio.google.com/apikey (cause not
 established).
 
+### Connection drops and stored key
+
+If the connection drops mid-session, the engine reconnects by itself: up to 3 quick attempts
+(1 s, 2 s, 4 s backoff), resuming with the latest server resumption handle so the model keeps
+its context. If the server refuses the handle it starts a fresh session and says so in the
+activity log. A fresh connection that fails during setup (bad key, unsupported model) is not
+retried. The handle lives in memory only and is discarded when you stop the session.
+
+The API key is stored encrypted with an Android Keystore key. Both are excluded from backups,
+and if the file is ever unreadable (for example after a reinstall) the app resets it instead
+of crashing: you then have to enter the key again.
+
 ## Known gaps / next steps
 
-- No session resumption yet: the protocol supports resumption handles, but the engine
-  does not keep one, so a dropped connection loses the conversation.
 - The conversation is deliberately ephemeral; `MemoryManager.saveSessionSummary` /
   `popLastSession` exist but nothing calls them (no morning briefing yet).
 - Wake word is a `SpeechRecognizer`-based approximation (see table above) — swapping

@@ -68,6 +68,53 @@ internal fun appendConversation(
 internal fun finishConversationTurn(messages: List<ConversationMessage>): List<ConversationMessage> =
     messages.map { if (it.complete) it else it.copy(complete = true) }
 
+internal const val MAX_CONSECUTIVE_DROPS = 3
+internal const val HEALTHY_SESSION_MS = 30_000L
+internal const val RECONNECT_BASE_DELAY_MS = 1_000L
+internal const val RECONNECT_MAX_DELAY_MS = 4_000L
+
+/** A connection ended without the user asking for it (network loss, server close, send failure). */
+internal class ConnectionDropped(
+    val wasReady: Boolean,
+    val liveMs: Long,
+    val detail: String,
+) : Exception(detail)
+
+internal sealed interface ReconnectDecision {
+    data object GiveUp : ReconnectDecision
+
+    /** [drops] is the consecutive-drop count to carry into the next decision. */
+    data class Retry(val delayMs: Long, val useHandle: Boolean, val drops: Int) : ReconnectDecision
+}
+
+/**
+ * Decides what to do after a connection dropped.
+ *
+ * - A fresh connection that never became ready is a configuration or authentication
+ *   problem (bad key, unsupported model, no network at all), not a transient drop: give up.
+ * - A resumed connection that never became ready means the handle was refused (for example
+ *   expired): retry once from scratch, without the handle.
+ * - A connection that was ready and dropped is retried, resuming with the last resumable
+ *   handle when there is one, with a short exponential backoff. A connection that stayed
+ *   ready for [HEALTHY_SESSION_MS] resets the counter, so a long-running session can
+ *   recover from any number of well-spaced drops, while a flapping link is abandoned after
+ *   [MAX_CONSECUTIVE_DROPS] quick drops.
+ */
+internal fun decideReconnect(
+    wasReady: Boolean,
+    hadHandle: Boolean,
+    hasHandle: Boolean,
+    liveMs: Long,
+    consecutiveDrops: Int,
+): ReconnectDecision {
+    if (!wasReady && !hadHandle) return ReconnectDecision.GiveUp
+    val drops = if (wasReady && liveMs >= HEALTHY_SESSION_MS) 1 else consecutiveDrops + 1
+    if (drops > MAX_CONSECUTIVE_DROPS) return ReconnectDecision.GiveUp
+    val delayMs = (RECONNECT_BASE_DELAY_MS shl (drops - 1)).coerceAtMost(RECONNECT_MAX_DELAY_MS)
+    val useHandle = hasHandle && wasReady
+    return ReconnectDecision.Retry(delayMs, useHandle, drops)
+}
+
 class JarvisEngine(
     private val container: JarvisContainer,
     private val scope: CoroutineScope,
@@ -92,6 +139,8 @@ class JarvisEngine(
     private var lastActivityAt = 0L
     private var wakeDetector: WakeWordDetector? = null
     private val pendingAnnouncements = ArrayDeque<String>()
+    private var resumeHandle: String? = null
+    @Volatile private var connectionReadyAt = 0L
 
     init {
         scope.launch {
@@ -214,12 +263,21 @@ class JarvisEngine(
         pendingAnnouncements.clear()
         sessionJob?.cancelAndJoin()
         sessionJob = null
+        resumeHandle = null
         _conversation.value = emptyList()
         _state.value = JarvisState.ASLEEP
     }
 
+    private fun dropped(detail: String): ConnectionDropped {
+        val readyAt = connectionReadyAt
+        return ConnectionDropped(
+            wasReady = readyAt > 0L,
+            liveMs = if (readyAt > 0L) android.os.SystemClock.elapsedRealtime() - readyAt else 0L,
+            detail = detail,
+        )
+    }
+
     private suspend fun runSession() {
-        var cl: GeminiLiveClient? = null
         try {
             val apiKey = container.configStore.getApiKey()
             if (apiKey.isNullOrBlank()) {
@@ -234,20 +292,82 @@ class JarvisEngine(
             val voice = container.configStore.snapshotVoice()
             val instruction = withContext(Dispatchers.IO) { buildSystemInstruction() }
             currentCoroutineContext().ensureActive()
-            val connection = GeminiLiveClient(apiKey)
-            cl = connection
-            client = connection
-            lastActivityAt = android.os.SystemClock.elapsedRealtime()
+
+            resumeHandle = null
+            var handleToSend: String? = null
+            var consecutiveDrops = 0
+            while (true) {
+                val drop = try {
+                    runConnection(apiKey, model, voice, instruction, handleToSend)
+                } catch (d: ConnectionDropped) {
+                    d
+                }
+                when (
+                    val decision = decideReconnect(
+                        wasReady = drop.wasReady,
+                        hadHandle = handleToSend != null,
+                        hasHandle = resumeHandle != null,
+                        liveMs = drop.liveMs,
+                        consecutiveDrops = consecutiveDrops,
+                    )
+                ) {
+                    ReconnectDecision.GiveUp -> {
+                        log("Session interrompue. Vérifiez la connexion et les autorisations, puis réessayez.")
+                        log("Détail : ${drop.detail}")
+                        _state.value = JarvisState.ERROR
+                        return
+                    }
+                    is ReconnectDecision.Retry -> {
+                        consecutiveDrops = decision.drops
+                        if (!decision.useHandle) resumeHandle = null
+                        handleToSend = if (decision.useHandle) resumeHandle else null
+                        _state.value = JarvisState.CONNECTING
+                        log(
+                            if (decision.useHandle) "Connexion perdue : reprise de la session…"
+                            else "Connexion perdue : nouvelle session, le contexte n’a pas pu être conservé."
+                        )
+                        delay(decision.delayMs)
+                    }
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            _state.value = JarvisState.ERROR
+            log("Session interrompue. Vérifiez la connexion et les autorisations, puis réessayez.")
+        } finally {
+            withContext(NonCancellable + Dispatchers.Main.immediate) {
+                _sessionReady.value = false
+                pendingAnnouncements.clear()
+                _conversation.update { finishConversationTurn(it) }
+                if (_state.value != JarvisState.ERROR) _state.value = JarvisState.ASLEEP
+            }
+        }
+    }
+
+    /** Runs one WebSocket connection until it drops; always ends by throwing. */
+    private suspend fun runConnection(
+        apiKey: String,
+        model: String,
+        voice: String,
+        instruction: String,
+        handle: String?,
+    ): Nothing {
+        connectionReadyAt = 0L
+        val connection = GeminiLiveClient(apiKey)
+        client = connection
+        lastActivityAt = android.os.SystemClock.elapsedRealtime()
+        try {
             coroutineScope {
                 val ready = CompletableDeferred<Unit>()
                 val handshake = launch {
                     try {
                         withTimeout(HANDSHAKE_TIMEOUT_MS) { ready.await() }
                     } catch (e: TimeoutCancellationException) {
-                        throw IllegalStateException("Délai de connexion dépassé.")
+                        throw dropped("Délai de connexion dépassé.")
                     }
                 }
-                connection.connect(model, instruction, ToolRegistry.declarations(), voice, null)
+                connection.connect(model, instruction, ToolRegistry.declarations(), voice, handle)
                     .collect { event ->
                         currentCoroutineContext().ensureActive()
                         when (event) {
@@ -259,13 +379,17 @@ class JarvisEngine(
                                 }
                                 ready.complete(Unit)
                                 handshake.cancel()
+                                connectionReadyAt = android.os.SystemClock.elapsedRealtime()
                                 _sessionReady.value = true
                                 _state.value = JarvisState.LISTENING
-                                log("Session connectée. Microphone actif.")
+                                log(
+                                    if (handle != null) "Session reprise. Microphone actif."
+                                    else "Session connectée. Microphone actif."
+                                )
                                 launch(Dispatchers.IO) {
                                     audio.micFrames().collect { frame ->
                                         currentCoroutineContext().ensureActive()
-                                        check(connection.sendAudio(frame)) { "Envoi audio interrompu." }
+                                        if (!connection.sendAudio(frame)) throw dropped("Envoi audio interrompu.")
                                     }
                                 }
                                 launch {
@@ -281,28 +405,24 @@ class JarvisEngine(
                                     }
                                 }
                             }
-                            is LiveEvent.Error -> throw IllegalStateException("Connexion interrompue.")
-                            is LiveEvent.Closed -> throw IllegalStateException("Session fermée.")
+                            is LiveEvent.ResumptionUpdate -> {
+                                resumeHandle = event.handle
+                            }
+                            is LiveEvent.Error -> throw dropped("Erreur réseau.")
+                            is LiveEvent.Closed -> throw dropped("Session fermée (${event.code}) : ${event.reason.take(160)}")
                             else -> if (ready.isCompleted) handleEvent(event, connection)
                         }
                     }
-                throw IllegalStateException("Session terminée.")
+                throw dropped("Session terminée.")
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            _state.value = JarvisState.ERROR
-            log("Session interrompue. Vérifiez la connexion et les autorisations, puis réessayez.")
         } finally {
             withContext(NonCancellable + Dispatchers.Main.immediate) {
                 _sessionReady.value = false
-                pendingAnnouncements.clear()
-                cl?.close()
-                client = null
+                connection.close()
+                if (client === connection) client = null
                 audio.stopPlayback()
                 audio.abandonAudioFocus()
                 _conversation.update { finishConversationTurn(it) }
-                if (_state.value != JarvisState.ERROR) _state.value = JarvisState.ASLEEP
             }
         }
     }
@@ -339,7 +459,7 @@ class JarvisEngine(
                         ToolRegistry.run(call.name, call.args, container)
                     }
                     currentCoroutineContext().ensureActive()
-                    check(cl.sendToolResponse(call.id, call.name, result)) { "Réponse non envoyée." }
+                    if (!cl.sendToolResponse(call.id, call.name, result)) throw dropped("Réponse non envoyée.")
                 }
             }
             else -> Unit
