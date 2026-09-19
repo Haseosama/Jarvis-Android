@@ -191,15 +191,22 @@ private fun ReactorCore(state: JarvisState, outputLevel: Float, onTap: () -> Uni
         JarvisState.ERROR -> Color(0xFFE05252)
     }
     val motion = reactorMotion(state)
-    val breath by rememberInfiniteTransition(label = "reactor").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(motion.periodMs, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "breath",
-    )
+    val transition = rememberInfiniteTransition(label = "reactor")
+    // No animation registered while still: an endless animation keeps the screen "busy" and
+    // costs battery for nothing.
+    val breath = if (motion.pulse > 0f) {
+        transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(motion.periodMs, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "breath",
+        ).value
+    } else {
+        0f
+    }
     val voice by animateFloatAsState(
         targetValue = if (motion.followsVoice) outputLevel else 0f,
         animationSpec = tween(90),
