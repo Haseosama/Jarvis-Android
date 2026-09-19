@@ -30,4 +30,25 @@ class ConfirmManagerTest {
         assertFalse(result.await())
         assertNull(manager.pending.value)
     }
+
+    @Test
+    fun `a newer request refuses the older one and can itself be confirmed`() = runBlocking {
+        val manager = ConfirmManager()
+        val first = async { manager.request("A", "premier") }
+        while (manager.pending.value == null) delay(10)
+        val second = async { manager.request("B", "second") }
+        assertFalse(first.await())
+        while (manager.pending.value?.actionLabel != "B") delay(10)
+        manager.confirm()
+        assertTrue(second.await())
+        assertNull(manager.pending.value)
+    }
+
+    @Test
+    fun `a request that times out leaves nothing pending`() = runBlocking {
+        val manager = ConfirmManager()
+        val outcome = kotlinx.coroutines.withTimeoutOrNull(100) { manager.request("A", "x") }
+        assertNull(outcome)
+        assertNull(manager.pending.value)
+    }
 }

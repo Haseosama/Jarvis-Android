@@ -63,7 +63,7 @@ confirmation; Wi-Fi/brightness panels), `send_message` (WhatsApp, Telegram, Mess
 draft only — the user picks the contact and sends; the app cannot type into other apps or press
 their buttons, which would need an accessibility service),
 `youtube_video`, `read_clipboard`, `code_helper`, `recall_memory`, `remember_fact`,
-`forget_fact`, `undo`, `end_session`.
+`forget_fact`, `undo`, `end_session`, and the phone-control tools below.
 
 `end_session` lets you close the voice session by voice ("arrête la session"): the model says
 goodbye, and once that turn is complete the session and the foreground service are stopped (a
@@ -160,6 +160,39 @@ speaking, the inner core also grows with the loudness of the audio actually bein
 on an emulator (size changes during the connecting state, still once in error). The voice-driven
 part has not been seen on a device with a real spoken answer. The microphone level is not used
 while listening.
+
+### Phone control (accessibility service)
+
+Jarvis can operate any app like a person would: `screen_read` (numbered list of what is visible),
+`screen_tap` (by number or visible text), `screen_type`, `screen_scroll`, `screen_swipe` (left =
+next photo or page) and `screen_navigate` (back, home, recents, notifications, quick settings).
+The model works in small steps: `open_app`, read, one action, read again to check. Android only
+allows this through an accessibility service, which **you must switch on yourself**: Settings →
+Accessibility → *Jarvis : contrôle du téléphone* (on Xiaomi/MIUI, if greyed out: Settings → Apps →
+Jarvis → ⋮ → *Allow restricted settings*). A switch in Jarvis' settings turns the tools off without
+touching the system setting, and the system switch can be turned off at any time.
+
+Safeguards (`device/ScreenModel.kt`, `actions/ScreenTools.kt`):
+- Taps on buttons that send, pay, delete, install, grant access, accept terms or call, and **every**
+  tap inside Settings, the permission dialogs, the package installer and the system UI, need your
+  confirmation in a notification with *Confirmer / Annuler* buttons (visible over any app). A newer
+  request refuses an older one, and nothing else can act while a confirmation is waiting. The
+  system UI is included so the assistant cannot press *Confirmer* on its own notification.
+- Password fields are never typed into and their content is never listed.
+- Text read on the screen is marked as data, never as instructions; the system prompt tells the
+  model so.
+- What is read on screen is sent to Gemini to process your request.
+
+Checked on an emulator with the service switched on, through a debug-only adb trigger: reading the
+Clock and Settings apps, tapping a tab by its text, an unknown text refused, swipe, scroll, home,
+typing without a field refused, and the confirmation notification appearing for a Settings tap
+(left unanswered, so nothing was touched). **Not checked:** pressing *Confirmer / Annuler* from the
+notification, typing into a real text field, Photos/Messenger flows, and anything on the real phone
+(the service has to be enabled there first). Apps that mark their window secure or draw their own
+UI without accessibility labels (some games, banking apps) may not be readable.
+
+The debug build also contains a receiver that runs a tool from adb (`DebugToolReceiver`), protected
+by the `DUMP` permission so only adb can call it; it is not in the release build.
 
 ### Text chat (REST)
 

@@ -47,6 +47,8 @@ fun SettingsScreen(
     val model by configStore.model.collectAsState(initial = ConfigStore.DEFAULT_MODEL)
     val hue by configStore.themeHue.collectAsState(initial = 190f)
     val wakeWordEnabled by configStore.wakeWordEnabled.collectAsState(initial = false)
+    val deviceControl by configStore.deviceControlEnabled.collectAsState(initial = true)
+    var serviceOn by remember { mutableStateOf(false) }
     var assistantNameField by remember(assistantName) { mutableStateOf(assistantName) }
     var userNameField by remember(userName) { mutableStateOf(userName) }
     var modelField by remember(model) { mutableStateOf(model) }
@@ -73,6 +75,12 @@ fun SettingsScreen(
     var loadingReminders by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        while (true) {
+            serviceOn = com.jarvis.android.device.JarvisAccessibilityService.instance != null
+            kotlinx.coroutines.delay(1_000)
+        }
+    }
     LaunchedEffect(Unit) {
         val slots = withContext(Dispatchers.IO) {
             try { configStore.keySlotsFilled() } catch (_: Exception) { null }
@@ -157,6 +165,41 @@ fun SettingsScreen(
             Text(
                 "Utilise la reconnaissance vocale d’Android. La disponibilité et le fonctionnement hors connexion dépendent de l’appareil ; ce n’est pas le détecteur hors ligne de l’application de bureau. L’écoute reprend automatiquement en veille.",
                 style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(24.dp))
+            Text("Contrôle du téléphone", style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            ) {
+                Text("Autoriser Jarvis à lire l’écran et à agir dans les autres applications", modifier = Modifier.weight(1f))
+                Switch(checked = deviceControl, onCheckedChange = { scope.launch { configStore.setDeviceControlEnabled(it) } })
+            }
+            Text(
+                if (serviceOn) "Service d’accessibilité : activé ✓" else "Service d’accessibilité : désactivé",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            OutlinedButton(
+                onClick = {
+                    try {
+                        context.startActivity(
+                            android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    } catch (_: Exception) {
+                    }
+                },
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text("Ouvrir les réglages d’accessibilité") }
+            Text(
+                "Android n’autorise le contrôle des autres applications que via un service d’accessibilité, à activer vous-même : Paramètres > Accessibilité > Jarvis : contrôle du téléphone. " +
+                    "Sur Xiaomi (MIUI), si l’option est grisée : Paramètres > Applications > Jarvis > menu ⋮ > Autoriser les paramètres restreints. " +
+                    "Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et tout ce qui touche aux réglages système demandent votre confirmation dans une notification. " +
+                    "Jarvis ne remplit jamais un mot de passe. Le contenu lu à l’écran est transmis à Gemini pour traiter votre demande.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
             )
             Spacer(Modifier.height(24.dp))
             Text("Options avancées", style = MaterialTheme.typography.titleMedium)

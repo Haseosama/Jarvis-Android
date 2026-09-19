@@ -165,6 +165,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_TTS_MODEL = stringPreferencesKey("tts_model")
     private val KEY_THEME_HUE = floatPreferencesKey("theme_hue")
     private val KEY_WAKE_WORD = booleanPreferencesKey("wake_word_enabled")
+    private val KEY_DEVICE_CONTROL = booleanPreferencesKey("device_control_enabled")
 
     val assistantName: Flow<String> = context.dataStore.data.map { it[KEY_ASSISTANT_NAME] ?: "JARVIS" }
     val userName: Flow<String> = context.dataStore.data.map { it[KEY_USER_NAME] ?: "" }
@@ -176,6 +177,8 @@ class ConfigStore(private val context: Context) {
     /** Speech model for spoken chat answers; blank means "find one from ListModels". */
     val ttsModel: Flow<String> = context.dataStore.data.map { it[KEY_TTS_MODEL].orEmpty() }
     val themeHue: Flow<Float> = context.dataStore.data.map { it[KEY_THEME_HUE] ?: 190f }
+    /** Master switch for the phone-control tools (on top of the system accessibility switch). */
+    val deviceControlEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_DEVICE_CONTROL] ?: true }
     val wakeWordEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_WORD] ?: false }
 
     suspend fun setAssistantName(v: String) = context.dataStore.edit { it[KEY_ASSISTANT_NAME] = v }
@@ -185,6 +188,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setRestModel(v: String) = context.dataStore.edit { it[KEY_REST_MODEL] = v }
     suspend fun setTtsModel(v: String) = context.dataStore.edit { it[KEY_TTS_MODEL] = v }
     suspend fun setThemeHue(v: Float) = context.dataStore.edit { it[KEY_THEME_HUE] = v }
+    suspend fun setDeviceControlEnabled(v: Boolean) = context.dataStore.edit { it[KEY_DEVICE_CONTROL] = v }
     suspend fun setWakeWordEnabled(v: Boolean) = context.dataStore.edit { it[KEY_WAKE_WORD] = v }
 
     suspend fun snapshotAssistantName() = assistantName.first()

@@ -20,11 +20,20 @@ class ConfirmManager {
 
     suspend fun request(actionLabel: String, detail: String): Boolean {
         val deferred = CompletableDeferred<Boolean>()
+        // A newer request replaces an older one: the older caller is told "no" instead of
+        // waiting forever for an answer that can no longer reach it.
+        waiting?.complete(false)
         waiting = deferred
         _pending.value = PendingConfirmation(actionLabel, detail)
-        val result = deferred.await()
-        _pending.value = null
-        return result
+        try {
+            return deferred.await()
+        } finally {
+            // Only clear when no newer request has taken over.
+            if (waiting == null || waiting === deferred) {
+                waiting = null
+                _pending.value = null
+            }
+        }
     }
 
     fun confirm() {

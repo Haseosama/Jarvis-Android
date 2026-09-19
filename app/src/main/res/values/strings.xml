@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Jarvis Dev</string>
+    <string name="accessibility_service_name">Jarvis : contrôle du téléphone</string>
+    <string name="accessibility_service_description">Permet à Jarvis de lire l’écran, d’appuyer, de saisir du texte et de faire défiler dans les autres applications quand vous le lui demandez par la voix ou le chat. Ce que Jarvis lit à l’écran est transmis à l’API Gemini pour comprendre votre demande. Les champs de mot de passe ne sont jamais remplis. Vous pouvez désactiver ce service à tout moment.</string>
 </resources>

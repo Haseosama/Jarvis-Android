@@ -38,6 +38,12 @@ object ToolRegistry {
         ForgetMemoryTool,
         UndoTool,
         EndSessionTool,
+        ScreenReadTool,
+        ScreenTapTool,
+        ScreenTypeTool,
+        ScreenScrollTool,
+        ScreenSwipeTool,
+        ScreenNavigateTool,
     )
 
     private val byName = ALL.associateBy { it.name }

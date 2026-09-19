@@ -10,6 +10,7 @@ import com.jarvis.android.rest.RestChat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -37,6 +38,11 @@ class JarvisContainer(val appContext: Context) {
     }
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    init {
+        val notifier = com.jarvis.android.core.ConfirmNotifier(appContext)
+        appScope.launch { confirmManager.pending.collect { notifier.show(it) } }
+    }
 
     /** One engine per process, shared by the foreground service and the UI. */
     val engine: JarvisEngine by lazy { JarvisEngine(this, appScope) }
