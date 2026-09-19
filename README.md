@@ -160,6 +160,23 @@ Checked: unit tests with a fake transport, the error path on an emulator with a 
 a tool round trip on a real phone with a real key (battery question answered through
 `system_monitor`, matching `dumpsys battery`).
 
+#### Spoken mode (push-to-talk)
+
+The microphone button in the chat records up to 60 s (16 kHz mono, `rest/VoiceDevices.kt`);
+pressing stop sends the recording to `generateContent` as WAV for a verbatim transcription, sends
+that text as a normal chat message (tools included), then asks a speech model for the answer and
+plays it (24 kHz PCM through an `AudioTrack`). Typed messages are not read aloud. The voice is the
+one chosen in the settings. The speech model can be set in **Paramètres → Modèle voix**; when left
+empty the app reads ListModels and takes the first model that supports `generateContent` and has
+"tts" in its name (`SpeechModelResolver`). Each step reports a specific error; if only the speech
+step fails, the written answer stays on screen. Leaving the screen cancels a recording or a
+playback.
+
+Checked: unit tests with fake recorder, player and transport (round trip, each failure, cancel), and
+on an emulator the record → transcribe → error path with a fake key. Not yet checked with a real key:
+the transcription quality, the speech-model auto-detection and the actual playback. It does not stop
+a running Live voice session; use one or the other.
+
 ## Known gaps / next steps
 
 - The conversation is deliberately ephemeral; `MemoryManager.saveSessionSummary` /

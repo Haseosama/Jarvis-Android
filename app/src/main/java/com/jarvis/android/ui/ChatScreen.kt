@@ -1,5 +1,8 @@
 package com.jarvis.android.ui
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +17,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,6 +31,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,6 +46,7 @@ import com.jarvis.android.core.ConversationRole
 import com.jarvis.android.core.MAX_MESSAGE_CHARS
 import com.jarvis.android.core.PendingConfirmation
 import com.jarvis.android.rest.RestChat
+import com.jarvis.android.rest.VoiceStage
 import kotlinx.coroutines.launch
 
 /**
@@ -60,7 +68,20 @@ fun ChatScreen(
     var draft by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val voice = chat.voice
+    val stage by voice.stage.collectAsState()
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) error = voice.startRecording()
+        else error = "Micro non autorisé. Accordez la permission d’enregistrement audio puis réessayez."
+    }
     val listState = rememberLazyListState()
+
+    DisposableEffect(Unit) {
+        onDispose {
+            voice.cancelRecording()
+            voice.stopSpeaking()
+        }
+    }
 
     LaunchedEffect(messages.size, sending) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
@@ -109,6 +130,12 @@ fun ChatScreen(
                     item { Text("Jarvis réfléchit…", style = MaterialTheme.typography.bodySmall) }
                 }
             }
+            when (stage) {
+                VoiceStage.RECORDING -> Text("Enregistrement… appuyez sur le micro pour envoyer.", style = MaterialTheme.typography.bodySmall)
+                VoiceStage.TRANSCRIBING -> Text("Transcription…", style = MaterialTheme.typography.bodySmall)
+                VoiceStage.SPEAKING -> Text("Jarvis parle…", style = MaterialTheme.typography.bodySmall)
+                else -> {}
+            }
             error?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
@@ -121,12 +148,35 @@ fun ChatScreen(
                     onValueChange = { draft = it.take(MAX_MESSAGE_CHARS); error = null },
                     label = { Text("Votre message") },
                     maxLines = 4,
-                    enabled = !sending,
+                    enabled = !sending && stage == VoiceStage.IDLE,
                     modifier = Modifier.weight(1f),
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(4.dp))
+                when (stage) {
+                    VoiceStage.RECORDING -> {
+                        IconButton(onClick = { voice.cancelRecording() }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Annuler l’enregistrement")
+                        }
+                        IconButton(onClick = {
+                            scope.launch {
+                                error = null
+                                error = voice.finishRecording()
+                            }
+                        }) { Icon(Icons.Filled.Stop, contentDescription = "Envoyer l’enregistrement") }
+                    }
+                    VoiceStage.SPEAKING -> IconButton(onClick = { voice.stopSpeaking() }) {
+                        Icon(Icons.Filled.Stop, contentDescription = "Arrêter la lecture")
+                    }
+                    else -> IconButton(
+                        enabled = !sending && stage == VoiceStage.IDLE,
+                        onClick = {
+                            error = null
+                            micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                        },
+                    ) { Icon(Icons.Filled.Mic, contentDescription = "Parler") }
+                }
                 Button(
-                    enabled = draft.isNotBlank() && !sending,
+                    enabled = draft.isNotBlank() && !sending && stage == VoiceStage.IDLE,
                     onClick = {
                         val text = draft
                         draft = ""

@@ -181,7 +181,7 @@ internal class OkHttpGenerateTransport(
     }
 }
 
-private suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation ->
+internal suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation ->
     enqueue(object : Callback {
         override fun onResponse(call: Call, response: Response) {
             if (continuation.isActive) continuation.resume(response) else response.close()

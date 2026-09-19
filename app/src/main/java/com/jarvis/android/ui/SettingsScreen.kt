@@ -52,6 +52,8 @@ fun SettingsScreen(
     var modelField by remember(model) { mutableStateOf(model) }
     val restModel by configStore.restModel.collectAsState(initial = ConfigStore.DEFAULT_REST_MODEL)
     var restModelField by remember(restModel) { mutableStateOf(restModel) }
+    val ttsModel by configStore.ttsModel.collectAsState(initial = "")
+    var ttsModelField by remember(ttsModel) { mutableStateOf(ttsModel) }
     var apiKeyField by remember { mutableStateOf("") }
     var voiceMenuOpen by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
@@ -168,6 +170,14 @@ fun SettingsScreen(
                 label = { Text("Modèle texte (chat)") },
                 singleLine = true,
                 supportingText = { Text("Utilisé par le chat texte et le test de clé (generateContent). Laissez vide pour la valeur par défaut.") },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+            OutlinedTextField(
+                value = ttsModelField,
+                onValueChange = { ttsModelField = it; scope.launch { configStore.setTtsModel(it.trim()) } },
+                label = { Text("Modèle voix (lecture des réponses)") },
+                singleLine = true,
+                supportingText = { Text("Laissez vide pour détecter automatiquement un modèle de synthèse vocale disponible avec votre clé. La voix suit le réglage de voix ci-dessus.") },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             OutlinedTextField(

@@ -111,6 +111,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_VOICE = stringPreferencesKey("voice")
     private val KEY_MODEL = stringPreferencesKey("model")
     private val KEY_REST_MODEL = stringPreferencesKey("rest_model")
+    private val KEY_TTS_MODEL = stringPreferencesKey("tts_model")
     private val KEY_THEME_HUE = floatPreferencesKey("theme_hue")
     private val KEY_WAKE_WORD = booleanPreferencesKey("wake_word_enabled")
 
@@ -121,6 +122,8 @@ class ConfigStore(private val context: Context) {
     val restModel: Flow<String> = context.dataStore.data.map {
         it[KEY_REST_MODEL]?.takeIf { value -> value.isNotBlank() } ?: DEFAULT_REST_MODEL
     }
+    /** Speech model for spoken chat answers; blank means "find one from ListModels". */
+    val ttsModel: Flow<String> = context.dataStore.data.map { it[KEY_TTS_MODEL].orEmpty() }
     val themeHue: Flow<Float> = context.dataStore.data.map { it[KEY_THEME_HUE] ?: 190f }
     val wakeWordEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_WORD] ?: false }
 
@@ -129,6 +132,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setVoice(v: String) = context.dataStore.edit { it[KEY_VOICE] = v }
     suspend fun setModel(v: String) = context.dataStore.edit { it[KEY_MODEL] = v }
     suspend fun setRestModel(v: String) = context.dataStore.edit { it[KEY_REST_MODEL] = v }
+    suspend fun setTtsModel(v: String) = context.dataStore.edit { it[KEY_TTS_MODEL] = v }
     suspend fun setThemeHue(v: Float) = context.dataStore.edit { it[KEY_THEME_HUE] = v }
     suspend fun setWakeWordEnabled(v: Boolean) = context.dataStore.edit { it[KEY_WAKE_WORD] = v }
 
@@ -137,6 +141,7 @@ class ConfigStore(private val context: Context) {
     suspend fun snapshotVoice() = voice.first()
     suspend fun snapshotModel() = model.first()
     suspend fun snapshotRestModel() = restModel.first()
+    suspend fun snapshotTtsModel() = ttsModel.first()
 
     companion object {
         private const val KEY_API_KEY = "gemini_api_key"

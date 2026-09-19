@@ -77,11 +77,15 @@ class RestChat internal constructor(
 ) {
     private val lock = Mutex()
 
+    private val httpClient = container.http.newBuilder().readTimeout(90, TimeUnit.SECONDS).build()
+
+    private val transport: GenerateTransport = transport ?: OkHttpGenerateTransport(
+        client = httpClient,
+        apiKey = { container.configStore.getApiKey() },
+    )
+
     private val session = RestChatSession(
-        transport = transport ?: OkHttpGenerateTransport(
-            client = container.http.newBuilder().readTimeout(90, TimeUnit.SECONDS).build(),
-            apiKey = { container.configStore.getApiKey() },
-        ),
+        transport = this.transport,
         model = { container.configStore.snapshotRestModel() },
         systemInstruction = { buildSystemInstruction(container, textMode = true) },
         toolDeclarations = { ToolRegistry.declarations() },
@@ -90,6 +94,24 @@ class RestChat internal constructor(
             ToolRegistry.run(name, args, container)
         },
     )
+
+    private val speechModels = SpeechModelResolver(httpClient) { container.configStore.getApiKey() }
+
+    /** Push-to-talk on top of this chat. */
+    internal val voice: RestVoice by lazy {
+        RestVoice(
+            recorder = AudioRecorder(container.appContext),
+            output = AudioPlayer(container.appContext),
+            transport = this.transport,
+            textModel = { container.configStore.snapshotRestModel() },
+            speechModel = {
+                container.configStore.snapshotTtsModel().trim().ifEmpty { speechModels.resolve() }
+            },
+            voice = { container.configStore.snapshotVoice() },
+            sendText = { send(it) },
+            lastReply = { _messages.value.lastOrNull { it.role == ConversationRole.ASSISTANT }?.text },
+        )
+    }
 
     private val _messages = MutableStateFlow<List<ConversationMessage>>(emptyList())
     val messages: StateFlow<List<ConversationMessage>> = _messages.asStateFlow()
