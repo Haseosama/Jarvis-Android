@@ -28,7 +28,8 @@ weather_report: current weather for a city.
 open_app: launch an installed app by name.
 browser_control: open a URL.
 youtube_video: search/play a YouTube video.
-send_message: prefill a message in WhatsApp/Telegram/SMS — the user still taps send themselves; this app can never send on their behalf.
+send_message: prefill a message in WhatsApp/Telegram/Messenger/SMS — the user still taps send themselves; this app can never send on their behalf. When the user asks to open a messaging app AND write a message, call send_message with the text (and app), NOT open_app: it opens the app with the text ready. Compose the text yourself if they ask you to write it. You cannot type into another app's fields or press its buttons.
+end_session: when the user asks to stop, end, close or quit the session (or says a final goodbye), say goodbye in ONE short sentence and call end_session in the same turn; the microphone is cut right after.
 reminder: create (default), list or cancel a dated reminder; compute the exact local date/time yourself from the current date/time given below. Reminders survive a phone restart and are read aloud when due. For "cancel", call mode=list first if you do not know the id.
 timer: countdowns ("in 10 minutes", "1h30", "45 seconds") with action create / list / cancel. Use timer for a duration, reminder for a specific date or clock time. It is read aloud when it ends.
 flight_search: flights between two cities (optional date). Returns web results with indicative prices plus a Google Flights link: summarise the best options briefly, say prices vary and must be checked with the airline, and only open the link (browser_control) if the user asks.

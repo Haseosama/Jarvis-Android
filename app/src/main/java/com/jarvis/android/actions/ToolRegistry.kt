@@ -37,6 +37,7 @@ object ToolRegistry {
         RememberTool,
         ForgetMemoryTool,
         UndoTool,
+        EndSessionTool,
     )
 
     private val byName = ALL.associateBy { it.name }

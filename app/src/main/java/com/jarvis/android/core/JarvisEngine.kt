@@ -142,6 +142,7 @@ class JarvisEngine(
     private var client: GeminiLiveClient? = null
     private var sessionJob: Job? = null
     private var lastActivityAt = 0L
+    private val endOfSession = EndOfSession()
     private var wakeDetector: WakeWordDetector? = null
     private val pendingAnnouncements = ArrayDeque<String>()
     private var resumeHandle: String? = null
@@ -193,6 +194,32 @@ class JarvisEngine(
                 withContext(Dispatchers.Main.immediate) { stopLocked() }
             }
         }
+    }
+
+    /**
+     * Asks for the session to close once the model has said goodbye (see [EndOfSession]). A timer
+     * ends it anyway if the goodbye never completes. False when there is no session to close.
+     */
+    fun requestEndSession(): Boolean {
+        if (state.value == JarvisState.ASLEEP || state.value == JarvisState.ERROR) return false
+        endOfSession.request()
+        scope.launch {
+            delay(END_SESSION_TIMEOUT_MS)
+            if (endOfSession.pending) finishEndSession()
+        }
+        return true
+    }
+
+    private suspend fun finishEndSession() {
+        if (!endOfSession.pending) return
+        endOfSession.reset()
+        // Let the last words of the goodbye reach the speaker before the audio is cut.
+        delay(END_SESSION_GRACE_MS)
+        log("Session terminée à votre demande.")
+        stop()
+        container.appContext.stopService(
+            android.content.Intent(container.appContext, JarvisVoiceService::class.java)
+        )
     }
 
     fun toggleAwake() {
@@ -254,6 +281,7 @@ class JarvisEngine(
 
     private suspend fun startLocked() {
         if (sessionJob?.isActive == true) return
+        endOfSession.reset()
         sessionJob?.join()
         _conversation.value = emptyList()
         _sessionReady.value = false
@@ -264,6 +292,7 @@ class JarvisEngine(
     }
 
     private suspend fun stopLocked() {
+        endOfSession.reset()
         _sessionReady.value = false
         pendingAnnouncements.clear()
         sessionJob?.cancelAndJoin()
@@ -455,6 +484,11 @@ class JarvisEngine(
                 _state.value = JarvisState.LISTENING
             }
             is LiveEvent.TurnComplete -> {
+                if (endOfSession.turnCompleted()) {
+                    _conversation.update { finishConversationTurn(it) }
+                    finishEndSession()
+                    return
+                }
                 _conversation.update { finishConversationTurn(it) }
                 _state.value = JarvisState.LISTENING
                 flushAnnouncements(cl)
@@ -468,6 +502,7 @@ class JarvisEngine(
                     }
                     currentCoroutineContext().ensureActive()
                     if (!cl.sendToolResponse(call.id, call.name, result)) throw dropped("Réponse non envoyée.")
+                    endOfSession.toolResponseSent()
                 }
             }
             else -> Unit
@@ -476,6 +511,8 @@ class JarvisEngine(
 
     private companion object {
         const val AUTO_SLEEP_MS = 120_000L
+        const val END_SESSION_TIMEOUT_MS = 12_000L
+        const val END_SESSION_GRACE_MS = 1_500L
         const val HANDSHAKE_TIMEOUT_MS = 20_000L
         const val MAX_PENDING_ANNOUNCEMENTS = 5
     }

@@ -9,21 +9,22 @@ import java.util.Locale
 object SendMessageTool : Tool {
     override val name = "send_message"
     override val description =
-        "Préparer un brouillon dans WhatsApp, Telegram, les SMS ou une application choisie. Aucun envoi automatique ; l’utilisateur confirme dans l’application."
+        "Préparer un brouillon dans WhatsApp, Telegram, Messenger, les SMS ou une application choisie. Aucun envoi automatique ; l’utilisateur confirme dans l’application."
     override val parameters = objectSchema(required = listOf("text")) {
         string("text", "Texte du brouillon, sans envoi automatique.")
-        string("app", "Facultatif : 'whatsapp', 'telegram', 'sms', ou vide pour choisir.")
+        string("app", "Facultatif : 'whatsapp', 'telegram', 'messenger', 'sms', ou vide pour choisir.")
     }
 
     private val packages = mapOf(
         "whatsapp" to "com.whatsapp",
         "telegram" to "org.telegram.messenger",
+        "messenger" to "com.facebook.orca",
     )
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String {
         val draft = prepareMessageDraft(args.utilityString("text"),
             if ("app" in args) args.utilityString("app") else "")
-            ?: return "Indiquez un message non vide (10 000 caractères maximum) et choisissez WhatsApp, Telegram, SMS ou laissez l’application vide."
+            ?: return "Indiquez un message non vide (10 000 caractères maximum) et choisissez WhatsApp, Telegram, Messenger, SMS ou laissez l’application vide."
         val intent = if (draft.app == "sms") {
             Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")).apply {
                 putExtra("sms_body", draft.text)
@@ -52,6 +53,6 @@ internal fun prepareMessageDraft(text: String?, app: String?): MessageDraft? {
     if (text.isNullOrBlank() || text.length > 10_000 ||
         text.any { it.isISOControl() && it !in "\n\r\t" } || app == null) return null
     val normalizedApp = app.trim().lowercase(Locale.ROOT)
-    if (normalizedApp !in setOf("", "whatsapp", "telegram", "sms")) return null
+    if (normalizedApp !in setOf("", "whatsapp", "telegram", "messenger", "sms")) return null
     return MessageDraft(text, normalizedApp)
 }

@@ -59,9 +59,16 @@ release APK comes out unsigned. `keystore/`, `*.keystore` and `*.jks` are git-ig
 `open_app`, `browser_control`, `reminder` (create / list / cancel, persisted, re-armed after
 a reboot, read aloud when due), `timer` (create / list / cancel, read aloud at the end),
 `system_monitor` (battery/storage), `device_settings` (volume behind an on-screen
-confirmation; Wi-Fi/brightness panels), `send_message` (draft only — the user sends),
+confirmation; Wi-Fi/brightness panels), `send_message` (WhatsApp, Telegram, Messenger or SMS: opens the app with the text ready,
+draft only — the user picks the contact and sends; the app cannot type into other apps or press
+their buttons, which would need an accessibility service),
 `youtube_video`, `read_clipboard`, `code_helper`, `recall_memory`, `remember_fact`,
-`forget_fact`, `undo`.
+`forget_fact`, `undo`, `end_session`.
+
+`end_session` lets you close the voice session by voice ("arrête la session"): the model says
+goodbye, and once that turn is complete the session and the foreground service are stopped (a
+12 s timer ends it anyway if the goodbye never completes; a 1.5 s pause lets the last words be
+heard). In the text chat it does nothing. Not yet checked on a real spoken session.
 
 The HUD also shows the conversation transcript (ephemeral, not stored) and lets you type
 a message into the running voice session.
