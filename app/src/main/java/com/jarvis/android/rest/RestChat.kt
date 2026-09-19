@@ -82,6 +82,7 @@ class RestChat internal constructor(
     private val transport: GenerateTransport = transport ?: OkHttpGenerateTransport(
         client = httpClient,
         apiKey = { container.configStore.getApiKey() },
+        nextKey = { container.configStore.keyRejected(it) },
     )
 
     private val session = RestChatSession(

@@ -45,11 +45,29 @@ internal fun <T> openOrReset(open: () -> T, reset: () -> Unit): T =
  */
 class ConfigStore(private val context: Context) {
 
-    private val store = SecureStore(
-        dir = context.noBackupFilesDir,
-        name = API_KEY_FILE,
-        keys = KeystoreKeyProvider(API_KEY_ALIAS),
-    )
+    private val keystoreKey = KeystoreKeyProvider(API_KEY_ALIAS)
+
+    /** One encrypted file per key slot; slot 1 keeps the file name older versions used. */
+    private val stores = (1..MAX_API_KEYS).map { slot ->
+        SecureStore(
+            dir = context.noBackupFilesDir,
+            name = if (slot == 1) API_KEY_FILE else "jarvis_api_key_$slot.enc",
+            keys = keystoreKey,
+        )
+    }
+    private val store get() = stores[0]
+
+    private var slotCache: List<String?>? = null
+
+    @Synchronized
+    private fun slotValues(): List<String?> {
+        slotCache?.let { return it }
+        val values = stores.map { it.read() }
+        if (values.any { it != null }) slotCache = values // do not cache a momentary read failure
+        return values
+    }
+
+    private val rotation = KeyRotation(::slotValues)
 
     init {
         migrateLegacyKey()
@@ -96,15 +114,48 @@ class ConfigStore(private val context: Context) {
         }
     }
 
-    fun getApiKey(): String? = store.read()
-    fun setApiKey(value: String): Boolean = store.write(value)
-    fun hasApiKey(): Boolean = !getApiKey().isNullOrBlank()
+    /** The key to use now (the first one until it is refused, see [keyRejected]). */
+    fun getApiKey(): String? = rotation.current()
 
-    /** Writes the key and reports whether it really reached storage (written, then read back). */
-    suspend fun saveApiKey(value: String): Boolean = withContext(Dispatchers.IO) { store.write(value) }
+    /** Tells the store that [key] was refused; returns the next configured key, if any. */
+    fun keyRejected(key: String): String? = rotation.rejected(key)
 
-    /** Removes the key and reports whether the removal really reached storage. */
-    suspend fun deleteApiKey(): Boolean = withContext(Dispatchers.IO) { store.delete() }
+    /** 1-based slot of the key currently in use. */
+    fun activeKeySlot(): Int = rotation.activeSlot()
+
+    /** Which of the [MAX_API_KEYS] slots hold a key (never the keys themselves). */
+    fun keySlotsFilled(): List<Boolean> = slotValues().map { !it.isNullOrBlank() }
+
+    fun setApiKey(value: String): Boolean = saveApiKeySync(1, value)
+    fun hasApiKey(): Boolean = slotValues().any { !it.isNullOrBlank() }
+
+    @Synchronized
+    private fun saveApiKeySync(slot: Int, value: String): Boolean {
+        require(slot in 1..MAX_API_KEYS)
+        slotCache = null
+        return stores[slot - 1].write(value)
+    }
+
+    /** Writes the key in [slot] and reports whether it really reached storage (written, then read back). */
+    suspend fun saveApiKey(value: String, slot: Int = 1): Boolean =
+        withContext(Dispatchers.IO) { saveApiKeySync(slot, value) }
+
+    /** Removes every stored key and reports whether the removal really reached storage. */
+    suspend fun deleteApiKey(): Boolean = withContext(Dispatchers.IO) {
+        synchronized(this@ConfigStore) {
+            slotCache = null
+            stores.map { it.delete() }.all { it }
+        }
+    }
+
+    /** Removes only the key in [slot]. */
+    suspend fun deleteApiKey(slot: Int): Boolean = withContext(Dispatchers.IO) {
+        require(slot in 1..MAX_API_KEYS)
+        synchronized(this@ConfigStore) {
+            slotCache = null
+            stores[slot - 1].delete()
+        }
+    }
 
     private val KEY_ASSISTANT_NAME = stringPreferencesKey("assistant_name")
     private val KEY_USER_NAME = stringPreferencesKey("user_name")
@@ -145,6 +196,7 @@ class ConfigStore(private val context: Context) {
 
     companion object {
         private const val KEY_API_KEY = "gemini_api_key"
+        const val MAX_API_KEYS = 3
         private const val SECURE_PREFS_FILE = "jarvis_secure_prefs"
         private const val API_KEY_FILE = "jarvis_api_key.enc"
         private const val API_KEY_ALIAS = "jarvis_api_key_v2"

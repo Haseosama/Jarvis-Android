@@ -59,6 +59,8 @@ fun SettingsScreen(
     var testResult by remember { mutableStateOf<String?>(null) }
     var testing by remember { mutableStateOf(false) }
     var hasKey by remember { mutableStateOf<Boolean?>(null) }
+    var keySlot by remember { mutableStateOf(1) }
+    var filledSlots by remember { mutableStateOf(List(ConfigStore.MAX_API_KEYS) { false }) }
     var keyStatus by remember { mutableStateOf<String?>(null) }
     var keyBusy by remember { mutableStateOf(false) }
     var confirmDeleteKey by remember { mutableStateOf(false) }
@@ -72,9 +74,11 @@ fun SettingsScreen(
 
     val context = LocalContext.current
     LaunchedEffect(Unit) {
-        hasKey = withContext(Dispatchers.IO) {
-            try { configStore.hasApiKey() } catch (_: Exception) { false }
+        val slots = withContext(Dispatchers.IO) {
+            try { configStore.keySlotsFilled() } catch (_: Exception) { null }
         }
+        filledSlots = slots ?: filledSlots
+        hasKey = slots?.any { it } ?: false
     }
     LaunchedEffect(Unit) {
         loadingReminders = true
@@ -180,10 +184,24 @@ fun SettingsScreen(
                 supportingText = { Text("Laissez vide pour détecter automatiquement un modèle de synthèse vocale disponible avec votre clé. La voix suit le réglage de voix ci-dessus.") },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
+            Text(
+                "Clés API Gemini : jusqu’à ${ConfigStore.MAX_API_KEYS}. Jarvis utilise la clé 1 ; si Gemini la refuse (quota atteint, clé invalide ou accès refusé), il passe seul à la suivante pour le chat texte et la voix du chat.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                for (slot in 1..ConfigStore.MAX_API_KEYS) {
+                    FilterChip(
+                        selected = keySlot == slot,
+                        onClick = { keySlot = slot; apiKeyField = ""; keyStatus = null },
+                        label = { Text(if (filledSlots[slot - 1]) "Clé $slot ✓" else "Clé $slot") },
+                    )
+                }
+            }
             OutlinedTextField(
                 value = apiKeyField,
                 onValueChange = { apiKeyField = it },
-                label = { Text("Nouvelle clé API Gemini") },
+                label = { Text(if (filledSlots[keySlot - 1]) "Remplacer la clé $keySlot" else "Saisir la clé $keySlot") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -192,14 +210,16 @@ fun SettingsScreen(
             Button(
                 onClick = {
                     val candidate = validatedApiKey(apiKeyField) ?: return@Button
+                    val slot = keySlot
                     keyBusy = true
                     keyStatus = null
                     scope.launch {
                         try {
-                            if (configStore.saveApiKey(candidate)) {
+                            if (configStore.saveApiKey(candidate, slot)) {
                                 apiKeyField = ""
                                 hasKey = true
-                                keyStatus = "Clé enregistrée et chiffrée sur cet appareil."
+                                filledSlots = filledSlots.toMutableList().also { it[slot - 1] = true }
+                                keyStatus = "Clé $slot enregistrée et chiffrée sur cet appareil."
                             } else {
                                 keyStatus = "Enregistrement impossible. Réessayez."
                             }
@@ -214,10 +234,13 @@ fun SettingsScreen(
                 },
                 enabled = validatedApiKey(apiKeyField) != null && !testing && !keyBusy,
                 modifier = Modifier.padding(top = 8.dp),
-            ) { Text("Enregistrer la clé") }
+            ) { Text("Enregistrer la clé $keySlot") }
             Text(
                 keyStatus ?: when (hasKey) {
-                    true -> "Une clé est enregistrée sur cet appareil."
+                    true -> {
+                        val filled = filledSlots.withIndex().filter { it.value }.joinToString(", ") { "${it.index + 1}" }
+                        "Clés enregistrées : $filled (sur ${ConfigStore.MAX_API_KEYS})."
+                    }
                     false -> "Aucune clé enregistrée."
                     null -> "Lecture du stockage sécurisé…"
                 },
@@ -225,11 +248,36 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 8.dp),
             )
             OutlinedButton(
+                onClick = {
+                    val slot = keySlot
+                    keyBusy = true
+                    keyStatus = null
+                    scope.launch {
+                        try {
+                            if (configStore.deleteApiKey(slot)) {
+                                filledSlots = filledSlots.toMutableList().also { it[slot - 1] = false }
+                                keyStatus = "Clé $slot retirée."
+                            } else {
+                                keyStatus = "Suppression impossible. Réessayez."
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            keyStatus = "Suppression impossible. Réessayez."
+                        } finally {
+                            keyBusy = false
+                        }
+                    }
+                },
+                enabled = filledSlots[keySlot - 1] && filledSlots.count { it } > 1 && !keyBusy && !testing,
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text("Retirer la clé $keySlot") }
+            OutlinedButton(
                 onClick = { confirmDeleteKey = true },
                 enabled = hasKey == true && !keyBusy && !testing,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 modifier = Modifier.padding(top = 8.dp),
-            ) { Text("Supprimer la clé enregistrée") }
+            ) { Text("Supprimer toutes les clés") }
             Spacer(Modifier.height(16.dp))
             Text(
                 "Le diagnostic teste l’API REST standard avec la clé enregistrée, indépendamment de la connexion vocale Live. Un succès ne garantit pas l’accès au modèle Live choisi.",
@@ -371,10 +419,10 @@ fun SettingsScreen(
     if (confirmDeleteKey) {
         AlertDialog(
             onDismissRequest = { if (!keyBusy) confirmDeleteKey = false },
-            title = { Text("Supprimer la clé API ?") },
+            title = { Text("Supprimer toutes les clés API ?") },
             text = {
                 Text(
-                    "La session en cours sera arrêtée et Jarvis ne pourra plus se connecter tant que vous n’aurez pas saisi une nouvelle clé."
+                    "La session en cours sera arrêtée et Jarvis ne pourra plus se connecter tant que vous n’aurez pas saisi une nouvelle clé. Les ${ConfigStore.MAX_API_KEYS} emplacements de clés seront vidés."
                 )
             },
             confirmButton = {

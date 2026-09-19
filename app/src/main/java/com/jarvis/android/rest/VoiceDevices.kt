@@ -12,6 +12,7 @@ import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.os.SystemClock
+import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -21,6 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal const val ERROR_PERMISSION =
     "Micro non autorisé. Accordez la permission d’enregistrement audio puis réessayez."
 internal const val ERROR_MIC_UNAVAILABLE = "Microphone indisponible ou déjà utilisé par une autre application."
+private const val TAG = "JarvisRestVoice"
 internal const val ERROR_PLAYBACK = "Lecture audio impossible."
 
 internal interface MicRecorder {
@@ -162,12 +164,14 @@ internal class AudioPlayer(context: Context) : SpeechOutput {
                 .setBufferSizeInBytes(pcm.size)
                 .setTransferMode(AudioTrack.MODE_STATIC)
                 .build()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "AudioTrack impossible à créer (${pcm.size} octets)", e)
             throw RestChatException(ERROR_PLAYBACK)
         }
         try {
-            check(player.state == AudioTrack.STATE_INITIALIZED)
+            // A static track only becomes initialized once its data has been written.
             check(player.write(pcm, 0, pcm.size) == pcm.size)
+            check(player.state == AudioTrack.STATE_INITIALIZED)
             manager.requestAudioFocus(focus)
             synchronized(lock) { track = player }
             player.play()
@@ -177,7 +181,8 @@ internal class AudioPlayer(context: Context) : SpeechOutput {
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Lecture impossible (état ${player.state}, ${pcm.size} octets)", e)
             throw RestChatException(ERROR_PLAYBACK)
         } finally {
             synchronized(lock) { if (track === player) track = null }

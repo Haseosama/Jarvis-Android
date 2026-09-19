@@ -130,8 +130,18 @@ store and the old one is removed only after the copy has been written and read b
 (`security-crypto` stays as a dependency for that migration only). Checked on an emulator: the key
 moved and the app opened on the main screen. Not exercised on the real phone.
 
-The stored key can be removed from **Paramètres → Supprimer la clé enregistrée** (after a
-confirmation). This stops the running session, erases the key and returns to the key entry
+**Up to 3 keys.** Settings → the *Clé 1 / 2 / 3* chips let you store up to three keys, each in its
+own encrypted file (`jarvis_api_key.enc`, `jarvis_api_key_2.enc`, `_3.enc`). The first key is used until
+Gemini refuses it: a quota error (429), a refused key (401/403) or a 400 that says the key is invalid.
+The request is then repeated with the next key, and that key stays in use until it fails in turn
+(`memory/KeyRotation.kt`); after an app restart it starts again from key 1. Other failures (server
+errors, a bad model name) do not switch keys, and if every key is refused the last status is
+shown. This applies to the text chat, its voice mode and the key test. The Live voice session
+connects with the key in use at that moment and does not switch keys by itself. The key values are
+never shown in the settings, only which slots are filled.
+
+The stored key can be removed from **Paramètres → Supprimer toutes les clés** (after a
+confirmation). This stops the running session, erases every key and returns to the key entry
 screen; saving and deleting report whether the write really reached storage.
 
 ### Animated reactor core

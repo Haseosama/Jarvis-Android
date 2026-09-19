@@ -30,7 +30,18 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** A failure of the text chat that can be shown to the user as is. */
-class RestChatException(message: String) : Exception(message)
+class RestChatException(message: String, val httpCode: Int? = null) : Exception(message)
+
+/**
+ * True when a failed response says the key itself is the problem, so another key may work:
+ * quota (429), refused (401/403), or a 400 that names an invalid key (a 400 about the model or
+ * the request would fail identically with any key).
+ */
+internal fun isKeyProblem(code: Int, body: String): Boolean = when (code) {
+    429, 401, 403 -> true
+    400 -> body.contains("API_KEY_INVALID") || body.contains("API key not valid", ignoreCase = true)
+    else -> false
+}
 
 internal const val ERROR_EMPTY_DRAFT = "Message vide : écrivez quelque chose avant d’envoyer."
 internal const val ERROR_NO_KEY = "Aucune clé API valide enregistrée. Ouvrez les paramètres pour la saisir."
@@ -155,20 +166,42 @@ private val MODEL_PATTERN = Regex("(models/)?[A-Za-z0-9._-]+")
 internal class OkHttpGenerateTransport(
     private val client: OkHttpClient,
     private val apiKey: () -> String?,
+    /** Called with a key that was refused; returns another key to try, or null. */
+    private val nextKey: (rejected: String) -> String? = { null },
 ) : GenerateTransport {
     override suspend fun generate(model: String, request: JsonObject): JsonObject = withContext(Dispatchers.IO) {
-        val key = apiKey()?.takeIf { it.isNotBlank() } ?: throw RestChatException(ERROR_NO_KEY)
+        var key = apiKey()?.takeIf { it.isNotBlank() } ?: throw RestChatException(ERROR_NO_KEY)
         if (!MODEL_PATTERN.matches(model)) throw RestChatException(ERROR_INVALID_MODEL)
         val path = if (model.startsWith("models/")) model else "models/$model"
+        val tried = mutableSetOf<String>()
+        var result: JsonObject? = null
+        while (result == null) {
+            try {
+                result = send(path, key, request)
+            } catch (e: KeyRefused) {
+                tried += key
+                key = nextKey(key)?.takeIf { it.isNotBlank() && it !in tried }
+                    ?: throw RestChatException(httpErrorMessage(e.code), e.code)
+            }
+        }
+        result
+    }
+
+    private class KeyRefused(val code: Int) : Exception()
+
+    private suspend fun send(path: String, key: String, request: JsonObject): JsonObject {
         val http = Request.Builder()
             .url("https://generativelanguage.googleapis.com/v1beta/$path:generateContent")
             .header("x-goog-api-key", key)
             .post(request.toString().toRequestBody("application/json".toMediaType()))
             .build()
-        try {
+        return try {
             client.newCall(http).await().use { response ->
                 val body = response.body?.string().orEmpty()
-                if (!response.isSuccessful) throw RestChatException(httpErrorMessage(response.code))
+                if (!response.isSuccessful) {
+                    if (isKeyProblem(response.code, body)) throw KeyRefused(response.code)
+                    throw RestChatException(httpErrorMessage(response.code), response.code)
+                }
                 try {
                     Json.parseToJsonElement(body).jsonObject
                 } catch (_: Exception) {
