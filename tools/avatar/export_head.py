@@ -18,7 +18,7 @@ MARK_LIV = sys.argv[1]
 sys.path.insert(0, os.path.join(MARK_LIV, "core"))
 import avatar_mesh as am
 
-am._SKULL_R = (8.0, 12.6, 8.3)  # a slightly narrower skull: a human head is about 0.65 as wide as it is tall
+am._SKULL_R = (8.2, 13.0, 8.6)  # a tall skull: the reference head is about 0.6 as wide as it is tall
 am._SKULL_RINGS = 7
 am._NECK_SEGS = 14
 am._NECK_RINGS = 9
@@ -45,19 +45,25 @@ def smoothstep0(e0, e1, x):
 
 
 def sculpt(V, region):
-    """Reshape the human mask into a sleeker android face. The neck is left alone."""
+    """Reshape the mask towards a long, straight-sided head with a square jaw, a flat blunt chin and a strong brow ridge."""
     V = V.copy()
     x, y, z = V[:, 0].copy(), V[:, 1].copy(), V[:, 2].copy()
     m = region < 2
-    t = smoothstep0(0.0, -1.0, y)                       # 0 at eye level, 1 at the chin
-    nx = x * (1.0 - 0.10 * t - 0.04 * t ** 4)           # a slightly narrower jaw
-    ny = np.where(y < -0.35, -0.35 + (y + 0.35) * 1.05, y)  # a slightly longer chin
-    cheek = np.exp(-((y + 0.10) / 0.15) ** 2) * np.exp(-((np.abs(x) - 0.40) / 0.15) ** 2)
-    nz = z + 0.030 * cheek                              # higher cheekbones
-    nx = nx * (1.0 + 0.04 * cheek)
-    nose = np.exp(-(x / 0.16) ** 2) * np.exp(-((y + 0.10) / 0.22) ** 2) * (z > 0.35)
-    nx = nx * (1.0 - 0.06 * nose)                       # a slightly slimmer nose
-    V[m, 0], V[m, 1], V[m, 2] = nx[m], ny[m], nz[m]
+    x = x * 0.91                                        # a longer, narrower head overall (the neck too)
+    # keep the sides straight down to a square jaw: the mask narrows towards the chin by itself, so widen it back
+    x = x * np.interp(y, [-1.05, -0.92, -0.80, -0.65, -0.50, -0.30, 0.0, 1.0], [1.20, 1.30, 1.20, 1.12, 1.05, 1.0, 1.0, 1.0])
+    ny = np.where(y < -0.84, -0.84 + (y + 0.84) * 0.42, y)  # flatten the underside of the chin
+    ny = np.where(ny > 0.78, 0.78 + (ny - 0.78) * 0.72, ny)  # a flatter, broader crown
+    x = x * (1.0 + 0.09 * smoothstep0(0.40, 0.85, y))
+    ridge = np.exp(-((y - 0.19) / 0.07) ** 2) * np.exp(-(x / 0.45) ** 2)
+    nz = z + 0.035 * ridge                              # a brow ridge
+    cheek = np.exp(-((y + 0.10) / 0.15) ** 2) * np.exp(-((np.abs(x) - 0.38) / 0.15) ** 2)
+    nz = nz + 0.02 * cheek
+    nose = np.exp(-(x / 0.12) ** 2) * np.exp(-((y + 0.12) / 0.16) ** 2) * (z > 0.45)
+    nz = nz + 0.03 * nose                               # a slightly stronger nose
+    V[:, 0] = x
+    V[m, 1] = ny[m]
+    V[m, 2] = nz[m]
     return V
 
 
@@ -86,14 +92,14 @@ def build_ear(side, cy=-0.03, cz=-0.24):
         r = k / rings
         for j in range(segs if k > 0 else 1):
             a = 2 * np.pi * j / max(segs, 1)
-            u = np.cos(a) * r * 0.15   # along the head (z), half width 0.15
-            v = np.sin(a) * r * 0.26   # up (y), half height 0.26
+            u = np.cos(a) * r * 0.17   # along the head (z), half width 0.17
+            v = np.sin(a) * r * 0.30   # up (y), half height 0.30
             lobe = -0.03 * np.clip(-np.sin(a), 0, 1) * r ** 2
             rim = 0.075 * smoothstep0(0.55, 0.92, r) - 0.03 * (1.0 - r) ** 1.5
             fold = 0.020 * np.exp(-((r - 0.50) / 0.10) ** 2) * (np.cos(a) < 0.3)  # the anti-helix ridge
-            out = 0.60 + 0.055 + rim + fold + lobe * 0.0
-            yy = cy + v * np.cos(tilt) - u * np.sin(tilt) * 0.0
-            zz = cz + u + 0.10 * (v / 0.26) * np.sin(tilt) * 1.6 * -1.0
+            out = 0.57 + 0.06 + rim + fold + lobe * 0.0
+            yy = cy + v * np.cos(tilt)
+            zz = cz + u - 0.10 * (v / 0.30) * np.sin(tilt) * 1.6
             xx = side * out
             verts.append([xx, yy + lobe, zz]); refs.append([side, 0.0, -0.25])
     verts = np.array(verts); refs = np.array(refs)
@@ -503,7 +509,7 @@ if len(sys.argv) > 2:
         polys = [tri[i][:, [ix, iy]] for i in order]
         fc = [str(float(col[F[i]].mean())) for i in order]
         ax.add_collection(PolyCollection(polys, facecolor=fc, edgecolor="none"))
-        sp = allV[strand_base:].reshape(n_strands, strand_len, 3)
+        sp = allV[strand_base:strand_base + n_strands * strand_len].reshape(n_strands, strand_len, 3)
         for line in sp[::6]:
             ax.plot(line[:, ix], line[:, iy], color="#a52", lw=0.4)
         ax.set_xlim(-1.3, 1.3); ax.set_ylim(-1.4, 1.2); ax.set_aspect("equal"); ax.set_title(name)
