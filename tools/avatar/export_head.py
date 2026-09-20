@@ -600,8 +600,8 @@ for k in range(len(tc) - 1):
     new_faces += [(TU[k], TU[k + 1], TUb[k + 1]), (TU[k], TUb[k + 1], TUb[k])]
 
 # -- the eyes -------------------------------------------------------------------------------------------------------------
-IRIS_RINGS = [(0, 0xFF05070A), (6, 0xFF05070A), (12, 0xFF16324F), (18, 0xFF3F7CA6), (25, 0xFF2A5B7C), (31, 0xFFDCDAD6), (42, 0xFFEEEBE6),
-              (60, 0xFFE9E5DF), (85, 0xFFD9D4CE), (110, 0xFFCFC9C3), (140, 0xFFC4BDB6)]
+IRIS_RINGS = [(0, 0xFF05070A), (6, 0xFF05070A), (12, 0xFF16324F), (18, 0xFF3F7CA6), (25, 0xFF1F4560), (31, 0xFFD9D3CA), (42, 0xFFE3DED5),
+              (60, 0xFFDDD6CC), (85, 0xFFCFC7BC), (110, 0xFFC2B9AD), (140, 0xFFB5AB9E)]
 SEG = 20
 eye_info = []
 removed = np.zeros(len(F), dtype=bool)

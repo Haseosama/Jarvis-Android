@@ -25,6 +25,7 @@ private const val BUCKETS = 4
 private const val MIN_ALPHA = 0.05f
 private const val LUT_N = 192
 private const val BROW_HAIRS = 160
+private const val LID_COLUMNS = 9
 
 internal fun argb(a: Int, r: Int, g: Int, b: Int): Int = (a shl 24) or (r shl 16) or (g shl 8) or b
 
@@ -394,7 +395,127 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         List(BROW_HAIRS) { Hair(rnd.nextFloat(), rnd.nextFloat() * 2f - 1f, 0.7f + 0.6f * rnd.nextFloat(), (rnd.nextFloat() - 0.5f) * 0.4f) }
     }
     private val hairLines = FloatArray(BROW_HAIRS * 4)
+
+    /** The lid rims of each eye, as columns along the eye: the jagged edge of the opening becomes a smooth curve of column averages. */
+    private class LidCurve(val verts: IntArray, val column: IntArray)
+    private val lidCurves: Array<Array<LidCurve>> = run {
+        val eyes = mesh.eyeFirst.size
+        val rim = mesh.eyelidRim
+        Array(eyes) { e ->
+            Array(2) { flag ->
+                val set = LinkedHashSet<Int>()
+                for (k in 0 until rim.size / 3) {
+                    if (rim[3 * k + 2] != flag) continue
+                    for (v in intArrayOf(rim[3 * k], rim[3 * k + 1])) {
+                        val x = mesh.verts[3 * v]
+                        val nearest = (0 until eyes).minByOrNull { kotlin.math.abs(mesh.eyeCentre[3 * it] - x) }
+                        if (nearest == e) set += v
+                    }
+                }
+                val verts = set.toIntArray()
+                val lo = verts.minOfOrNull { mesh.verts[3 * it] } ?: 0f
+                val hi = verts.maxOfOrNull { mesh.verts[3 * it] } ?: 1f
+                LidCurve(verts, IntArray(verts.size) { (((mesh.verts[3 * verts[it]] - lo) / max(hi - lo, 1e-4f)) * (LID_COLUMNS - 1)).toInt().coerceIn(0, LID_COLUMNS - 1) })
+            }
+        }
+    }
+    private val curveX = FloatArray(LID_COLUMNS)
+    private val curveY = FloatArray(LID_COLUMNS)
+    private val curveN = FloatArray(LID_COLUMNS)
+    private val lashRnd = FloatArray(40) { kotlin.random.Random(23 + it).nextFloat() }
     private val rimLines = Array(2) { FloatArray(mesh.eyelidRim.size / 3 * 4) }
+
+    /** The smooth curve of one lid rim as points (screen space): the column averages of its vertices, lightly smoothed. Returns the count. */
+    private fun lidPoints(curve: LidCurve): Int {
+        java.util.Arrays.fill(curveN, 0f); java.util.Arrays.fill(curveX, 0f); java.util.Arrays.fill(curveY, 0f)
+        for ((k, v) in curve.verts.withIndex()) {
+            val c = curve.column[k]
+            curveX[c] += xs[v]; curveY[c] += ys[v]; curveN[c] += 1f
+        }
+        var n = 0
+        for (c in 0 until LID_COLUMNS) if (curveN[c] > 0f) { curveX[n] = curveX[c] / curveN[c]; curveY[n] = curveY[c] / curveN[c]; n++ }
+        for (pass in 0 until 2) for (i in 1 until n - 1) curveY[i] = 0.25f * curveY[i - 1] + 0.5f * curveY[i] + 0.25f * curveY[i + 1]
+        return n
+    }
+
+    /**
+     * The eyes' finishing: a smooth lash line along each lid (thicker towards the outer corner), a soft fold above the upper lid, real
+     * lashes (long and curved at the outer half, short and fine below) that lie down when the eye shuts, and a catchlight in the
+     * iris. Everything is anchored to the lid vertices and the eyeball, so it follows the blinks and the gaze.
+     */
+    private fun drawEyes(scope: DrawScope, avatar: HoloAvatar, r: Float, primary: Int, strokePx: Float, face: Float, midX: Float) {
+        val open = ((1f - avatar.blink) * avatar.lids.coerceIn(0f, 1f)).coerceIn(0f, 1f)
+        val lash = if (skin > 0) 0xFF1E120E.toInt() else primary
+        val fold = if (skin > 0) 0xFF6B4636.toInt() else primary
+        scope.drawIntoCanvas { canvas ->
+            val nc = canvas.nativeCanvas
+            for (e in lidCurves.indices) {
+                val up = lidCurves[e][1]; val low = lidCurves[e][0]
+                if (up.verts.isEmpty()) continue
+                val n = lidPoints(up)
+                if (n < 2) continue
+                val ux = curveX.copyOf(n); val uy = curveY.copyOf(n)
+                // index 0 is made the inner end: the one nearer the face's middle
+                if (kotlin.math.abs(ux[0] - midX) > kotlin.math.abs(ux[n - 1] - midX)) { ux.reverse(); uy.reverse() }
+                hairPaint.color = withAlpha(fold, 70f * face * (0.4f + 0.6f * open)); hairPaint.strokeWidth = strokePx * 1.4f
+                for (i in 0 until n - 1) nc.drawLine(ux[i], uy[i] - r * 0.016f, ux[i + 1], uy[i + 1] - r * 0.016f, hairPaint)
+                hairPaint.color = withAlpha(lash, 235f * face)
+                for (i in 0 until n - 1) {
+                    hairPaint.strokeWidth = strokePx * (0.8f + 1.5f * (i + 0.5f) / (n - 1))
+                    nc.drawLine(ux[i], uy[i], ux[i + 1], uy[i + 1], hairPaint)
+                }
+                // the lashes curl up and outwards when the eye is open, and lie down when it shuts
+                val outward = if (ux[n - 1] < ux[0]) -1f else 1f
+                val lashes = 15
+                hairPaint.color = withAlpha(lash, 215f * face)
+                hairPaint.strokeWidth = max(1f, strokePx * 0.65f)
+                for (k in 0 until lashes) {
+                    val t = (k + 0.5f) / lashes
+                    val pos = t * (n - 1)
+                    val i = pos.toInt().coerceIn(0, n - 2)
+                    val f = pos - i
+                    val bx = ux[i] + (ux[i + 1] - ux[i]) * f
+                    val by = uy[i] + (uy[i + 1] - uy[i]) * f
+                    val len = r * 0.030f * (0.45f + 0.75f * t) * (0.8f + 0.4f * lashRnd[k])
+                    val lift = 2f * open - 1f                      // +1 open (up), -1 shut (down)
+                    val dx = outward * (0.30f + 0.55f * t) * kotlin.math.abs(lift).coerceAtLeast(0.5f)
+                    val dy = -lift * (1.0f - 0.35f * t)
+                    val dl = max(kotlin.math.hypot(dx, dy), 1e-3f)
+                    val midx = bx + dx / dl * len * 0.55f; val midy = by + dy / dl * len * 0.55f
+                    val tipX = bx + dx / dl * len; val tipY = by + dy / dl * len
+                    nc.drawLine(bx, by, midx, midy, hairPaint)
+                    nc.drawLine(midx, midy, tipX + outward * len * 0.10f, tipY - lift * len * 0.05f, hairPaint)
+                }
+                // the lower lid: a fine line and a few short lashes
+                val m = lidPoints(low)
+                if (m >= 2) {
+                    hairPaint.color = withAlpha(lash, 120f * face); hairPaint.strokeWidth = strokePx * 0.65f
+                    for (i in 0 until m - 1) nc.drawLine(curveX[i], curveY[i], curveX[i + 1], curveY[i + 1], hairPaint)
+                    hairPaint.color = withAlpha(lash, 105f * face); hairPaint.strokeWidth = max(1f, strokePx * 0.5f)
+                    for (k in 0 until 7) {
+                        val pos = (k + 0.5f) / 7f * (m - 1)
+                        val i = pos.toInt().coerceIn(0, m - 2)
+                        val f = pos - i
+                        val bx = curveX[i] + (curveX[i + 1] - curveX[i]) * f
+                        val by = curveY[i] + (curveY[i + 1] - curveY[i]) * f
+                        nc.drawLine(bx, by, bx + outward * r * 0.004f, by + r * 0.010f * (0.7f + 0.6f * lashRnd[20 + k]) * (0.3f + 0.7f * open), hairPaint)
+                    }
+                }
+                // the catchlight, on the eyeball's front pole (17 vertices after the eye's first: past the backing disc)
+                if (open > 0.4f && mesh.eyeFirst.size > e) {
+                    val pole = mesh.eyeFirst[e] + 17
+                    if (pole < nV) {
+                        hairPaint.style = Paint.Style.FILL
+                        hairPaint.color = withAlpha(0xFFFFFFFF.toInt(), 235f * face * open)
+                        nc.drawCircle(xs[pole] - r * 0.010f, ys[pole] - r * 0.010f, max(1.2f, r * 0.0075f), hairPaint)
+                        hairPaint.color = withAlpha(0xFFFFFFFF.toInt(), 110f * face * open)
+                        nc.drawCircle(xs[pole] + r * 0.008f, ys[pole] + r * 0.009f, max(0.8f, r * 0.0038f), hairPaint)
+                        hairPaint.style = Paint.Style.STROKE
+                    }
+                }
+            }
+        }
+    }
 
     /**
      * The details of the face that are lines rather than surface: the brows (with a skin, a few hundred hairs following the brow's
@@ -466,25 +587,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             }
         }
 
-        // the rims of the eyelids: a dark lash line on the upper lid, a finer one on the lower
-        val rim = mesh.eyelidRim
-        var upN = 0; var loN = 0
-        for (k in 0 until rim.size / 3) {
-            val a = rim[3 * k]; val b = rim[3 * k + 1]
-            val arr = if (rim[3 * k + 2] == 1) rimLines[0] else rimLines[1]
-            val o = if (rim[3 * k + 2] == 1) upN else loN
-            arr[o] = xs[a]; arr[o + 1] = ys[a]; arr[o + 2] = xs[b]; arr[o + 3] = ys[b]
-            if (rim[3 * k + 2] == 1) upN += 4 else loN += 4
-        }
-        val lash = if (skin > 0) 0xFF241612.toInt() else primary
-        scope.drawIntoCanvas { canvas ->
-            hairPaint.color = withAlpha(lash, 200f * face)
-            hairPaint.strokeWidth = strokePx * (if (skin > 0) 1.05f else 1.0f)
-            canvas.nativeCanvas.drawLines(rimLines[0], 0, upN, hairPaint)
-            hairPaint.strokeWidth = strokePx * (if (skin > 0) 0.7f else 0.7f)
-            hairPaint.color = withAlpha(lash, 110f * face)
-            canvas.nativeCanvas.drawLines(rimLines[1], 0, loN, hairPaint)
-        }
+        drawEyes(scope, avatar, r, primary, strokePx, face, midX)
 
         // the two lip edges along the mouth line: one line when the mouth is shut, two when it opens
         val lipLine = if (skin > 0) 0xFF6E2A38.toInt() else primary
