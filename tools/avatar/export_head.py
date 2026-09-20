@@ -670,6 +670,26 @@ group = group[~removed]
 print("eyes: faces removed", int(removed.sum()))
 
 
+# -- the hair (built by groom.py) -------------------------------------------------------------------------------------
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import groom
+Fscan = F0[F0.max(axis=1) < scan_count]
+hair = groom.build(V[:scan_count], N[:scan_count], Fscan, FACE_X0)
+
+
+def push(pos, nrm, jaw_w, paint_v, tris):
+    first = len(V) + len(added["V"])
+    for k_ in range(len(pos)):
+        added["V"].append(pos[k_]); added["N"].append(nrm[k_]); added["jaw"].append(float(jaw_w[k_])); added["paint"].append(int(paint_v[k_]))
+    for t_ in tris:
+        new_faces.append((int(t_[0]) + first, int(t_[1]) + first, int(t_[2]) + first))
+    return len(tris)
+
+
+n_hair_faces = push(hair["cap_p"], hair["cap_n"], np.zeros(len(hair["cap_p"])), hair["cap_paint"], hair["cap_f"])
+n_hair_faces += push(hair["lock_p"], hair["lock_n"], np.zeros(len(hair["lock_p"])), hair["lock_paint"], hair["lock_f"])
+print("hair: faces", n_hair_faces)
+
 # -- the lips' colour mask ---------------------------------------------------------------------------------------------------
 lo_centre = lo.mean(axis=0)
 # the scan's upper lip is a shelf that reaches well above the mouth line (down to the lower lip's bottom at about -0.66), so the mask
@@ -690,6 +710,7 @@ paint = np.concatenate([paint, np.array(added["paint"], dtype=np.int64)])
 lid = np.concatenate([lid, np.zeros(n_new)]); lip_mask = np.concatenate([lip_mask, np.zeros(n_new)])
 F = np.vstack([F, np.array(new_faces, dtype=np.int64)])
 group = np.concatenate([group, np.ones(len(new_faces))])
+group[len(group) - n_hair_faces:] = 2.0      # the hair faces are the last ones added
 
 nh, ns, nc_pts = len(HV), len(S_pts), len(C_pts)
 allV = np.vstack([V, HV, S_pts, C_pts])
@@ -716,7 +737,7 @@ for arr in (V, N):
     out += arr.astype("<f4").tobytes()
 for arr in (jaw, brow, lips, fade):
     out += arr.astype("<f4").tobytes()
-out += np.where(group > 0.5, 1.0, 0.0).astype("<f4").tobytes()
+out += np.where(group > 1.5, 2.0, np.where(group > 0.5, 1.0, 0.0)).astype("<f4").tobytes()
 out += F.astype("<i4").tobytes()
 names = ["eye_l", "eye_r", "brow_l", "brow_r", "lips_out", "lips_in"]
 out += struct.pack("<i", len(names))

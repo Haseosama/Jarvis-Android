@@ -171,6 +171,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val fres = Math.pow((1f - nz).coerceIn(0f, 2f).toDouble(), 1.7).toFloat()
             val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
             var bright = 0.26f + 0.20f * fres + 0.66f * Math.pow(lam.toDouble(), 1.05).toFloat()
+            if (skin == 0 && mesh.faceGroup[t] > 1.5f) continue // the hair belongs to the skin looks
             val fadeAvg = (fade[a] + fade[b] + fade[c]) / 3f
             val cutoff = if (skin > 0) 0.15f else 0.4f
             if (fadeAvg < cutoff) continue // the far end of the neck is left out: it would end on a ragged cut
@@ -188,7 +189,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val rim = (fres * fres * 0.14f).coerceIn(0f, 0.14f)
             if (rim > 0.01f && !perVertex[t]) col = mix(col, accent, rim)
             faceColor[t] = col
-            val z = (v[3 * a + 2] + v[3 * b + 2] + v[3 * c + 2]) / 3f + mesh.faceGroup[t].let { g -> if (g > 0.5f) 0f else -1000f }
+            val z = (v[3 * a + 2] + v[3 * b + 2] + v[3 * c + 2]) / 3f + mesh.faceGroup[t].let { g -> if (g > 1.5f) 0.05f else if (g > 0.5f) 0f else -1000f }
             // The neck (group 0) is drawn first: it interpenetrates the head and a pure depth sort tears the seam.
             val bits = java.lang.Float.floatToIntBits(z)
             val mapped = if (bits >= 0) bits else bits xor 0x7fffffff
@@ -206,6 +207,20 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         val vlam = (vx * -0.55f + vy * 0.50f + vz * 0.52f).coerceIn(0f, 1f)
         fun lit(rgb: Int, k: Float): Int = argb(255, (((rgb shr 16) and 0xFF) * k).toInt().coerceIn(0, 255), (((rgb shr 8) and 0xFF) * k).toInt().coerceIn(0, 255), ((rgb and 0xFF) * k).toInt().coerceIn(0, 255))
         val pnt = mesh.paint[vi]
+        if (pnt != 0 && ((pnt ushr 24) and 0xFF) < 255) {
+            // hair: the alpha byte says how much of it there is over the skin (254 = all of it)
+            val cover = (((pnt ushr 24) and 0xFF) / 254f).coerceIn(0f, 1f)
+            val diffuse = 0.42f + 0.80f * vlam
+            val hairLit = lit(0xFF000000.toInt() or (pnt and 0x00FFFFFF), diffuse)
+            // a sheen where the surface faces the light: the half vector of the key light
+            val spec = Math.pow((vx * -0.22f + vy * 0.28f + vz * 0.93f).coerceIn(0f, 1f).toDouble(), 12.0).toFloat()
+            val sheen = (spec * 62f).toInt()
+            val hair = argb(255, (((hairLit shr 16) and 0xFF) + sheen).coerceAtMost(255), (((hairLit shr 8) and 0xFF) + sheen).coerceAtMost(255), ((hairLit and 0xFF) + (sheen * 0.9f).toInt()).coerceAtMost(255))
+            if (cover > 0.995f) return hair
+            val skinRgb = 0xFF000000.toInt() or SKIN_TONES[skin - 1]
+            val ks = (0.30f + 0.85f * vlam + 0.10f * vz.coerceIn(0f, 1f)).coerceIn(0.15f, 1.15f) * (0.94f + 0.12f * amp)
+            return mix(lit(skinRgb, ks), hair, cover)
+        }
         if (pnt != 0) {
             // the mouth's inside, the teeth and the eyeballs: their own colours, lit a little; on the web they take a cool tint
             val base = if (skin > 0) pnt else mix(pnt, primaryColor, 0.22f)
