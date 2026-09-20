@@ -2,6 +2,8 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Visage holographique au centre de l’écran (sinon le cœur lumineux). Ses lèvres suivent la voix de Jarvis." to "Holographic face in the middle of the screen (otherwise the glowing core). Its lips follow Jarvis's voice.",
+    "Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; géométrie du visage : MediaPipe (Apache-2.0)." to "Face adapted from Mark-LIV (FatihMakes, CC BY-NC 4.0 licence: non-commercial use); face geometry: MediaPipe (Apache-2.0).",
     "Notifications" to "Notifications",
     "Lecture des notifications activée ✓ : « qu’est-ce que j’ai manqué ? » résume les dernières notifications. Lecture seule : Jarvis ne peut ni les ouvrir, ni y répondre, ni les supprimer." to "Notification reading on ✓: « what did I miss? » summarises the latest notifications. Read only: Jarvis can neither open, answer nor dismiss them.",
     "Lecture des notifications désactivée : Jarvis ne voit pas vos notifications." to "Notification reading off: Jarvis does not see your notifications.",

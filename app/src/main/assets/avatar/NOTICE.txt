@@ -1,0 +1,16 @@
+Holographic avatar (package com.jarvis.android.avatar)
+
+This avatar is an Android adaptation of the avatar of MARK LIV by FatihMakes
+(https://github.com/FatihMakes/Mark-LIV), licensed under the Creative Commons
+Attribution-NonCommercial 4.0 International licence (CC BY-NC 4.0).
+Commercial use of this avatar, and of any app that includes it, is not permitted.
+
+Taken from Mark-LIV: the head mesh builder (cranium, neck, jaw/brow/lip weights, landmark rings; run once,
+its result is stored in head_mesh.bin), the animation model (jaw, lips, brows, gaze, blinks, state expression),
+the text-to-viseme table and the audio formant analysis that drive the lip-sync.
+Changed or added here: Kotlin port, drawing on Android's canvas, a lip-sync clock tied to what the speaker plays,
+rim light, scan lines, lids that follow the assistant's state.
+
+The face geometry inside head_mesh.bin comes from MediaPipe's canonical face model
+(https://github.com/google-ai-edge/mediapipe), Apache License 2.0,
+Copyright 2019-2023 The MediaPipe Authors.

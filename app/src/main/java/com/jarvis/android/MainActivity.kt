@@ -154,8 +154,10 @@ class MainActivity : ComponentActivity() {
                         val videoSource by container.engine.videoSource.collectAsState()
                         val outputLevel by container.engine.outputLevel.collectAsState()
                         val confirm by container.confirmManager.pending.collectAsState()
+                        val faceOn by container.configStore.avatarFace.collectAsState(initial = true)
 
                         HudScreen(
+                            avatar = if (faceOn) container.avatar else null,
                             state = state,
                             activityLog = log,
                             confirmPending = confirm,

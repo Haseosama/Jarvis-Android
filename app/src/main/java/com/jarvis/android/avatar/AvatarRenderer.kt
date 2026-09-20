@@ -1,0 +1,388 @@
+package com.jarvis.android.avatar
+
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.os.Build
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sqrt
+
+/** Camera distance in head-half-heights: far enough that the nose does not balloon, near enough to keep some depth. */
+private const val CAM_D = 4.6f
+private const val BUCKETS = 4
+private const val MIN_ALPHA = 0.05f
+private const val LUT_N = 192
+
+internal fun argb(a: Int, r: Int, g: Int, b: Int): Int = (a shl 24) or (r shl 16) or (g shl 8) or b
+
+/** [col] at alpha [a] (0..255) pre-mixed onto [bg], fully opaque: opaque lines take the fast path in the renderer. */
+internal fun blend(bg: Int, col: Int, a: Float): Int {
+    val f = (a / 255f).coerceIn(0f, 1f)
+    fun ch(shift: Int): Int {
+        val b0 = (bg shr shift) and 0xFF
+        val c0 = (col shr shift) and 0xFF
+        return (b0 + (c0 - b0) * f).toInt().coerceIn(0, 255)
+    }
+    return argb(255, ch(16), ch(8), ch(0))
+}
+
+private fun withAlpha(col: Int, a: Float): Int = (col and 0x00FFFFFF) or (a.coerceIn(0f, 255f).toInt() shl 24)
+
+/**
+ * Draws the head. The surface is lit per facet (averaged normals would smear the nose, lips and brow into a blank egg),
+ * sorted far to near, then a wireframe, the eyes, brows and mouth are drawn from the real landmark rings.
+ * Ported from Mark-LIV's renderer (CC BY-NC 4.0, see assets/avatar/NOTICE.txt) to Android's canvas, with a few additions:
+ * a rim light in the accent colour, faint scan lines, and lids that really close when the assistant sleeps.
+ */
+internal class AvatarRenderer(private val mesh: HeadMesh) {
+    private val nV = mesh.vertexCount
+    private val nF = mesh.faceCount
+    private val xs = FloatArray(nV)
+    private val ys = FloatArray(nV)
+    private val faceColor = IntArray(nF)
+    private val faceKey = FloatArray(nF)
+    private val keys = LongArray(nF)
+    private val triPos = FloatArray(nF * 6)
+    private val triCol = IntArray(nF * 3)
+    private val faceFront = BooleanArray(nF)
+    private val structure = StructureEdges.build(mesh)
+    private val edgeBuckets = Array(BUCKETS) { FloatArray(structure.count * 4) }
+    private val edgeCounts = IntArray(BUCKETS)
+    private val lut = IntArray(LUT_N)
+    private var lutKey = 0L
+    private val surfacePaint = Paint().apply { isAntiAlias = false; style = Paint.Style.FILL }
+    private val trianglePath = android.graphics.Path()
+    private val linePaint = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE }
+    private val lipUp = mesh.landmarks.getValue("lips_in").let { ring -> ring.copyOfRange(10, ring.size) + ring[0] }
+
+    /** Draws the head centred on ([cx], [cy]); [r] is its half-height in pixels. Colours are ARGB ints. */
+    fun draw(scope: DrawScope, avatar: HoloAvatar, cx: Float, cy: Float, r: Float, primary: Int, accent: Int, bg: Int, strokePx: Float) {
+        avatar.pose()
+        val amp = avatar.glow
+        val v = avatar.pv
+        val n = avatar.pn
+
+        // aura
+        val ar = r * 1.95f
+        scope.drawCircle(
+            brush = Brush.radialGradient(
+                0f to Color(withAlpha(primary, 34f + 66f * amp)),
+                0.38f to Color(withAlpha(primary, 20f + 40f * amp)),
+                1f to Color(withAlpha(primary, 0f)),
+                center = Offset(cx, cy), radius = ar,
+            ),
+            radius = ar, center = Offset(cx, cy),
+        )
+
+        // project
+        for (i in 0 until nV) {
+            val w = max(CAM_D - v[3 * i + 2], 0.35f)
+            val k = CAM_D / w * r
+            xs[i] = cx + v[3 * i] * k
+            ys[i] = cy - v[3 * i + 1] * k
+        }
+
+        buildLut(bg, primary)
+        val visible = shadeFaces(v, n, amp, accent)
+        scope.drawIntoCanvas { canvas ->
+            val nc = canvas.nativeCanvas
+            drawSurface(nc, visible)
+            drawWire(nc, v, n, amp, primary, bg, strokePx)
+        }
+        drawScanLines(scope, cx, cy, r, primary)
+        drawFeatures(scope, avatar, r, primary, accent, bg, amp, strokePx)
+    }
+
+    private fun buildLut(bg: Int, primary: Int) {
+        val key = (bg.toLong() shl 32) xor primary.toLong()
+        if (key == lutKey) return
+        lutKey = key
+        for (i in 0 until LUT_N) lut[i] = blend(bg, primary, 255f * (i + 0.5f) / LUT_N)
+    }
+
+    /** Lights every camera-facing triangle and returns how many; their colour and depth key are left in the arrays. */
+    private fun shadeFaces(v: FloatArray, nrm: FloatArray, amp: Float, accent: Int): Int {
+        var count = 0
+        val f = mesh.faces
+        val fade = mesh.fade
+        for (t in 0 until nF) {
+            val a = f[3 * t]; val b = f[3 * t + 1]; val c = f[3 * t + 2]
+            val abx = v[3 * b] - v[3 * a]; val aby = v[3 * b + 1] - v[3 * a + 1]; val abz = v[3 * b + 2] - v[3 * a + 2]
+            val acx = v[3 * c] - v[3 * a]; val acy = v[3 * c + 1] - v[3 * a + 1]; val acz = v[3 * c + 2] - v[3 * a + 2]
+            var nx = aby * acz - abz * acy
+            var ny = abz * acx - abx * acz
+            var nz = abx * acy - aby * acx
+            val len = max(sqrt(nx * nx + ny * ny + nz * nz), 1e-9f)
+            nx /= len; ny /= len; nz /= len
+            // Point them outwards by agreeing with the vertex normals (flipping on the sign of nz alone would scramble the light).
+            val rx = nrm[3 * a] + nrm[3 * b] + nrm[3 * c]
+            val ry = nrm[3 * a + 1] + nrm[3 * b + 1] + nrm[3 * c + 1]
+            val rz = nrm[3 * a + 2] + nrm[3 * b + 2] + nrm[3 * c + 2]
+            if (nx * rx + ny * ry + nz * rz < 0f) { nx = -nx; ny = -ny; nz = -nz }
+            faceFront[t] = nz > 0.015f
+            if (nz <= 0.015f) continue
+            val area = abs((xs[b] - xs[a]) * (ys[c] - ys[a]) - (xs[c] - xs[a]) * (ys[b] - ys[a]))
+            if (area <= 3f) continue
+
+            val fres = Math.pow((1f - nz).coerceIn(0f, 2f).toDouble(), 1.7).toFloat()
+            val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
+            var bright = 0.26f + 0.20f * fres + 0.66f * Math.pow(lam.toDouble(), 1.05).toFloat()
+            bright *= (fade[a] + fade[b] + fade[c]) / 3f
+            bright *= 0.88f + 0.24f * amp
+            var col = lut[(bright * LUT_N).toInt().coerceIn(0, LUT_N - 1)]
+            // Rim light: facets turning away from the viewer catch the accent colour.
+            val rim = (fres * fres * 0.30f).coerceIn(0f, 0.30f)
+            if (rim > 0.01f) col = mix(col, accent, rim)
+            faceColor[t] = col
+            val z = (v[3 * a + 2] + v[3 * b + 2] + v[3 * c + 2]) / 3f + mesh.faceGroup[t].let { g -> if (g > 0.5f) 0f else -1000f }
+            // The neck (group 0) is drawn first: it interpenetrates the head and a pure depth sort tears the seam.
+            val bits = java.lang.Float.floatToIntBits(z)
+            val mapped = if (bits >= 0) bits else bits xor 0x7fffffff
+            keys[count++] = (mapped.toLong() shl 32) or t.toLong()
+        }
+        java.util.Arrays.sort(keys, 0, count)
+        return count
+    }
+
+    private fun mix(base: Int, other: Int, f: Float): Int {
+        fun ch(shift: Int): Int {
+            val b0 = (base shr shift) and 0xFF
+            val c0 = (other shr shift) and 0xFF
+            return (b0 + (c0 - b0) * f).toInt().coerceIn(0, 255)
+        }
+        return argb(255, ch(16), ch(8), ch(0))
+    }
+
+    private fun drawSurface(nc: Canvas, count: Int) {
+        if (count == 0) return
+        val f = mesh.faces
+        var p = 0
+        var c = 0
+        for (k in 0 until count) {
+            val t = (keys[k] and 0x7fffffffL).toInt()
+            val col = faceColor[t]
+            for (corner in 0..2) {
+                val vi = f[3 * t + corner]
+                triPos[p++] = xs[vi]
+                triPos[p++] = ys[vi]
+                triCol[c++] = col
+            }
+        }
+        if (Build.VERSION.SDK_INT >= 29) {
+            nc.drawVertices(Canvas.VertexMode.TRIANGLES, count * 6, triPos, 0, null, 0, triCol, 0, null, 0, 0, surfacePaint)
+        } else {
+            // Older phones: one filled path per triangle (slower, same picture).
+            var q = 0
+            for (k in 0 until count) {
+                trianglePath.reset()
+                trianglePath.moveTo(triPos[q], triPos[q + 1])
+                trianglePath.lineTo(triPos[q + 2], triPos[q + 3])
+                trianglePath.lineTo(triPos[q + 4], triPos[q + 5])
+                trianglePath.close()
+                surfacePaint.color = triCol[3 * k]
+                nc.drawPath(trianglePath, surfacePaint)
+                q += 6
+            }
+        }
+    }
+
+    private fun drawWire(nc: Canvas, v: FloatArray, nrm: FloatArray, amp: Float, primary: Int, bg: Int, strokePx: Float) {
+        val scan = scanY
+        edgeCounts.fill(0)
+        val st = structure
+        val gain = 0.80f + 0.45f * amp
+        for (k in 0 until st.count) {
+            val i0 = st.a[k]; val i1 = st.b[k]
+            val f0 = st.face0[k]; val f1 = st.face1[k]
+            val front0 = faceFront[f0]
+            val front1 = if (f1 >= 0) faceFront[f1] else front0
+            if (!front0 && !front1) continue
+            val silhouette = front0 != front1
+            val fadeE = 0.5f * (mesh.fade[i0] + mesh.fade[i1])
+            var alpha = when {
+                silhouette -> 0.60f
+                st.crease[k] > 0f -> 0.16f + 0.42f * st.crease[k]
+                else -> 0f
+            }
+            // The scanner: the whole lattice lights up for a moment as the sweep passes.
+            val ym = 0.5f * (v[3 * i0 + 1] + v[3 * i1 + 1])
+            val d = (ym - scan) / 0.13f
+            alpha += 0.34f * exp(-d * d)
+            alpha *= fadeE * gain
+            if (alpha <= MIN_ALPHA) continue
+            val bkt = (alpha * BUCKETS).toInt().coerceIn(0, BUCKETS - 1)
+            val arr = edgeBuckets[bkt]
+            val o = edgeCounts[bkt]
+            arr[o] = xs[i0]; arr[o + 1] = ys[i0]; arr[o + 2] = xs[i1]; arr[o + 3] = ys[i1]
+            edgeCounts[bkt] = o + 4
+        }
+        val skin = blend(bg, primary, 132f)
+        linePaint.strokeWidth = strokePx
+        for (b in 0 until BUCKETS) {
+            if (edgeCounts[b] == 0) continue
+            val a = 255f * min(1f, (b + 0.5f) / BUCKETS)
+            linePaint.color = blend(skin, primary, a * 0.80f)
+            nc.drawLines(edgeBuckets[b], 0, edgeCounts[b], linePaint)
+        }
+    }
+
+    /** Height of the energy sweep, set by the caller each frame. */
+    var scanY: Float = 0f
+
+    private fun drawScanLines(scope: DrawScope, cx: Float, cy: Float, r: Float, primary: Int) {
+        val step = max(3f, r / 46f)
+        var y = cy - r * 1.05f
+        val end = cy + r * 1.25f
+        val half = r * 0.72f
+        val col = Color(withAlpha(primary, 14f))
+        while (y < end) {
+            scope.drawLine(col, Offset(cx - half, y), Offset(cx + half, y), strokeWidth = 1f)
+            y += step
+        }
+    }
+
+    private fun ring(idx: IntArray): Path {
+        val p = Path()
+        for ((k, i) in idx.withIndex()) if (k == 0) p.moveTo(xs[i], ys[i]) else p.lineTo(xs[i], ys[i])
+        return p
+    }
+
+    private fun closedRing(idx: IntArray): Path = ring(idx).also { it.close() }
+
+    private fun drawFeatures(scope: DrawScope, avatar: HoloAvatar, r: Float, primary: Int, accent: Int, bg: Int, amp: Float, strokePx: Float) {
+        val face = max(0f, cos(avatar.yaw) * cos(avatar.pitch)).let { it * it }
+        if (face < 0.02f) return
+        val lm = mesh.landmarks
+        val vis = ((1f - avatar.blink) * avatar.lids.coerceIn(0f, 1f)).coerceIn(0.04f, 1f)
+
+        // eyes
+        for (key in listOf("eye_l", "eye_r")) {
+            val idx = lm.getValue(key)
+            var minX = Float.MAX_VALUE; var maxX = -Float.MAX_VALUE; var midY = 0f
+            for (i in idx) { minX = min(minX, xs[i]); maxX = max(maxX, xs[i]); midY += ys[i] }
+            midY /= idx.size
+            val path = Path()
+            var minY = Float.MAX_VALUE; var maxY = -Float.MAX_VALUE
+            for ((k, i) in idx.withIndex()) {
+                val y = midY + (ys[i] - midY) * vis
+                minY = min(minY, y); maxY = max(maxY, y)
+                if (k == 0) path.moveTo(xs[i], y) else path.lineTo(xs[i], y)
+            }
+            path.close()
+            scope.drawPath(path, Color(blend(bg, primary, 22f)))
+            scope.drawPath(path, Color(withAlpha(primary, 210f * face)), style = Stroke(width = strokePx * 1.1f))
+            if (vis > 0.35f) {
+                val w = maxX - minX
+                val h = maxY - minY
+                val gx = (minX + maxX) / 2f + avatar.gaze[0] * w * 0.16f
+                val gy = (minY + maxY) / 2f + avatar.gaze[1] * h * 0.20f
+                val rad = min(h * 0.62f, w * 0.20f)
+                scope.drawOval(Color(withAlpha(accent, (70f + 60f * amp) * face * vis)), Offset(gx - rad, gy - rad * vis), Size(rad * 2f, rad * 2f * vis))
+                val pr = rad * 0.42f
+                scope.drawOval(Color(withAlpha(accent, 245f * face * vis)), Offset(gx - pr, gy - pr * vis), Size(pr * 2f, pr * 2f * vis))
+            }
+        }
+
+        // brows
+        for (key in listOf("brow_l", "brow_r")) {
+            scope.drawPath(ring(lm.getValue(key)), Color(withAlpha(primary, 150f * face)), style = Stroke(width = strokePx * 1.4f))
+        }
+
+        // mouth
+        val inner = lm.getValue("lips_in")
+        val innerPath = closedRing(inner)
+        var minY = Float.MAX_VALUE; var maxY = -Float.MAX_VALUE
+        for (i in inner) { minY = min(minY, ys[i]); maxY = max(maxY, ys[i]) }
+        val openH = maxY - minY
+        val mouth = avatar.mouth
+        if (mouth > 0.02f) {
+            // The cavity is dark but never pure black, and tinted by the theme so it stays part of the hologram.
+            scope.drawPath(innerPath, Color(blend(bg, primary, 16f + 26f * mouth)))
+            // Upper teeth: the cheapest thing that makes an open mouth read as speech.
+            val teeth = Path()
+            for ((k, i) in lipUp.withIndex()) if (k == 0) teeth.moveTo(xs[i], ys[i]) else teeth.lineTo(xs[i], ys[i])
+            for (i in lipUp.reversed()) teeth.lineTo(xs[i], ys[i] + openH * 0.30f)
+            teeth.close()
+            scope.drawPath(teeth, Color(blend(bg, primary, 150f + 60f * mouth)))
+            scope.drawPath(innerPath, Color(withAlpha(accent, 40f * mouth * face)))
+        }
+        scope.drawPath(innerPath, Color(withAlpha(primary, (150f + 70f * mouth) * face)), style = Stroke(width = strokePx * 1.3f))
+        scope.drawPath(closedRing(lm.getValue("lips_out")), Color(withAlpha(primary, 110f * face)), style = Stroke(width = strokePx * 1.1f))
+    }
+}
+
+/**
+ * The lines that carry the form: every edge of the mesh with the two triangles that share it, and how sharply the surface
+ * folds there (0 = flat). Creases outline the eyes, nose, lips and jaw; the silhouette is found each frame from which of the
+ * two triangles faces the camera. Mark-LIV drew an arbitrary third of all edges instead, which read as scribbles.
+ */
+internal class StructureEdges private constructor(
+    val a: IntArray, val b: IntArray, val face0: IntArray, val face1: IntArray, val crease: FloatArray,
+) {
+    val count: Int get() = a.size
+
+    companion object {
+        private const val CREASE_MIN_COS = 0.93f // folds sharper than about 21 degrees count as structure
+
+        fun build(mesh: HeadMesh): StructureEdges {
+            val f = mesh.faces
+            val v = mesh.verts
+            val nrm = mesh.normals
+            // outward face normals of the rest pose
+            val fn = FloatArray(mesh.faceCount * 3)
+            for (t in 0 until mesh.faceCount) {
+                val i = f[3 * t]; val j = f[3 * t + 1]; val k = f[3 * t + 2]
+                val abx = v[3 * j] - v[3 * i]; val aby = v[3 * j + 1] - v[3 * i + 1]; val abz = v[3 * j + 2] - v[3 * i + 2]
+                val acx = v[3 * k] - v[3 * i]; val acy = v[3 * k + 1] - v[3 * i + 1]; val acz = v[3 * k + 2] - v[3 * i + 2]
+                var x = aby * acz - abz * acy
+                var y = abz * acx - abx * acz
+                var z = abx * acy - aby * acx
+                val len = max(sqrt(x * x + y * y + z * z), 1e-9f)
+                x /= len; y /= len; z /= len
+                val rx = nrm[3 * i] + nrm[3 * j] + nrm[3 * k]
+                val ry = nrm[3 * i + 1] + nrm[3 * j + 1] + nrm[3 * k + 1]
+                val rz = nrm[3 * i + 2] + nrm[3 * j + 2] + nrm[3 * k + 2]
+                if (x * rx + y * ry + z * rz < 0f) { x = -x; y = -y; z = -z }
+                fn[3 * t] = x; fn[3 * t + 1] = y; fn[3 * t + 2] = z
+            }
+            val first = HashMap<Long, Int>()
+            val ea = ArrayList<Int>(); val eb = ArrayList<Int>(); val e0 = ArrayList<Int>(); val e1 = ArrayList<Int>()
+            fun edge(u: Int, w: Int, t: Int) {
+                val lo = min(u, w); val hi = max(u, w)
+                val key = lo.toLong() * 100_000L + hi
+                val idx = first[key]
+                if (idx == null) {
+                    first[key] = ea.size
+                    ea += lo; eb += hi; e0 += t; e1 += -1
+                } else {
+                    e1[idx] = t
+                }
+            }
+            for (t in 0 until mesh.faceCount) {
+                val i = f[3 * t]; val j = f[3 * t + 1]; val k = f[3 * t + 2]
+                edge(i, j, t); edge(j, k, t); edge(k, i, t)
+            }
+            val crease = FloatArray(ea.size)
+            for (e in ea.indices) {
+                val t0 = e0[e]; val t1 = e1[e]
+                crease[e] = if (t1 < 0) 1f else {
+                    val dot = fn[3 * t0] * fn[3 * t1] + fn[3 * t0 + 1] * fn[3 * t1 + 1] + fn[3 * t0 + 2] * fn[3 * t1 + 2]
+                    if (dot < CREASE_MIN_COS) ((CREASE_MIN_COS - dot) / 0.6f).coerceIn(0.05f, 1f) else 0f
+                }
+            }
+            return StructureEdges(ea.toIntArray(), eb.toIntArray(), e0.toIntArray(), e1.toIntArray(), crease)
+        }
+    }
+}

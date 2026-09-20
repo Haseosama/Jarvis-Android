@@ -82,6 +82,7 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch {
             configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
         }
+        appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }
         com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)
         appScope.launch { configStore.audioInputKey.collect { com.jarvis.android.core.AudioRoute.inputKey = it } }
         appScope.launch { configStore.audioOutputKey.collect { com.jarvis.android.core.AudioRoute.outputKey = it } }
@@ -96,6 +97,7 @@ class JarvisContainer(val appContext: Context) {
 
     internal val attachedFiles = com.jarvis.android.files.AttachedFileStore()
     internal val shareInbox = com.jarvis.android.share.ShareInbox()
+    internal val avatar = com.jarvis.android.avatar.AvatarController(appContext)
 
     internal val pluginStore = com.jarvis.android.plugins.PluginStore(java.io.File(appContext.filesDir, "plugins"))
 

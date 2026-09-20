@@ -68,6 +68,7 @@ fun SettingsScreen(
     val briefingOn by configStore.briefingEnabled.collectAsState(initial = true)
     val muteWhileSpeaking by configStore.muteMicWhileSpeaking.collectAsState(initial = true)
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
+    val faceOn by configStore.avatarFace.collectAsState(initial = true)
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
     var langMenuOpen by remember { mutableStateOf(false) }
     val workFolder by configStore.workFolder.collectAsState(initial = "")
@@ -324,6 +325,18 @@ fun SettingsScreen(
                     )
                 }
             }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                Text(
+                    tr("Visage holographique au centre de l’écran (sinon le cœur lumineux). Ses lèvres suivent la voix de Jarvis."),
+                    style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
+                )
+                Switch(checked = faceOn, onCheckedChange = { scope.launch { configStore.setAvatarFace(it) } })
+            }
+            Text(
+                tr("Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; géométrie du visage : MediaPipe (Apache-2.0)."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
             Text(tr("Teinte de l’interface"), style = MaterialTheme.typography.bodySmall)
             Slider(
                 value = hue,

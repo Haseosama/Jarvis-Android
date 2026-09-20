@@ -74,7 +74,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HudScreen(
+internal fun HudScreen(
     state: JarvisState,
     activityLog: List<String>,
     confirmPending: PendingConfirmation?,
@@ -93,6 +93,7 @@ fun HudScreen(
     conversation: List<ConversationMessage> = emptyList(),
     sessionReady: Boolean = false,
     onSendText: suspend (String) -> Boolean = { false },
+    avatar: com.jarvis.android.avatar.AvatarController? = null,
 ) {
     var draft by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
@@ -131,12 +132,22 @@ fun HudScreen(
             modifier = Modifier.fillMaxSize().padding(padding).imePadding().padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            ReactorCore(state = state, outputLevel = outputLevel, onTap = {
+            val onCoreTap = {
                 when (state) {
                     JarvisState.ASLEEP, JarvisState.ERROR -> onStart()
                     else -> onToggleAwake()
                 }
-            })
+            }
+            if (avatar != null) {
+                Box(
+                    Modifier.padding(top = 2.dp).size(272.dp)
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onCoreTap),
+                ) {
+                    com.jarvis.android.avatar.AvatarView(avatar, state, outputLevel, Modifier.fillMaxSize())
+                }
+            } else {
+                ReactorCore(state = state, outputLevel = outputLevel, onTap = onCoreTap)
+            }
             StatePill(stateLabel(state), stateColor(state))
             Text(
                 when (state) {

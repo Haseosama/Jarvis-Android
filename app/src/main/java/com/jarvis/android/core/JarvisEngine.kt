@@ -577,6 +577,7 @@ class JarvisEngine(
             withContext(NonCancellable + Dispatchers.Main.immediate) {
                 _sessionReady.value = false
                 connection.close()
+                container.avatar.interrupt()
                 if (client === connection) client = null
                 audio.stopPlayback()
                 audio.abandonAudioFocus()
@@ -591,9 +592,13 @@ class JarvisEngine(
             is LiveEvent.AudioChunk -> {
                 _state.value = JarvisState.SPEAKING
                 _outputLevel.value = pcm16Level(event.pcm16)
-                withContext(Dispatchers.IO) { audio.playChunk(event.pcm16) }
+                withContext(Dispatchers.IO) {
+                    container.avatar.onSpeech(event.pcm16)
+                    audio.playChunk(event.pcm16)
+                }
             }
             is LiveEvent.OutputTranscript -> {
+                container.avatar.onTranscript(event.text)
                 _conversation.update { appendConversation(it, ConversationRole.ASSISTANT, event.text) }
             }
             is LiveEvent.InputTranscript -> {
@@ -602,6 +607,7 @@ class JarvisEngine(
             }
             is LiveEvent.Interrupted -> {
                 log(tr("Interruption détectée : la phrase en cours est coupée."))
+                container.avatar.interrupt()
                 audio.flushPlayback()
                 _conversation.update { finishConversationTurn(it) }
                 _state.value = JarvisState.LISTENING
