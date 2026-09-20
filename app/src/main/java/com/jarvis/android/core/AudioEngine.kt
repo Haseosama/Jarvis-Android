@@ -69,11 +69,18 @@ class AudioEngine(private val context: Context) {
             check(rec.state == AudioRecord.STATE_INITIALIZED) { "Microphone indisponible." }
             // The phone's own echo canceller and noise suppressor: without them the assistant's voice from the
             // speaker re-enters the microphone and the server takes it for the user speaking.
-            if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) {
-                android.media.audiofx.AcousticEchoCanceler.create(rec.audioSessionId)?.also { it.enabled = true; effects += it }
+            // Best effort: some phones refuse or throw here, which must never cost the session its microphone.
+            try {
+                if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) {
+                    android.media.audiofx.AcousticEchoCanceler.create(rec.audioSessionId)?.also { it.enabled = true; effects += it }
+                }
+            } catch (_: Exception) {
             }
-            if (android.media.audiofx.NoiseSuppressor.isAvailable()) {
-                android.media.audiofx.NoiseSuppressor.create(rec.audioSessionId)?.also { it.enabled = true; effects += it }
+            try {
+                if (android.media.audiofx.NoiseSuppressor.isAvailable()) {
+                    android.media.audiofx.NoiseSuppressor.create(rec.audioSessionId)?.also { it.enabled = true; effects += it }
+                }
+            } catch (_: Exception) {
             }
             AudioRoute.input(context)?.let { rec.preferredDevice = it }
             rec.startRecording()
