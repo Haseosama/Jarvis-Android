@@ -44,12 +44,12 @@ private suspend fun loadAttachment(context: Context, uri: Uri): String? = withCo
         }
         if (size > MAX_FILE_BYTES) return@withContext ERROR_FILE_TOO_BIG
         val bytes = context.contentResolver.openInputStream(uri)?.use { it.readNBytes(MAX_FILE_BYTES + 1) }
-            ?: return@withContext "Impossible de lire ce fichier."
+            ?: return@withContext tr("Impossible de lire ce fichier.")
         if (bytes.size > MAX_FILE_BYTES) return@withContext ERROR_FILE_TOO_BIG
         val container = (context.applicationContext as JarvisApp).container
         container.attachedFiles.attach(AttachedFile(name, context.contentResolver.getType(uri).orEmpty(), bytes))
         null
     } catch (_: Exception) {
-        "Impossible de lire ce fichier."
+        tr("Impossible de lire ce fichier.")
     }
 }

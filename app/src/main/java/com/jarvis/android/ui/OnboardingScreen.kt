@@ -22,7 +22,7 @@ fun OnboardingScreen(onSave: (String) -> Unit) {
             Text("JARVIS", style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(8.dp))
             Text(
-                "Collez votre clé API Gemini pour commencer. Elle est conservée chiffrée sur cet appareil et transmise uniquement à l’API Gemini de Google pour l’authentification.",
+                tr("Collez votre clé API Gemini pour commencer. Elle est conservée chiffrée sur cet appareil et transmise uniquement à l’API Gemini de Google pour l’authentification."),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
@@ -30,11 +30,11 @@ fun OnboardingScreen(onSave: (String) -> Unit) {
             OutlinedTextField(
                 value = key,
                 onValueChange = { key = it },
-                label = { Text("Clé API Gemini") },
+                label = { Text(tr("Clé API Gemini")) },
                 singleLine = true,
                 isError = key.isNotEmpty() && validKey == null,
                 supportingText = {
-                    if (key.isNotEmpty() && validKey == null) Text("Saisissez une clé sans espaces ni caractères de contrôle.")
+                    if (key.isNotEmpty() && validKey == null) Text(tr("Saisissez une clé sans espaces ni caractères de contrôle."))
                 },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -45,10 +45,10 @@ fun OnboardingScreen(onSave: (String) -> Unit) {
                 onClick = { validKey?.let(onSave) },
                 enabled = validKey != null,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Continuer") }
+            ) { Text(tr("Continuer")) }
             Spacer(Modifier.height(12.dp))
             Text(
-                "Obtenez une clé sur aistudio.google.com/apikey",
+                tr("Obtenez une clé sur aistudio.google.com/apikey"),
                 style = MaterialTheme.typography.labelMedium,
             )
         }

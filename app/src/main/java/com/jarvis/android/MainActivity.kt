@@ -108,13 +108,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val container = (application as JarvisApp).container
         container.syncVoiceService()
+        // Read before the first frame so the interface does not flash in French.
+        com.jarvis.android.ui.Lang.load(this)
         if (savedInstanceState == null) handleLaunchIntent(intent)
         publishShortcut()
 
         setContent {
             val hue by container.configStore.themeHue.collectAsState(initial = 190f)
             JarvisTheme(hue = hue) {
-              Box(modifier = Modifier.fillMaxSize().background(com.jarvis.android.ui.theme.jarvisBackdrop(hue))) {
+              Surface(
+                color = androidx.compose.ui.graphics.Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.fillMaxSize().background(com.jarvis.android.ui.theme.jarvisBackdrop(hue)),
+              ) {
                 val navController = rememberNavController()
                 var hasKey by remember { mutableStateOf(container.configStore.hasApiKey()) }
 

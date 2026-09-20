@@ -37,7 +37,7 @@ fun MemoryScreen(memoryManager: MemoryManager, onBack: () -> Unit) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            error = "Impossible de lire la mémoire. Le fichier a été conservé."
+            error = tr("Impossible de lire la mémoire. Le fichier a été conservé.")
         }
     }
 
@@ -47,19 +47,19 @@ fun MemoryScreen(memoryManager: MemoryManager, onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
-                title = { Text("Mémoire", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Retour") } },
+                title = { Text(tr("Mémoire"), style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Retour")) } },
             )
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             error?.let { message ->
                 Text(message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
-                TextButton(onClick = { reload++ }, enabled = !busy) { Text("Réessayer") }
+                TextButton(onClick = { reload++ }, enabled = !busy) { Text(tr("Réessayer")) }
             }
             deleted?.let { change ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Souvenir supprimé", modifier = Modifier.weight(1f))
+                    Text(tr("Souvenir supprimé"), modifier = Modifier.weight(1f))
                     TextButton(enabled = !busy, onClick = {
                         busy = true
                         scope.launch {
@@ -70,19 +70,19 @@ fun MemoryScreen(memoryManager: MemoryManager, onBack: () -> Unit) {
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
-                                error = "Annulation impossible : mémoire inaccessible ou souvenir modifié."
+                                error = tr("Annulation impossible : mémoire inaccessible ou souvenir modifié.")
                             } finally {
                                 busy = false
                             }
                         }
-                    }) { Text("Annuler") }
+                    }) { Text(tr("Annuler")) }
                 }
             }
             Box(Modifier.fillMaxSize()) {
                 if (!loaded && error == null) {
                     CircularProgressIndicator(Modifier.align(Alignment.Center))
                 } else if (loaded && rows.isEmpty()) {
-                    Text("Aucun souvenir enregistré.", modifier = Modifier.align(Alignment.Center).padding(24.dp))
+                    Text(tr("Aucun souvenir enregistré."), modifier = Modifier.align(Alignment.Center).padding(24.dp))
                 }
                 if (loaded) {
                     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
@@ -97,7 +97,7 @@ fun MemoryScreen(memoryManager: MemoryManager, onBack: () -> Unit) {
                                     Column(Modifier.weight(1f)) {
                                         Text("${memoryCategoryLabel(row.category)} / ${row.key}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                         Text(row.value, style = MaterialTheme.typography.bodyMedium)
-                                        Text("Mis à jour le ${row.updated}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(trf("Mis à jour le {0}", row.updated), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     IconButton(enabled = !busy && error == null, onClick = {
                                         busy = true
@@ -111,12 +111,12 @@ fun MemoryScreen(memoryManager: MemoryManager, onBack: () -> Unit) {
                                             } catch (e: CancellationException) {
                                                 throw e
                                             } catch (e: Exception) {
-                                                error = "Suppression impossible. Le souvenir a été conservé."
+                                                error = tr("Suppression impossible. Le souvenir a été conservé.")
                                             } finally {
                                                 busy = false
                                             }
                                         }
-                                    }) { Icon(Icons.Filled.Delete, contentDescription = "Supprimer ${row.key}") }
+                                    }) { Icon(Icons.Filled.Delete, contentDescription = trf("Supprimer {0}", row.key)) }
                                 }
                             }
                         }
@@ -128,11 +128,11 @@ fun MemoryScreen(memoryManager: MemoryManager, onBack: () -> Unit) {
 }
 
 internal fun memoryCategoryLabel(category: String): String = when (category) {
-    "identity" -> "Identité"
-    "preferences" -> "Préférences"
-    "projects" -> "Projets"
-    "relationships" -> "Relations"
-    "wishes" -> "Souhaits"
+    "identity" -> tr("Identité")
+    "preferences" -> tr("Préférences")
+    "projects" -> tr("Projets")
+    "relationships" -> tr("Relations")
+    "wishes" -> tr("Souhaits")
     "notes" -> "Notes"
     else -> category
 }

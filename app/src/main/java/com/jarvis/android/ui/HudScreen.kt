@@ -118,10 +118,10 @@ fun HudScreen(
                 actions = {
                     val pickFile = rememberFileAttacher { }
                     val tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    IconButton(onClick = pickFile) { Icon(Icons.Filled.AttachFile, contentDescription = "Joindre un fichier", tint = tint) }
-                    IconButton(onClick = onOpenChat) { Icon(Icons.Filled.Chat, contentDescription = "Chat texte", tint = tint) }
-                    IconButton(onClick = onOpenMemory) { Icon(Icons.Filled.Info, contentDescription = "Mémoire", tint = tint) }
-                    IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Settings, contentDescription = "Paramètres", tint = tint) }
+                    IconButton(onClick = pickFile) { Icon(Icons.Filled.AttachFile, contentDescription = tr("Joindre un fichier"), tint = tint) }
+                    IconButton(onClick = onOpenChat) { Icon(Icons.Filled.Chat, contentDescription = tr("Chat texte"), tint = tint) }
+                    IconButton(onClick = onOpenMemory) { Icon(Icons.Filled.Info, contentDescription = tr("Mémoire"), tint = tint) }
+                    IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Settings, contentDescription = tr("Paramètres"), tint = tint) }
                 },
             )
         },
@@ -139,9 +139,9 @@ fun HudScreen(
             StatePill(stateLabel(state), stateColor(state))
             Text(
                 when (state) {
-                    JarvisState.ASLEEP -> "Touchez le cœur pour démarrer"
-                    JarvisState.ERROR -> "Touchez le cœur pour réessayer"
-                    else -> "Touchez le cœur pour mettre en veille"
+                    JarvisState.ASLEEP -> tr("Touchez le cœur pour démarrer")
+                    JarvisState.ERROR -> tr("Touchez le cœur pour réessayer")
+                    else -> tr("Touchez le cœur pour mettre en veille")
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -160,17 +160,17 @@ fun HudScreen(
                 modifier = Modifier.padding(top = 12.dp),
             ) {
                 if (state != JarvisState.ASLEEP) {
-                    FilledTonalButton(onClick = onStop) { Text("Arrêter la session") }
+                    FilledTonalButton(onClick = onStop) { Text(tr("Arrêter la session")) }
                 }
                 if (sessionReady) {
                     if (videoSource == VideoSource.OFF) {
-                        OutlinedButton(onClick = { onVideoSource(VideoSource.SCREEN) }) { Text("Écran") }
-                        OutlinedButton(onClick = { onVideoSource(VideoSource.CAMERA) }) { Text("Caméra") }
+                        OutlinedButton(onClick = { onVideoSource(VideoSource.SCREEN) }) { Text(tr("Écran")) }
+                        OutlinedButton(onClick = { onVideoSource(VideoSource.CAMERA) }) { Text(tr("Caméra")) }
                     } else {
                         Button(
                             onClick = { onVideoSource(VideoSource.OFF) },
                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFFE05252), contentColor = Color.White),
-                        ) { Text(if (videoSource == VideoSource.SCREEN) "Écran partagé · arrêter" else "Caméra partagée · arrêter") }
+                        ) { Text(if (videoSource == VideoSource.SCREEN) tr("Écran partagé · arrêter") else tr("Caméra partagée · arrêter")) }
                     }
                 }
             }
@@ -188,7 +188,7 @@ fun HudScreen(
                     if (conversation.isEmpty()) {
                         item {
                             Text(
-                                "Les échanges de la session apparaîtront ici. Ils ne sont pas conservés.",
+                                tr("Les échanges de la session apparaîtront ici. Ils ne sont pas conservés."),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = 12.dp),
@@ -206,7 +206,7 @@ fun HudScreen(
                     onValueChange = { draft = it.take(MAX_MESSAGE_CHARS); sendError = false },
                     modifier = Modifier.weight(1f),
                     enabled = sessionReady && !sending,
-                    placeholder = { Text(if (sessionReady) "Écrire à Jarvis…" else "Démarrez une session pour écrire") },
+                    placeholder = { Text(if (sessionReady) tr("Écrire à Jarvis…") else tr("Démarrez une session pour écrire")) },
                     shape = MaterialTheme.shapes.extraLarge,
                     maxLines = 3,
                 )
@@ -231,11 +231,11 @@ fun HudScreen(
                     },
                     modifier = Modifier.size(52.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(),
-                ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Envoyer") }
+                ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = tr("Envoyer")) }
             }
-            if (sendError) Text("Message non envoyé. Réessayez une fois connecté.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            if (sendError) Text(tr("Message non envoyé. Réessayez une fois connecté."), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             Text(
-                text = activityLog.lastOrNull()?.let { "Activité : $it" } ?: "Activité : rien pour l’instant",
+                text = activityLog.lastOrNull()?.let { trf("Activité : {0}", tr(it)) } ?: tr("Activité : rien pour l’instant"),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = if (showActivity) 6 else 1,
@@ -335,18 +335,18 @@ internal fun ConfirmBanner(pending: PendingConfirmation, onConfirm: () -> Unit, 
             Text(pending.detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onConfirm) { Text("Confirmer") }
-                OutlinedButton(onClick = onCancel) { Text("Annuler") }
+                Button(onClick = onConfirm) { Text(tr("Confirmer")) }
+                OutlinedButton(onClick = onCancel) { Text(tr("Annuler")) }
             }
         }
     }
 }
 
 private fun stateLabel(state: JarvisState): String = when (state) {
-    JarvisState.ASLEEP -> "En veille"
-    JarvisState.CONNECTING -> "Connexion…"
-    JarvisState.LISTENING -> "À l’écoute"
-    JarvisState.THINKING -> "Réflexion…"
-    JarvisState.SPEAKING -> "Réponse en cours"
-    JarvisState.ERROR -> "Session interrompue"
+    JarvisState.ASLEEP -> tr("En veille")
+    JarvisState.CONNECTING -> tr("Connexion…")
+    JarvisState.LISTENING -> tr("À l’écoute")
+    JarvisState.THINKING -> tr("Réflexion…")
+    JarvisState.SPEAKING -> tr("Réponse en cours")
+    JarvisState.ERROR -> tr("Session interrompue")
 }

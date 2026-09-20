@@ -393,6 +393,15 @@ starts the answer again. Changes:
   left to the screen tools (open, tap search, type, tap the first result); that path was not tried, and the media-key
   path was not tried on the phone either. Media keys go to the active media app, which is not always Liberty.
 
+- **English interface.** Settings > Appearance > "Langue de l'interface" switches the app screens between French and English
+  at once, and remembers the choice. The source text is French; English texts live in `ui/I18nEnglish.kt` (a unit test
+  fails if a text shown by the interface has no English version). Checked on the emulator: the switch, the persistence
+  after a restart, the HUD and the settings. Not translated: notifications, the accessibility service's name and
+  description shown by Android, what tools answer, activity-log lines that contain a variable part, the assistant's
+  system prompt. The language Jarvis speaks is a separate setting (Voice language) and is not changed by this button.
+- **Onboarding contrast.** The first screen (API key) had dark text on the dark background since the gradient backdrop
+  was introduced; fixed.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

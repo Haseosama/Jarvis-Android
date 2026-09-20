@@ -58,7 +58,7 @@ fun SettingsCard(
     initiallyExpanded: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    var expanded by rememberSaveable(title) { mutableStateOf(initiallyExpanded) }
+    var expanded by rememberSaveable(frenchOf(title)) { mutableStateOf(initiallyExpanded) }
     val arrow by animateFloatAsState(if (expanded) 180f else 0f, label = "arrow")
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).animateContentSize(),
@@ -80,7 +80,7 @@ fun SettingsCard(
             Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             Icon(
                 Icons.Filled.ExpandMore,
-                contentDescription = if (expanded) "Replier" else "Déplier",
+                contentDescription = if (expanded) tr("Replier") else tr("Déplier"),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.rotate(arrow),
             )
@@ -96,9 +96,9 @@ fun SettingsCard(
 fun MessageBubble(message: ConversationMessage, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val (label, container, content, alignEnd) = when (message.role) {
-        ConversationRole.USER -> BubbleStyle("Vous", scheme.primaryContainer, scheme.onPrimaryContainer, true)
+        ConversationRole.USER -> BubbleStyle(tr("Vous"), scheme.primaryContainer, scheme.onPrimaryContainer, true)
         ConversationRole.ASSISTANT -> BubbleStyle("Jarvis", scheme.surfaceVariant, scheme.onSurface, false)
-        ConversationRole.SYSTEM -> BubbleStyle("Système", Color.Transparent, scheme.onSurfaceVariant, false)
+        ConversationRole.SYSTEM -> BubbleStyle(tr("Système"), Color.Transparent, scheme.onSurfaceVariant, false)
     }
     Row(modifier.fillMaxWidth().padding(vertical = 3.dp), horizontalArrangement = if (alignEnd) Arrangement.End else Arrangement.Start) {
         Column(

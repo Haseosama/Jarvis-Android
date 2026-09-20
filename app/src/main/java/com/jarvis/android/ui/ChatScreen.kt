@@ -78,7 +78,7 @@ fun ChatScreen(
     val stage by voice.stage.collectAsState()
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) error = voice.startRecording()
-        else error = "Micro non autorisé. Accordez la permission d’enregistrement audio puis réessayez."
+        else error = tr("Micro non autorisé. Accordez la permission d’enregistrement audio puis réessayez.")
     }
     val listState = rememberLazyListState()
 
@@ -99,13 +99,13 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
-                title = { Text("Chat texte", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") } },
+                title = { Text(tr("Chat texte"), style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, tr("Retour")) } },
                 actions = {
                     IconButton(
                         enabled = !sending && messages.isNotEmpty(),
                         onClick = { chat.reset(); error = null },
-                    ) { Icon(Icons.Filled.Refresh, contentDescription = "Nouvelle conversation") }
+                    ) { Icon(Icons.Filled.Refresh, contentDescription = tr("Nouvelle conversation")) }
                 },
             )
         },
@@ -114,35 +114,35 @@ fun ChatScreen(
             Modifier.fillMaxSize().padding(padding).imePadding().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Modèle : $modelName", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(trf("Modèle : {0}", modelName), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f)) {
                 if (messages.isEmpty()) {
                     item {
                         Text(
-                            "Écrivez un message pour démarrer une conversation texte. Jarvis peut aussi utiliser ses outils (météo, rappels, minuteurs, recherche…).",
+                            tr("Écrivez un message pour démarrer une conversation texte. Jarvis peut aussi utiliser ses outils (météo, rappels, minuteurs, recherche…)."),
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
                 items(messages) { message -> MessageBubble(message) }
                 if (sending) {
-                    item { Text("Jarvis réfléchit…", style = MaterialTheme.typography.bodySmall) }
+                    item { Text(tr("Jarvis réfléchit…"), style = MaterialTheme.typography.bodySmall) }
                 }
             }
             when (stage) {
-                VoiceStage.RECORDING -> Text("Enregistrement… appuyez sur le micro pour envoyer.", style = MaterialTheme.typography.bodySmall)
-                VoiceStage.TRANSCRIBING -> Text("Transcription…", style = MaterialTheme.typography.bodySmall)
-                VoiceStage.SPEAKING -> Text("Jarvis parle…", style = MaterialTheme.typography.bodySmall)
+                VoiceStage.RECORDING -> Text(tr("Enregistrement… appuyez sur le micro pour envoyer."), style = MaterialTheme.typography.bodySmall)
+                VoiceStage.TRANSCRIBING -> Text(tr("Transcription…"), style = MaterialTheme.typography.bodySmall)
+                VoiceStage.SPEAKING -> Text(tr("Jarvis parle…"), style = MaterialTheme.typography.bodySmall)
                 else -> {}
             }
             attached?.let { file ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "Fichier joint : ${file.name} (${com.jarvis.android.files.humanSize(file.bytes.size.toLong())}). Demandez à Jarvis de l’analyser ; il est envoyé à Gemini à ce moment-là.",
+                        trf("Fichier joint : {0} ({1}). Demandez à Jarvis de l’analyser ; il est envoyé à Gemini à ce moment-là.", file.name, com.jarvis.android.files.humanSize(file.bytes.size.toLong())),
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(onClick = { container.attachedFiles.clear() }) { Icon(Icons.Filled.Close, contentDescription = "Retirer le fichier") }
+                    IconButton(onClick = { container.attachedFiles.clear() }) { Icon(Icons.Filled.Close, contentDescription = tr("Retirer le fichier")) }
                 }
             }
             error?.let {
@@ -153,12 +153,12 @@ fun ChatScreen(
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
                 IconButton(onClick = pickFile, enabled = !sending && stage == VoiceStage.IDLE) {
-                    Icon(Icons.Filled.AttachFile, contentDescription = "Joindre un fichier", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Filled.AttachFile, contentDescription = tr("Joindre un fichier"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 OutlinedTextField(
                     value = draft,
                     onValueChange = { draft = it.take(MAX_MESSAGE_CHARS); error = null },
-                    placeholder = { Text("Écrire à Jarvis…") },
+                    placeholder = { Text(tr("Écrire à Jarvis…")) },
                     shape = MaterialTheme.shapes.extraLarge,
                     maxLines = 4,
                     enabled = !sending && stage == VoiceStage.IDLE,
@@ -168,17 +168,17 @@ fun ChatScreen(
                 when (stage) {
                     VoiceStage.RECORDING -> {
                         IconButton(onClick = { voice.cancelRecording() }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Annuler l’enregistrement")
+                            Icon(Icons.Filled.Close, contentDescription = tr("Annuler l’enregistrement"))
                         }
                         IconButton(onClick = {
                             scope.launch {
                                 error = null
                                 error = voice.finishRecording()
                             }
-                        }) { Icon(Icons.Filled.Stop, contentDescription = "Envoyer l’enregistrement") }
+                        }) { Icon(Icons.Filled.Stop, contentDescription = tr("Envoyer l’enregistrement")) }
                     }
                     VoiceStage.SPEAKING -> IconButton(onClick = { voice.stopSpeaking() }) {
-                        Icon(Icons.Filled.Stop, contentDescription = "Arrêter la lecture")
+                        Icon(Icons.Filled.Stop, contentDescription = tr("Arrêter la lecture"))
                     }
                     else -> IconButton(
                         enabled = !sending && stage == VoiceStage.IDLE,
@@ -186,7 +186,7 @@ fun ChatScreen(
                             error = null
                             micPermission.launch(Manifest.permission.RECORD_AUDIO)
                         },
-                    ) { Icon(Icons.Filled.Mic, contentDescription = "Parler") }
+                    ) { Icon(Icons.Filled.Mic, contentDescription = tr("Parler")) }
                 }
                 androidx.compose.material3.FilledIconButton(
                     enabled = draft.isNotBlank() && !sending && stage == VoiceStage.IDLE,
@@ -203,7 +203,7 @@ fun ChatScreen(
                             }
                         }
                     },
-                ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Envoyer") }
+                ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = tr("Envoyer")) }
             }
         }
     }

@@ -78,9 +78,9 @@ fun SettingsScreen(
                 pluginMessage = withContext(Dispatchers.IO) {
                     try {
                         val text = context0.contentResolver.openInputStream(uri)?.use { String(it.readNBytes(com.jarvis.android.plugins.MAX_PLUGIN_BYTES + 1)) }
-                        if (text == null) "Impossible de lire ce fichier." else pluginStore.install(text) ?: "Plugin installé. Il est actif dès la prochaine session vocale."
+                        if (text == null) tr("Impossible de lire ce fichier.") else pluginStore.install(text) ?: tr("Plugin installé. Il est actif dès la prochaine session vocale.")
                     } catch (_: Exception) {
-                        "Impossible de lire ce fichier."
+                        tr("Impossible de lire ce fichier.")
                     }
                 }
                 pluginTick++
@@ -110,7 +110,7 @@ fun SettingsScreen(
             val bytes = withContext(kotlinx.coroutines.Dispatchers.IO) {
                 try { context0.contentResolver.openInputStream(uri)?.use { it.readBytes() } } catch (_: Exception) { null }
             }
-            wakeMessage = if (bytes == null) "Fichier illisible." else wakeManager.importCustom(bytes)
+            wakeMessage = if (bytes == null) tr("Fichier illisible.") else wakeManager.importCustom(bytes)
             wakeSelected = wakeManager.selected()
             (context0.applicationContext as com.jarvis.android.JarvisApp).container.engine.refreshWakeDetection()
         }
@@ -173,7 +173,7 @@ fun SettingsScreen(
             try {
                 reminders = ReminderService.list(context)
             } catch (_: Exception) {
-                reminderFeedback = "Impossible de charger les rappels."
+                reminderFeedback = tr("Impossible de charger les rappels.")
             } finally {
                 loadingReminders = false
             }
@@ -186,29 +186,29 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
-                title = { Text("Paramètres", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") } },
+                title = { Text(tr("Paramètres"), style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, tr("Retour")) } },
             )
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).imePadding().padding(16.dp).verticalScroll(rememberScrollState())) {
-            SettingsCard("Identité", Icons.Filled.Person, initiallyExpanded = true) {
+            SettingsCard(tr("Identité"), Icons.Filled.Person, initiallyExpanded = true) {
             OutlinedTextField(
                 value = assistantNameField,
                 onValueChange = { assistantNameField = it; scope.launch { configStore.setAssistantName(it) } },
-                label = { Text("Nom de l’assistant") },
+                label = { Text(tr("Nom de l’assistant")) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             OutlinedTextField(
                 value = userNameField,
                 onValueChange = { userNameField = it; scope.launch { configStore.setUserName(it) } },
-                label = { Text("Votre nom") },
+                label = { Text(tr("Votre nom")) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             }
-            SettingsCard("Voix", Icons.Filled.RecordVoiceOver, initiallyExpanded = true) {
+            SettingsCard(tr("Voix"), Icons.Filled.RecordVoiceOver, initiallyExpanded = true) {
             ExposedDropdownMenuBox(
                 expanded = voiceMenuOpen,
                 onExpandedChange = { voiceMenuOpen = it },
@@ -218,7 +218,7 @@ fun SettingsScreen(
                     value = voice,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Voix Gemini") },
+                    label = { Text(tr("Voix Gemini")) },
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                 )
                 ExposedDropdownMenu(expanded = voiceMenuOpen, onDismissRequest = { voiceMenuOpen = false }) {
@@ -230,7 +230,7 @@ fun SettingsScreen(
                     }
                 }
             }
-            val languages = listOf("" to "Automatique (peut changer sur demande)", "fr-FR" to "Français", "en-US" to "English", "fil-PH" to "Filipino")
+            val languages = listOf("" to tr("Automatique (peut changer sur demande)"), "fr-FR" to "Français", "en-US" to "English", "fil-PH" to "Filipino")
             ExposedDropdownMenuBox(
                 expanded = langMenuOpen,
                 onExpandedChange = { langMenuOpen = it },
@@ -240,7 +240,7 @@ fun SettingsScreen(
                     value = languages.firstOrNull { it.first == speechLanguage }?.second ?: speechLanguage,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Langue de la voix") },
+                    label = { Text(tr("Langue de la voix")) },
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                 )
                 ExposedDropdownMenu(expanded = langMenuOpen, onDismissRequest = { langMenuOpen = false }) {
@@ -253,21 +253,21 @@ fun SettingsScreen(
                 }
             }
             Text(
-                "Fixer la langue garde un accent stable, mais Jarvis ne pourra plus passer à une autre langue sur demande. S’applique à la prochaine session.",
+                tr("Fixer la langue garde un accent stable, mais Jarvis ne pourra plus passer à une autre langue sur demande. S’applique à la prochaine session."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
                 Text(
-                    "Couper le micro pendant que Jarvis parle (haut-parleur). Évite qu’il s’interrompe à cause de son propre écho ; avec un casque, vous pouvez toujours l’interrompre.",
+                    tr("Couper le micro pendant que Jarvis parle (haut-parleur). Évite qu’il s’interrompe à cause de son propre écho ; avec un casque, vous pouvez toujours l’interrompre."),
                     style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
                 )
                 Switch(checked = muteWhileSpeaking, onCheckedChange = { scope.launch { configStore.setMuteMicWhileSpeaking(it) } })
             }
             }
-            SettingsCard("Périphériques audio", Icons.Filled.Headset, initiallyExpanded = false) {
+            SettingsCard(tr("Périphériques audio"), Icons.Filled.Headset, initiallyExpanded = false) {
             Text(
-                "Automatique laisse Android choisir. Un périphérique choisi mais débranché est ignoré : Jarvis revient alors au téléphone. Le changement s’applique à la prochaine session ou au prochain enregistrement.",
+                tr("Automatique laisse Android choisir. Un périphérique choisi mais débranché est ignoré : Jarvis revient alors au téléphone. Le changement s’applique à la prochaine session ou au prochain enregistrement."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -277,14 +277,14 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 8.dp),
             ) {
                 OutlinedTextField(
-                    value = inputs.firstOrNull { it.key == inputKey }?.label ?: if (inputKey.isBlank()) "Automatique" else "Périphérique absent",
+                    value = inputs.firstOrNull { it.key == inputKey }?.label ?: if (inputKey.isBlank()) tr("Automatique") else tr("Périphérique absent"),
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Microphone") },
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                 )
                 ExposedDropdownMenu(expanded = inMenuOpen, onDismissRequest = { inMenuOpen = false }) {
-                    DropdownMenuItem(text = { Text("Automatique") }, onClick = { inMenuOpen = false; scope.launch { configStore.setAudioInputKey("") } })
+                    DropdownMenuItem(text = { Text(tr("Automatique")) }, onClick = { inMenuOpen = false; scope.launch { configStore.setAudioInputKey("") } })
                     inputs.forEach { d ->
                         DropdownMenuItem(text = { Text(d.label) }, onClick = { inMenuOpen = false; scope.launch { configStore.setAudioInputKey(d.key) } })
                     }
@@ -296,22 +296,32 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 8.dp),
             ) {
                 OutlinedTextField(
-                    value = outputs.firstOrNull { it.key == outputKey }?.label ?: if (outputKey.isBlank()) "Automatique" else "Périphérique absent",
+                    value = outputs.firstOrNull { it.key == outputKey }?.label ?: if (outputKey.isBlank()) tr("Automatique") else tr("Périphérique absent"),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Sortie audio") },
+                    label = { Text(tr("Sortie audio")) },
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                 )
                 ExposedDropdownMenu(expanded = outMenuOpen, onDismissRequest = { outMenuOpen = false }) {
-                    DropdownMenuItem(text = { Text("Automatique") }, onClick = { outMenuOpen = false; scope.launch { configStore.setAudioOutputKey("") } })
+                    DropdownMenuItem(text = { Text(tr("Automatique")) }, onClick = { outMenuOpen = false; scope.launch { configStore.setAudioOutputKey("") } })
                     outputs.forEach { d ->
                         DropdownMenuItem(text = { Text(d.label) }, onClick = { outMenuOpen = false; scope.launch { configStore.setAudioOutputKey(d.key) } })
                     }
                 }
             }
             }
-            SettingsCard("Apparence", Icons.Filled.Palette, initiallyExpanded = false) {
-            Text("Teinte de l’interface", style = MaterialTheme.typography.bodySmall)
+            SettingsCard(tr("Apparence"), Icons.Filled.Palette, initiallyExpanded = false) {
+            Text(tr("Langue de l’interface"), style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)) {
+                listOf(Lang.FRENCH to "Français", Lang.ENGLISH_CODE to "English").forEach { (code, label) ->
+                    FilterChip(
+                        selected = Lang.code == code,
+                        onClick = { Lang.set(context0, code) },
+                        label = { Text(label) },
+                    )
+                }
+            }
+            Text(tr("Teinte de l’interface"), style = MaterialTheme.typography.bodySmall)
             Slider(
                 value = hue,
                 onValueChange = { scope.launch { configStore.setThemeHue(it) } },
@@ -319,14 +329,14 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 8.dp),
             )
             }
-            SettingsCard("Mot d’activation (« Hey Jarvis »)", Icons.Filled.Hearing, initiallyExpanded = false) {
+            SettingsCard(tr("Mot d’activation (« Hey Jarvis »)"), Icons.Filled.Hearing, initiallyExpanded = false) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Text("Écouter « Hey Jarvis » même quand l’appli est fermée", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Text(tr("Écouter « Hey Jarvis » même quand l’appli est fermée"), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                 Switch(checked = wakeWordEnabled, onCheckedChange = { scope.launch { configStore.setWakeWordEnabled(it) } })
             }
             Text(
-                if (wakeInstalled) "Détection hors ligne : modèles openWakeWord installés ✓ (les mêmes que la version bureau). Aucune connexion n’est utilisée pendant l’écoute ; environ deux secondes d’écoute sont nécessaires après le démarrage."
-                else "Détection actuelle : reconnaissance vocale d’Android, approximative (elle peut passer par le réseau). Pour une vraie détection hors ligne, téléchargez les modèles openWakeWord (environ 4 Mo, depuis github.com/dscripka/openWakeWord). L’écoute reprend automatiquement en veille.",
+                if (wakeInstalled) tr("Détection hors ligne : modèles openWakeWord installés ✓ (les mêmes que la version bureau). Aucune connexion n’est utilisée pendant l’écoute ; environ deux secondes d’écoute sont nécessaires après le démarrage.")
+                else tr("Détection actuelle : reconnaissance vocale d’Android, approximative (elle peut passer par le réseau). Pour une vraie détection hors ligne, téléchargez les modèles openWakeWord (environ 4 Mo, depuis github.com/dscripka/openWakeWord). L’écoute reprend automatiquement en veille."),
                 style = MaterialTheme.typography.bodySmall,
             )
             if (!wakeInstalled) {
@@ -344,7 +354,7 @@ fun SettingsScreen(
                         }
                     },
                     modifier = Modifier.padding(top = 8.dp),
-                ) { Text(wakeProgress?.let { "Téléchargement… $it %" } ?: "Télécharger les modèles (≈ 4 Mo)") }
+                ) { Text(wakeProgress?.let { trf("Téléchargement… {0} %", it) } ?: tr("Télécharger les modèles (≈ 4 Mo)")) }
             } else {
                 OutlinedButton(
                     onClick = {
@@ -354,10 +364,10 @@ fun SettingsScreen(
                         (context0.applicationContext as com.jarvis.android.JarvisApp).container.engine.refreshWakeDetection()
                     },
                     modifier = Modifier.padding(top = 8.dp),
-                ) { Text("Supprimer les modèles") }
+                ) { Text(tr("Supprimer les modèles")) }
             }
             if (wakeInstalled) {
-                Text("Phrase d’activation", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp))
+                Text(tr("Phrase d’activation"), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
                     com.jarvis.android.wake.WAKE_PRESETS.take(2).forEach { preset ->
                         FilterChip(selected = wakeSelected == preset.file, enabled = wakeProgress == null, label = { Text(preset.label) }, onClick = {
@@ -381,19 +391,19 @@ fun SettingsScreen(
                     }
                     FilterChip(
                         selected = wakeSelected == com.jarvis.android.wake.WAKE_FILE_CUSTOM,
-                        label = { Text("Mon modèle") },
+                        label = { Text(tr("Mon modèle")) },
                         onClick = { pickWakeModel.launch(arrayOf("*/*")) },
                     )
                 }
                 Text(
-                    "Les phrases proposées sont celles fournies par openWakeWord (téléchargées à la demande, environ 200 Ko chacune). Une autre phrase, comme « Debout Jarvis », demande un modèle entraîné exprès : entraînez-le avec le carnet « automatic_model_training » d’openWakeWord (github.com/dscripka/openWakeWord), puis importez le fichier .tflite avec « Mon modèle ». Je n’ai pas pu entraîner ni tester un tel modèle ici. Actuellement : ${wakeManager.label(wakeSelected)}.",
+                    trf("Les phrases proposées sont celles fournies par openWakeWord (téléchargées à la demande, environ 200 Ko chacune). Une autre phrase, comme « Debout Jarvis », demande un modèle entraîné exprès : entraînez-le avec le carnet « automatic_model_training » d’openWakeWord (github.com/dscripka/openWakeWord), puis importez le fichier .tflite avec « Mon modèle ». Je n’ai pas pu entraîner ni tester un tel modèle ici. Actuellement : {0}.", wakeManager.label(wakeSelected)),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
-            Text("Sensibilité du mot d’activation", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp))
+            Text(tr("Sensibilité du mot d’activation"), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
-                listOf("Prudente", "Normale", "Sensible").forEachIndexed { level, label ->
+                listOf(tr("Prudente"), tr("Normale"), tr("Sensible")).forEachIndexed { level, label ->
                     FilterChip(
                         selected = wakeSensitivity == level,
                         onClick = { scope.launch { configStore.setWakeSensitivity(level) } },
@@ -402,7 +412,7 @@ fun SettingsScreen(
                 }
             }
             Text(
-                "Mesuré avec des voix de synthèse : une voix anglaise déclenche presque à coup sûr, une voix française lisant « Hey Jarvis » avec l’accent est moins bien reconnue, et « Hey Travis » peut parfois déclencher. Si Jarvis ne réagit pas à votre voix, passez en « Sensible » ; s’il se réveille tout seul, en « Prudente ». Non testé avec votre voix.",
+                tr("Mesuré avec des voix de synthèse : une voix anglaise déclenche presque à coup sûr, une voix française lisant « Hey Jarvis » avec l’accent est moins bien reconnue, et « Hey Travis » peut parfois déclencher. Si Jarvis ne réagit pas à votre voix, passez en « Sensible » ; s’il se réveille tout seul, en « Prudente ». Non testé avec votre voix."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -410,37 +420,37 @@ fun SettingsScreen(
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
             }
-            SettingsCard("Position (météo)", Icons.Filled.LocationOn, initiallyExpanded = false) {
+            SettingsCard(tr("Position (météo)"), Icons.Filled.LocationOn, initiallyExpanded = false) {
             var locationGranted by remember { mutableStateOf(com.jarvis.android.weather.hasLocationPermission(context0)) }
             val askLocation = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
                 locationGranted = granted || com.jarvis.android.weather.hasLocationPermission(context0)
             }
             Text(
-                if (locationGranted) "Position autorisée ✓ : « quel temps fait-il ? » sans ville donne la météo de l’endroit où vous êtes."
-                else "Position non autorisée : Jarvis ne connaît pas votre position. Sans elle, il faut lui dire le nom de la ville.",
+                if (locationGranted) tr("Position autorisée ✓ : « quel temps fait-il ? » sans ville donne la météo de l’endroit où vous êtes.")
+                else tr("Position non autorisée : Jarvis ne connaît pas votre position. Sans elle, il faut lui dire le nom de la ville."),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 8.dp),
             )
             if (!locationGranted) {
                 OutlinedButton(onClick = { askLocation.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION) }, modifier = Modifier.padding(top = 8.dp)) {
-                    Text("Autoriser la position")
+                    Text(tr("Autoriser la position"))
                 }
             }
             Text(
-                "Position approximative, lue seulement au moment d’une demande de météo, envoyée à Open-Meteo pour obtenir les conditions et jamais enregistrée. Fiable quand Jarvis est ouvert ; en arrière-plan Android peut la refuser.",
+                tr("Position approximative, lue seulement au moment d’une demande de météo, envoyée à Open-Meteo pour obtenir les conditions et jamais enregistrée. Fiable quand Jarvis est ouvert ; en arrière-plan Android peut la refuser."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
             }
             SettingsCard("Plugins", Icons.Filled.Extension, initiallyExpanded = false) {
             Text(
-                "Ajoutez des compétences sans code : un fichier JSON décrit un appel web (HTTPS), un lien à ouvrir ou une routine d’outils existants. Jarvis n’exécute jamais de code téléchargé. Voir le README pour le format.",
+                tr("Ajoutez des compétences sans code : un fichier JSON décrit un appel web (HTTPS), un lien à ouvrir ou une routine d’outils existants. Jarvis n’exécute jamais de code téléchargé. Voir le README pour le format."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
             val installed = remember(pluginTick) { com.jarvis.android.actions.ToolRegistry.pluginTools().filterIsInstance<com.jarvis.android.plugins.PluginTool>() }
             if (installed.isEmpty()) {
-                Text("Aucun plugin installé.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                Text(tr("Aucun plugin installé."), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
             }
             installed.forEach { plugin ->
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
@@ -448,10 +458,10 @@ fun SettingsScreen(
                         Text(plugin.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         Text(plugin.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    OutlinedButton(onClick = { pluginToRemove = plugin.name }) { Text("Désinstaller") }
+                    OutlinedButton(onClick = { pluginToRemove = plugin.name }) { Text(tr("Désinstaller")) }
                 }
             }
-            Text("Catalogue intégré", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 16.dp))
+            Text(tr("Catalogue intégré"), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 16.dp))
             val catalog = remember { com.jarvis.android.plugins.readCatalog(context0, com.jarvis.android.actions.ToolRegistry.builtInNames()) }
             val installedNames = installed.map { it.name }.toSet()
             catalog.forEach { entry ->
@@ -461,47 +471,47 @@ fun SettingsScreen(
                         Text(entry.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (entry.name in installedNames) {
-                        OutlinedButton(onClick = { pluginToRemove = entry.name }, modifier = Modifier.padding(start = 8.dp)) { Text("Désinstaller") }
+                        OutlinedButton(onClick = { pluginToRemove = entry.name }, modifier = Modifier.padding(start = 8.dp)) { Text(tr("Désinstaller")) }
                     } else {
                         FilledTonalButton(onClick = {
                             scope.launch {
-                                pluginMessage = withContext(Dispatchers.IO) { pluginStore.install(entry.json) } ?: "« ${entry.name} » installé. Il est actif dès la prochaine session vocale."
+                                pluginMessage = withContext(Dispatchers.IO) { pluginStore.install(entry.json) } ?: trf("« {0} » installé. Il est actif dès la prochaine session vocale.", entry.name)
                                 pluginTick++
                             }
-                        }, modifier = Modifier.padding(start = 8.dp)) { Text("Installer") }
+                        }, modifier = Modifier.padding(start = 8.dp)) { Text(tr("Installer")) }
                     }
                 }
             }
             pluginToRemove?.let { toRemove ->
                 AlertDialog(
                     onDismissRequest = { pluginToRemove = null },
-                    title = { Text("Désinstaller « $toRemove » ?") },
-                    text = { Text("Le plugin est retiré de Jarvis. Vous pourrez le réinstaller depuis le catalogue.") },
+                    title = { Text(trf("Désinstaller « {0} » ?", toRemove)) },
+                    text = { Text(tr("Le plugin est retiré de Jarvis. Vous pourrez le réinstaller depuis le catalogue.")) },
                     confirmButton = {
                         TextButton(onClick = {
                             pluginStore.remove(toRemove)
                             pluginTick++
-                            pluginMessage = "« $toRemove » désinstallé."
+                            pluginMessage = trf("« {0} » désinstallé.", toRemove)
                             pluginToRemove = null
-                        }) { Text("Désinstaller", color = MaterialTheme.colorScheme.error) }
+                        }) { Text(tr("Désinstaller"), color = MaterialTheme.colorScheme.error) }
                     },
-                    dismissButton = { TextButton(onClick = { pluginToRemove = null }) { Text("Annuler") } },
+                    dismissButton = { TextButton(onClick = { pluginToRemove = null }) { Text(tr("Annuler")) } },
                 )
             }
             OutlinedButton(onClick = { pickPlugin.launch(arrayOf("application/json", "text/plain", "*/*")) }, modifier = Modifier.padding(top = 12.dp)) {
-                Text("Importer un plugin (JSON)")
+                Text(tr("Importer un plugin (JSON)"))
             }
             pluginMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
             }
-            SettingsCard("Dossier de travail (fichiers)", Icons.Filled.Folder, initiallyExpanded = false) {
+            SettingsCard(tr("Dossier de travail (fichiers)"), Icons.Filled.Folder, initiallyExpanded = false) {
             Text(
-                if (workFolder.isBlank()) "Aucun dossier choisi : Jarvis ne touche à aucun fichier."
-                else "Dossier choisi : ${android.net.Uri.decode(workFolder.substringAfterLast("tree/"))}",
+                if (workFolder.isBlank()) tr("Aucun dossier choisi : Jarvis ne touche à aucun fichier.")
+                else trf("Dossier choisi : {0}", android.net.Uri.decode(workFolder.substringAfterLast("tree/"))),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 8.dp),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                OutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (workFolder.isBlank()) "Choisir un dossier" else "Changer de dossier") }
+                OutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (workFolder.isBlank()) tr("Choisir un dossier") else tr("Changer de dossier")) }
                 if (workFolder.isNotBlank()) {
                     OutlinedButton(onClick = {
                         try {
@@ -512,18 +522,18 @@ fun SettingsScreen(
                         } catch (_: Exception) {
                         }
                         scope.launch { configStore.setWorkFolder("") }
-                    }) { Text("Retirer l’accès") }
+                    }) { Text(tr("Retirer l’accès")) }
                 }
             }
             Text(
-                "Jarvis peut lister, lire, chercher, créer, modifier, renommer, déplacer, copier, supprimer (corbeille dans le dossier) et ranger des fichiers, seulement dans ce dossier. La suppression, l’écriture et le rangement demandent votre confirmation ; tout peut être annulé.",
+                tr("Jarvis peut lister, lire, chercher, créer, modifier, renommer, déplacer, copier, supprimer (corbeille dans le dossier) et ranger des fichiers, seulement dans ce dossier. La suppression, l’écriture et le rangement demandent votre confirmation ; tout peut être annulé."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
             }
-            SettingsCard("Sauvegarde de la mémoire", Icons.Filled.Folder, initiallyExpanded = false) {
+            SettingsCard(tr("Sauvegarde de la mémoire"), Icons.Filled.Folder, initiallyExpanded = false) {
             Text(
-                "Enregistre ce que Jarvis sait de vous (identité, préférences, notes, résumés récents) dans un fichier, ou le restaure sur un autre téléphone. Le fichier n’est pas chiffré : gardez-le en lieu sûr. Une restauration remplace la mémoire actuelle.",
+                tr("Enregistre ce que Jarvis sait de vous (identité, préférences, notes, résumés récents) dans un fichier, ou le restaure sur un autre téléphone. Le fichier n’est pas chiffré : gardez-le en lieu sûr. Une restauration remplace la mémoire actuelle."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -536,9 +546,9 @@ fun SettingsScreen(
                         withContext(kotlinx.coroutines.Dispatchers.IO) {
                             context0.contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray(Charsets.UTF_8)) } ?: error("flux")
                         }
-                        "Sauvegarde enregistrée."
+                        tr("Sauvegarde enregistrée.")
                     } catch (_: Exception) {
-                        "Impossible d’écrire la sauvegarde."
+                        tr("Impossible d’écrire la sauvegarde.")
                     }
                 }
             }
@@ -547,23 +557,23 @@ fun SettingsScreen(
                     val text = withContext(kotlinx.coroutines.Dispatchers.IO) {
                         try { context0.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } } catch (_: Exception) { null }
                     }
-                    backupMessage = if (text == null) "Fichier illisible." else memory.importJson(text) ?: "Mémoire restaurée."
+                    backupMessage = if (text == null) tr("Fichier illisible.") else memory.importJson(text) ?: tr("Mémoire restaurée.")
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                OutlinedButton(onClick = { exportLauncher.launch("jarvis-memoire.json") }) { Text("Exporter") }
-                OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }) { Text("Restaurer…") }
+                OutlinedButton(onClick = { exportLauncher.launch("jarvis-memoire.json") }) { Text(tr("Exporter")) }
+                OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }) { Text(tr("Restaurer…")) }
             }
             backupMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
             }
-            SettingsCard("Historique des sessions", Icons.Filled.History, initiallyExpanded = false) {
+            SettingsCard(tr("Historique des sessions"), Icons.Filled.History, initiallyExpanded = false) {
             Text(
-                "Les 30 dernières sessions vocales, avec ce qui les a lancées (mot d’activation ou bouton de l’appli). Gardé sur l’appareil seulement.",
+                tr("Les 30 dernières sessions vocales, avec ce qui les a lancées (mot d’activation ou bouton de l’appli). Gardé sur l’appareil seulement."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
             if (sessions.isEmpty()) {
-                Text("Aucune session enregistrée.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                Text(tr("Aucune session enregistrée."), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
             } else {
                 sessions.asReversed().take(10).forEach { record ->
                     Text(
@@ -575,50 +585,50 @@ fun SettingsScreen(
                 OutlinedButton(
                     onClick = { sessionLog.clear(); sessions = emptyList() },
                     modifier = Modifier.padding(top = 8.dp),
-                ) { Text("Effacer l’historique") }
+                ) { Text(tr("Effacer l’historique")) }
             }
             }
-            SettingsCard("Briefing du matin", Icons.Filled.WbSunny, initiallyExpanded = false) {
+            SettingsCard(tr("Briefing du matin"), Icons.Filled.WbSunny, initiallyExpanded = false) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             ) {
-                Text("Résumé de la dernière session et rappels du jour à la première session de la journée", modifier = Modifier.weight(1f))
+                Text(tr("Résumé de la dernière session et rappels du jour à la première session de la journée"), modifier = Modifier.weight(1f))
                 Switch(checked = briefingOn, onCheckedChange = { scope.launch { configStore.setBriefingEnabled(it) } })
             }
             Text(
-                "À la fin d’une session d’au moins deux échanges, Jarvis en garde un résumé d’une ou deux phrases (généré par Gemini, conservé sur l’appareil, trois au maximum).",
+                tr("À la fin d’une session d’au moins deux échanges, Jarvis en garde un résumé d’une ou deux phrases (généré par Gemini, conservé sur l’appareil, trois au maximum)."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
             }
-            SettingsCard("Vérifications en arrière-plan", Icons.Filled.NotificationsActive, initiallyExpanded = false) {
+            SettingsCard(tr("Vérifications en arrière-plan"), Icons.Filled.NotificationsActive, initiallyExpanded = false) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             ) {
-                Text("Notifier : batterie faible, stockage presque plein, briefing du matin", modifier = Modifier.weight(1f))
+                Text(tr("Notifier : batterie faible, stockage presque plein, briefing du matin"), modifier = Modifier.weight(1f))
                 Switch(checked = proactiveOn, onCheckedChange = { scope.launch { configStore.setProactiveEnabled(it) } })
             }
             Text(
-                "Contrôle local toutes les 15 minutes environ, sans connexion ni micro. Chaque alerte n’est envoyée qu’une fois ; le briefing du matin (7 h à 11 h) reprend le résumé de la dernière session et vos rappels du jour. Désactivé par défaut.",
+                tr("Contrôle local toutes les 15 minutes environ, sans connexion ni micro. Chaque alerte n’est envoyée qu’une fois ; le briefing du matin (7 h à 11 h) reprend le résumé de la dernière session et vos rappels du jour. Désactivé par défaut."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
             }
-            SettingsCard("Contrôle du téléphone", Icons.Filled.PhoneAndroid, initiallyExpanded = false) {
+            SettingsCard(tr("Contrôle du téléphone"), Icons.Filled.PhoneAndroid, initiallyExpanded = false) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             ) {
-                Text("Autoriser Jarvis à lire l’écran et à agir dans les autres applications", modifier = Modifier.weight(1f))
+                Text(tr("Autoriser Jarvis à lire l’écran et à agir dans les autres applications"), modifier = Modifier.weight(1f))
                 Switch(checked = deviceControl, onCheckedChange = { scope.launch { configStore.setDeviceControlEnabled(it) } })
             }
             Text(
-                if (serviceOn) "Service d’accessibilité : activé ✓" else "Service d’accessibilité : désactivé",
+                if (serviceOn) tr("Service d’accessibilité : activé ✓") else tr("Service d’accessibilité : désactivé"),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 8.dp),
             )
@@ -633,7 +643,7 @@ fun SettingsScreen(
                     }
                 },
                 modifier = Modifier.padding(top = 8.dp),
-            ) { Text("Ouvrir les réglages d’accessibilité") }
+            ) { Text(tr("Ouvrir les réglages d’accessibilité")) }
             OutlinedButton(
                 onClick = {
                     try {
@@ -646,7 +656,7 @@ fun SettingsScreen(
                     }
                 },
                 modifier = Modifier.padding(top = 8.dp),
-            ) { Text("Autoriser l’exécution en arrière-plan (batterie)") }
+            ) { Text(tr("Autoriser l’exécution en arrière-plan (batterie)")) }
             OutlinedButton(
                 onClick = {
                     val autostart = android.content.Intent().setClassName(
@@ -666,51 +676,51 @@ fun SettingsScreen(
                     }
                 },
                 modifier = Modifier.padding(top = 8.dp),
-            ) { Text("Démarrage automatique (Xiaomi) / infos de l’appli") }
+            ) { Text(tr("Démarrage automatique (Xiaomi) / infos de l’appli")) }
             Text(
-                "Si le service se désactive quand vous fermez l’appli ou après une mise à jour : autorisez le démarrage automatique et l’exécution en arrière-plan avec les deux boutons ci-dessus, " +
-                    "et verrouillez l’appli dans la vue des applications récentes. " +
-                    if (com.jarvis.android.device.AccessibilityKeeper.canSelfEnable(context)) "Réactivation automatique : autorisée."
-                    else "Pour une réactivation automatique, autorisez une fois depuis un ordinateur : adb shell pm grant ${context.packageName} android.permission.WRITE_SECURE_SETTINGS",
+                tr("Si le service se désactive quand vous fermez l’appli ou après une mise à jour : autorisez le démarrage automatique et l’exécution en arrière-plan avec les deux boutons ci-dessus, ") +
+                    tr("et verrouillez l’appli dans la vue des applications récentes. ") +
+                    if (com.jarvis.android.device.AccessibilityKeeper.canSelfEnable(context)) tr("Réactivation automatique : autorisée.")
+                    else trf("Pour une réactivation automatique, autorisez une fois depuis un ordinateur : adb shell pm grant {0} android.permission.WRITE_SECURE_SETTINGS", context.packageName),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
             )
             Text(
-                "Android n’autorise le contrôle des autres applications que via un service d’accessibilité, à activer vous-même : Paramètres > Accessibilité > Jarvis : contrôle du téléphone. " +
-                    "Sur Xiaomi (MIUI), si l’option est grisée : Paramètres > Applications > Jarvis > menu ⋮ > Autoriser les paramètres restreints. " +
-                    "Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et tout ce qui touche aux réglages système demandent votre confirmation dans une notification. " +
-                    "Jarvis ne remplit jamais un mot de passe. Le contenu lu à l’écran est transmis à Gemini pour traiter votre demande.",
+                tr("Android n’autorise le contrôle des autres applications que via un service d’accessibilité, à activer vous-même : Paramètres > Accessibilité > Jarvis : contrôle du téléphone. ") +
+                    tr("Sur Xiaomi (MIUI), si l’option est grisée : Paramètres > Applications > Jarvis > menu ⋮ > Autoriser les paramètres restreints. ") +
+                    tr("Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et tout ce qui touche aux réglages système demandent votre confirmation dans une notification. ") +
+                    tr("Jarvis ne remplit jamais un mot de passe. Le contenu lu à l’écran est transmis à Gemini pour traiter votre demande."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
             )
             }
-            SettingsCard("Clés API et modèles", Icons.Filled.Key, initiallyExpanded = false) {
+            SettingsCard(tr("Clés API et modèles"), Icons.Filled.Key, initiallyExpanded = false) {
             OutlinedTextField(
                 value = modelField,
                 onValueChange = { modelField = it; scope.launch { configStore.setModel(it) } },
-                label = { Text("Modèle Live") },
+                label = { Text(tr("Modèle Live")) },
                 singleLine = true,
-                supportingText = { Text("Saisissez un identifiant ou choisissez-en un dans la liste ci-dessous. Le changement s’applique au prochain démarrage de session.") },
+                supportingText = { Text(tr("Saisissez un identifiant ou choisissez-en un dans la liste ci-dessous. Le changement s’applique au prochain démarrage de session.")) },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             OutlinedTextField(
                 value = restModelField,
                 onValueChange = { restModelField = it; scope.launch { configStore.setRestModel(it.trim()) } },
-                label = { Text("Modèle texte (chat)") },
+                label = { Text(tr("Modèle texte (chat)")) },
                 singleLine = true,
-                supportingText = { Text("Utilisé par le chat texte et le test de clé (generateContent). Laissez vide pour la valeur par défaut.") },
+                supportingText = { Text(tr("Utilisé par le chat texte et le test de clé (generateContent). Laissez vide pour la valeur par défaut.")) },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             OutlinedTextField(
                 value = ttsModelField,
                 onValueChange = { ttsModelField = it; scope.launch { configStore.setTtsModel(it.trim()) } },
-                label = { Text("Modèle voix (lecture des réponses)") },
+                label = { Text(tr("Modèle voix (lecture des réponses)")) },
                 singleLine = true,
-                supportingText = { Text("Laissez vide pour détecter automatiquement un modèle de synthèse vocale disponible avec votre clé. La voix suit le réglage de voix ci-dessus.") },
+                supportingText = { Text(tr("Laissez vide pour détecter automatiquement un modèle de synthèse vocale disponible avec votre clé. La voix suit le réglage de voix ci-dessus.")) },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             Text(
-                "Clés API Gemini : jusqu’à ${ConfigStore.MAX_API_KEYS}. Jarvis utilise la clé 1 ; si Gemini la refuse (quota atteint, clé invalide ou accès refusé), il passe seul à la suivante pour le chat texte et la voix du chat.",
+                trf("Clés API Gemini : jusqu’à {0}. Jarvis utilise la clé 1 ; si Gemini la refuse (quota atteint, clé invalide ou accès refusé), il passe seul à la suivante pour le chat texte et la voix du chat.", ConfigStore.MAX_API_KEYS),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
             )
@@ -719,14 +729,14 @@ fun SettingsScreen(
                     FilterChip(
                         selected = keySlot == slot,
                         onClick = { keySlot = slot; apiKeyField = ""; keyStatus = null },
-                        label = { Text(if (filledSlots[slot - 1]) "Clé $slot ✓" else "Clé $slot") },
+                        label = { Text(if (filledSlots[slot - 1]) trf("Clé {0} ✓", slot) else trf("Clé {0}", slot)) },
                     )
                 }
             }
             OutlinedTextField(
                 value = apiKeyField,
                 onValueChange = { apiKeyField = it },
-                label = { Text(if (filledSlots[keySlot - 1]) "Remplacer la clé $keySlot" else "Saisir la clé $keySlot") },
+                label = { Text(if (filledSlots[keySlot - 1]) trf("Remplacer la clé {0}", keySlot) else trf("Saisir la clé {0}", keySlot)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -744,14 +754,14 @@ fun SettingsScreen(
                                 apiKeyField = ""
                                 hasKey = true
                                 filledSlots = filledSlots.toMutableList().also { it[slot - 1] = true }
-                                keyStatus = "Clé $slot enregistrée et chiffrée sur cet appareil."
+                                keyStatus = trf("Clé {0} enregistrée et chiffrée sur cet appareil.", slot)
                             } else {
-                                keyStatus = "Enregistrement impossible. Réessayez."
+                                keyStatus = tr("Enregistrement impossible. Réessayez.")
                             }
                         } catch (e: CancellationException) {
                             throw e
                         } catch (_: Exception) {
-                            keyStatus = "Enregistrement impossible. Réessayez."
+                            keyStatus = tr("Enregistrement impossible. Réessayez.")
                         } finally {
                             keyBusy = false
                         }
@@ -759,15 +769,15 @@ fun SettingsScreen(
                 },
                 enabled = validatedApiKey(apiKeyField) != null && !testing && !keyBusy,
                 modifier = Modifier.padding(top = 8.dp),
-            ) { Text("Enregistrer la clé $keySlot") }
+            ) { Text(trf("Enregistrer la clé {0}", keySlot)) }
             Text(
                 keyStatus ?: when (hasKey) {
                     true -> {
                         val filled = filledSlots.withIndex().filter { it.value }.joinToString(", ") { "${it.index + 1}" }
-                        "Clés enregistrées : $filled (sur ${ConfigStore.MAX_API_KEYS})."
+                        trf("Clés enregistrées : {0} (sur {1}).", filled, ConfigStore.MAX_API_KEYS)
                     }
-                    false -> "Aucune clé enregistrée."
-                    null -> "Lecture du stockage sécurisé…"
+                    false -> tr("Aucune clé enregistrée.")
+                    null -> tr("Lecture du stockage sécurisé…")
                 },
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
@@ -781,14 +791,14 @@ fun SettingsScreen(
                         try {
                             if (configStore.deleteApiKey(slot)) {
                                 filledSlots = filledSlots.toMutableList().also { it[slot - 1] = false }
-                                keyStatus = "Clé $slot retirée."
+                                keyStatus = trf("Clé {0} retirée.", slot)
                             } else {
-                                keyStatus = "Suppression impossible. Réessayez."
+                                keyStatus = tr("Suppression impossible. Réessayez.")
                             }
                         } catch (e: CancellationException) {
                             throw e
                         } catch (_: Exception) {
-                            keyStatus = "Suppression impossible. Réessayez."
+                            keyStatus = tr("Suppression impossible. Réessayez.")
                         } finally {
                             keyBusy = false
                         }
@@ -796,16 +806,16 @@ fun SettingsScreen(
                 },
                 enabled = filledSlots[keySlot - 1] && filledSlots.count { it } > 1 && !keyBusy && !testing,
                 modifier = Modifier.padding(top = 8.dp),
-            ) { Text("Retirer la clé $keySlot") }
+            ) { Text(trf("Retirer la clé {0}", keySlot)) }
             OutlinedButton(
                 onClick = { confirmDeleteKey = true },
                 enabled = hasKey == true && !keyBusy && !testing,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 modifier = Modifier.padding(top = 8.dp),
-            ) { Text("Supprimer toutes les clés") }
+            ) { Text(tr("Supprimer toutes les clés")) }
             Spacer(Modifier.height(16.dp))
             Text(
-                "Le diagnostic teste l’API REST standard avec la clé enregistrée, indépendamment de la connexion vocale Live. Un succès ne garantit pas l’accès au modèle Live choisi.",
+                tr("Le diagnostic teste l’API REST standard avec la clé enregistrée, indépendamment de la connexion vocale Live. Un succès ne garantit pas l’accès au modèle Live choisi."),
                 style = MaterialTheme.typography.bodySmall,
             )
             OutlinedButton(
@@ -818,7 +828,7 @@ fun SettingsScreen(
                 },
                 enabled = !testing,
                 modifier = Modifier.padding(top = 8.dp),
-            ) { Text(if (testing) "Vérification en cours…" else "Tester la clé enregistrée (REST)") }
+            ) { Text(if (testing) tr("Vérification en cours…") else tr("Tester la clé enregistrée (REST)")) }
             testResult?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
             }
@@ -840,13 +850,13 @@ fun SettingsScreen(
                 },
                 enabled = !testing,
                 modifier = Modifier.padding(top = 8.dp),
-            ) { Text(if (testing) "Vérification en cours…" else "Lister les modèles compatibles Live") }
+            ) { Text(if (testing) tr("Vérification en cours…") else tr("Lister les modèles compatibles Live")) }
             modelsNote?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
             }
             if (liveModels.isNotEmpty()) {
                 Text(
-                    "Touchez un modèle pour l’utiliser :",
+                    tr("Touchez un modèle pour l’utiliser :"),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(top = 8.dp),
                 )
@@ -868,7 +878,7 @@ fun SettingsScreen(
                 }
             }
             }
-            SettingsCard("Rappels", Icons.Filled.Alarm, initiallyExpanded = false) {
+            SettingsCard(tr("Rappels"), Icons.Filled.Alarm, initiallyExpanded = false) {
             if (reminderFeedback != null) {
                 Text(reminderFeedback!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.height(8.dp))
@@ -876,16 +886,16 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = reminderText,
                 onValueChange = { reminderText = it.take(1000) },
-                label = { Text("Rappel") },
+                label = { Text(tr("Rappel")) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             OutlinedTextField(
                 value = reminderWhen,
                 onValueChange = { reminderWhen = it },
-                label = { Text("Quand (yyyy-MM-dd HH:mm)") },
+                label = { Text(tr("Quand (yyyy-MM-dd HH:mm)")) },
                 singleLine = true,
-                supportingText = { Text("Date stricte dans le futur, heure non ambiguë dans votre fuseau.") },
+                supportingText = { Text(tr("Date stricte dans le futur, heure non ambiguë dans votre fuseau.")) },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             Button(
@@ -900,11 +910,11 @@ fun SettingsScreen(
                             reminders = ReminderService.list(context)
                             reminderText = ""
                             reminderWhen = ""
-                            reminderFeedback = "Rappel #${record.id} enregistré pour ${record.whenIso} (${record.zoneId})."
+                            reminderFeedback = trf("Rappel #{0} enregistré pour {1} ({2}).", record.id, record.whenIso, record.zoneId)
                         } catch (e: CancellationException) {
                             throw e
                         } catch (_: Exception) {
-                            reminderFeedback = "Le rappel n’a pas pu être enregistré. Vérifiez la date et réessayez."
+                            reminderFeedback = tr("Le rappel n’a pas pu être enregistré. Vérifiez la date et réessayez.")
                         } finally {
                             loadingReminders = false
                         }
@@ -912,12 +922,12 @@ fun SettingsScreen(
                 },
                 enabled = reminderText.isNotBlank() && reminderWhen.isNotBlank() && !loadingReminders,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            ) { Text("Ajouter un rappel") }
-            if (loadingReminders) Text("Chargement…", style = MaterialTheme.typography.bodySmall)
+            ) { Text(tr("Ajouter un rappel")) }
+            if (loadingReminders) Text(tr("Chargement…"), style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
             LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp)) {
                 if (reminders.isEmpty()) {
-                    item { Text("Aucun rappel.", style = MaterialTheme.typography.bodySmall) }
+                    item { Text(tr("Aucun rappel."), style = MaterialTheme.typography.bodySmall) }
                 }
                 items(reminders) { record ->
                     ReminderItem(record = record, onCancel = {
@@ -927,9 +937,9 @@ fun SettingsScreen(
                             try {
                                 withContext(Dispatchers.IO) { ReminderService.cancel(context, record.id) }
                                 reminders = ReminderService.list(context)
-                                reminderFeedback = "Rappel #${record.id} annulé."
+                                reminderFeedback = trf("Rappel #{0} annulé.", record.id)
                             } catch (_: Exception) {
-                                reminderFeedback = "L’annulation a échoué."
+                                reminderFeedback = tr("L’annulation a échoué.")
                             } finally {
                                 loadingReminders = false
                             }
@@ -945,10 +955,10 @@ fun SettingsScreen(
     if (confirmDeleteKey) {
         AlertDialog(
             onDismissRequest = { if (!keyBusy) confirmDeleteKey = false },
-            title = { Text("Supprimer toutes les clés API ?") },
+            title = { Text(tr("Supprimer toutes les clés API ?")) },
             text = {
                 Text(
-                    "La session en cours sera arrêtée et Jarvis ne pourra plus se connecter tant que vous n’aurez pas saisi une nouvelle clé. Les ${ConfigStore.MAX_API_KEYS} emplacements de clés seront vidés."
+                    trf("La session en cours sera arrêtée et Jarvis ne pourra plus se connecter tant que vous n’aurez pas saisi une nouvelle clé. Les {0} emplacements de clés seront vidés.", ConfigStore.MAX_API_KEYS)
                 )
             },
             confirmButton = {
@@ -962,22 +972,22 @@ fun SettingsScreen(
                                     hasKey = false
                                     keyStatus = null
                                 } else {
-                                    keyStatus = "Suppression impossible. Réessayez."
+                                    keyStatus = tr("Suppression impossible. Réessayez.")
                                 }
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (_: Exception) {
-                                keyStatus = "Suppression impossible. Réessayez."
+                                keyStatus = tr("Suppression impossible. Réessayez.")
                             } finally {
                                 keyBusy = false
                                 confirmDeleteKey = false
                             }
                         }
                     },
-                ) { Text("Supprimer", color = MaterialTheme.colorScheme.error) }
+                ) { Text(tr("Supprimer"), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(enabled = !keyBusy, onClick = { confirmDeleteKey = false }) { Text("Annuler") }
+                TextButton(enabled = !keyBusy, onClick = { confirmDeleteKey = false }) { Text(tr("Annuler")) }
             },
         )
     }
@@ -994,12 +1004,12 @@ private fun ReminderItem(record: ReminderRecord, onCancel: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(record.text, style = MaterialTheme.typography.bodyMedium)
             Text(
-                "Pour le ${record.whenIso} (${record.zoneId})" +
-                    if (record.approximate) " · approximatif" else " · exact",
+                trf("Pour le {0} ({1})", record.whenIso, record.zoneId) +
+                    if (record.approximate) tr(" · approximatif") else tr(" · exact"),
                 style = MaterialTheme.typography.bodySmall,
             )
         }
-        TextButton(onClick = onCancel) { Text("Annuler") }
+        TextButton(onClick = onCancel) { Text(tr("Annuler")) }
     }
 }
 
@@ -1008,24 +1018,24 @@ private val settingsHttp = OkHttpClient()
 private suspend fun testApiKey(configStore: ConfigStore): String = withContext(Dispatchers.IO) {
     try {
         val key = validatedApiKey(configStore.getApiKey().orEmpty())
-            ?: return@withContext "Aucune clé valide enregistrée."
+            ?: return@withContext tr("Aucune clé valide enregistrée.")
         val model = configStore.snapshotRestModel().let { if (it.startsWith("models/")) it else "models/$it" }
-        if (!Regex("models/[A-Za-z0-9._-]+").matches(model)) return@withContext "Nom de modèle texte invalide."
+        if (!Regex("models/[A-Za-z0-9._-]+").matches(model)) return@withContext tr("Nom de modèle texte invalide.")
         val body = """{"contents":[{"parts":[{"text":"Say OK"}]}]}"""
             .toRequestBody("application/json".toMediaType())
         val request = Request.Builder()
             .url("https://generativelanguage.googleapis.com/v1beta/$model:generateContent")
             .header("x-goog-api-key", key).post(body).build()
         settingsHttp.newCall(request).execute().use { response ->
-            if (response.isSuccessful) "REST : succès (HTTP ${response.code}). La clé fonctionne pour l’API standard."
-            else "REST : échec (HTTP ${response.code}). Vérifiez la clé, les quotas et l’accès au modèle de diagnostic ; cet échec ne prouve pas à lui seul que la clé est invalide."
+            if (response.isSuccessful) trf("REST : succès (HTTP {0}). La clé fonctionne pour l’API standard.", response.code)
+            else trf("REST : échec (HTTP {0}). Vérifiez la clé, les quotas et l’accès au modèle de diagnostic ; cet échec ne prouve pas à lui seul que la clé est invalide.", response.code)
         }
     } catch (e: CancellationException) {
         throw e
     } catch (_: IOException) {
-        "Diagnostic indisponible : connexion impossible ou délai dépassé."
+        tr("Diagnostic indisponible : connexion impossible ou délai dépassé.")
     } catch (_: Exception) {
-        "Impossible de tester la clé enregistrée."
+        tr("Impossible de tester la clé enregistrée.")
     }
 }
 
@@ -1080,7 +1090,7 @@ private data class ModelListing(val models: List<String>, val message: String?)
 private suspend fun listLiveModels(configStore: ConfigStore): ModelListing = withContext(Dispatchers.IO) {
     try {
         val key = validatedApiKey(configStore.getApiKey().orEmpty())
-            ?: return@withContext ModelListing(emptyList(), "Aucune clé valide enregistrée.")
+            ?: return@withContext ModelListing(emptyList(), tr("Aucune clé valide enregistrée."))
         val result = collectLiveModels { token ->
             val url = "https://generativelanguage.googleapis.com/v1beta/models".toHttpUrl().newBuilder()
                 .addQueryParameter("pageSize", "200")
@@ -1093,22 +1103,22 @@ private suspend fun listLiveModels(configStore: ConfigStore): ModelListing = wit
         }
         when (result) {
             is LiveModelsResult.NoneFound ->
-                ModelListing(emptyList(), "Aucun modèle compatible Live dans ce projet (${result.total} modèles vérifiés).")
+                ModelListing(emptyList(), trf("Aucun modèle compatible Live dans ce projet ({0} modèles vérifiés).", result.total))
             is LiveModelsResult.Found -> when {
                 result.names.isEmpty() ->
-                    ModelListing(emptyList(), "Aucun modèle compatible Live trouvé dans les pages reçues.")
+                    ModelListing(emptyList(), tr("Aucun modèle compatible Live trouvé dans les pages reçues."))
                 result.partial ->
-                    ModelListing(result.names, "Liste partielle : d’autres modèles compatibles peuvent exister.")
+                    ModelListing(result.names, tr("Liste partielle : d’autres modèles compatibles peuvent exister."))
                 else -> ModelListing(result.names, null)
             }
         }
     } catch (e: CancellationException) {
         throw e
     } catch (e: ModelListHttpException) {
-        ModelListing(emptyList(), "Liste des modèles indisponible (HTTP ${e.code}). Vérifiez la clé et réessayez plus tard.")
+        ModelListing(emptyList(), trf("Liste des modèles indisponible (HTTP {0}). Vérifiez la clé et réessayez plus tard.", e.code))
     } catch (_: IOException) {
-        ModelListing(emptyList(), "Liste des modèles indisponible : connexion impossible ou délai dépassé.")
+        ModelListing(emptyList(), tr("Liste des modèles indisponible : connexion impossible ou délai dépassé."))
     } catch (_: Exception) {
-        ModelListing(emptyList(), "Liste des modèles indisponible : réponse inexploitable ou clé inaccessible.")
+        ModelListing(emptyList(), tr("Liste des modèles indisponible : réponse inexploitable ou clé inaccessible."))
     }
 }
