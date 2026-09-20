@@ -116,89 +116,95 @@ def flow_direction(p, n, x0, rng):
     return unit(f * ca + np.cross(n, f) * sa)
 
 
-def build_hair(P, N, F, x0, rng, locks=620, samples=6):
+def build_hair(P, N, F, x0, rng, locks=520, edge_locks=190, samples=6):
     d = hair_field(P, x0)
     Cp, Cn, Cd, Cparent, Cf = clip_shell(P, N, F, d)
     hx, hy, hz = Cp[:, 0] - x0, Cp[:, 1], Cp[:, 2]
-    # the cap: a thin dark layer over the scalp; over the sides it thins into the skin
+    # the cap: a thin layer over the scalp, about the colour of the locks; over the sides it thins into the skin
     thick = 0.010 + 0.016 * smoothstep(0.20, 0.60, hy)
     cap_p = Cp + Cn * (0.004 + smoothstep(0.0, 0.05, Cd) * thick)[:, None]
     sideness = 1.0 - smoothstep(0.05, 0.35, hz)
     cover = (1.0 - sideness) + sideness * (0.40 + 0.60 * smoothstep(0.0, 0.32, hy))
     cover = np.maximum(cover, smoothstep(0.34, 0.50, np.abs(hx)) * smoothstep(0.05, 0.22, hy))   # the sideburns are full
-    cap_rgb = np.tile(np.array([0x26, 0x18, 0x10], dtype=float), (len(Cp), 1))
-    cover = cover * (0.55 + 0.45 * smoothstep(0.0, 0.05, Cd))
+    cap_rgb = np.tile(np.array([0x36, 0x25, 0x19], dtype=float), (len(Cp), 1))
     cap_paint = argb(254.0 * cover, cap_rgb)
     cap_normals = Cn
-
-    # the locks
-    tri_w = np.array([1.0 if (Cd[f].min() > 0.015) else 0.0 for f in Cf])          # roots a little above the hairline
+    tri_min = np.array([Cd[f].min() for f in Cf])
+    tri_max = np.array([Cd[f].max() for f in Cf])
     tri_c = cap_p[Cf].mean(axis=1)
-    tri_w = tri_w * (0.6 + 1.2 * smoothstep(0.30, 0.60, tri_c[:, 1]) * smoothstep(0.0, 0.40, tri_c[:, 2]))    # more of them at the front and on top
-    idx, u, w = sample_triangles(cap_p, Cf, locks, rng, tri_w)
-    tri = Cf[idx]
-    s0 = 1.0 - u - w
-    root = s0[:, None] * cap_p[tri[:, 0]] + u[:, None] * cap_p[tri[:, 1]] + w[:, None] * cap_p[tri[:, 2]]
-    nrm = unit(s0[:, None] * Cn[tri[:, 0]] + u[:, None] * Cn[tri[:, 1]] + w[:, None] * Cn[tri[:, 2]])
-    flow = flow_direction(root, nrm, x0, rng)
-    rx, ry, rz = root[:, 0] - x0, root[:, 1], root[:, 2]
-    front = smoothstep(0.10, 0.45, rz) * smoothstep(0.30, 0.55, ry)
-    side = 1.0 - smoothstep(0.10, 0.45, ry)
-    length = (0.30 + 0.12 * rng.random(locks)) * (1 - side) + (0.09 + 0.04 * rng.random(locks)) * side + 0.10 * front
-    lift = 0.13 + 0.16 * front + 0.04 * rng.random(locks)
-    lift = lift * (1 - 0.6 * side)
-    wave_amp = (0.10 + 0.03 * rng.random(locks)) * (1 - 0.7 * side)
-    wave_freq = 1.35 + 0.15 * rng.random(locks)
-    phase = 9.0 * (rx * 0.6 + rz * 0.8) + 0.5 * rng.random(locks)         # neighbouring locks wave together, like combed hair
-    width = (0.060 + 0.030 * rng.random(locks)) * (1 - 0.35 * side)
-    tone = 0.78 + 0.30 * rng.random(locks)
-    gold = rng.random(locks) ** 1.8
 
-    verts, norms, colours, faces = [], [], [], []
-    base = 0
-    ts = np.linspace(0.0, 1.0, samples)
-    kappa = 1.15                                        # the scalp curves away: the lock follows it
     body = np.array([0x48, 0x31, 0x21], dtype=float)
     rootc = np.array([0x20, 0x15, 0x0E], dtype=float)
     goldc = np.array([0x8E, 0x6C, 0x48], dtype=float)
-    roll = (rng.random(locks) - 0.5) * 1.3
-    for k in range(locks):
-        n_k, f_k = nrm[k], flow[k]
-        side_k = unit(np.cross(f_k, n_k))
-        centre = []
-        for t in ts:
-            dist = length[k] * t
-            p = (root[k] + n_k * (0.006 + lift[k] * length[k] * np.sin(np.pi * min(t * 0.95, 1.0)))
-                 + f_k * dist - n_k * 0.5 * kappa * dist * dist
-                 + side_k * wave_amp[k] * length[k] * np.sin(2 * np.pi * wave_freq[k] * t + phase[k]) * (0.3 + 0.7 * t))
-            centre.append(p)
-        centre = np.array(centre)
-        for s_i, t in enumerate(ts):
-            i0, i1 = max(s_i - 1, 0), min(s_i + 1, samples - 1)
-            dv = unit(centre[i1] - centre[i0])
-            perp = unit(np.cross(dv, n_k))
-            ang = roll[k] * (0.25 + 0.75 * t)
-            n_r = unit(n_k * np.cos(ang) - perp * np.sin(ang))
-            perp = unit(perp * np.cos(ang) + n_k * np.sin(ang))
-            half = 0.5 * width[k] * (1.0 - t) ** 0.6 + 0.0012          # a long, pointed taper
-            c = rootc + (body - rootc) * smoothstep(0.0, 0.45, t)
-            c = c + (goldc - c) * (gold[k] * smoothstep(0.30, 1.0, t) * 0.55)
-            c = c * tone[k]
-            for sign in (-1.0, 0.0, 1.0):
-                pos = centre[s_i] + perp * half * sign + (n_r * 0.95 * half if sign == 0.0 else 0.0)
-                verts.append(pos)
-                norms.append(unit(n_r * 0.8 + perp * 0.75 * sign))
-                colours.append(c * (1.35 if sign == 0.0 else 0.72))       # the highlight runs along the middle of the lock
-        for s_i in range(samples - 1):
-            l0, c0, r0 = base + 3 * s_i, base + 3 * s_i + 1, base + 3 * s_i + 2
-            l1, c1, r1 = base + 3 * s_i + 3, base + 3 * s_i + 4, base + 3 * s_i + 5
-            faces += [(l0, c0, c1), (l0, c1, l1), (c0, r0, r1), (c0, r1, c1)]
-        base += 3 * samples
-    lock_p, lock_n = np.array(verts), np.array(norms)
-    lock_paint = argb(np.full(len(lock_p), 254.0), np.array(colours))
-    lock_f = np.array(faces, dtype=np.int64)
+    ts = np.linspace(0.0, 1.0, samples)
+    kappa = 1.15                                        # the scalp curves away: the lock follows it
+
+    def make_locks(n, tri_w, len_mul, width_mul, lift_mul):
+        """n locks rooted on the cap triangles in proportion to tri_w. Returns vertices, normals, colours and triangles (local indices)."""
+        idx, u, w = sample_triangles(cap_p, Cf, n, rng, tri_w)
+        tri = Cf[idx]
+        s0 = 1.0 - u - w
+        root = s0[:, None] * cap_p[tri[:, 0]] + u[:, None] * cap_p[tri[:, 1]] + w[:, None] * cap_p[tri[:, 2]]
+        nrm = unit(s0[:, None] * Cn[tri[:, 0]] + u[:, None] * Cn[tri[:, 1]] + w[:, None] * Cn[tri[:, 2]])
+        flow = flow_direction(root, nrm, x0, rng)
+        rx, ry, rz = root[:, 0] - x0, root[:, 1], root[:, 2]
+        front = smoothstep(0.10, 0.45, rz) * smoothstep(0.30, 0.55, ry)
+        side = 1.0 - smoothstep(0.10, 0.45, ry)
+        length = ((0.30 + 0.12 * rng.random(n)) * (1 - side) + (0.09 + 0.04 * rng.random(n)) * side + 0.10 * front) * len_mul
+        lift = (0.13 + 0.16 * front + 0.04 * rng.random(n)) * (1 - 0.6 * side) * lift_mul
+        wave_amp = (0.10 + 0.03 * rng.random(n)) * (1 - 0.7 * side)
+        wave_freq = 1.35 + 0.15 * rng.random(n)
+        phase = 9.0 * (rx * 0.6 + rz * 0.8) + 0.5 * rng.random(n)         # neighbouring locks wave together, like combed hair
+        width = (0.060 + 0.030 * rng.random(n)) * (1 - 0.35 * side) * width_mul
+        tone = 0.78 + 0.30 * rng.random(n)
+        gold = rng.random(n) ** 1.8
+        roll = (rng.random(n) - 0.5) * 1.3
+        verts, norms, colours, faces = [], [], [], []
+        base = 0
+        for k in range(n):
+            n_k, f_k = nrm[k], flow[k]
+            side_k = unit(np.cross(f_k, n_k))
+            centre = []
+            for t in ts:
+                dist = length[k] * t
+                p_ = (root[k] + n_k * (0.006 + lift[k] * length[k] * np.sin(np.pi * min(t * 0.95, 1.0)))
+                      + f_k * dist - n_k * 0.5 * kappa * dist * dist
+                      + side_k * wave_amp[k] * length[k] * np.sin(2 * np.pi * wave_freq[k] * t + phase[k]) * (0.3 + 0.7 * t))
+                centre.append(p_)
+            centre = np.array(centre)
+            for s_i, t in enumerate(ts):
+                i0, i1 = max(s_i - 1, 0), min(s_i + 1, samples - 1)
+                dv = unit(centre[i1] - centre[i0])
+                perp = unit(np.cross(dv, n_k))
+                ang = roll[k] * (0.25 + 0.75 * t)
+                n_r = unit(n_k * np.cos(ang) - perp * np.sin(ang))
+                perp = unit(perp * np.cos(ang) + n_k * np.sin(ang))
+                half = 0.5 * width[k] * (1.0 - t) ** 0.6 + 0.0012          # a long, pointed taper
+                c = rootc + (body - rootc) * smoothstep(0.0, 0.45, t)
+                c = c + (goldc - c) * (gold[k] * smoothstep(0.30, 1.0, t) * 0.55)
+                c = c * tone[k]
+                for sign in (-1.0, 0.0, 1.0):
+                    verts.append(centre[s_i] + perp * half * sign + (n_r * 0.95 * half if sign == 0.0 else 0.0))
+                    norms.append(unit(n_r * 0.8 + perp * 0.75 * sign))
+                    colours.append(c * (1.35 if sign == 0.0 else 0.72))       # the highlight runs along the middle of the lock
+            for s_i in range(samples - 1):
+                l0, c0, r0 = base + 3 * s_i, base + 3 * s_i + 1, base + 3 * s_i + 2
+                l1, c1, r1 = base + 3 * s_i + 3, base + 3 * s_i + 4, base + 3 * s_i + 5
+                faces += [(l0, c0, c1), (l0, c1, l1), (c0, r0, r1), (c0, r1, c1)]
+            base += 3 * samples
+        return np.array(verts), np.array(norms), np.array(colours), np.array(faces, dtype=np.int64)
+
+    # the main locks: rooted a little above the hairline, more of them at the front and on top
+    w_main = (tri_min > 0.035).astype(float) * (0.6 + 1.2 * smoothstep(0.30, 0.60, tri_c[:, 1]) * smoothstep(0.0, 0.40, tri_c[:, 2]))
+    mv, mn, mc, mf = make_locks(locks, w_main, 1.0, 1.0, 1.0)
+    # the edge locks: short ones rooted exactly on the hairline, rising over the strip of cap above it, so the edge is made of hair
+    w_edge = ((tri_max > 0.0) & (tri_min < 0.03)).astype(float) * smoothstep(0.0, 0.25, tri_c[:, 2])
+    ev, en, ec, ef = make_locks(edge_locks, w_edge, 0.46, 0.85, 0.55)
+    lock_p = np.vstack([mv, ev]); lock_n = np.vstack([mn, en])
+    lock_paint = argb(np.full(len(lock_p), 254.0), np.vstack([mc, ec]))
+    lock_f = np.vstack([mf, ef + len(mv)])
     return dict(cap_p=cap_p, cap_n=cap_normals, cap_paint=cap_paint, cap_parent=Cparent, cap_f=Cf,
-                lock_p=lock_p, lock_n=lock_n, lock_paint=lock_paint, lock_f=lock_f, lock_count=locks, lock_rows=samples)
+                lock_p=lock_p, lock_n=lock_n, lock_paint=lock_paint, lock_f=lock_f, lock_count=locks + edge_locks, lock_rows=samples)
 
 
 def build(P, N, F, x0, seed=7):
