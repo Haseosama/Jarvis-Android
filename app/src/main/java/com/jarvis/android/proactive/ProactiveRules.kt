@@ -74,6 +74,7 @@ internal fun evaluateProactive(
 internal fun morningNotificationText(inputs: BriefingInputs): String? {
     val lines = buildList {
         inputs.lastSession?.let { add(trf("Dernière session ({0}) : {1}", it.date, it.summary)) }
+        if (inputs.events.isNotEmpty()) add(trf("Agenda du jour : {0}", inputs.events.joinToString(" ; ")))
         if (inputs.reminders.isNotEmpty()) add(trf("Rappels du jour : {0}", inputs.reminders.joinToString(" ; ")))
     }
     return lines.joinToString("\n").ifEmpty { null }

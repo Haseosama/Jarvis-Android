@@ -52,6 +52,7 @@ object ToolRegistry {
         LibertyMusicTool,
         AlarmTool,
         ContactTool,
+        CalendarTool,
         VisionStreamTool,
         FileManagerTool,
     )

@@ -2,6 +2,12 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Agenda" to "Calendar",
+    "Agenda du jour : {0}" to "Today's calendar: {0}",
+    "Agenda autorisé ✓ : « qu’est-ce que j’ai demain ? » lit vos événements, et le briefing du matin les mentionne. « Ajoute un rendez-vous » ouvre le formulaire prérempli : vous enregistrez vous-même." to "Calendar allowed ✓: « what do I have tomorrow? » reads your events, and the morning briefing mentions them. « Add an appointment » opens the prefilled form: you save it yourself.",
+    "Agenda non autorisé : Jarvis ne peut pas lire vos événements." to "Calendar not allowed: Jarvis cannot read your events.",
+    "Autoriser l’agenda" to "Allow the calendar",
+    "Seuls l’heure et le titre des événements sont lus (ni description, ni invités). Quand vous posez la question, ils sont envoyés à Gemini pour vous répondre ; avec le briefing du matin activé, ceux du jour le sont au début de la première session." to "Only the time and title of events are read (no description, no guests). When you ask, they are sent to Gemini to answer you; with the morning briefing on, today's are sent at the start of the first session.",
     "Garder le chat texte entre deux ouvertures de l’appli (fichier privé sur le téléphone, non chiffré). « Nouvelle conversation » l’efface." to "Keep the text chat between two openings of the app (private file on the phone, not encrypted). « New conversation » deletes it.",
     "Contacts (appels et SMS)" to "Contacts (calls and SMS)",
     "Contacts autorisés ✓ : « appelle Maman » ouvre le numéroteur avec son numéro, « écris à Paul » ouvre un brouillon de SMS. Vous appuyez vous-même sur appeler ou sur envoyer." to "Contacts allowed ✓: « call Mum » opens the dialler with her number, « write to Paul » opens an SMS draft. You press call or send yourself.",

@@ -441,6 +441,16 @@ starts the answer again. Changes:
   Settings > Historique des sessions has a switch to turn it off (it also deletes the file); "Nouvelle conversation"
   deletes it. Covered by unit tests (trimming, reading back, broken file); a full close-and-reopen with a real
   answer from Gemini was not tried.
+- **Calendar.** The `calendar` tool reads the phone's calendar ("qu'est-ce que j'ai demain ?": one or several days, time and
+  title only) and opens the calendar app's "new event" form prefilled ("ajoute un rendez-vous"): the user saves it, nothing is
+  created by itself. The morning briefing and the morning notification now include today's events. The permission is asked
+  in Settings > Agenda, never automatically. Event titles are given to the model as data (marked as not instructions) and
+  are sent to Gemini when asked for, or at the first session of the day if the briefing is on. Checked on the emulator with
+  a local calendar and a test event (the tool listed it with the right time); the all-day handling (stored at UTC midnight)
+  and the briefing text are covered by unit tests. Not checked: the events of a Google calendar synced on the phone,
+  recurring events, the briefing spoken with events on the phone.
+  The "add" form opens another app, so the background-launch limit described above applies.
+
 - **Limit that applies to every tool that opens another app** (the dialler, the Clock, Liberty Music, Messenger…):
   since Android 10, an app running in the background may not start an activity. Tests show the dialler opens when Jarvis
   is in front and is blocked silently when it is not (the tool still says it opened it). On MIUI/HyperOS there is an

@@ -467,6 +467,28 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
             }
+            SettingsCard(tr("Agenda"), Icons.Filled.Alarm, initiallyExpanded = false) {
+            var calendarGranted by remember { mutableStateOf(com.jarvis.android.calendar.hasCalendarPermission(context0)) }
+            val askCalendar = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+                calendarGranted = granted
+            }
+            Text(
+                if (calendarGranted) tr("Agenda autorisé ✓ : « qu’est-ce que j’ai demain ? » lit vos événements, et le briefing du matin les mentionne. « Ajoute un rendez-vous » ouvre le formulaire prérempli : vous enregistrez vous-même.")
+                else tr("Agenda non autorisé : Jarvis ne peut pas lire vos événements."),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            if (!calendarGranted) {
+                OutlinedButton(onClick = { askCalendar.launch(android.Manifest.permission.READ_CALENDAR) }, modifier = Modifier.padding(top = 8.dp)) {
+                    Text(tr("Autoriser l’agenda"))
+                }
+            }
+            Text(
+                tr("Seuls l’heure et le titre des événements sont lus (ni description, ni invités). Quand vous posez la question, ils sont envoyés à Gemini pour vous répondre ; avec le briefing du matin activé, ceux du jour le sont au début de la première session."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            }
             SettingsCard(tr("Accès rapide"), Icons.Filled.Bolt, initiallyExpanded = false) {
             var quickMessage by remember { mutableStateOf<String?>(null) }
             Text(
