@@ -529,7 +529,7 @@ for k, x in enumerate(xs_col):
     yc = seam_centre(x)
     cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (np.abs(V[:scan_count, 1] - yc) < 0.035) & (V[:scan_count, 2] > 0.3))
     cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (V[:scan_count, 1] > yc - 0.05) & (V[:scan_count, 1] < yc + 0.02) & (V[:scan_count, 2] > 0.3))
-    ys_col[k] = yc                                     # (the deepest groove lies behind the lips: a slit there would be hidden)
+    ys_col[k] = yc + 0.025                             # the mouth line sits in the middle of the coloured lips (the deepest groove lies behind them and would hide the slit)
 ys_col = np.convolve(np.pad(ys_col, 3, mode="edge"), np.ones(7) / 7, mode="valid")
 print("mouth line: mean y", float(ys_col.mean()), "(ring centre", float(np.mean([seam_centre(x) for x in xs_col])), ")")
 def yseam(x):
@@ -646,8 +646,11 @@ group = group[~removed]
 print("eyes: faces removed", int(removed.sum()))
 
 # -- the lips' colour mask ---------------------------------------------------------------------------------------------------
-lip_c = np.array([0.0, float(np.mean(ys_col)) + 0.02])   # a little above the mouth line: the upper lip is the taller one
-lo_fit = lip_c + (lo - lip_c) * np.array([0.92, 0.78])   # the ring is taller and wider than the scan's own lips
+lo_centre = lo.mean(axis=0)
+# the scan's upper lip is a shelf that reaches well above the mouth line (down to the lower lip's bottom at about -0.66), so the mask
+# is the ring's full height, centred on that span
+lip_c = np.array([0.0, float(np.mean(ys_col)) - 0.003])
+lo_fit = lip_c + (lo - lo_centre) * np.array([0.92, 1.0])   # the ring is taller and wider than the scan's own lips
 inside_lip = point_in_poly(V[:, 0], V[:, 1], lo_fit) & front
 d_lip = dist_to_poly(V[:, 0], V[:, 1], lo_fit)
 lip_mask = np.where(inside_lip, 1.0, np.clip(1.0 - d_lip / 0.010, 0.0, 1.0) * front)
