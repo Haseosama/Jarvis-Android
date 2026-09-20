@@ -79,6 +79,7 @@ internal class OpenWakeWordDetector(
     private val modelDir: File,
     private val classifier: String,
     private val threshold: () -> Float,
+    private val onProblem: (String) -> Unit = {},
     private val onDetect: () -> Unit,
 ) : WakeDetector {
     private val main = Handler(Looper.getMainLooper())
@@ -99,6 +100,10 @@ internal class OpenWakeWordDetector(
         running = false
         thread?.join(1_500)
         thread = null
+    }
+
+    private fun problem(message: String) {
+        main.post { onProblem(message) }
     }
 
     @SuppressLint("MissingPermission")
@@ -123,7 +128,14 @@ internal class OpenWakeWordDetector(
                 .build()
             AudioRoute.input(context)?.let { record.preferredDevice = it }
             record.startRecording()
+            if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                problem("Mot d’activation : le micro est occupé par une autre application (enregistrement refusé).")
+                running = false
+                return
+            }
             val chunk = ShortArray(WAKE_CHUNK)
+            var silentChunks = 0
+            var silenceReported = false
             while (running) {
                 var filled = 0
                 while (filled < WAKE_CHUNK && running) {
@@ -132,6 +144,12 @@ internal class OpenWakeWordDetector(
                     filled += read
                 }
                 if (filled < WAKE_CHUNK) break
+                // Android (or another app) can hand a background app a microphone that only returns zeros.
+                if (chunk.all { it.toInt() == 0 }) silentChunks++ else silentChunks = 0
+                if (silentChunks == SILENT_CHUNKS_LIMIT && !silenceReported) {
+                    silenceReported = true
+                    problem("Mot d’activation : le micro ne renvoie que du silence (bloqué par Android ou par une autre application).")
+                }
                 if (decision.accept(pipeline.process(chunk), threshold())) {
                     running = false
                     main.post { onDetect() }
@@ -140,6 +158,7 @@ internal class OpenWakeWordDetector(
         } catch (e: Exception) {
             Log.w("JarvisWake", "Détection arrêtée", e)
             running = false
+            problem("Mot d’activation arrêté : ${e.javaClass.simpleName} ${e.message.orEmpty()}".take(200))
         } finally {
             try {
                 record?.stop()
@@ -150,3 +169,6 @@ internal class OpenWakeWordDetector(
         }
     }
 }
+
+/** About five seconds of pure silence in a row (80 ms per chunk) means the microphone is not really delivering sound. */
+private const val SILENT_CHUNKS_LIMIT = 62

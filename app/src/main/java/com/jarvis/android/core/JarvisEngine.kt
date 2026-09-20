@@ -200,7 +200,7 @@ class JarvisEngine(
         if (wakeDetector == null || wakeIsOffline != offline || wakeClassifier != classifier) {
             wakeDetector?.stop()
             wakeDetector = if (offline) {
-                com.jarvis.android.wake.OpenWakeWordDetector(container.appContext, container.wakeModel.dir, classifier, { wakeThreshold }) { toggleAwake(SessionTrigger.WAKE_WORD) }
+                com.jarvis.android.wake.OpenWakeWordDetector(container.appContext, container.wakeModel.dir, classifier, { wakeThreshold }, { log(tr(it)) }) { toggleAwake(SessionTrigger.WAKE_WORD) }
             } else {
                 WakeWordDetector(container.appContext) { toggleAwake(SessionTrigger.WAKE_WORD) }
             }
@@ -213,6 +213,7 @@ class JarvisEngine(
             return
         }
         detector.start()
+        log(tr(if (wakeIsOffline) "Mot d’activation : écoute hors ligne démarrée." else "Mot d’activation : écoute (reconnaissance d’Android) démarrée."))
     }
 
     private fun log(message: String) {
@@ -528,7 +529,7 @@ class JarvisEngine(
                         when (event) {
                             is LiveEvent.SetupComplete -> if (!ready.isCompleted) {
                                 if (!audio.startPlayback()) {
-                                    log(tr("Focus audio refusé par Android : la lecture continue sans."))
+                                    log(trf("Focus audio refusé par Android ({0}) : la lecture continue sans, mais Android peut couper le son.", audio.focusDiagnostic()))
                                 }
                                 ready.complete(Unit)
                                 handshake.cancel()

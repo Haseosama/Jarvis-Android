@@ -2,7 +2,11 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
-    "Focus audio refusé par Android : la lecture continue sans." to "Audio focus refused by Android: playback goes on without it.",
+    "Focus audio refusé par Android ({0}) : la lecture continue sans, mais Android peut couper le son." to "Audio focus refused by Android ({0}): playback goes on without it, but Android may mute the sound.",
+    "Mot d’activation : le micro est occupé par une autre application (enregistrement refusé)." to "Wake word: the microphone is in use by another app (recording refused).",
+    "Mot d’activation : le micro ne renvoie que du silence (bloqué par Android ou par une autre application)." to "Wake word: the microphone returns only silence (blocked by Android or by another app).",
+    "Mot d’activation : écoute hors ligne démarrée." to "Wake word: offline listening started.",
+    "Mot d’activation : écoute (reconnaissance d’Android) démarrée." to "Wake word: listening (Android recognition) started.",
     "Action : {0}" to "Action: {0}",
     "Appareil auditif" to "Hearing aid",
     "Arrêter" to "Stop",

@@ -26,6 +26,21 @@ class AudioEngine(private val context: Context) {
     private var focusRequest: AudioFocusRequest? = null
     @Volatile private var inSetup = false
 
+    /** Result code of the last audio focus request (0 refused, 1 granted, 2 delayed), for the activity log. */
+    @Volatile var lastFocusResult = -1
+        private set
+
+    /** Short description of why focus may have been refused: the audio mode (call?) and whether other sound is playing. */
+    fun focusDiagnostic(): String {
+        val mode = when (audioManager.mode) {
+            AudioManager.MODE_NORMAL -> "normal"
+            AudioManager.MODE_RINGTONE -> "sonnerie"
+            AudioManager.MODE_IN_CALL, AudioManager.MODE_IN_COMMUNICATION, AudioManager.MODE_CALL_SCREENING -> "appel"
+            else -> audioManager.mode.toString()
+        }
+        return "code $lastFocusResult, mode audio $mode, autre son en cours : ${if (audioManager.isMusicActive) "oui" else "non"}"
+    }
+
     private val focusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         if (inSetup) return@OnAudioFocusChangeListener
         synchronized(playbackLock) {
@@ -134,6 +149,7 @@ class AudioEngine(private val context: Context) {
             .setAcceptsDelayedFocusGain(true)
             .build()
         val result = audioManager.requestAudioFocus(request)
+        lastFocusResult = result
         val focusGranted = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED || result == AudioManager.AUDIOFOCUS_REQUEST_DELAYED
         if (focusGranted) focusRequest = request
         inSetup = false
