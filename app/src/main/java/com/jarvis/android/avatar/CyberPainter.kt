@@ -45,15 +45,15 @@ internal class CyberPainter(private val mesh: HeadMesh) {
         val ao = 0.55f + 0.45f * mesh.ao[i]
         val diff = ((nx * kx + ny * ky + nz * kz + 0.25f) / 1.25f).coerceIn(0f, 1f)
         val t = pow(diff, 0.85f)
-        var r = 0.20f + (0.10f - 0.20f) * t
-        var g = 0.06f + (0.40f - 0.06f) * t
-        var b = 0.48f + (1.00f - 0.48f) * t
+        var r = 0.05f + (0.10f - 0.05f) * t
+        var g = 0.10f + (0.50f - 0.10f) * t
+        var b = 0.42f + (1.00f - 0.42f) * t
         r *= ao; g *= ao; b *= ao
         val spec = pow((nx * hx + ny * hy + nz * hz).coerceIn(0f, 1f), 36f) * (0.55f + 0.2f * amp)
         val rim = pow((1f - nz).coerceIn(0f, 1f), 2.6f) * 0.75f
         val side = (nx * 0.5f + 0.5f).coerceIn(0f, 1f) // 0 on the left, 1 on the right
-        r += spec * 0.75f + rim * (0.20f + 0.70f * side)
-        g += spec * 0.95f + rim * (0.90f - 0.60f * side)
+        r += spec * 0.75f + rim * (0.12f + 0.45f * side)
+        g += spec * 0.95f + rim * (0.90f - 0.45f * side)
         b += spec + rim * 1.0f
         val f = mesh.fade[i]
         if (f < 1f) { // the neck sinks into the dark
@@ -68,10 +68,10 @@ internal class CyberPainter(private val mesh: HeadMesh) {
         val spec = pow((nx * hx + ny * hy + nz * hz).coerceIn(0f, 1f), 24f) * 0.6f
         val rim = pow((1f - nz).coerceIn(0f, 1f), 2.2f) * 0.8f
         val root = mesh.fade[i]
-        val r = (0.26f + 0.42f * diff) * (0.6f + 0.4f * root) + spec * 0.8f + rim * 0.60f
-        val g = (0.07f + 0.18f * diff) * (0.6f + 0.4f * root) + spec * 0.85f + rim * 0.35f
-        val b = (0.46f + 0.46f * diff) * (0.6f + 0.4f * root) + spec + rim * 0.95f
-        return pack(0.80f + 0.1f * rim, r, g, b)
+        val r = (0.13f + 0.22f * diff) * (0.6f + 0.4f * root) + spec * 0.7f + rim * 0.45f
+        val g = (0.05f + 0.16f * diff) * (0.6f + 0.4f * root) + spec * 0.8f + rim * 0.30f
+        val b = (0.34f + 0.46f * diff) * (0.6f + 0.4f * root) + spec + rim * 0.95f
+        return pack(0.70f + 0.1f * rim, r, g, b)
     }
 
     /** Glowing circuit traces over the shell and face, and the forehead chip; each is a wide faint pass and a thin bright one. */
@@ -263,12 +263,12 @@ internal class CyberPainter(private val mesh: HeadMesh) {
         val rnd = Random(5)
         val out = ArrayList<Track>()
         var attempts = 0
-        while (out.size < 36 && attempts++ < 400) {
+        while (out.size < 64 && attempts++ < 900) {
             val ang = rnd.nextFloat() * 2f * PI.toFloat()
             val rad = 0.50f + 0.16f * rnd.nextFloat()
             var x = cos(ang) * rad
             var y = sin(ang) * rad * 0.9f
-            if (kotlin.math.abs(x) < 0.30f) continue // keep the middle free for the head
+            if (kotlin.math.abs(x) < 0.36f) continue // keep the middle free for the head
             // head outwards, snapped to 45 degree steps
             var dir = (Math.round(ang / (PI.toFloat() / 4f)) * (PI.toFloat() / 4f))
             val pts = arrayListOf(x, y)
@@ -287,6 +287,7 @@ internal class CyberPainter(private val mesh: HeadMesh) {
     fun drawBackdrop(scope: DrawScope, size: Float, time: Float, amp: Float) {
         val c = size / 2f
         val s = size / 2f
+        scope.drawCircle(Brush.radialGradient(listOf(Color(0x662A48FF), Color(0x33321A9C), Color(0x00040820)), center = Offset(c, c * 0.95f), radius = size * 0.62f), radius = size * 0.62f, center = Offset(c, c * 0.95f))
         for ((n, t) in tracks.withIndex()) {
             val pts = t.xy
             val col = if (t.violet) Color(0xFF9A6BFF) else Color(0xFF3AD8FF)
@@ -300,8 +301,8 @@ internal class CyberPainter(private val mesh: HeadMesh) {
                 if (k == 0) path.moveTo(px, py) else path.lineTo(px, py)
                 k += 2
             }
-            scope.drawPath(path, col.copy(alpha = 0.16f * fade), style = Stroke(width = 5f, cap = StrokeCap.Round, join = StrokeJoin.Round))
-            scope.drawPath(path, col.copy(alpha = 0.62f * fade), style = Stroke(width = 1.5f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+            scope.drawPath(path, col.copy(alpha = 0.22f * fade), style = Stroke(width = 7f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+            scope.drawPath(path, col.copy(alpha = 0.80f * fade), style = Stroke(width = 1.8f, cap = StrokeCap.Round, join = StrokeJoin.Round))
             val ex = c + pts[pts.size - 2] * s; val ey = c + pts[pts.size - 1] * s
             scope.drawCircle(col.copy(alpha = 0.9f * fade), radius = 3.6f, center = Offset(ex, ey), style = Stroke(width = 1.5f))
             // a pulse of light along the track
