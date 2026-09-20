@@ -70,7 +70,7 @@ fun SettingsScreen(
     val muteWhileSpeaking by configStore.muteMicWhileSpeaking.collectAsState(initial = true)
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
     val faceOn by configStore.avatarFace.collectAsState(initial = true)
-    val skinTone by configStore.avatarSkin.collectAsState(initial = 0)
+    val skinTone by configStore.avatarSkin.collectAsState(initial = 1)
     val lipTone by configStore.avatarLips.collectAsState(initial = 0)
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
     var langMenuOpen by remember { mutableStateOf(false) }

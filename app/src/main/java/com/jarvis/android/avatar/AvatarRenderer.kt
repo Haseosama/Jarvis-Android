@@ -72,7 +72,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private val trianglePath = android.graphics.Path()
     private val linePaint = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE }
     /** 0 = the glowing web; 1..4 = a skin tone over the face. */
-    var skin = 0
+    var skin = 1
     /** 0 = natural lips; 1..4 = rose, red, plum, coral. */
     var lips = 0
     private var bgColor = 0
