@@ -1,0 +1,14 @@
+{
+  "name": "wikipedia_resume",
+  "description": "Donne le résumé d'un sujet sur Wikipédia en français (personne, lieu, notion). Pour « c'est quoi… », « qui est… ».",
+  "parameters": [
+    {
+      "name": "sujet",
+      "description": "Titre de l'article Wikipédia, par exemple Tour Eiffel",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://fr.wikipedia.org/api/rest_v1/page/summary/{sujet}",
+  "result_path": "extract"
+}

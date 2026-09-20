@@ -1,0 +1,18 @@
+{
+  "name": "itineraire",
+  "description": "Ouvre Google Maps avec l'itinéraire vers une destination depuis la position actuelle. Pour « emmène-moi à… ».",
+  "parameters": [
+    {
+      "name": "destination",
+      "description": "Adresse ou nom du lieu",
+      "required": true
+    },
+    {
+      "name": "mode",
+      "description": "driving, walking, bicycling ou transit (driving par défaut)",
+      "required": false
+    }
+  ],
+  "type": "open",
+  "url": "https://www.google.com/maps/dir/?api=1&destination={destination}&travelmode={mode}"
+}

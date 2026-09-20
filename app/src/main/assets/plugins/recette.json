@@ -1,0 +1,13 @@
+{
+  "name": "recette",
+  "description": "Ouvre une recherche de recettes de cuisine sur Marmiton. Pour « une idée de recette avec… ».",
+  "parameters": [
+    {
+      "name": "plat",
+      "description": "Le plat ou les ingrédients",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.marmiton.org/recettes/recherche.aspx?aqt={plat}"
+}

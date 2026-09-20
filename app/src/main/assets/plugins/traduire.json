@@ -1,0 +1,18 @@
+{
+  "name": "traduire",
+  "description": "Ouvre Google Traduction avec un texte et la langue cible. Pour « traduis … en anglais ».",
+  "parameters": [
+    {
+      "name": "texte",
+      "description": "Le texte à traduire",
+      "required": true
+    },
+    {
+      "name": "langue",
+      "description": "Code de la langue cible : en, fr, es, tl (tagalog), de…",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://translate.google.com/?sl=auto&tl={langue}&text={texte}&op=translate"
+}

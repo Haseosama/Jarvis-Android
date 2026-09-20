@@ -1,6 +1,7 @@
 package com.jarvis.android.actions
 
 import com.jarvis.android.JarvisContainer
+import com.jarvis.android.weather.isHereRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -18,14 +19,17 @@ import java.util.Locale
 
 object WeatherTool : Tool {
     override val name = "weather_report"
-    override val description = "Obtenir les conditions météo actuelles d’une ville."
-    override val parameters = objectSchema(required = listOf("city")) {
-        string("city", "Nom de la ville à rechercher.")
+    override val description =
+        "Obtenir les conditions météo actuelles. Avec une ville, celle-ci ; SANS ville (ou « ici », « chez moi »), la météo à la position du téléphone."
+    override val parameters = objectSchema {
+        string("city", "Nom de la ville ; vide ou « ici » pour utiliser la position de l’utilisateur.")
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String = withContext(Dispatchers.IO) {
-        val city = normalizedUtilityQuery(args.utilityString("city"), 200)
-            ?: return@withContext "Indiquez une ville non vide, de 200 caractères maximum."
+        val rawCity = args.utilityString("city")
+        if (isHereRequest(rawCity)) return@withContext weatherHere(ctx)
+        val city = normalizedUtilityQuery(rawCity, 200)
+            ?: return@withContext "Indiquez une ville de 200 caractères maximum, ou demandez la météo ici."
         try {
             val geoUrl = "https://geocoding-api.open-meteo.com/v1/search".toHttpUrl().newBuilder()
                 .addQueryParameter("count", "1").addQueryParameter("language", "fr")
@@ -114,4 +118,38 @@ internal fun describeWeatherCode(code: Int): String = when (code) {
     95 -> "orage"
     96, 99 -> "orage avec grêle"
     else -> "conditions non précisées"
+}
+
+/** Weather at the phone's position, when the user has allowed location. */
+private suspend fun weatherHere(ctx: JarvisContainer): String {
+    val fix = when (val outcome = com.jarvis.android.weather.locate(ctx.appContext)) {
+        is com.jarvis.android.weather.LocationOutcome.Found -> outcome
+        com.jarvis.android.weather.LocationOutcome.NoPermission ->
+            return "Je n’ai pas accès à la position. L’utilisateur peut l’autoriser dans Paramètres > Position (météo), ou dire le nom d’une ville."
+        com.jarvis.android.weather.LocationOutcome.ServicesOff ->
+            return "La localisation du téléphone est désactivée. L’utilisateur doit l’activer, ou dire le nom d’une ville."
+        com.jarvis.android.weather.LocationOutcome.Unavailable ->
+            return "Position introuvable pour le moment (souvent : l’appli n’est pas au premier plan). Demandez le nom d’une ville, ou réessayez avec Jarvis ouvert."
+    }
+    return try {
+        val wxUrl = "https://api.open-meteo.com/v1/forecast".toHttpUrl().newBuilder()
+            .addQueryParameter("latitude", "%.3f".format(Locale.ROOT, fix.fix.latitude))
+            .addQueryParameter("longitude", "%.3f".format(Locale.ROOT, fix.fix.longitude))
+            .addQueryParameter("current", "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m")
+            .addQueryParameter("temperature_unit", "celsius")
+            .addQueryParameter("wind_speed_unit", "kmh").build()
+        val body = withContext(Dispatchers.IO) {
+            ctx.http.newCall(Request.Builder().url(wxUrl).build()).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                response.body?.string().orEmpty()
+            }
+        } ?: return "Météo indisponible pour le moment."
+        formatCurrentWeather(body, com.jarvis.android.weather.positionLabel(fix.place))
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: IOException) {
+        "Météo indisponible : connexion impossible ou délai dépassé."
+    } catch (_: Exception) {
+        "Météo indisponible : données du service incomplètes ou invalides."
+    }
 }

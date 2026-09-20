@@ -1,0 +1,18 @@
+{
+  "name": "prix_crypto",
+  "description": "Donne le prix actuel d'une cryptomonnaie (bitcoin, ethereum, solana…) dans une devise. À utiliser pour « combien vaut le bitcoin ».",
+  "parameters": [
+    {
+      "name": "crypto",
+      "description": "Identifiant en minuscules : bitcoin, ethereum, solana, dogecoin…",
+      "required": true
+    },
+    {
+      "name": "devise",
+      "description": "Code de devise en minuscules : eur, usd, gbp… (eur par défaut)",
+      "required": false
+    }
+  ],
+  "type": "http",
+  "url": "https://api.coingecko.com/api/v3/simple/price?ids={crypto}&vs_currencies={devise}"
+}

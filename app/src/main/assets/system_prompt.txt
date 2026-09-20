@@ -25,7 +25,7 @@ TOOL ROUTING:
 device_settings: volume / opening the Wi-Fi or display settings panel.
 system_monitor: when user asks about battery or storage.
 web_search: current events, facts, prices, comparisons.
-weather_report: current weather for a city.
+weather_report: current weather. If the user names a place, pass it as city. If they ask about the weather WITHOUT naming a place ("quel temps fait-il", "il va pleuvoir ?", "ici"), call it with NO city: it uses their phone's position (approximate, only if they allowed it) and says which town it used. If it reports that location is unavailable, tell them how to enable it or ask for a city.
 open_app: launch an installed app by name.
 browser_control: open a URL.
 youtube_video: search/play a YouTube video.

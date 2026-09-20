@@ -1,0 +1,13 @@
+{
+  "name": "youtube_recherche",
+  "description": "Ouvre la page de résultats YouTube pour une recherche (musique, tutoriel, vidéo).",
+  "parameters": [
+    {
+      "name": "requete",
+      "description": "Ce qu'il faut chercher sur YouTube",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.youtube.com/results?search_query={requete}"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "mode_reunion",
+  "description": "Prépare le téléphone pour une réunion : coupe la musique puis met le volume à zéro. À utiliser pour « mode réunion » ou « je suis en réunion ».",
+  "type": "routine",
+  "steps": [
+    {
+      "tool": "device_settings",
+      "args": {
+        "action": "media",
+        "command": "pause"
+      }
+    },
+    {
+      "tool": "device_settings",
+      "args": {
+        "action": "set_volume",
+        "value": "0"
+      }
+    }
+  ]
+}

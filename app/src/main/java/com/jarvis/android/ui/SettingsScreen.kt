@@ -307,6 +307,28 @@ fun SettingsScreen(
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
             Spacer(Modifier.height(24.dp))
+            Text("Position (météo)", style = MaterialTheme.typography.titleMedium)
+            var locationGranted by remember { mutableStateOf(com.jarvis.android.weather.hasLocationPermission(context0)) }
+            val askLocation = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+                locationGranted = granted || com.jarvis.android.weather.hasLocationPermission(context0)
+            }
+            Text(
+                if (locationGranted) "Position autorisée ✓ : « quel temps fait-il ? » sans ville donne la météo de l’endroit où vous êtes."
+                else "Position non autorisée : Jarvis ne connaît pas votre position. Sans elle, il faut lui dire le nom de la ville.",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            if (!locationGranted) {
+                OutlinedButton(onClick = { askLocation.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION) }, modifier = Modifier.padding(top = 8.dp)) {
+                    Text("Autoriser la position")
+                }
+            }
+            Text(
+                "Position approximative, lue seulement au moment d’une demande de météo, envoyée à Open-Meteo pour obtenir les conditions et jamais enregistrée. Fiable quand Jarvis est ouvert ; en arrière-plan Android peut la refuser.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Spacer(Modifier.height(24.dp))
             Text("Plugins", style = MaterialTheme.typography.titleMedium)
             Text(
                 "Ajoutez des compétences sans code : un fichier JSON décrit un appel web (HTTPS), un lien à ouvrir ou une routine d’outils existants. Jarvis n’exécute jamais de code téléchargé. Voir le README pour le format.",
@@ -326,7 +348,28 @@ fun SettingsScreen(
                     OutlinedButton(onClick = { pluginStore.remove(plugin.name); pluginTick++ }) { Text("Retirer") }
                 }
             }
-            OutlinedButton(onClick = { pickPlugin.launch(arrayOf("application/json", "text/plain", "*/*")) }, modifier = Modifier.padding(top = 8.dp)) {
+            Text("Catalogue intégré", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 16.dp))
+            val catalog = remember { com.jarvis.android.plugins.readCatalog(context0, com.jarvis.android.actions.ToolRegistry.builtInNames()) }
+            val installedNames = installed.map { it.name }.toSet()
+            catalog.forEach { entry ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text(entry.name, style = MaterialTheme.typography.bodyLarge)
+                        Text(entry.description, style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (entry.name in installedNames) {
+                        Text("Installé ✓", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 8.dp))
+                    } else {
+                        OutlinedButton(onClick = {
+                            scope.launch {
+                                pluginMessage = withContext(Dispatchers.IO) { pluginStore.install(entry.json) } ?: "« ${entry.name} » installé. Il est actif dès la prochaine session vocale."
+                                pluginTick++
+                            }
+                        }, modifier = Modifier.padding(start = 8.dp)) { Text("Installer") }
+                    }
+                }
+            }
+            OutlinedButton(onClick = { pickPlugin.launch(arrayOf("application/json", "text/plain", "*/*")) }, modifier = Modifier.padding(top = 12.dp)) {
                 Text("Importer un plugin (JSON)")
             }
             pluginMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }

@@ -1,0 +1,13 @@
+{
+  "name": "jours_feries",
+  "description": "Donne les prochains jours fériés d'un pays. Pour « c'est quand le prochain jour férié ».",
+  "parameters": [
+    {
+      "name": "pays",
+      "description": "Code pays à 2 lettres en majuscules : FR, BE, CH, CA…",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://date.nager.at/api/v3/NextPublicHolidays/{pays}"
+}

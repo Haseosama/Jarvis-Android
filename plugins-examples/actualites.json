@@ -1,0 +1,13 @@
+{
+  "name": "actualites",
+  "description": "Ouvre Google Actualités sur un sujet. Pour « quoi de neuf sur… », « les infos sur… ».",
+  "parameters": [
+    {
+      "name": "sujet",
+      "description": "Le sujet d'actualité",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://news.google.com/search?q={sujet}&hl=fr&gl=FR&ceid=FR:fr"
+}
