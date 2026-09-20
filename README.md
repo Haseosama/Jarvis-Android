@@ -498,6 +498,10 @@ also shown in the settings.
   With a skin, the brows are about 160 hairs each, anchored to the brow's landmark vertices (thick and upright at the inner end, thinner and
   flatter at the outer end); the eyelid rims and the two lip edges are thin lines along the openings, so a shut mouth shows one
   mouth line and an open one two lip edges.
+  With a skin the head also has hair, built by `tools/avatar/groom.py` as geometry on the scan: a thin dark cap over the scalp (clipped
+  along a high hairline, kept clear of the ears, thinning into the skin at the sides) and about 520 locks, each a curved, tapering strip
+  with a rounded section and a highlight along its middle, laid along the flow of the cut (up and back-and-right from the front) with
+  waves that run together. It needs a skin (the glowing web look is the bare head).
   Where the eyes and the mouth go was measured on the scan itself (the closed eyelids meet at y = 0.02, the lips at y = -0.49, the
   face's midline is at x = -0.035); MediaPipe's own coordinates would put them about 0.06 off.
 - **Expression.** Brows follow the phrase, the gaze flicks between points, blinks, idle sway; the face looks away while thinking,
