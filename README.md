@@ -296,6 +296,38 @@ Not checked on the real phone with a real voice.
   (Wi-Fi, Bluetooth, airplane, display, sound, battery, location, apps, storage, NFC, date, language,
   accessibility, security, network). Media keys and screenshots cannot be verified: the tool says so.
 
+### Plugins and self-knowledge
+
+**Plugins** (`plugins/`, the Android counterpart of Mark-LIII's `plugins/` folder). A plugin is one JSON file,
+imported in Settings → *Plugins*; it becomes a tool at the next voice session. Jarvis never runs downloaded code:
+a plugin only describes one of three declarative actions, and the file is checked before it is kept.
+
+```json
+{ "name": "meteo_ville", "description": "What the assistant reads to decide when to use it (10-500 chars).",
+  "parameters": [{ "name": "city", "description": "Nom de la ville", "required": true }],
+  "type": "http", "url": "https://wttr.in/{city}?format=3" }
+```
+
+- `"type": "http"`: GET or POST (`"method"`, `"body"` as a JSON template) to an **https** address, optional `"result_path"`
+  (dotted path such as `current.temp`) to return one value. Localhost, private networks and `.local`/`.internal`
+  names are refused, and a parameter cannot be in the host. Values are URL-encoded (or JSON-escaped in a body), the
+  answer is capped, and it is handed to the model marked as data, never as instructions.
+- `"type": "open"`: opens `https://`, `geo:`, `tel:`, `mailto:` or `sms:` links, parameters URL-encoded.
+- `"type": "routine"`: up to 10 `steps` of `{ "tool", "args" }` that call **built-in tools only** (not other plugins,
+  not `agent_task` or `end_session`), with `{parameter}` filled in. Sensitive taps still ask for confirmation.
+
+Limits: 20 plugins, 5 parameters each, 20 000 characters per file, a name that is not a built-in tool's.
+Examples are in `plugins-examples/`. Checked with unit tests (29 cases, including the refusals) and on an emulator with
+the real network: a weather call, a Maps link and a two-step routine ran, a missing parameter was reported and a
+plugin aimed at a private address was not loaded. Not exercised: importing through the file picker on a phone.
+
+**Self-knowledge** (`core/SelfKnowledge.kt`, after Mark-LIII's runtime self-knowledge). Each session's system prompt
+now contains a block generated from the real state: the assistant's name, the phone model and Android version,
+the tools and plugins actually present, whether phone control, the work folder, the wake word, the permissions
+(microphone, camera, notifications), the API-key count and the optional features are on, and a fixed list of
+limits (no sending, paying or typing passwords on its own, no way to confirm a photo or a media key, live view is
+not real time, files only in the work folder). Something switched off is reported as off, with what to enable.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

@@ -1,0 +1,3 @@
+{"name":"meteo_ville","description":"Donne la météo actuelle d'une ville (service wttr.in). À utiliser pour « quel temps à <ville> ».",
+ "parameters":[{"name":"city","description":"Nom de la ville","required":true}],
+ "type":"http","url":"https://wttr.in/{city}?format=3"}

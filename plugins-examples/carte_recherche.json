@@ -1,0 +1,3 @@
+{"name":"carte_recherche","description":"Ouvre Google Maps sur une recherche de lieu, par exemple une pharmacie ou un restaurant.",
+ "parameters":[{"name":"lieu","description":"Ce qu'il faut chercher","required":true}],
+ "type":"open","url":"https://www.google.com/maps/search/{lieu}"}

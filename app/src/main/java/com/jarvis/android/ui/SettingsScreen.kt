@@ -51,6 +51,24 @@ fun SettingsScreen(
     val deviceControl by configStore.deviceControlEnabled.collectAsState(initial = true)
     val briefingOn by configStore.briefingEnabled.collectAsState(initial = true)
     val workFolder by configStore.workFolder.collectAsState(initial = "")
+    val pluginStore = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.pluginStore }
+    var pluginTick by remember { mutableStateOf(0) }
+    var pluginMessage by remember { mutableStateOf<String?>(null) }
+    val pickPlugin = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                pluginMessage = withContext(Dispatchers.IO) {
+                    try {
+                        val text = context0.contentResolver.openInputStream(uri)?.use { String(it.readNBytes(com.jarvis.android.plugins.MAX_PLUGIN_BYTES + 1)) }
+                        if (text == null) "Impossible de lire ce fichier." else pluginStore.install(text) ?: "Plugin installé. Il est actif dès la prochaine session vocale."
+                    } catch (_: Exception) {
+                        "Impossible de lire ce fichier."
+                    }
+                }
+                pluginTick++
+            }
+        }
+    }
     val pickFolder = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             try {
@@ -288,6 +306,30 @@ fun SettingsScreen(
             wakeMessage?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
+            Spacer(Modifier.height(24.dp))
+            Text("Plugins", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Ajoutez des compétences sans code : un fichier JSON décrit un appel web (HTTPS), un lien à ouvrir ou une routine d’outils existants. Jarvis n’exécute jamais de code téléchargé. Voir le README pour le format.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            val installed = remember(pluginTick) { com.jarvis.android.actions.ToolRegistry.pluginTools().filterIsInstance<com.jarvis.android.plugins.PluginTool>() }
+            if (installed.isEmpty()) {
+                Text("Aucun plugin installé.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+            }
+            installed.forEach { plugin ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text(plugin.name, style = MaterialTheme.typography.bodyLarge)
+                        Text(plugin.summary, style = MaterialTheme.typography.bodySmall)
+                    }
+                    OutlinedButton(onClick = { pluginStore.remove(plugin.name); pluginTick++ }) { Text("Retirer") }
+                }
+            }
+            OutlinedButton(onClick = { pickPlugin.launch(arrayOf("application/json", "text/plain", "*/*")) }, modifier = Modifier.padding(top = 8.dp)) {
+                Text("Importer un plugin (JSON)")
+            }
+            pluginMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
             Spacer(Modifier.height(24.dp))
             Text("Dossier de travail (fichiers)", style = MaterialTheme.typography.titleMedium)
             Text(

@@ -54,9 +54,20 @@ object ToolRegistry {
 
     private val byName = ALL.associateBy { it.name }
 
-    fun get(name: String): Tool? = byName[name]
+    @Volatile private var plugins: List<Tool> = emptyList()
 
-    fun declarations(): List<JsonObject> = ALL.map { tool ->
+    /** The user's plugins (see the plugins package); replaced as a whole whenever they change. */
+    internal fun setPlugins(list: List<Tool>) {
+        plugins = list.filter { it.name !in byName }
+    }
+
+    internal fun pluginTools(): List<Tool> = plugins
+
+    internal fun builtInNames(): Set<String> = byName.keys
+
+    fun get(name: String): Tool? = byName[name] ?: plugins.firstOrNull { it.name == name }
+
+    fun declarations(): List<JsonObject> = (ALL + plugins).map { tool ->
         buildJsonObject {
             put("name", tool.name)
             put("description", tool.description)
@@ -64,8 +75,18 @@ object ToolRegistry {
         }
     }
 
-    suspend fun run(name: String, args: JsonObject, ctx: JarvisContainer): String {
+    /** Runs a built-in tool only (used by plugin routines, which must not start other plugins). */
+    internal suspend fun runBuiltIn(name: String, args: JsonObject, ctx: JarvisContainer): String {
         val tool = byName[name] ?: return "Action '$name' is not available."
+        return try {
+            tool.run(args, ctx)
+        } catch (e: Exception) {
+            "Tool '$name' failed: ${e.message}"
+        }
+    }
+
+    suspend fun run(name: String, args: JsonObject, ctx: JarvisContainer): String {
+        val tool = get(name) ?: return "Action '$name' is not available."
         return try {
             tool.run(args, ctx)
         } catch (e: Exception) {

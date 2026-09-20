@@ -94,6 +94,12 @@ class JarvisContainer(val appContext: Context) {
 
     internal val attachedFiles = com.jarvis.android.files.AttachedFileStore()
 
+    internal val pluginStore = com.jarvis.android.plugins.PluginStore(java.io.File(appContext.filesDir, "plugins"))
+
+    init {
+        pluginStore.reload()
+    }
+
     internal val sessionLog = com.jarvis.android.core.SessionLog(java.io.File(appContext.noBackupFilesDir, "session_log.json"))
 
     internal val wakeModel = com.jarvis.android.wake.WakeModelManager(appContext, http)
