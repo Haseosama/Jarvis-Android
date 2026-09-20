@@ -386,19 +386,29 @@ starts the answer again. Changes:
 
 - **Uninstalling plugins.** Settings > Plugins shows "Désinstaller" (with a confirmation) next to every installed
   plugin, in the installed list and in the catalogue; the catalogue entry can be installed again.
-- **Liberty Music.** The built-in `liberty_music` tool opens the Liberty Music app, sends play / pause / next / previous / stop
-  media keys, and opens a `music.youtube.com` watch, playlist or channel link inside Liberty. It is a built-in tool, not
-  a JSON plugin, because JSON plugins cannot send media keys or pin a link to one app. Checked on the phone with adb:
-  Liberty accepts no search intent (`MEDIA_PLAY_FROM_SEARCH` and search links do not resolve), so "play a song by name" is
-  left to the screen tools (open, tap search, type, tap the first result); that path was not tried, and the media-key
-  path was not tried on the phone either. Media keys go to the active media app, which is not always Liberty.
+- **Liberty Music.** The built-in `liberty_music` tool can: play a title by name (`play` with a `query`), open the app,
+  send play / pause / next / previous / stop media keys, and open a `music.youtube.com` watch, playlist or channel link
+  inside Liberty. It is a built-in tool, not a JSON plugin, because JSON plugins cannot send media keys or pin a link to
+  one app. Liberty accepts no search request from other apps (checked with adb: `MEDIA_PLAY_FROM_SEARCH` and search
+  links do not resolve), so `play` first searches YouTube like the website does (the desktop results page, with a
+  consent cookie; the first video is taken) and hands that video link to Liberty. Checked: the search from inside the
+  app on the emulator (real network, "daft punk get lucky" finds "Get Lucky (Official Audio)"); on the phone, with adb,
+  Liberty opens a watch link and starts playing it, and answers play / pause media keys (`input keyevent`). Not checked:
+  the whole chain triggered by voice on the phone, and the app-side media-key call itself (adb uses the system's
+  dispatch). Limits: the first search hit can be the wrong version (a live recording, a cover), so the tool reports
+  the title found and Jarvis is told to say it; parsing YouTube's web page can break whenever YouTube changes its
+  layout; media keys go to the active media app, which is not always Liberty.
 
 - **English interface.** Settings > Appearance > "Langue de l'interface" switches the app screens between French and English
   at once, and remembers the choice. The source text is French; English texts live in `ui/I18nEnglish.kt` (a unit test
   fails if a text shown by the interface has no English version). Checked on the emulator: the switch, the persistence
-  after a restart, the HUD and the settings. Not translated: notifications, the accessibility service's name and
-  description shown by Android, what tools answer, activity-log lines that contain a variable part, the assistant's
-  system prompt. The language Jarvis speaks is a separate setting (Voice language) and is not changed by this button.
+  after a restart, the HUD and the settings. Also translated: the notifications, the chat error messages, the activity log,
+  the audio device names and the session-start labels. Not translated: the accessibility service's name and
+  description shown by Android (they follow the phone's language), the answers that tools give to the model, and the
+  wording of some settings texts written after the switch was built if they are missing from `I18nEnglish.kt` (the test
+  catches those). The assistant's default spoken language now follows the interface language (English interface:
+  English by default; it can still switch on request); "Voice language" in Settings > Voice can pin it. Note that
+  changing the interface language while a session is open only affects the next session's instructions.
 - **Onboarding contrast.** The first screen (API key) had dark text on the dark background since the gradient backdrop
   was introduced; fixed.
 
