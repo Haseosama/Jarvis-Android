@@ -57,6 +57,8 @@ class JarvisContainer(val appContext: Context) {
 
     internal val attachedFiles = com.jarvis.android.files.AttachedFileStore()
 
+    internal val wakeModel = com.jarvis.android.wake.WakeModelManager(appContext, http)
+
     internal val agent: com.jarvis.android.agent.AgentRunner by lazy { com.jarvis.android.agent.AgentRunner(this, appScope) }
 
     /** Text chat over generateContent; independent of the Live session. */

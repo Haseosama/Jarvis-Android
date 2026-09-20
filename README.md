@@ -78,10 +78,7 @@ a message into the running voice session.
 Mouse/keyboard automation, desktop/taskbar/window management (`computer_control`,
 `desktop.py`), Steam/Epic game updates (`game_updater`), full desktop screen capture
 (`screen_processor`), and the remote dashboard all depend on APIs a sandboxed phone
-app cannot reach. `file_processor`, `background_monitor`/`proactive` check-ins, vision
-(continuous camera / screen frames streamed to the Live session; single screenshots are covered by `screen_look`), the audio-device picker and the
-multi-step `dev_agent`/agent-mode planner are not yet ported (not impossible on Android,
-just not done yet).
+app cannot reach. (These are now covered: file attachments, proactive checks, vision, the audio-device picker and the agent mode.)
 
 ## Setup
 
@@ -222,6 +219,41 @@ Live setup so the voice is not pinned to French. Not yet heard with a real voice
 The debug build also contains a receiver that runs a tool from adb (`DebugToolReceiver`), protected
 by the `DUMP` permission so only adb can call it; it is not in the release build.
 
+### More features (all switchable in the settings unless noted)
+
+- **Session summary and morning briefing** (`memory/Briefing*.kt`). When a voice session with at least two
+  exchanges ends, Gemini writes a one- or two-sentence summary (kept on the device, three at most). At the
+  first session of the day the assistant is asked to give a ~20 s briefing: the last summary and today's
+  reminders. Given once a day; the summary is only consumed when the briefing was really requested.
+- **Google search** (`rest/Grounding.kt`). `web_search` first asks Gemini with the Google Search tool and
+  returns the answer with numbered sources; on any failure it falls back to DuckDuckGo as before.
+- **Audio device picker** (`core/AudioRoute.kt`). Choose the microphone and the output in the settings
+  (automatic by default). A saved device that is unplugged is ignored. Applied to the Live session, the wake
+  word and the text-chat voice.
+- **Background checks** (`proactive/`, off by default). Every ~15 minutes, locally and without network:
+  low battery (once until it recovers), low storage (once a day) and a morning notification (7 h to 11 h)
+  with the last summary and today's reminders.
+- **File attachments** (`files/`, paperclip in the main screen and the chat). One file in memory (15 MB max):
+  PDF, images, audio and text are sent to Gemini as they are, Word (.docx) as extracted text. The `analyze_file`
+  tool answers a question about it; nothing leaves the phone before that.
+- **Agent mode** (`agent/`). `agent_task` runs a multi-step goal in the background with the same tools (not
+  itself, not `end_session`), up to 25 tool rounds and 5 minutes; it returns at once, and the summary is
+  spoken and posted in the chat when done. Sensitive actions still ask for confirmation; stopping the voice
+  session cancels it.
+- **Screen or camera to the Live session** (`core/VideoSource.kt`, `ui/CameraStreamer.kt`). Buttons on the
+  main screen, or the `vision_stream` tool. About one picture every 1.5 s, never twice the same one, 768 px
+  JPEG. The screen goes through the accessibility service (paused while a password field is visible); the camera
+  only runs while the main screen is in front. The red banner and the service notification say when it is on.
+  Not verified against a real Live session.
+- **Offline wake word** (`wake/`). Settings → wake word → *Télécharger les modèles* fetches the three openWakeWord
+  files (~4 MB, from github.com/dscripka/openWakeWord) that the desktop version also uses; the detector listens
+  to the microphone in 80 ms steps, offline. Without the models the older Android speech recognizer is used.
+  Measured with synthetic voices on an emulator: an English voice says "hey Jarvis" at a score of 1.0, a French voice
+  reading it with an accent about 0.2 (so a French speaker may need the *Sensible* level, threshold 0.15), and
+  "hey Travis" 0.38 to 0.75 depending on speed (so *Prudente*, 0.75, in noisy places). **Not tested with a human
+  voice**, so the level to use is yours to find. A first try with a Vosk keyword model was dropped: "jarvis" is
+  not in its vocabulary.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`
@@ -279,9 +311,7 @@ from the old encrypted preferences), because it works on the app's real files.
 
 ## Known gaps / next steps
 
-- The conversation is deliberately ephemeral; `MemoryManager.saveSessionSummary` /
-  `popLastSession` exist but nothing calls them (no morning briefing yet).
-- Wake word is a `SpeechRecognizer`-based approximation (see table above) — swapping
-  in a real on-device model only means replacing `WakeWordDetector.kt`.
-- `web_search` always uses the DuckDuckGo path (Gemini's Grounded Search tool isn't
-  wired into the raw Live WebSocket protocol here).
+- The wake word and the video streaming have not been checked with a real voice or a real Live session.
+- Session summaries are only made for voice sessions; the text chat is not summarized.
+- Desktop-only features (mouse/keyboard automation, game updaters, the remote dashboard) have no Android
+  equivalent and are not planned.

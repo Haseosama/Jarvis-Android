@@ -125,6 +125,9 @@ dependencies {
     // Reminders
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
+    // Offline wake word (openWakeWord models)
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
+
     // Camera frames for the Live session
     implementation("androidx.camera:camera-core:1.3.4")
     implementation("androidx.camera:camera-camera2:1.3.4")

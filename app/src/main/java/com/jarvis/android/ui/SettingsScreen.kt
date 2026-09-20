@@ -41,6 +41,7 @@ fun SettingsScreen(
     onDeleteKey: suspend () -> Boolean = { false },
 ) {
     val scope = rememberCoroutineScope()
+    val context0 = LocalContext.current
     val assistantName by configStore.assistantName.collectAsState(initial = "JARVIS")
     val userName by configStore.userName.collectAsState(initial = "")
     val voice by configStore.voice.collectAsState(initial = "Puck")
@@ -50,7 +51,12 @@ fun SettingsScreen(
     val deviceControl by configStore.deviceControlEnabled.collectAsState(initial = true)
     val briefingOn by configStore.briefingEnabled.collectAsState(initial = true)
     val proactiveOn by configStore.proactiveEnabled.collectAsState(initial = false)
+    val wakeSensitivity by configStore.wakeSensitivity.collectAsState(initial = 1)
     var serviceOn by remember { mutableStateOf(false) }
+    val wakeManager = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.wakeModel }
+    var wakeInstalled by remember { mutableStateOf(wakeManager.installed()) }
+    var wakeProgress by remember { mutableStateOf<Int?>(null) }
+    var wakeMessage by remember { mutableStateOf<String?>(null) }
     var assistantNameField by remember(assistantName) { mutableStateOf(assistantName) }
     var userNameField by remember(userName) { mutableStateOf(userName) }
     var modelField by remember(model) { mutableStateOf(model) }
@@ -216,9 +222,54 @@ fun SettingsScreen(
                 Switch(checked = wakeWordEnabled, onCheckedChange = { scope.launch { configStore.setWakeWordEnabled(it) } })
             }
             Text(
-                "Utilise la reconnaissance vocale d’Android. La disponibilité et le fonctionnement hors connexion dépendent de l’appareil ; ce n’est pas le détecteur hors ligne de l’application de bureau. L’écoute reprend automatiquement en veille.",
+                if (wakeInstalled) "Détection hors ligne : modèles openWakeWord installés ✓ (les mêmes que la version bureau). Aucune connexion n’est utilisée pendant l’écoute ; environ deux secondes d’écoute sont nécessaires après le démarrage."
+                else "Détection actuelle : reconnaissance vocale d’Android, approximative (elle peut passer par le réseau). Pour une vraie détection hors ligne, téléchargez les modèles openWakeWord (environ 4 Mo, depuis github.com/dscripka/openWakeWord). L’écoute reprend automatiquement en veille.",
                 style = MaterialTheme.typography.bodySmall,
             )
+            if (!wakeInstalled) {
+                OutlinedButton(
+                    enabled = wakeProgress == null,
+                    onClick = {
+                        wakeProgress = 0
+                        wakeMessage = null
+                        scope.launch {
+                            val error = wakeManager.download { wakeProgress = it }
+                            wakeProgress = null
+                            wakeInstalled = wakeManager.installed()
+                            wakeMessage = error
+                            (context0.applicationContext as com.jarvis.android.JarvisApp).container.engine.refreshWakeDetection()
+                        }
+                    },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text(wakeProgress?.let { "Téléchargement… $it %" } ?: "Télécharger les modèles (≈ 4 Mo)") }
+            } else {
+                OutlinedButton(
+                    onClick = {
+                        wakeManager.remove()
+                        wakeInstalled = false
+                        (context0.applicationContext as com.jarvis.android.JarvisApp).container.engine.refreshWakeDetection()
+                    },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text("Supprimer les modèles") }
+            }
+            Text("Sensibilité du mot d’activation", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                listOf("Prudente", "Normale", "Sensible").forEachIndexed { level, label ->
+                    FilterChip(
+                        selected = wakeSensitivity == level,
+                        onClick = { scope.launch { configStore.setWakeSensitivity(level) } },
+                        label = { Text(label) },
+                    )
+                }
+            }
+            Text(
+                "Mesuré avec des voix de synthèse : une voix anglaise déclenche presque à coup sûr, une voix française lisant « Hey Jarvis » avec l’accent est moins bien reconnue, et « Hey Travis » peut parfois déclencher. Si Jarvis ne réagit pas à votre voix, passez en « Sensible » ; s’il se réveille tout seul, en « Prudente ». Non testé avec votre voix.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            wakeMessage?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
             Spacer(Modifier.height(24.dp))
             Text("Briefing du matin", style = MaterialTheme.typography.titleMedium)
             Row(

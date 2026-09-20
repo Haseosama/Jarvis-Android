@@ -153,16 +153,26 @@ class JarvisEngine(
     /** What the live session currently sees, if anything. */
     val videoSource: StateFlow<VideoSource> = _videoSource.asStateFlow()
     private var videoJob: Job? = null
-    private var wakeDetector: WakeWordDetector? = null
+    private var wakeDetector: WakeDetector? = null
+    private var wakeIsOffline = false
+    @Volatile private var wakeThreshold = com.jarvis.android.wake.WAKE_THRESHOLD
     private val pendingAnnouncements = ArrayDeque<String>()
     private var resumeHandle: String? = null
     @Volatile private var connectionReadyAt = 0L
 
     init {
         scope.launch {
+            container.configStore.wakeSensitivity.collect { wakeThreshold = com.jarvis.android.wake.wakeThresholdFor(it) }
+        }
+        scope.launch {
             combine(container.configStore.wakeWordEnabled, state) { enabled, s -> enabled to s }
                 .collect { (enabled, s) -> updateWakeDetection(enabled, s) }
         }
+    }
+
+    /** Re-evaluates which wake-word detector to use, for example after the offline model was installed or removed. */
+    fun refreshWakeDetection() {
+        scope.launch { updateWakeDetection(container.configStore.wakeWordEnabled.first(), state.value) }
     }
 
     private fun updateWakeDetection(enabled: Boolean, s: JarvisState) {
@@ -175,8 +185,17 @@ class JarvisEngine(
             wakeDetector?.stop()
             return
         }
-        val detector = wakeDetector
-            ?: WakeWordDetector(container.appContext) { toggleAwake() }.also { wakeDetector = it }
+        val offline = container.wakeModel.installed()
+        if (wakeDetector == null || wakeIsOffline != offline) {
+            wakeDetector?.stop()
+            wakeDetector = if (offline) {
+                com.jarvis.android.wake.OpenWakeWordDetector(container.appContext, container.wakeModel.dir, { wakeThreshold }) { toggleAwake() }
+            } else {
+                WakeWordDetector(container.appContext) { toggleAwake() }
+            }
+            wakeIsOffline = offline
+        }
+        val detector = wakeDetector!!
         if (!detector.isAvailable) {
             log("Mot d’activation indisponible sur cet appareil.")
             return

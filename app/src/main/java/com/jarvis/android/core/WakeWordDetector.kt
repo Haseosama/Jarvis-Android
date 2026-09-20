@@ -22,21 +22,28 @@ import android.os.Looper
  * Swapping in a real on-device model (e.g. Porcupine, or a TFLite port of
  * openWakeWord) later only means replacing this one class.
  */
+/** Anything that can wake the assistant by voice while it sleeps. */
+interface WakeDetector {
+    val isAvailable: Boolean
+    fun start()
+    fun stop()
+}
+
 class WakeWordDetector(
     private val context: Context,
     private val onDetect: () -> Unit,
-) {
+) : WakeDetector {
     private var recognizer: SpeechRecognizer? = null
     @Volatile private var running = false
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    fun start() {
+    override fun start() {
         if (running) return
         running = true
         mainHandler.post { listenOnce() }
     }
 
-    fun stop() {
+    override fun stop() {
         if (!running && recognizer == null) return
         running = false
         mainHandler.post {
@@ -49,7 +56,7 @@ class WakeWordDetector(
         }
     }
 
-    val isAvailable: Boolean
+    override val isAvailable: Boolean
         get() = SpeechRecognizer.isRecognitionAvailable(context)
 
     private fun listenOnce() {
