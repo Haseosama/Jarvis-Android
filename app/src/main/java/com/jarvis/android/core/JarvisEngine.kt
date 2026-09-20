@@ -297,6 +297,7 @@ class JarvisEngine(
 
     private suspend fun stopLocked() {
         endOfSession.reset()
+        container.agent.cancel()
         val finished = _conversation.value
         if (worthSummarizing(finished)) scope.launch(Dispatchers.IO) { summarizeSession(finished) }
         _sessionReady.value = false

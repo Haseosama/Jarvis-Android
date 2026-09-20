@@ -32,6 +32,7 @@ internal class RestChatSession(
     private val systemInstruction: suspend () -> String,
     private val toolDeclarations: () -> List<JsonObject>,
     private val runTool: suspend (name: String, args: JsonObject) -> String,
+    private val maxRounds: Int = MAX_TOOL_ROUNDS,
 ) {
     private val contents = mutableListOf<JsonObject>()
 
@@ -56,7 +57,7 @@ internal class RestChatSession(
                         return reply.text
                     }
                     is RestReply.Calls -> {
-                        if (++rounds > MAX_TOOL_ROUNDS) throw RestChatException(ERROR_TOO_MANY_TOOLS)
+                        if (++rounds > maxRounds) throw RestChatException(ERROR_TOO_MANY_TOOLS)
                         contents += modelTurn(reply.content)
                         val results = reply.calls.map { call -> call to runTool(call.name, call.args) }
                         contents += functionResponseTurn(results)
@@ -144,6 +145,11 @@ class RestChat internal constructor(
         } finally {
             _sending.value = false
         }
+    }
+
+    /** Adds an answer that did not come from a message the user just sent (a finished background task). */
+    fun postAssistant(text: String) {
+        _messages.update { appendConversation(it, ConversationRole.ASSISTANT, text, complete = true) }
     }
 
     /** Starts over. Ignored while a message is being sent. */

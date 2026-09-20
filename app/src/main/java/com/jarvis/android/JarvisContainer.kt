@@ -57,6 +57,8 @@ class JarvisContainer(val appContext: Context) {
 
     internal val attachedFiles = com.jarvis.android.files.AttachedFileStore()
 
+    internal val agent: com.jarvis.android.agent.AgentRunner by lazy { com.jarvis.android.agent.AgentRunner(this, appScope) }
+
     /** Text chat over generateContent; independent of the Live session. */
     val restChat: RestChat by lazy { RestChat(this) }
 }

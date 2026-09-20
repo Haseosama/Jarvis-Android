@@ -47,6 +47,7 @@ object ToolRegistry {
         ScreenNavigateTool,
         TakePhotoTool,
         AnalyzeFileTool,
+        AgentTool,
     )
 
     private val byName = ALL.associateBy { it.name }
