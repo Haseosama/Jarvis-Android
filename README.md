@@ -267,6 +267,11 @@ because Android refuses to start a microphone service from the background: after
 kills the app, open Jarvis once to resume listening. On Xiaomi/MIUI also allow auto-start and unrestricted
 battery use (buttons in the settings) or the system may kill it. Continuous listening costs battery.
 
+**Session history.** Settings → *Historique des sessions* lists the last 30 voice sessions with what started them
+(wake word, the app's button, or unknown), the time and the length; a session whose process was killed shows
+"en cours ou interrompue". Kept in a small file on the device that is never backed up, and the activity log
+shows "Session lancée par : …" too. Checked on an emulator (button start, duration, error end).
+
 Checked on an emulator: enabling the setting starts a microphone foreground service and the notification,
 listening continues with the app closed, and disabling the setting stops the service and frees the microphone.
 Not checked on the real phone with a real voice.

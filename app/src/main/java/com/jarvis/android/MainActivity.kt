@@ -60,7 +60,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startJarvisService() {
-        ContextCompat.startForegroundService(this, Intent(this, JarvisVoiceService::class.java))
+        ContextCompat.startForegroundService(
+            this,
+            Intent(this, JarvisVoiceService::class.java)
+                .putExtra(JarvisVoiceService.EXTRA_TRIGGER, com.jarvis.android.core.SessionTrigger.APP_BUTTON.name),
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -161,6 +162,12 @@ class JarvisEngine(
     @Volatile private var connectionReadyAt = 0L
 
     init {
+        // A session that ends in an error, or that the system cut, still gets its end time in the history.
+        scope.launch {
+            // The first value is the initial state at start-up: it says nothing about a session that a
+            // killed process left unfinished, which correctly stays "en cours ou interrompue".
+            state.drop(1).collect { if (it == JarvisState.ASLEEP || it == JarvisState.ERROR) container.sessionLog.ended() }
+        }
         scope.launch {
             container.configStore.wakeSensitivity.collect { wakeThreshold = com.jarvis.android.wake.wakeThresholdFor(it) }
         }
@@ -189,9 +196,9 @@ class JarvisEngine(
         if (wakeDetector == null || wakeIsOffline != offline) {
             wakeDetector?.stop()
             wakeDetector = if (offline) {
-                com.jarvis.android.wake.OpenWakeWordDetector(container.appContext, container.wakeModel.dir, { wakeThreshold }) { toggleAwake() }
+                com.jarvis.android.wake.OpenWakeWordDetector(container.appContext, container.wakeModel.dir, { wakeThreshold }) { toggleAwake(SessionTrigger.WAKE_WORD) }
             } else {
-                WakeWordDetector(container.appContext) { toggleAwake() }
+                WakeWordDetector(container.appContext) { toggleAwake(SessionTrigger.WAKE_WORD) }
             }
             wakeIsOffline = offline
         }
@@ -207,11 +214,11 @@ class JarvisEngine(
         _activityLog.update { (it + message).takeLast(200) }
     }
 
-    suspend fun start() {
+    suspend fun start(trigger: SessionTrigger = SessionTrigger.UNKNOWN) {
         val version = stopVersion.get()
         lifecycle.withLock {
             withContext(Dispatchers.Main.immediate) {
-                if (version == stopVersion.get()) startLocked()
+                if (version == stopVersion.get()) startLocked(trigger)
             }
         }
     }
@@ -304,9 +311,9 @@ class JarvisEngine(
         }
     }
 
-    fun toggleAwake() {
+    fun toggleAwake(trigger: SessionTrigger = SessionTrigger.APP_BUTTON) {
         if (state.value == JarvisState.ASLEEP || state.value == JarvisState.ERROR) {
-            scope.launch(start = CoroutineStart.UNDISPATCHED) { start() }
+            scope.launch(start = CoroutineStart.UNDISPATCHED) { start(trigger) }
         } else {
             stop()
         }
@@ -361,9 +368,11 @@ class JarvisEngine(
         }
     }
 
-    private suspend fun startLocked() {
+    private suspend fun startLocked(trigger: SessionTrigger) {
         if (sessionJob?.isActive == true) return
         endOfSession.reset()
+        container.sessionLog.started(trigger)
+        log("Session lancée par : ${trigger.label}.")
         sessionJob?.join()
         _conversation.value = emptyList()
         _sessionReady.value = false
@@ -375,6 +384,7 @@ class JarvisEngine(
 
     private suspend fun stopLocked() {
         endOfSession.reset()
+        container.sessionLog.ended()
         videoJob?.cancel()
         videoJob = null
         _videoSource.value = VideoSource.OFF

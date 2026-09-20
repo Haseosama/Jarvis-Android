@@ -50,7 +50,10 @@ class JarvisVoiceService : Service() {
             // Standby only keeps the process alive and listening for the wake word: the engine's own
             // detector does the listening while it sleeps. No session is opened.
             intent?.action == ACTION_STANDBY -> Unit
-            !stopping -> scope.launch(start = CoroutineStart.UNDISPATCHED) { container.engine.start() }
+            !stopping -> {
+                val trigger = SessionTrigger.fromName(intent?.getStringExtra(EXTRA_TRIGGER))
+                scope.launch(start = CoroutineStart.UNDISPATCHED) { container.engine.start(trigger) }
+            }
         }
         return START_NOT_STICKY
     }
@@ -108,5 +111,6 @@ class JarvisVoiceService : Service() {
         const val CHANNEL_ID = "jarvis_voice"
         const val NOTIFICATION_ID = 42
         const val ACTION_STOP = "com.jarvis.android.action.STOP_VOICE"
+        const val EXTRA_TRIGGER = "trigger"
     }
 }

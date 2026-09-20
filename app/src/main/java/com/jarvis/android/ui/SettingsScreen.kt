@@ -50,6 +50,8 @@ fun SettingsScreen(
     val wakeWordEnabled by configStore.wakeWordEnabled.collectAsState(initial = false)
     val deviceControl by configStore.deviceControlEnabled.collectAsState(initial = true)
     val briefingOn by configStore.briefingEnabled.collectAsState(initial = true)
+    val sessionLog = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.sessionLog }
+    var sessions by remember { mutableStateOf(emptyList<com.jarvis.android.core.SessionRecord>()) }
     val proactiveOn by configStore.proactiveEnabled.collectAsState(initial = false)
     val wakeSensitivity by configStore.wakeSensitivity.collectAsState(initial = 1)
     var serviceOn by remember { mutableStateOf(false) }
@@ -89,6 +91,12 @@ fun SettingsScreen(
     var loadingReminders by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        while (true) {
+            sessions = withContext(Dispatchers.IO) { sessionLog.entries() }
+            kotlinx.coroutines.delay(2_000)
+        }
+    }
     LaunchedEffect(Unit) {
         while (true) {
             serviceOn = com.jarvis.android.device.JarvisAccessibilityService.instance != null
@@ -269,6 +277,28 @@ fun SettingsScreen(
             )
             wakeMessage?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+            Spacer(Modifier.height(24.dp))
+            Text("Historique des sessions", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Les 30 dernières sessions vocales, avec ce qui les a lancées (mot d’activation ou bouton de l’appli). Gardé sur l’appareil seulement.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            if (sessions.isEmpty()) {
+                Text("Aucune session enregistrée.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+            } else {
+                sessions.asReversed().take(10).forEach { record ->
+                    Text(
+                        com.jarvis.android.core.formatSessionRecord(record, java.time.ZoneId.systemDefault()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                OutlinedButton(
+                    onClick = { sessionLog.clear(); sessions = emptyList() },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text("Effacer l’historique") }
             }
             Spacer(Modifier.height(24.dp))
             Text("Briefing du matin", style = MaterialTheme.typography.titleMedium)
