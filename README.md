@@ -412,6 +412,20 @@ starts the answer again. Changes:
 - **Onboarding contrast.** The first screen (API key) had dark text on the dark background since the gradient backdrop
   was introduced; fixed.
 
+- **Quick access** (Settings > Accès rapide):
+  - *Assistant.* Jarvis can be chosen as the phone's digital assistant (voice interaction service + session service, and
+    a recognition service that recognises nothing, which Android requires before it lists an app as a possible assistant).
+    The assistant gesture (long press on the home or power button, depending on the phone) then opens the app and starts a
+    voice session. The app never selects itself: the button only opens Android's assistant settings. Checked on the emulator
+    with adb: the role manager accepts Jarvis, and the assist key opens Jarvis and starts a session (it then asks for the
+    microphone permission, as expected). Not checked: on the Xiaomi or the Samsung, the exact gesture each brand uses, and
+    the lock screen (Android asks to unlock first).
+  - *Quick settings tile.* A "Jarvis" tile starts a session; the settings button asks Android to add it (Android 13+, the
+    user confirms in a system dialog). Checked on the emulator with adb (`cmd statusbar click-tile` starts a session).
+  - *Share to Jarvis.* "Share > Jarvis" (text, images, PDF) opens the text chat with the shared item on a card: nothing is
+    sent until the user taps Summarise / Translate / Explain. A shared file is attached to the chat like the paperclip does.
+    Checked on the emulator with a shared text (card and buttons shown). A shared image or PDF was not tried.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

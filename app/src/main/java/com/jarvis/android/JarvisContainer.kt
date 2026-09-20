@@ -95,6 +95,7 @@ class JarvisContainer(val appContext: Context) {
     internal val briefing: com.jarvis.android.memory.BriefingCoordinator by lazy { com.jarvis.android.memory.BriefingCoordinator(this) }
 
     internal val attachedFiles = com.jarvis.android.files.AttachedFileStore()
+    internal val shareInbox = com.jarvis.android.share.ShareInbox()
 
     internal val pluginStore = com.jarvis.android.plugins.PluginStore(java.io.File(appContext.filesDir, "plugins"))
 

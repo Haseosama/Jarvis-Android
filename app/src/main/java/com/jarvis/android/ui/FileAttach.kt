@@ -33,7 +33,7 @@ internal fun rememberFileAttacher(onResult: (String?) -> Unit): () -> Unit {
     return { launcher.launch(arrayOf("*/*")) }
 }
 
-private suspend fun loadAttachment(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
+internal suspend fun loadAttachment(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
     try {
         var name = "fichier"
         var size = -1L

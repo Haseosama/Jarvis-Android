@@ -70,8 +70,15 @@ class MainActivity : ComponentActivity() {
     }
 
     /** A launcher shortcut or the home-screen widget asks for a session: start it once a key and the mic permission exist. */
+    private var openChatRequest by mutableStateOf(0)
+
     private fun handleLaunchIntent(intent: Intent?) {
-        if (intent?.action != ACTION_START_SESSION) return
+        if (intent?.action == ACTION_OPEN_CHAT) {
+            intent.action = null
+            openChatRequest++
+            return
+        }
+        if (intent?.action != ACTION_START_SESSION && intent?.action != Intent.ACTION_ASSIST) return
         intent.action = null
         val container = (application as JarvisApp).container
         if (!container.configStore.hasApiKey()) return
@@ -123,6 +130,10 @@ class MainActivity : ComponentActivity() {
               ) {
                 val navController = rememberNavController()
                 var hasKey by remember { mutableStateOf(container.configStore.hasApiKey()) }
+
+                androidx.compose.runtime.LaunchedEffect(openChatRequest, hasKey) {
+                    if (openChatRequest > 0 && hasKey) navController.navigate("chat") { launchSingleTop = true }
+                }
 
                 NavHost(navController = navController, startDestination = if (hasKey) "hud" else "onboarding") {
                     composable("onboarding") {
@@ -218,5 +229,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val ACTION_START_SESSION = "com.jarvis.android.START_SESSION"
+        const val ACTION_OPEN_CHAT = "com.jarvis.android.OPEN_CHAT"
     }
 }

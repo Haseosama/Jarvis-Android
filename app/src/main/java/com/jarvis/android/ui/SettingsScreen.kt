@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Hearing
@@ -442,6 +443,58 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
+            }
+            SettingsCard(tr("Accès rapide"), Icons.Filled.Bolt, initiallyExpanded = false) {
+            var quickMessage by remember { mutableStateOf<String?>(null) }
+            Text(
+                tr("Lancez Jarvis d’un geste : comme assistant du téléphone (appui long sur le bouton d’accueil ou d’alimentation, selon le modèle), avec une tuile des réglages rapides, avec le widget ou le raccourci de l’écran d’accueil, ou depuis « Partager » dans n’importe quelle appli."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            OutlinedButton(
+                onClick = {
+                    quickMessage = null
+                    try {
+                        context0.startActivity(android.content.Intent(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    } catch (_: Exception) {
+                        try {
+                            context0.startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                        } catch (_: Exception) {
+                            quickMessage = tr("Impossible d’ouvrir les réglages de l’assistant : cherchez « Assistant numérique » dans Paramètres > Applications par défaut.")
+                        }
+                    }
+                },
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text(tr("Choisir Jarvis comme assistant")) }
+            OutlinedButton(
+                onClick = {
+                    quickMessage = null
+                    if (android.os.Build.VERSION.SDK_INT >= 33) {
+                        val manager = context0.getSystemService(android.app.StatusBarManager::class.java)
+                        manager.requestAddTileService(
+                            android.content.ComponentName(context0, com.jarvis.android.tile.JarvisTileService::class.java),
+                            "Jarvis",
+                            android.graphics.drawable.Icon.createWithResource(context0, com.jarvis.android.R.drawable.ic_tile),
+                            context0.mainExecutor,
+                        ) { result ->
+                            quickMessage = when (result) {
+                                android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED -> tr("Tuile ajoutée.")
+                                android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED -> tr("Tuile déjà présente.")
+                                else -> tr("Ajout de la tuile refusé ou impossible.")
+                            }
+                        }
+                    } else {
+                        quickMessage = tr("Ouvrez les réglages rapides, touchez le crayon et ajoutez la tuile « Jarvis ».")
+                    }
+                },
+                modifier = Modifier.padding(top = 4.dp),
+            ) { Text(tr("Ajouter la tuile aux réglages rapides")) }
+            Text(
+                tr("Android décide de ce que fait le geste d’assistant : selon la marque (Xiaomi, Samsung…), il peut falloir l’activer dans les réglages du téléphone. Sur l’écran verrouillé, Android demande d’abord le déverrouillage. Jarvis n’est jamais choisi tout seul : c’est à vous de le faire."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            quickMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
             }
             SettingsCard("Plugins", Icons.Filled.Extension, initiallyExpanded = false) {
             Text(

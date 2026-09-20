@@ -75,6 +75,7 @@ fun ChatScreen(
     val voice = chat.voice
     val container = (androidx.compose.ui.platform.LocalContext.current.applicationContext as com.jarvis.android.JarvisApp).container
     val attached by container.attachedFiles.current.collectAsState()
+    val shared by container.shareInbox.current.collectAsState()
     val pickFile = rememberFileAttacher { failure -> error = failure }
     val stage by voice.stage.collectAsState()
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -135,6 +136,39 @@ fun ChatScreen(
                 VoiceStage.TRANSCRIBING -> Text(tr("Transcription…"), style = MaterialTheme.typography.bodySmall)
                 VoiceStage.SPEAKING -> Text(tr("Jarvis parle…"), style = MaterialTheme.typography.bodySmall)
                 else -> {}
+            }
+            shared?.let { item ->
+                androidx.compose.material3.Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(tr("Partagé avec Jarvis"), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { container.shareInbox.clear() }) { Icon(Icons.Filled.Close, contentDescription = tr("Ignorer")) }
+                        }
+                        item.text?.let { Text(it.take(240) + if (it.length > 240) "…" else "", style = MaterialTheme.typography.bodySmall, maxLines = 4) }
+                        item.fileName?.let { Text(trf("Fichier : {0}", it), style = MaterialTheme.typography.bodySmall) }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                            listOf(
+                                com.jarvis.android.share.ShareAction.SUMMARIZE to tr("Résumer"),
+                                com.jarvis.android.share.ShareAction.TRANSLATE to tr("Traduire"),
+                                com.jarvis.android.share.ShareAction.EXPLAIN to tr("Expliquer"),
+                            ).forEach { (action, label) ->
+                                androidx.compose.material3.AssistChip(
+                                    enabled = !sending && stage == VoiceStage.IDLE,
+                                    onClick = {
+                                        val prompt = com.jarvis.android.share.sharePrompt(action, item) ?: return@AssistChip
+                                        container.shareInbox.clear()
+                                        error = null
+                                        scope.launch { chat.send(prompt)?.let { error = it } }
+                                    },
+                                    label = { Text(label) },
+                                )
+                            }
+                        }
+                    }
+                }
             }
             attached?.let { file ->
                 Row(verticalAlignment = Alignment.CenterVertically) {

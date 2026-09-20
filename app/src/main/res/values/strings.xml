@@ -6,4 +6,7 @@
     <string name="shortcut_talk_long">Démarrer une session avec Jarvis</string>
     <string name="widget_talk">Parler à Jarvis</string>
     <string name="widget_description">Un bouton pour démarrer Jarvis d’un geste</string>
+    <string name="tile_label">Jarvis</string>
+    <string name="share_label">Jarvis</string>
+    <string name="assist_label">Jarvis</string>
 </resources>
