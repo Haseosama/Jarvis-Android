@@ -79,6 +79,11 @@ class JarvisContainer(val appContext: Context) {
             }
         }
         com.jarvis.android.device.AccessibilityKeeper.ensureEnabled(appContext)
+        // What was said in a session that ended before its summary could be stored is stored now.
+        appScope.launch(Dispatchers.IO) {
+            kotlinx.coroutines.delay(8_000)   // the container is fully built by then
+            com.jarvis.android.rest.retryPendingTranscripts(this@JarvisContainer)
+        }
         appScope.launch {
             configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
         }

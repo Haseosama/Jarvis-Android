@@ -274,7 +274,7 @@ class MemoryManager(private val file: File) {
             coreLines += lines
         }
 
-        if (coreLines.isEmpty() && indexed.isEmpty()) return ""
+        if (coreLines.isEmpty() && indexed.isEmpty() && store.sessions.isEmpty()) return ""
 
         val out = mutableListOf("[WHAT YOU KNOW ABOUT THIS PERSON — use naturally, never recite like a list]")
         out += coreLines
@@ -292,6 +292,11 @@ class MemoryManager(private val file: File) {
                 out += "[ALSO REMEMBERED — values not shown here. Call recall_memory with a keyword to read any of these before saying you do not know]"
                 out += names.joinToString(", ") + if (indexed.size > names.size) " (+${indexed.size - names.size} more)" else ""
             }
+        }
+        if (store.sessions.isNotEmpty()) {
+            out += ""
+            out += "[RECENT CONVERSATIONS — background you remember; bring one up only when it is relevant]"
+            for (s in store.sessions.takeLast(3)) out += "- ${s.date}: ${s.summary}"
         }
         return out.joinToString("\n") + "\n"
     }

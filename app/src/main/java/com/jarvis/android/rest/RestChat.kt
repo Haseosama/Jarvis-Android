@@ -223,16 +223,42 @@ class RestChat internal constructor(
     }
 }
 
-/** Keeps a one-line memory of a finished conversation, for tomorrow's briefing. Best effort: failures are ignored. */
+/**
+ * Keeps what a finished conversation taught: a one-line summary (for the next briefing and the prompt) and the lasting facts about the user.
+ * The transcript is put aside first and only dropped once the answer has been stored, so a failed request or a killed process does not lose it:
+ * [retryPendingTranscripts] plays the waiting ones again at the next start.
+ */
 internal suspend fun summarizeConversation(container: JarvisContainer, messages: List<ConversationMessage>) {
+    val transcript = com.jarvis.android.memory.transcriptForSummary(messages)
+    if (transcript.isBlank()) return
+    val file = pendingTranscripts(container).add(transcript)
+    processTranscript(container, transcript, file)
+}
+
+internal fun pendingTranscripts(container: JarvisContainer) =
+    com.jarvis.android.memory.PendingTranscripts(java.io.File(container.appContext.filesDir, "pending_transcripts"))
+
+/** Plays again the conversations whose summary could not be stored (no network, app closed, no key at the time). */
+internal suspend fun retryPendingTranscripts(container: JarvisContainer) {
+    for (file in pendingTranscripts(container).list()) {
+        val transcript = try { file.readText(Charsets.UTF_8) } catch (_: java.io.IOException) { continue }
+        processTranscript(container, transcript, file)
+    }
+}
+
+private suspend fun processTranscript(container: JarvisContainer, transcript: String, file: java.io.File) {
     try {
+        val known = container.memoryManager.allEntriesForUi().take(60).joinToString("\n") { "${it.category}/${it.key}: ${it.value.take(80)}" }
         val model = container.configStore.snapshotRestModel()
-        val request = com.jarvis.android.memory.buildSummaryRequest(com.jarvis.android.memory.transcriptForSummary(messages))
-        val reply = container.restChat.transport.generate(model, request)
+        val reply = container.restChat.transport.generate(model, com.jarvis.android.memory.buildExtractionRequest(transcript, known))
         val text = (parseGenerateResponse(reply) as? RestReply.Text)?.text
-        if (!text.isNullOrBlank()) container.memoryManager.saveSessionSummary(text.trim())
+        val extraction = text?.let { com.jarvis.android.memory.parseExtraction(it) } ?: return
+        if (extraction.summary.isNotBlank()) container.memoryManager.saveSessionSummary(extraction.summary)
+        if (extraction.facts.isNotEmpty()) container.memoryManager.update(extraction.facts)
+        file.delete()
     } catch (e: CancellationException) {
         throw e
     } catch (_: Exception) {
+        // kept for the next start
     }
 }
