@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
         if (granted && startServiceOnGrant) {
             startJarvisService()
         }
+        if (granted) (application as JarvisApp).container.syncVoiceService()
         startServiceOnGrant = false
     }
 
@@ -65,6 +66,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val container = (application as JarvisApp).container
+        container.syncVoiceService()
 
         setContent {
             val hue by container.configStore.themeHue.collectAsState(initial = 190f)
@@ -108,7 +110,7 @@ class MainActivity : ComponentActivity() {
                             onStop = {
                                 startServiceOnGrant = false
                                 container.engine.stop()
-                                stopService(Intent(this@MainActivity, JarvisVoiceService::class.java))
+                                container.releaseVoiceService()
                             },
                             onToggleAwake = { container.engine.toggleAwake() },
                             onConfirm = { container.confirmManager.confirm() },

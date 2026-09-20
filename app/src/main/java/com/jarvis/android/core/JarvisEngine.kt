@@ -246,9 +246,7 @@ class JarvisEngine(
         delay(END_SESSION_GRACE_MS)
         log("Session terminée à votre demande.")
         stop()
-        container.appContext.stopService(
-            android.content.Intent(container.appContext, JarvisVoiceService::class.java)
-        )
+        container.releaseVoiceService()
     }
 
     /** Sends one camera or screen picture to the session. Returns false when there is no live session. */

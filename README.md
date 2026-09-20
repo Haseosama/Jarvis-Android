@@ -254,6 +254,23 @@ by the `DUMP` permission so only adb can call it; it is not in the release build
   voice**, so the level to use is yours to find. A first try with a Vosk keyword model was dropped: "jarvis" is
   not in its vocabulary.
 
+### Permanent wake-word listening
+
+Android only gives the microphone to an app that is in front or that runs a foreground service, so
+listening for the wake word needs one. With the wake word switched on and the microphone allowed, the
+voice service now stays alive in *standby* (`core/VoiceServiceControl.kt`): a permanent notification "Jarvis ·
+écoute du mot d'activation", the system's microphone indicator on, and the detector listening while no session
+runs. Saying the wake word opens a session; when it ends (or after two idle minutes) Jarvis goes back to
+standby. The notification button ends a session, or, in standby, switches the wake word off; switching it off in
+the settings stops the service. The service is started when the app is opened or the setting is changed,
+because Android refuses to start a microphone service from the background: after a reboot, or if the system
+kills the app, open Jarvis once to resume listening. On Xiaomi/MIUI also allow auto-start and unrestricted
+battery use (buttons in the settings) or the system may kill it. Continuous listening costs battery.
+
+Checked on an emulator: enabling the setting starts a microphone foreground service and the notification,
+listening continues with the app closed, and disabling the setting stops the service and frees the microphone.
+Not checked on the real phone with a real voice.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

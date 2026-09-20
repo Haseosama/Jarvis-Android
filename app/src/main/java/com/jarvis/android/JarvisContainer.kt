@@ -2,6 +2,8 @@ package com.jarvis.android
 
 import android.content.Context
 import com.jarvis.android.core.ConfirmManager
+import com.jarvis.android.core.JarvisState
+import com.jarvis.android.core.wantsStandby
 import com.jarvis.android.core.JarvisEngine
 import com.jarvis.android.core.UndoManager
 import com.jarvis.android.memory.ConfigStore
@@ -39,7 +41,42 @@ class JarvisContainer(val appContext: Context) {
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /** Mirrors the wake-word setting so that non-suspending code can read it. */
+    @Volatile var wakeEnabled: Boolean = false
+        private set
+
+    fun micGranted(): Boolean =
+        appContext.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Brings the foreground service in line with the settings: kept alive listening for the wake
+     * word when it is on, stopped when it is off and no session is running. Only starts while the
+     * app is in front (Android refuses microphone services started from the background).
+     */
+    fun syncVoiceService() {
+        if (wantsStandby(wakeEnabled, micGranted())) {
+            com.jarvis.android.core.VoiceServiceControl.startStandby(appContext)
+        } else if (engine.state.value == JarvisState.ASLEEP) {
+            com.jarvis.android.core.VoiceServiceControl.stop(appContext)
+        }
+    }
+
+    /** After a session ended: back to standby if the wake word is on, otherwise the service can go. */
+    fun releaseVoiceService() {
+        if (wantsStandby(wakeEnabled, micGranted())) {
+            com.jarvis.android.core.VoiceServiceControl.startStandby(appContext)
+        } else {
+            com.jarvis.android.core.VoiceServiceControl.stop(appContext)
+        }
+    }
+
     init {
+        appScope.launch {
+            configStore.wakeWordEnabled.collect {
+                wakeEnabled = it
+                syncVoiceService()
+            }
+        }
         com.jarvis.android.device.AccessibilityKeeper.ensureEnabled(appContext)
         appScope.launch {
             configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
