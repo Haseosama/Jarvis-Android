@@ -600,7 +600,7 @@ for name in ("eye_l", "eye_r"):
     ctr = poly.mean(axis=0)
     w_eye = poly[:, 0].max() - poly[:, 0].min()
     hh = (poly[:, 1].max() - poly[:, 1].min()) / 2
-    hole = ctr + (poly - ctr) * 1.12
+    hole = ctr + (poly - ctr) * 1.0
     cf = fc
     corner_in = np.stack([point_in_poly(V[F0[:, c], 0], V[F0[:, c], 1], hole) for c in range(3)], axis=1)
     removed |= ((corner_in.sum(axis=1) >= 2) | point_in_poly(cf[:, 0], cf[:, 1], hole)) & (cf[:, 2] > 0.3)
@@ -617,6 +617,11 @@ for name in ("eye_l", "eye_r"):
     zc = surface_z(ctr[0], ctr[1]) - 1.1 * rad
     centre = np.array([ctr[0], ctr[1], zc])
     first = len(V) + len(added["V"])
+    back_c = add_vertex(centre + np.array([0.0, 0.0, -0.1 * rad]), np.array([0, 0, 1.0]), 0.0, 0xFF2B1F1C)
+    back_ring = [add_vertex(centre + np.array([np.cos(a_) * 0.60 * w_eye, np.sin(a_) * 0.42 * w_eye, -0.1 * rad]), np.array([0, 0, 1.0]), 0.0, 0xFF2B1F1C)
+                 for a_ in np.linspace(0, 2 * np.pi, 16, endpoint=False)]
+    for k_ in range(16):
+        new_faces.append((back_c, back_ring[k_], back_ring[(k_ + 1) % 16]))
     ids = []
     for theta_deg, colour in IRIS_RINGS:
         th = np.radians(theta_deg)
@@ -640,8 +645,10 @@ group = group[~removed]
 print("eyes: faces removed", int(removed.sum()))
 
 # -- the lips' colour mask ---------------------------------------------------------------------------------------------------
-inside_lip = point_in_poly(V[:, 0], V[:, 1], lo) & front
-d_lip = dist_to_poly(V[:, 0], V[:, 1], lo)
+lip_c = np.array([0.0, float(np.mean(ys_col))])
+lo_fit = lip_c + (lo - lip_c) * np.array([0.92, 0.62])   # the ring is taller and wider than the scan's own lips
+inside_lip = point_in_poly(V[:, 0], V[:, 1], lo_fit) & front
+d_lip = dist_to_poly(V[:, 0], V[:, 1], lo_fit)
 lip_mask = np.where(inside_lip, 1.0, np.clip(1.0 - d_lip / 0.010, 0.0, 1.0) * front)
 
 # -- append everything ----------------------------------------------------------------------------------------------------
@@ -694,6 +701,10 @@ out += struct.pack("<i", len(eye_info))
 for first, count, centre in eye_info:
     out += struct.pack("<2i3f", first, count, *[float(c) for c in centre])
 
+if os.environ.get("JHM_DEBUG"):
+    np.savez(os.environ["JHM_DEBUG"], V=V, F=F, paint=paint, eye_l=ring_xy["eye_l"], eye_r=ring_xy["eye_r"], lips_out=ring_xy["lips_out"],
+             lips_in=ring_xy["lips_in"], brow_l=ring_xy["brow_l"], brow_r=ring_xy["brow_r"], xs_col=xs_col, ys_col=ys_col,
+             eyes=np.array([c for _, _, c in eye_info]))
 dest = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "app", "src", "main", "assets", "avatar")
 open(os.path.join(dest, "head_mesh.bin"), "wb").write(bytes(out))
 print("verts", len(V), "faces", len(F), "bytes", len(out))
