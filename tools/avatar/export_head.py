@@ -583,6 +583,11 @@ for x in cols:
     B.append(add_vertex(np.array([FACE_X0 + (x - FACE_X0) * 0.9, ys - 0.005, zs - 0.15]), np.array([0, 0, 1.0]), 0.45, DARK))
 for k in range(len(cols) - 1):
     new_faces += [(U[k], U[k + 1], B[k + 1]), (U[k], B[k + 1], B[k]), (L[k], B[k], B[k + 1]), (L[k], B[k + 1], L[k + 1])]
+mouth_up, mouth_lo = [], []
+for x in FACE_X0 + np.linspace(-hwi * 0.98, hwi * 0.98, 24):
+    ys = float(yseam(x)); zs = surface_z(x, ys); w_ = float(mouth_w(x))
+    mouth_up.append(add_vertex(np.array([x, ys, zs + 0.002]), np.array([0, 0, 1.0]), 0.0, 0))
+    mouth_lo.append(add_vertex(np.array([x, ys, zs + 0.002]), np.array([0, 0, 1.0]), 0.92 * w_, 0))
 tc = [k for k, x in enumerate(cols) if abs(x - FACE_X0) < 0.78 * hwi]
 TU, TUb, TL, TLb = [], [], [], []
 for k in tc:
@@ -645,6 +650,21 @@ for name in ("eye_l", "eye_r"):
             else:
                 new_faces += [(a_[sg], b_[sg], b_[n0]), (a_[sg], b_[n0], a_[n0])]
     eye_info.append((first, len(V) + len(added["V"]) - first, centre))
+kept_edges = set()
+for a_, b_, c_ in F[~removed]:
+    for u_, v_ in ((a_, b_), (b_, c_), (c_, a_)):
+        kept_edges.add((min(u_, v_), max(u_, v_)))
+rim_edges = set()
+for a_, b_, c_ in F[removed]:
+    for u_, v_ in ((a_, b_), (b_, c_), (c_, a_)):
+        if (min(u_, v_), max(u_, v_)) in kept_edges:
+            rim_edges.add((min(u_, v_), max(u_, v_)))
+rim = []
+for u_, v_ in sorted(rim_edges):
+    mid = 0.5 * (V[u_] + V[v_])
+    e_ = min(eye_info, key=lambda t: abs(t[2][0] - mid[0]))
+    rim.append((u_, v_, 1 if mid[1] >= e_[2][1] else 0))
+print("eyelid rim edges", len(rim))
 F = F[~removed]
 group = group[~removed]
 print("eyes: faces removed", int(removed.sum()))
@@ -705,6 +725,9 @@ for k in names:
 out += (paint & 0xFFFFFFFF).astype("<u4").tobytes()
 out += lid.astype("<f4").tobytes()
 out += lip_mask.astype("<f4").tobytes()
+out += struct.pack("<i", len(rim)) + np.array(rim, dtype="<i4").tobytes()
+out += struct.pack("<i", len(mouth_up)) + np.array(mouth_up, dtype="<i4").tobytes()
+out += struct.pack("<i", len(mouth_lo)) + np.array(mouth_lo, dtype="<i4").tobytes()
 out += struct.pack("<i", len(eye_info))
 for first, count, centre in eye_info:
     out += struct.pack("<2i3f", first, count, *[float(c) for c in centre])

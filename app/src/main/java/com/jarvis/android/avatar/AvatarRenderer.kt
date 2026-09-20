@@ -24,6 +24,7 @@ private const val CAM_D = 4.6f
 private const val BUCKETS = 4
 private const val MIN_ALPHA = 0.05f
 private const val LUT_N = 192
+private const val BROW_HAIRS = 160
 
 internal fun argb(a: Int, r: Int, g: Int, b: Int): Int = (a shl 24) or (r shl 16) or (g shl 8) or b
 
@@ -71,6 +72,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private val surfacePaint = Paint().apply { isAntiAlias = false; style = Paint.Style.FILL }
     private val trianglePath = android.graphics.Path()
     private val linePaint = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE }
+    private val hairPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     /** 0 = the glowing web; 1..4 = a skin tone over the face. */
     var skin = 1
     /** 0 = natural lips; 1..4 = rose, red, plum, coral. */
@@ -385,22 +387,112 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
 
     private fun closedRing(idx: IntArray): Path = ring(idx).also { it.close() }
 
+    private class Hair(val u: Float, val off: Float, val len: Float, val jitter: Float)
+
+    private val browHairs: List<Hair> = run {
+        val rnd = kotlin.random.Random(11)
+        List(BROW_HAIRS) { Hair(rnd.nextFloat(), rnd.nextFloat() * 2f - 1f, 0.7f + 0.6f * rnd.nextFloat(), (rnd.nextFloat() - 0.5f) * 0.4f) }
+    }
+    private val hairLines = FloatArray(BROW_HAIRS * 4)
+    private val rimLines = Array(2) { FloatArray(mesh.eyelidRim.size / 3 * 4) }
+
+    /**
+     * The details of the face that are lines rather than surface: the brows (with a skin, a few hundred hairs following the brow's
+     * curve, thick and upright at the inner end, thinner and flatter at the outer end), the rims of the eyelids and the two lip edges
+     * along the mouth line. They are anchored to mesh vertices, so they follow the head, the lids and the jaw.
+     */
     private fun drawFeatures(scope: DrawScope, avatar: HoloAvatar, r: Float, primary: Int, accent: Int, bg: Int, amp: Float, strokePx: Float) {
         val face = max(0f, cos(avatar.yaw) * cos(avatar.pitch)).let { it * it }
         if (face < 0.02f) return
         val lm = mesh.landmarks
+        val roundCap = androidx.compose.ui.graphics.StrokeCap.Round
+        val roundJoin = androidx.compose.ui.graphics.StrokeJoin.Round
+        val midX = lm.getValue("lips_out").let { ring -> ring.sumOf { xs[it].toDouble() }.toFloat() / ring.size }
+        val hairColour = 0xFF34241C.toInt()
 
         // brows
         for (key in listOf("brow_l", "brow_r")) {
-            val brow = ring(lm.getValue(key))
-            if (skin > 0) {
-                scope.drawPath(brow, Color(withAlpha(0xFF3A2A20.toInt(), 225f * face)), style = Stroke(width = strokePx * 2.6f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
-            } else {
-                scope.drawPath(brow, Color(withAlpha(primary, 60f * face)), style = Stroke(width = strokePx * 4.5f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
-                scope.drawPath(brow, Color(withAlpha(primary, 230f * face)), style = Stroke(width = strokePx * 1.8f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            val idx = lm.getValue(key)
+            val n = idx.size
+            val inner0 = kotlin.math.abs(xs[idx[0]] - midX) < kotlin.math.abs(xs[idx[n - 1]] - midX)
+            val px = FloatArray(n) { xs[idx[if (inner0) it else n - 1 - it]] }
+            val py = FloatArray(n) { ys[idx[if (inner0) it else n - 1 - it]] }
+            if (skin == 0) {
+                val brow = ring(idx)
+                scope.drawPath(brow, Color(withAlpha(primary, 60f * face)), style = Stroke(width = strokePx * 4.5f, cap = roundCap))
+                scope.drawPath(brow, Color(withAlpha(primary, 230f * face)), style = Stroke(width = strokePx * 1.8f, cap = roundCap))
+                continue
+            }
+            val cum = FloatArray(n)
+            for (i in 1 until n) cum[i] = cum[i - 1] + kotlin.math.hypot(px[i] - px[i - 1], py[i] - py[i - 1])
+            val total = max(cum[n - 1], 1f)
+            var count = 0
+            val underlay = Path()
+            for (step in 0..24) {
+                val u = step / 24f
+                val target = u * total
+                var seg = 1
+                while (seg < n - 1 && cum[seg] < target) seg++
+                val segLen = max(cum[seg] - cum[seg - 1], 1e-3f)
+                val f = ((target - cum[seg - 1]) / segLen).coerceIn(0f, 1f)
+                val cx = px[seg - 1] + (px[seg] - px[seg - 1]) * f
+                val cy = py[seg - 1] + (py[seg] - py[seg - 1]) * f
+                if (step == 0) underlay.moveTo(cx, cy) else underlay.lineTo(cx, cy)
+            }
+            scope.drawPath(underlay, Color(withAlpha(hairColour, 90f * face)), style = Stroke(width = r * 0.030f, cap = roundCap, join = roundJoin))
+            for (h in browHairs) {
+                val target = h.u * total
+                var seg = 1
+                while (seg < n - 1 && cum[seg] < target) seg++
+                val segLen = max(cum[seg] - cum[seg - 1], 1e-3f)
+                val f = ((target - cum[seg - 1]) / segLen).coerceIn(0f, 1f)
+                var tx = (px[seg] - px[seg - 1]) / segLen
+                var ty = (py[seg] - py[seg - 1]) / segLen
+                var nx = -ty; var ny = tx
+                if (ny > 0f) { nx = -nx; ny = -ny }              // the normal points up the screen
+                val width = r * (0.050f - 0.026f * h.u)         // the brow is thicker at its inner end
+                val rx = px[seg - 1] + (px[seg] - px[seg - 1]) * f + nx * h.off * width * 0.5f
+                val ry = py[seg - 1] + (py[seg] - py[seg - 1]) * f + ny * h.off * width * 0.5f
+                val angle = (0.95f - 1.1f * h.u) + h.jitter        // upright at the inner end, flat (and a little down) at the outer end
+                val ca = cos(angle); val sa = kotlin.math.sin(angle)
+                val length = r * 0.048f * h.len * (1.0f - 0.35f * h.u)
+                hairLines[count++] = rx; hairLines[count++] = ry
+                hairLines[count++] = rx + (tx * ca + nx * sa) * length; hairLines[count++] = ry + (ty * ca + ny * sa) * length
+            }
+            scope.drawIntoCanvas { canvas ->
+                hairPaint.strokeWidth = max(1f, strokePx * 0.85f)
+                hairPaint.color = withAlpha(hairColour, 215f * face)
+                canvas.nativeCanvas.drawLines(hairLines, 0, count, hairPaint)
             }
         }
 
+        // the rims of the eyelids: a dark lash line on the upper lid, a finer one on the lower
+        val rim = mesh.eyelidRim
+        var upN = 0; var loN = 0
+        for (k in 0 until rim.size / 3) {
+            val a = rim[3 * k]; val b = rim[3 * k + 1]
+            val arr = if (rim[3 * k + 2] == 1) rimLines[0] else rimLines[1]
+            val o = if (rim[3 * k + 2] == 1) upN else loN
+            arr[o] = xs[a]; arr[o + 1] = ys[a]; arr[o + 2] = xs[b]; arr[o + 3] = ys[b]
+            if (rim[3 * k + 2] == 1) upN += 4 else loN += 4
+        }
+        val lash = if (skin > 0) 0xFF241612.toInt() else primary
+        scope.drawIntoCanvas { canvas ->
+            hairPaint.color = withAlpha(lash, 200f * face)
+            hairPaint.strokeWidth = strokePx * (if (skin > 0) 1.05f else 1.0f)
+            canvas.nativeCanvas.drawLines(rimLines[0], 0, upN, hairPaint)
+            hairPaint.strokeWidth = strokePx * (if (skin > 0) 0.7f else 0.7f)
+            hairPaint.color = withAlpha(lash, 110f * face)
+            canvas.nativeCanvas.drawLines(rimLines[1], 0, loN, hairPaint)
+        }
+
+        // the two lip edges along the mouth line: one line when the mouth is shut, two when it opens
+        val lipLine = if (skin > 0) 0xFF6E2A38.toInt() else primary
+        for ((chain, alpha) in listOf(mesh.mouthUpper to 200f, mesh.mouthLower to 170f)) {
+            val path = Path()
+            for ((k, i) in chain.withIndex()) if (k == 0) path.moveTo(xs[i], ys[i]) else path.lineTo(xs[i], ys[i])
+            scope.drawPath(path, Color(withAlpha(lipLine, alpha * face)), style = Stroke(width = strokePx * 1.2f, cap = roundCap, join = roundJoin))
+        }
     }
 }
 

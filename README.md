@@ -495,6 +495,9 @@ also shown in the settings.
   behind each (sclera, iris, pupil, painted per vertex) that turns towards the gaze, and the skin round them drops and rises as
   the lids close; the mouth is split along the lip line, the lower lip follows the jaw, and a dark cavity with upper teeth sits
   behind the slit. Nothing is drawn over the face any more except the brows; the lips' colour is painted on the lip vertices.
+  With a skin, the brows are about 160 hairs each, anchored to the brow's landmark vertices (thick and upright at the inner end, thinner and
+  flatter at the outer end); the eyelid rims and the two lip edges are thin lines along the openings, so a shut mouth shows one
+  mouth line and an open one two lip edges.
   Where the eyes and the mouth go was measured on the scan itself (the closed eyelids meet at y = 0.02, the lips at y = -0.49, the
   face's midline is at x = -0.035); MediaPipe's own coordinates would put them about 0.06 off.
 - **Expression.** Brows follow the phrase, the gaze flicks between points, blinks, idle sway; the face looks away while thinking,
