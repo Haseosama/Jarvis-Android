@@ -222,8 +222,16 @@ class MeetingRecorderService : Service() {
         const val ACTION_RETRY = "com.jarvis.android.meeting.RETRY"
         private const val EXTRA_FILE = "file"
 
+        private val recordingState = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+        /** Whether a meeting is being recorded, to react to (the wake word stops listening meanwhile). */
+        val recordingFlow: kotlinx.coroutines.flow.StateFlow<Boolean> get() = recordingState
+
         @Volatile var recording = false
-            private set
+            private set(value) {
+                field = value
+                recordingState.value = value
+            }
 
         /** The recording being made, or whose notes are being written: not offered for a retry. */
         @Volatile private var busyFile: String? = null
@@ -235,6 +243,33 @@ class MeetingRecorderService : Service() {
 
         fun start(context: Context) {
             ContextCompat.startForegroundService(context, Intent(context, MeetingRecorderService::class.java))
+        }
+
+        /**
+         * Starts the recording; when Android refuses a microphone service started from the background, a notification
+         * offers to start it with one touch (a tap on a notification is always allowed). Returns true when it started.
+         */
+        fun startOrOffer(context: Context): Boolean = try {
+            start(context)
+            true
+        } catch (e: Exception) {
+            offerStart(context)
+            false
+        }
+
+        private fun offerStart(context: Context) {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, tr("Notes de réunion"), NotificationManager.IMPORTANCE_HIGH))
+            val tap = PendingIntent.getForegroundService(context, 3, Intent(context, MeetingRecorderService::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(tr("Prêt à enregistrer la réunion"))
+                .setContentText(tr("Android a demandé une confirmation : touchez ici pour démarrer."))
+                .setContentIntent(tap)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+            try { manager.notify(NOTIFICATION_ID + 4, notification) } catch (_: SecurityException) { }
         }
 
         fun stop(context: Context, discard: Boolean = false) {

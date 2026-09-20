@@ -2,6 +2,9 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Suite de la session impossible : {0}" to "Could not carry on after the session: {0}",
+    "Prêt à enregistrer la réunion" to "Ready to record the meeting",
+    "Android a demandé une confirmation : touchez ici pour démarrer." to "Android asked for a confirmation: tap here to start.",
     "Mise à jour" to "Update",
     "Version installée : {0}" to "Installed version: {0}",
     "Jarvis cherche les nouvelles versions parmi les publications GitHub du projet ({0}). Android demandera de confirmer l’installation, et la mise à jour garde vos réglages et votre mémoire." to "Jarvis looks for new versions among the project's GitHub releases ({0}). Android will ask you to confirm the installation, and the update keeps your settings and memory.",

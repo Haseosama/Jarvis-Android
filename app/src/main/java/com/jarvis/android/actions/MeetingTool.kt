@@ -10,10 +10,6 @@ import com.jarvis.android.i18n.trf
 import com.jarvis.android.meetings.MeetingRecorderService
 import com.jarvis.android.meetings.findNote
 import com.jarvis.android.meetings.listNotes
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import java.text.DateFormat
 import java.util.Date
@@ -27,7 +23,7 @@ object MeetingTool : Tool {
         "Prendre les notes d’une réunion ou d’une note vocale. action=start : enregistrer (micro ouvert jusqu’à ce que l’utilisateur touche « Terminer » dans la notification ou demande d’arrêter) ; " +
             "stop : terminer et rédiger les notes (résumé, points clés, décisions, actions, transcription ; une notification prévient quand elles sont prêtes) ; cancel : abandonner sans notes ; status ; " +
             "list : les notes enregistrées ; read : lire des notes (name = leur nom, vide pour les dernières) ; share : proposer de partager des notes ; delete : les supprimer. " +
-            "L’enregistrement dure une heure au plus. Prévenir l’utilisateur que la session vocale se ferme au démarrage, car le micro ne peut servir qu’à un usage à la fois."
+            "L’enregistrement dure une heure au plus. La session vocale se ferme dès le démarrage (le micro ne peut servir qu’à un usage à la fois) : annoncer l’enregistrement en une courte phrase."
     override val parameters = objectSchema(required = listOf("action")) {
         string("action", "start, stop, cancel, status, list, read, share ou delete.")
         string("name", "Nom (ou mot du titre) des notes pour read, share et delete ; vide pour les dernières.")
@@ -42,13 +38,10 @@ object MeetingTool : Tool {
                     return "Le micro n’est pas autorisé : l’utilisateur doit accorder l’autorisation Micro à Jarvis dans les réglages d’Android."
                 }
                 if (MeetingRecorderService.recording) return "Un enregistrement est déjà en cours."
-                // The microphone serves one use at a time: the voice session is closed first, then the recorder opens it.
-                if (ctx.engine.requestEndSession()) {
-                    CoroutineScope(Dispatchers.Default).launch {
-                        delay(START_AFTER_SESSION_MS)
-                        MeetingRecorderService.start(context)
-                    }
-                    "L’enregistrement commencera dans quelques secondes, quand la session vocale sera fermée. Dites à l’utilisateur qu’il termine avec le bouton « Terminer » de la notification, et que les notes arriveront par notification."
+                // The microphone serves one use at a time: the voice session closes first (after the assistant's short goodbye),
+                // then the recorder opens the microphone at once, while the voice service still lets a background start through.
+                if (ctx.engine.requestEndSession { MeetingRecorderService.startOrOffer(context) }) {
+                    "L’enregistrement démarre dès que la session vocale se ferme, dans un instant. Dis en une courte phrase que tu lances l’enregistrement, sans poser de question : la session se ferme après cette phrase. L’utilisateur termine avec le bouton « Terminer » de la notification, et les notes arrivent par notification."
                 } else {
                     MeetingRecorderService.start(context)
                     "Enregistrement démarré. L’utilisateur le termine avec le bouton « Terminer » de la notification (ou en le demandant), et les notes arrivent par notification."
@@ -88,6 +81,3 @@ object MeetingTool : Tool {
         }
     }
 }
-
-/** Long enough for the goodbye of a closing voice session to be heard and the microphone to be released. */
-internal const val START_AFTER_SESSION_MS = 4_500L

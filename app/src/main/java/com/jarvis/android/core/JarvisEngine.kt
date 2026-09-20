@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -151,6 +152,8 @@ class JarvisEngine(
     private var sessionJob: Job? = null
     private var lastActivityAt = 0L
     private val endOfSession = EndOfSession()
+    /** Runs once, when a requested end of session is done and the microphone is free (see [requestEndSession]). */
+    @Volatile private var afterSession: (() -> Unit)? = null
     private val _videoSource = MutableStateFlow(VideoSource.OFF)
 
     /** What the live session currently sees, if anything. */
@@ -175,8 +178,8 @@ class JarvisEngine(
             container.configStore.wakeSensitivity.collect { wakeThreshold = com.jarvis.android.wake.wakeThresholdFor(it) }
         }
         scope.launch {
-            combine(container.configStore.wakeWordEnabled, state) { enabled, s -> enabled to s }
-                .collect { (enabled, s) -> updateWakeDetection(enabled, s) }
+            combine(container.configStore.wakeWordEnabled, state, com.jarvis.android.meetings.MeetingRecorderService.recordingFlow) { enabled, s, recording -> Triple(enabled && !recording, s, recording) }
+                .collect { (enabled, s, _) -> updateWakeDetection(enabled, s) }
         }
     }
 
@@ -241,9 +244,12 @@ class JarvisEngine(
     /**
      * Asks for the session to close once the model has said goodbye (see [EndOfSession]). A timer
      * ends it anyway if the goodbye never completes. False when there is no session to close.
+     * [then] runs as soon as the session is closed and the microphone released, while the voice service is still alive
+     * (Android only lets a microphone service start from the background in that window).
      */
-    fun requestEndSession(): Boolean {
+    fun requestEndSession(then: (() -> Unit)? = null): Boolean {
         if (state.value == JarvisState.ASLEEP || state.value == JarvisState.ERROR) return false
+        afterSession = then
         endOfSession.request()
         scope.launch {
             delay(END_SESSION_TIMEOUT_MS)
@@ -259,6 +265,12 @@ class JarvisEngine(
         delay(END_SESSION_GRACE_MS)
         log(tr("Session terminée à votre demande."))
         stop()
+        val next = afterSession
+        afterSession = null
+        if (next != null) {
+            withTimeoutOrNull(MIC_RELEASE_TIMEOUT_MS) { state.first { it == JarvisState.ASLEEP } }
+            try { next() } catch (e: Exception) { log(trf("Suite de la session impossible : {0}", e.message ?: e.javaClass.simpleName)) }
+        }
         container.releaseVoiceService()
     }
 
@@ -642,6 +654,7 @@ class JarvisEngine(
         const val AUTO_SLEEP_MS = 120_000L
         const val END_SESSION_TIMEOUT_MS = 12_000L
         const val END_SESSION_GRACE_MS = 1_500L
+        const val MIC_RELEASE_TIMEOUT_MS = 3_000L
         const val HANDSHAKE_TIMEOUT_MS = 20_000L
         const val MAX_PENDING_ANNOUNCEMENTS = 5
     }
