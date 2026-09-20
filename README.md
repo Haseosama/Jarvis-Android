@@ -328,6 +328,24 @@ the tools and plugins actually present, whether phone control, the work folder, 
 limits (no sending, paying or typing passwords on its own, no way to confirm a photo or a media key, live view is
 not real time, files only in the work folder). Something switched off is reported as off, with what to enable.
 
+### Weather at your position, plugin catalogue, interface
+
+- **Weather at your position.** `weather_report` no longer needs a city: with none (or "ici", "chez moi"), it reads the phone's
+  approximate position once, resolves the town name with Android's geocoder and asks Open-Meteo for the conditions;
+  with a named city nothing changes. It needs the location permission (Settings → *Position (météo)* → *Autoriser la
+  position*); the position is used for that one request and never stored. Android may refuse location to an app that is
+  not in front, so it is most reliable with Jarvis open; the tool then says how to fix it or asks for a city. Checked
+  on an emulator (position → town → weather, named city unchanged); not on the real phone.
+- **Plugin catalogue.** Settings → *Plugins* lists 11 bundled plugins with an *Installer* button (crypto prices, exchange
+  rates, Wikipedia summary, public holidays, Maps search and directions, YouTube, translation, news, recipes, night and
+  meeting routines). Each is checked like an imported file, and the same files are in `plugins-examples/`.
+  Their web services (CoinGecko, Frankfurter, Wikipedia, Nager.Date) need no key and were called for real while writing them.
+- **Interface.** A hue-driven theme with tinted dark surfaces and a gradient background on every screen; a glowing arc
+  reactor with rings that turn while the assistant is active and a core that swells with its voice; a state pill;
+  chat bubbles (you on the right, Jarvis on the left); a rounded message bar with a send button; and a Settings page made of
+  folding cards with icons (identity and voice open, the rest closed). Checked on an emulator with screenshots of the
+  home screen, the settings, the plugin list, the chat and the error state.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

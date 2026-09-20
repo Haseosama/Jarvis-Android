@@ -42,9 +42,12 @@ fun MemoryScreen(memoryManager: MemoryManager, onBack: () -> Unit) {
     }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Mémoire") },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+                title = { Text("Mémoire", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Retour") } },
             )
         }
@@ -84,12 +87,17 @@ fun MemoryScreen(memoryManager: MemoryManager, onBack: () -> Unit) {
                 if (loaded) {
                     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                         items(rows, key = { it.category + "/" + it.key }) { row ->
-                            Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                            Card(
+                                Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                                shape = MaterialTheme.shapes.large,
+                                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                            ) {
                                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
-                                        Text("${memoryCategoryLabel(row.category)} / ${row.key}", style = MaterialTheme.typography.labelMedium)
+                                        Text("${memoryCategoryLabel(row.category)} / ${row.key}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                         Text(row.value, style = MaterialTheme.typography.bodyMedium)
-                                        Text("Mis à jour le ${row.updated}", style = MaterialTheme.typography.labelSmall)
+                                        Text("Mis à jour le ${row.updated}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     IconButton(enabled = !busy && error == null, onClick = {
                                         busy = true

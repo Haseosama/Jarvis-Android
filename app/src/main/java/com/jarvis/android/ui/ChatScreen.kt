@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -16,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
@@ -92,9 +94,12 @@ fun ChatScreen(
     }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Chat texte") },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+                title = { Text("Chat texte", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") } },
                 actions = {
                     IconButton(
@@ -109,7 +114,7 @@ fun ChatScreen(
             Modifier.fillMaxSize().padding(padding).imePadding().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Modèle : $modelName", style = MaterialTheme.typography.bodySmall)
+            Text("Modèle : $modelName", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f)) {
                 if (messages.isEmpty()) {
                     item {
@@ -119,17 +124,7 @@ fun ChatScreen(
                         )
                     }
                 }
-                items(messages) { message ->
-                    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                        val (label, color) = when (message.role) {
-                            ConversationRole.USER -> "Vous" to MaterialTheme.colorScheme.primary
-                            ConversationRole.ASSISTANT -> "Jarvis" to MaterialTheme.colorScheme.primary
-                            ConversationRole.SYSTEM -> "Système" to MaterialTheme.colorScheme.secondary
-                        }
-                        Text(label, style = MaterialTheme.typography.labelMedium, color = color)
-                        Text(message.text, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
+                items(messages) { message -> MessageBubble(message) }
                 if (sending) {
                     item { Text("Jarvis réfléchit…", style = MaterialTheme.typography.bodySmall) }
                 }
@@ -156,18 +151,19 @@ fun ChatScreen(
             if (confirmPending != null) {
                 ConfirmBanner(confirmPending, onConfirm, onCancelConfirm)
             }
-            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(bottom = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                IconButton(onClick = pickFile, enabled = !sending && stage == VoiceStage.IDLE) {
+                    Icon(Icons.Filled.AttachFile, contentDescription = "Joindre un fichier", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 OutlinedTextField(
                     value = draft,
                     onValueChange = { draft = it.take(MAX_MESSAGE_CHARS); error = null },
-                    label = { Text("Votre message") },
+                    placeholder = { Text("Écrire à Jarvis…") },
+                    shape = MaterialTheme.shapes.extraLarge,
                     maxLines = 4,
                     enabled = !sending && stage == VoiceStage.IDLE,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = pickFile, enabled = !sending && stage == VoiceStage.IDLE) {
-                    Icon(Icons.Filled.AttachFile, contentDescription = "Joindre un fichier")
-                }
                 Spacer(Modifier.width(4.dp))
                 when (stage) {
                     VoiceStage.RECORDING -> {
@@ -192,8 +188,9 @@ fun ChatScreen(
                         },
                     ) { Icon(Icons.Filled.Mic, contentDescription = "Parler") }
                 }
-                Button(
+                androidx.compose.material3.FilledIconButton(
                     enabled = draft.isNotBlank() && !sending && stage == VoiceStage.IDLE,
+                    modifier = Modifier.size(48.dp),
                     onClick = {
                         val text = draft
                         draft = ""
@@ -206,7 +203,7 @@ fun ChatScreen(
                             }
                         }
                     },
-                ) { Text("Envoyer") }
+                ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Envoyer") }
             }
         }
     }

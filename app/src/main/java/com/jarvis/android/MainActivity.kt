@@ -14,6 +14,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
@@ -75,7 +77,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val hue by container.configStore.themeHue.collectAsState(initial = 190f)
             JarvisTheme(hue = hue) {
-              Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+              Box(modifier = Modifier.fillMaxSize().background(com.jarvis.android.ui.theme.jarvisBackdrop(hue))) {
                 val navController = rememberNavController()
                 var hasKey by remember { mutableStateOf(container.configStore.hasApiKey()) }
 

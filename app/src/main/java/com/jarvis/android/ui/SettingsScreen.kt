@@ -8,6 +8,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Hearing
+import androidx.compose.material.icons.filled.Headset
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -152,15 +166,18 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Paramètres") },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+                title = { Text("Paramètres", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") } },
             )
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).imePadding().padding(16.dp).verticalScroll(rememberScrollState())) {
-            Text("Identité", style = MaterialTheme.typography.titleMedium)
+            SettingsCard("Identité", Icons.Filled.Person, initiallyExpanded = true) {
             OutlinedTextField(
                 value = assistantNameField,
                 onValueChange = { assistantNameField = it; scope.launch { configStore.setAssistantName(it) } },
@@ -175,8 +192,8 @@ fun SettingsScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
-            Spacer(Modifier.height(24.dp))
-            Text("Voix", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Voix", Icons.Filled.RecordVoiceOver, initiallyExpanded = true) {
             ExposedDropdownMenuBox(
                 expanded = voiceMenuOpen,
                 onExpandedChange = { voiceMenuOpen = it },
@@ -198,8 +215,8 @@ fun SettingsScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(24.dp))
-            Text("Périphériques audio", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Périphériques audio", Icons.Filled.Headset, initiallyExpanded = false) {
             Text(
                 "Automatique laisse Android choisir. Un périphérique choisi mais débranché est ignoré : Jarvis revient alors au téléphone. Le changement s’applique à la prochaine session ou au prochain enregistrement.",
                 style = MaterialTheme.typography.bodySmall,
@@ -243,8 +260,8 @@ fun SettingsScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(24.dp))
-            Text("Thème", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Apparence", Icons.Filled.Palette, initiallyExpanded = false) {
             Text("Teinte de l’interface", style = MaterialTheme.typography.bodySmall)
             Slider(
                 value = hue,
@@ -252,9 +269,10 @@ fun SettingsScreen(
                 valueRange = 0f..360f,
                 modifier = Modifier.padding(top = 8.dp),
             )
-            Spacer(Modifier.height(24.dp))
+            }
+            SettingsCard("Mot d’activation (« Hey Jarvis »)", Icons.Filled.Hearing, initiallyExpanded = false) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Text("Mot d’activation (« Hey Jarvis »)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Text("Écouter « Hey Jarvis » même quand l’appli est fermée", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                 Switch(checked = wakeWordEnabled, onCheckedChange = { scope.launch { configStore.setWakeWordEnabled(it) } })
             }
             Text(
@@ -306,8 +324,8 @@ fun SettingsScreen(
             wakeMessage?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
-            Spacer(Modifier.height(24.dp))
-            Text("Position (météo)", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Position (météo)", Icons.Filled.LocationOn, initiallyExpanded = false) {
             var locationGranted by remember { mutableStateOf(com.jarvis.android.weather.hasLocationPermission(context0)) }
             val askLocation = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
                 locationGranted = granted || com.jarvis.android.weather.hasLocationPermission(context0)
@@ -328,8 +346,8 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            Spacer(Modifier.height(24.dp))
-            Text("Plugins", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Plugins", Icons.Filled.Extension, initiallyExpanded = false) {
             Text(
                 "Ajoutez des compétences sans code : un fichier JSON décrit un appel web (HTTPS), un lien à ouvrir ou une routine d’outils existants. Jarvis n’exécute jamais de code téléchargé. Voir le README pour le format.",
                 style = MaterialTheme.typography.bodySmall,
@@ -342,8 +360,8 @@ fun SettingsScreen(
             installed.forEach { plugin ->
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                     Column(Modifier.weight(1f)) {
-                        Text(plugin.name, style = MaterialTheme.typography.bodyLarge)
-                        Text(plugin.summary, style = MaterialTheme.typography.bodySmall)
+                        Text(plugin.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(plugin.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     OutlinedButton(onClick = { pluginStore.remove(plugin.name); pluginTick++ }) { Text("Retirer") }
                 }
@@ -354,13 +372,13 @@ fun SettingsScreen(
             catalog.forEach { entry ->
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                     Column(Modifier.weight(1f)) {
-                        Text(entry.name, style = MaterialTheme.typography.bodyLarge)
-                        Text(entry.description, style = MaterialTheme.typography.bodySmall)
+                        Text(entry.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(entry.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (entry.name in installedNames) {
-                        Text("Installé ✓", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 8.dp))
+                        Text("Installé ✓", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp))
                     } else {
-                        OutlinedButton(onClick = {
+                        FilledTonalButton(onClick = {
                             scope.launch {
                                 pluginMessage = withContext(Dispatchers.IO) { pluginStore.install(entry.json) } ?: "« ${entry.name} » installé. Il est actif dès la prochaine session vocale."
                                 pluginTick++
@@ -373,8 +391,8 @@ fun SettingsScreen(
                 Text("Importer un plugin (JSON)")
             }
             pluginMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
-            Spacer(Modifier.height(24.dp))
-            Text("Dossier de travail (fichiers)", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Dossier de travail (fichiers)", Icons.Filled.Folder, initiallyExpanded = false) {
             Text(
                 if (workFolder.isBlank()) "Aucun dossier choisi : Jarvis ne touche à aucun fichier."
                 else "Dossier choisi : ${android.net.Uri.decode(workFolder.substringAfterLast("tree/"))}",
@@ -401,8 +419,8 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            Spacer(Modifier.height(24.dp))
-            Text("Historique des sessions", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Historique des sessions", Icons.Filled.History, initiallyExpanded = false) {
             Text(
                 "Les 30 dernières sessions vocales, avec ce qui les a lancées (mot d’activation ou bouton de l’appli). Gardé sur l’appareil seulement.",
                 style = MaterialTheme.typography.bodySmall,
@@ -423,8 +441,8 @@ fun SettingsScreen(
                     modifier = Modifier.padding(top = 8.dp),
                 ) { Text("Effacer l’historique") }
             }
-            Spacer(Modifier.height(24.dp))
-            Text("Briefing du matin", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Briefing du matin", Icons.Filled.WbSunny, initiallyExpanded = false) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -438,8 +456,8 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            Spacer(Modifier.height(24.dp))
-            Text("Vérifications en arrière-plan", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Vérifications en arrière-plan", Icons.Filled.NotificationsActive, initiallyExpanded = false) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -453,8 +471,8 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            Spacer(Modifier.height(24.dp))
-            Text("Contrôle du téléphone", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Contrôle du téléphone", Icons.Filled.PhoneAndroid, initiallyExpanded = false) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -529,8 +547,8 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
             )
-            Spacer(Modifier.height(24.dp))
-            Text("Options avancées", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Clés API et modèles", Icons.Filled.Key, initiallyExpanded = false) {
             OutlinedTextField(
                 value = modelField,
                 onValueChange = { modelField = it; scope.launch { configStore.setModel(it) } },
@@ -713,8 +731,8 @@ fun SettingsScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(24.dp))
-            Text("Rappels", style = MaterialTheme.typography.titleMedium)
+            }
+            SettingsCard("Rappels", Icons.Filled.Alarm, initiallyExpanded = false) {
             if (reminderFeedback != null) {
                 Text(reminderFeedback!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.height(8.dp))
@@ -782,6 +800,7 @@ fun SettingsScreen(
                         }
                     })
                 }
+            }
             }
             Spacer(Modifier.height(32.dp))
         }
