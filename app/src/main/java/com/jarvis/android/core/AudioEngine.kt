@@ -66,6 +66,7 @@ class AudioEngine(private val context: Context) {
         var thread: Thread? = null
         try {
             check(rec.state == AudioRecord.STATE_INITIALIZED) { "Microphone indisponible." }
+            AudioRoute.input(context)?.let { rec.preferredDevice = it }
             rec.startRecording()
             check(rec.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "Capture impossible." }
             capturing.set(true)
@@ -144,6 +145,7 @@ class AudioEngine(private val context: Context) {
             .build()
         try {
             check(player.state == AudioTrack.STATE_INITIALIZED) { "Lecture audio indisponible." }
+            AudioRoute.output(context)?.let { player.preferredDevice = it }
             player.play()
             track = player
         } catch (e: Exception) {

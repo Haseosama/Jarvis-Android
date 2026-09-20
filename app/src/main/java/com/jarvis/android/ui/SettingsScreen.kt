@@ -59,6 +59,12 @@ fun SettingsScreen(
     var ttsModelField by remember(ttsModel) { mutableStateOf(ttsModel) }
     var apiKeyField by remember { mutableStateOf("") }
     var voiceMenuOpen by remember { mutableStateOf(false) }
+    val inputKey by configStore.audioInputKey.collectAsState(initial = "")
+    val outputKey by configStore.audioOutputKey.collectAsState(initial = "")
+    var inMenuOpen by remember { mutableStateOf(false) }
+    var outMenuOpen by remember { mutableStateOf(false) }
+    var inputs by remember { mutableStateOf(emptyList<com.jarvis.android.core.AudioDeviceChoice>()) }
+    var outputs by remember { mutableStateOf(emptyList<com.jarvis.android.core.AudioDeviceChoice>()) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var testing by remember { mutableStateOf(false) }
     var hasKey by remember { mutableStateOf<Boolean?>(null) }
@@ -146,6 +152,51 @@ fun SettingsScreen(
                             voiceMenuOpen = false
                             scope.launch { configStore.setVoice(v) }
                         })
+                    }
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+            Text("Périphériques audio", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Automatique laisse Android choisir. Un périphérique choisi mais débranché est ignoré : Jarvis revient alors au téléphone. Le changement s’applique à la prochaine session ou au prochain enregistrement.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            ExposedDropdownMenuBox(
+                expanded = inMenuOpen,
+                onExpandedChange = { inMenuOpen = it; if (it) inputs = com.jarvis.android.core.AudioRoute.choices(context, inputs = true) },
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                OutlinedTextField(
+                    value = inputs.firstOrNull { it.key == inputKey }?.label ?: if (inputKey.isBlank()) "Automatique" else "Périphérique absent",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Microphone") },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                )
+                ExposedDropdownMenu(expanded = inMenuOpen, onDismissRequest = { inMenuOpen = false }) {
+                    DropdownMenuItem(text = { Text("Automatique") }, onClick = { inMenuOpen = false; scope.launch { configStore.setAudioInputKey("") } })
+                    inputs.forEach { d ->
+                        DropdownMenuItem(text = { Text(d.label) }, onClick = { inMenuOpen = false; scope.launch { configStore.setAudioInputKey(d.key) } })
+                    }
+                }
+            }
+            ExposedDropdownMenuBox(
+                expanded = outMenuOpen,
+                onExpandedChange = { outMenuOpen = it; if (it) outputs = com.jarvis.android.core.AudioRoute.choices(context, inputs = false) },
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                OutlinedTextField(
+                    value = outputs.firstOrNull { it.key == outputKey }?.label ?: if (outputKey.isBlank()) "Automatique" else "Périphérique absent",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Sortie audio") },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                )
+                ExposedDropdownMenu(expanded = outMenuOpen, onDismissRequest = { outMenuOpen = false }) {
+                    DropdownMenuItem(text = { Text("Automatique") }, onClick = { outMenuOpen = false; scope.launch { configStore.setAudioOutputKey("") } })
+                    outputs.forEach { d ->
+                        DropdownMenuItem(text = { Text(d.label) }, onClick = { outMenuOpen = false; scope.launch { configStore.setAudioOutputKey(d.key) } })
                     }
                 }
             }

@@ -83,6 +83,7 @@ internal class AudioRecorder(private val context: Context) : MicRecorder {
                 .setBufferSizeInBytes(maxOf(min, 8192))
                 .build()
             check(record.state == AudioRecord.STATE_INITIALIZED)
+            com.jarvis.android.core.AudioRoute.input(context)?.let { record.preferredDevice = it }
             val next = Session(record)
             record.startRecording()
             check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING)
@@ -143,6 +144,7 @@ private const val PREBUFFER_BYTES = SPEECH_SAMPLE_RATE * 2 * 3 / 10 // 0.3 s
 
 /** Streams PCM to an [AudioTrack] while it is still being produced, holding audio focus. */
 internal class AudioPlayer(context: Context) : SpeechOutput {
+    private val appContext = context.applicationContext
     private val manager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val lock = Any()
     private var track: AudioTrack? = null
@@ -180,6 +182,7 @@ internal class AudioPlayer(context: Context) : SpeechOutput {
         var started = false
         try {
             check(player.state == AudioTrack.STATE_INITIALIZED)
+            com.jarvis.android.core.AudioRoute.output(appContext)?.let { player.preferredDevice = it }
             manager.requestAudioFocus(focus)
             synchronized(lock) {
                 stopRequested = false
