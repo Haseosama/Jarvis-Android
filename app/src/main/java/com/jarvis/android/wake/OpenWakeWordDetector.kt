@@ -16,12 +16,12 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /** The three TFLite models of openWakeWord, wrapped as the functions [WakePipeline] needs. */
-internal class OpenWakeWordModels(dir: File) : AutoCloseable {
+internal class OpenWakeWordModels(dir: File, classifier: String = WAKE_FILE_CLASSIFIER) : AutoCloseable {
     // XNNPACK cannot prepare the spectrogram model, whose input length is set at run time.
     private val options get() = Interpreter.Options().setUseXNNPACK(false).setNumThreads(1)
     private val mel = Interpreter(load(File(dir, WAKE_FILE_MEL), patchLength = WAKE_CONTEXT + WAKE_CHUNK), options)
     private val emb = Interpreter(load(File(dir, WAKE_FILE_EMBEDDING)), options)
-    private val cls = Interpreter(load(File(dir, WAKE_FILE_CLASSIFIER)), options)
+    private val cls = Interpreter(load(File(dir, classifier)), options)
 
     private fun load(file: File, patchLength: Int? = null): ByteBuffer {
         val bytes = file.readBytes().let { if (patchLength != null) withInputLength(it, patchLength) else it }
@@ -77,6 +77,7 @@ internal class OpenWakeWordModels(dir: File) : AutoCloseable {
 internal class OpenWakeWordDetector(
     private val context: Context,
     private val modelDir: File,
+    private val classifier: String,
     private val threshold: () -> Float,
     private val onDetect: () -> Unit,
 ) : WakeDetector {
@@ -105,7 +106,7 @@ internal class OpenWakeWordDetector(
         var record: AudioRecord? = null
         var models: OpenWakeWordModels? = null
         try {
-            models = OpenWakeWordModels(modelDir)
+            models = OpenWakeWordModels(modelDir, classifier)
             val pipeline = models.pipeline()
             val decision = WakeDecision()
             val min = AudioRecord.getMinBufferSize(16_000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)

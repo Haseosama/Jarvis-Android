@@ -19,10 +19,28 @@ internal const val WAKE_FILE_CLASSIFIER = "hey_jarvis_v0.1.tflite"
 internal const val WAKE_MODEL_BASE = "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/"
 internal const val WAKE_FILE_MAX_BYTES = 5_000_000L
 
+internal const val WAKE_FILE_CUSTOM = "custom_wake.tflite"
+internal const val WAKE_FILE_SELECTED = ".selected"
+
+/** A ready-made openWakeWord phrase the user can pick (same release as the Jarvis model). */
+internal data class WakePreset(val file: String, val label: String)
+
+internal val WAKE_PRESETS = listOf(
+    WakePreset(WAKE_FILE_CLASSIFIER, "« Hey Jarvis »"),
+    WakePreset("alexa_v0.1.tflite", "« Alexa »"),
+    WakePreset("hey_mycroft_v0.1.tflite", "« Hey Mycroft »"),
+    WakePreset("hey_rhasspy_v0.1.tflite", "« Hey Rhasspy »"),
+)
+
 /** The three files, in download order. */
 internal val WAKE_FILES = listOf(WAKE_FILE_MEL, WAKE_FILE_EMBEDDING, WAKE_FILE_CLASSIFIER)
 
 /** True when a model file has a plausible size and the TFLite header ("TFL3" at offset 4). */
+/** A classifier is much smaller than the shared models: only the TFLite header and an upper size are checked. */
+internal fun looksLikeClassifier(bytes: ByteArray): Boolean =
+    bytes.size in 1_000..WAKE_FILE_MAX_BYTES.toInt() &&
+        String(bytes, 4, 4, Charsets.US_ASCII) == "TFL3"
+
 internal fun looksLikeTflite(bytes: ByteArray): Boolean =
     bytes.size in 100_000..WAKE_FILE_MAX_BYTES.toInt() &&
         bytes.size > 8 && String(bytes, 4, 4, Charsets.US_ASCII) == "TFL3"
@@ -31,7 +49,53 @@ internal fun looksLikeTflite(bytes: ByteArray): Boolean =
 internal class WakeModelManager(private val context: Context, private val http: OkHttpClient) {
     val dir: File get() = File(context.filesDir, WAKE_MODEL_DIR)
 
-    fun installed(): Boolean = File(dir, WAKE_MODEL_MARKER).exists() && WAKE_FILES.all { File(dir, it).exists() }
+    /** File name of the classifier in use: a preset, or [WAKE_FILE_CUSTOM]. Defaults to "Hey Jarvis". */
+    fun selected(): String {
+        val name = try { File(dir, WAKE_FILE_SELECTED).readText().trim() } catch (_: Exception) { "" }
+        return if (name.isNotEmpty() && File(dir, name).exists()) name else WAKE_FILE_CLASSIFIER
+    }
+
+    fun select(name: String) {
+        if (File(dir, name).exists()) File(dir, WAKE_FILE_SELECTED).writeText(name)
+    }
+
+    fun label(name: String): String =
+        if (name == WAKE_FILE_CUSTOM) "modèle personnalisé" else WAKE_PRESETS.firstOrNull { it.file == name }?.label ?: name
+
+    fun installed(): Boolean =
+        File(dir, WAKE_MODEL_MARKER).exists() && File(dir, WAKE_FILE_MEL).exists() &&
+            File(dir, WAKE_FILE_EMBEDDING).exists() && File(dir, selected()).exists()
+
+    /** Downloads one preset classifier next to the shared models, then selects it. Null on success. */
+    suspend fun downloadPreset(preset: WakePreset): String? = withContext(Dispatchers.IO) {
+        try {
+            if (!File(dir, WAKE_MODEL_MARKER).exists()) return@withContext "Installez d’abord les modèles de base."
+            if (!File(dir, preset.file).exists()) {
+                val request = Request.Builder().url(WAKE_MODEL_BASE + preset.file).build()
+                http.newBuilder().readTimeout(60, java.util.concurrent.TimeUnit.SECONDS).build().newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@withContext "Téléchargement impossible (HTTP ${response.code})."
+                    val bytes = response.body?.bytes() ?: return@withContext "Téléchargement vide."
+                    if (!looksLikeClassifier(bytes)) return@withContext "Fichier reçu invalide : ce n’est pas un modèle TFLite."
+                    File(dir, preset.file).writeBytes(bytes)
+                }
+            }
+            select(preset.file)
+            null
+        } catch (_: IOException) {
+            "Téléchargement interrompu : vérifiez la connexion."
+        } catch (_: Exception) {
+            "Installation du modèle impossible."
+        }
+    }
+
+    /** Installs a classifier the user trained with openWakeWord (a .tflite file), then selects it. Null on success. */
+    fun importCustom(bytes: ByteArray): String? {
+        if (!File(dir, WAKE_MODEL_MARKER).exists()) return "Installez d’abord les modèles de base."
+        if (!looksLikeClassifier(bytes)) return "Ce fichier n’est pas un modèle TFLite valide."
+        File(dir, WAKE_FILE_CUSTOM).writeBytes(bytes)
+        select(WAKE_FILE_CUSTOM)
+        return null
+    }
 
     fun remove() {
         dir.deleteRecursively()

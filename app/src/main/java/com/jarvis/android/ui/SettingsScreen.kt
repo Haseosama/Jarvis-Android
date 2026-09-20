@@ -102,8 +102,19 @@ fun SettingsScreen(
     var serviceOn by remember { mutableStateOf(false) }
     val wakeManager = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.wakeModel }
     var wakeInstalled by remember { mutableStateOf(wakeManager.installed()) }
-    var wakeProgress by remember { mutableStateOf<Int?>(null) }
+    var wakeSelected by remember { mutableStateOf(wakeManager.selected()) }
     var wakeMessage by remember { mutableStateOf<String?>(null) }
+    val pickWakeModel = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            val bytes = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try { context0.contentResolver.openInputStream(uri)?.use { it.readBytes() } } catch (_: Exception) { null }
+            }
+            wakeMessage = if (bytes == null) "Fichier illisible." else wakeManager.importCustom(bytes)
+            wakeSelected = wakeManager.selected()
+            (context0.applicationContext as com.jarvis.android.JarvisApp).container.engine.refreshWakeDetection()
+        }
+    }
+    var wakeProgress by remember { mutableStateOf<Int?>(null) }
     var assistantNameField by remember(assistantName) { mutableStateOf(assistantName) }
     var userNameField by remember(userName) { mutableStateOf(userName) }
     var modelField by remember(model) { mutableStateOf(model) }
@@ -338,10 +349,46 @@ fun SettingsScreen(
                     onClick = {
                         wakeManager.remove()
                         wakeInstalled = false
+                        wakeSelected = wakeManager.selected()
                         (context0.applicationContext as com.jarvis.android.JarvisApp).container.engine.refreshWakeDetection()
                     },
                     modifier = Modifier.padding(top = 8.dp),
                 ) { Text("Supprimer les modèles") }
+            }
+            if (wakeInstalled) {
+                Text("Phrase d’activation", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                    com.jarvis.android.wake.WAKE_PRESETS.take(2).forEach { preset ->
+                        FilterChip(selected = wakeSelected == preset.file, enabled = wakeProgress == null, label = { Text(preset.label) }, onClick = {
+                            scope.launch {
+                                wakeMessage = wakeManager.downloadPreset(preset)
+                                wakeSelected = wakeManager.selected()
+                                (context0.applicationContext as com.jarvis.android.JarvisApp).container.engine.refreshWakeDetection()
+                            }
+                        })
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                    com.jarvis.android.wake.WAKE_PRESETS.drop(2).forEach { preset ->
+                        FilterChip(selected = wakeSelected == preset.file, enabled = wakeProgress == null, label = { Text(preset.label) }, onClick = {
+                            scope.launch {
+                                wakeMessage = wakeManager.downloadPreset(preset)
+                                wakeSelected = wakeManager.selected()
+                                (context0.applicationContext as com.jarvis.android.JarvisApp).container.engine.refreshWakeDetection()
+                            }
+                        })
+                    }
+                    FilterChip(
+                        selected = wakeSelected == com.jarvis.android.wake.WAKE_FILE_CUSTOM,
+                        label = { Text("Mon modèle") },
+                        onClick = { pickWakeModel.launch(arrayOf("*/*")) },
+                    )
+                }
+                Text(
+                    "Les phrases proposées sont celles fournies par openWakeWord (téléchargées à la demande, environ 200 Ko chacune). Une autre phrase, comme « Debout Jarvis », demande un modèle entraîné exprès : entraînez-le avec le carnet « automatic_model_training » d’openWakeWord (github.com/dscripka/openWakeWord), puis importez le fichier .tflite avec « Mon modèle ». Je n’ai pas pu entraîner ni tester un tel modèle ici. Actuellement : ${wakeManager.label(wakeSelected)}.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
             Text("Sensibilité du mot d’activation", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {

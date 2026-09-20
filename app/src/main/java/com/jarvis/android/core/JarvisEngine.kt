@@ -156,6 +156,7 @@ class JarvisEngine(
     private var videoJob: Job? = null
     private var wakeDetector: WakeDetector? = null
     private var wakeIsOffline = false
+    private var wakeClassifier = ""
     @Volatile private var wakeThreshold = com.jarvis.android.wake.WAKE_THRESHOLD
     private val pendingAnnouncements = ArrayDeque<String>()
     private var resumeHandle: String? = null
@@ -193,14 +194,16 @@ class JarvisEngine(
             return
         }
         val offline = container.wakeModel.installed()
-        if (wakeDetector == null || wakeIsOffline != offline) {
+        val classifier = if (offline) container.wakeModel.selected() else ""
+        if (wakeDetector == null || wakeIsOffline != offline || wakeClassifier != classifier) {
             wakeDetector?.stop()
             wakeDetector = if (offline) {
-                com.jarvis.android.wake.OpenWakeWordDetector(container.appContext, container.wakeModel.dir, { wakeThreshold }) { toggleAwake(SessionTrigger.WAKE_WORD) }
+                com.jarvis.android.wake.OpenWakeWordDetector(container.appContext, container.wakeModel.dir, classifier, { wakeThreshold }) { toggleAwake(SessionTrigger.WAKE_WORD) }
             } else {
                 WakeWordDetector(container.appContext) { toggleAwake(SessionTrigger.WAKE_WORD) }
             }
             wakeIsOffline = offline
+            wakeClassifier = classifier
         }
         val detector = wakeDetector!!
         if (!detector.isAvailable) {

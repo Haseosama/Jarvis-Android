@@ -100,7 +100,7 @@ class WakeWordInstrumentedTest {
     fun theListeningLoopStartsAndStopsCleanlyOnTheRealMicrophone() {
         var detections = 0
         val manager = WakeModelManager(instrumentation.targetContext, OkHttpClient())
-        val detector = OpenWakeWordDetector(instrumentation.targetContext, manager.dir, { wakeThresholdFor(2) }) { detections++ }
+        val detector = OpenWakeWordDetector(instrumentation.targetContext, manager.dir, WAKE_FILE_CLASSIFIER, { wakeThresholdFor(2) }) { detections++ }
         detector.start()
         Thread.sleep(4_000)
         detector.stop()
