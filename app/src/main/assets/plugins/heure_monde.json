@@ -1,0 +1,14 @@
+{
+  "name": "heure_monde",
+  "description": "Donne l'heure actuelle dans un fuseau horaire (source : timeapi.io). Pour « quelle heure est-il à Tokyo ».",
+  "parameters": [
+    {
+      "name": "fuseau",
+      "description": "Fuseau IANA, par exemple Asia/Tokyo, America/New_York, Europe/Paris",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://timeapi.io/api/time/current/zone?timeZone={fuseau}",
+  "result_path": "dateTime"
+}

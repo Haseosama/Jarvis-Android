@@ -504,6 +504,41 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
             }
+            SettingsCard("Sauvegarde de la mémoire", Icons.Filled.Folder, initiallyExpanded = false) {
+            Text(
+                "Enregistre ce que Jarvis sait de vous (identité, préférences, notes, résumés récents) dans un fichier, ou le restaure sur un autre téléphone. Le fichier n’est pas chiffré : gardez-le en lieu sûr. Une restauration remplace la mémoire actuelle.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            val memory = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.memoryManager }
+            var backupMessage by remember { mutableStateOf<String?>(null) }
+            val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { uri ->
+                if (uri != null) scope.launch {
+                    backupMessage = try {
+                        val text = memory.exportJson()
+                        withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            context0.contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray(Charsets.UTF_8)) } ?: error("flux")
+                        }
+                        "Sauvegarde enregistrée."
+                    } catch (_: Exception) {
+                        "Impossible d’écrire la sauvegarde."
+                    }
+                }
+            }
+            val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri != null) scope.launch {
+                    val text = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        try { context0.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } } catch (_: Exception) { null }
+                    }
+                    backupMessage = if (text == null) "Fichier illisible." else memory.importJson(text) ?: "Mémoire restaurée."
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                OutlinedButton(onClick = { exportLauncher.launch("jarvis-memoire.json") }) { Text("Exporter") }
+                OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }) { Text("Restaurer…") }
+            }
+            backupMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
+            }
             SettingsCard("Historique des sessions", Icons.Filled.History, initiallyExpanded = false) {
             Text(
                 "Les 30 dernières sessions vocales, avec ce qui les a lancées (mot d’activation ou bouton de l’appli). Gardé sur l’appareil seulement.",

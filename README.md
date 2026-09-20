@@ -363,6 +363,27 @@ starts the answer again. Changes:
   language on request.
 - Each interruption is written to the activity log ("Interruption détectée…") so the cause can be checked next time.
 
+### Wake phrase, widget, routines, backup
+
+- **Wake phrase.** openWakeWord models are trained for one phrase each, so the text cannot simply be edited.
+  Settings > Wake word offers the ready-made phrases of the openWakeWord release (« Hey Jarvis », « Alexa »,
+  « Hey Mycroft », « Hey Rhasspy », downloaded on demand) and **Mon modèle**, which imports a `.tflite` classifier
+  you trained yourself (for example « Debout Jarvis », with openWakeWord's `automatic_model_training` notebook).
+  Not done here: training a « Debout Jarvis » model, and testing an imported model. Only the file header and size
+  are checked on import.
+- **Home screen.** A "Parler à Jarvis" widget and a long-press launcher shortcut open the app and start a session.
+  Checked on the emulator: the widget receiver is registered and the shortcut is published; the tap itself was not tried.
+- **Routines.** "Chaque matin à 7 h, donne-moi la météo": the `routine` tool stores a daily task (optional weekdays).
+  A WorkManager job (15-minute granularity, so it can be late, and Android may delay it further in battery saving)
+  runs it as a background task (same tools as the agent mode) and posts the result as a notification. A run more than
+  3 hours late is skipped. Checked: creating and listing on the emulator, and the due-time logic in unit tests; a real
+  scheduled run was not observed.
+- **Chat summaries.** Resetting the text chat now keeps a one-line memory of it (if it had at least the same number
+  of turns as a voice session) for the morning briefing.
+- **Memory backup.** Settings > Sauvegarde de la mémoire exports the memory to a JSON file and restores it.
+  The file is not encrypted.
+- **Plugins.** New examples: `musique_recherche`, `agenda_evenement`, `heure_monde`, `mode_voiture`.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`
@@ -421,6 +442,5 @@ from the old encrypted preferences), because it works on the app's real files.
 ## Known gaps / next steps
 
 - The wake word and the video streaming have not been checked with a real voice or a real Live session.
-- Session summaries are only made for voice sessions; the text chat is not summarized.
 - Desktop-only features (mouse/keyboard automation, game updaters, the remote dashboard) have no Android
   equivalent and are not planned.

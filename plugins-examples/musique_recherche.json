@@ -1,0 +1,13 @@
+{
+  "name": "musique_recherche",
+  "description": "Ouvre Spotify sur une recherche de morceau, d'artiste ou de playlist. Pour « mets du jazz », « joue Daft Punk ».",
+  "parameters": [
+    {
+      "name": "recherche",
+      "description": "Morceau, artiste ou style",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://open.spotify.com/search/{recherche}"
+}

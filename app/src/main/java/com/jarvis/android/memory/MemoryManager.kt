@@ -357,6 +357,25 @@ class MemoryManager(private val file: File) {
         saveLocked(store, null)
     }
 
+    /** The whole memory as JSON text, for a backup file. */
+    suspend fun exportJson(): String = mutex.withLock { json.encodeToString(loadLocked()) }
+
+    /** Replaces the memory with a backup. Returns null on success, otherwise why the file was refused (nothing is changed). */
+    suspend fun importJson(text: String): String? = mutex.withLock {
+        if (text.length > memoryMaxChars) return@withLock "Sauvegarde trop volumineuse."
+        val store = try {
+            json.decodeFromString(MemoryStore.serializer(), text)
+        } catch (_: Exception) {
+            return@withLock "Ce fichier n’est pas une sauvegarde de mémoire Jarvis."
+        }
+        try {
+            saveLocked(store, null)
+            null
+        } catch (e: IOException) {
+            e.message ?: "Écriture impossible."
+        }
+    }
+
     suspend fun peekLastSession(): SessionEntry? = mutex.withLock { loadLocked().sessions.lastOrNull() }
 
     suspend fun popLastSession(): SessionEntry? = mutex.withLock {

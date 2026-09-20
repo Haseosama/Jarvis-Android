@@ -1,0 +1,27 @@
+{
+  "name": "mode_voiture",
+  "description": "Prépare le téléphone pour conduire : monte le volume puis ouvre Google Maps. À utiliser pour « mode voiture » ou « je prends la route ».",
+  "parameters": [
+    {
+      "name": "volume",
+      "description": "Volume en pourcentage (0 à 100)",
+      "required": false
+    }
+  ],
+  "type": "routine",
+  "steps": [
+    {
+      "tool": "device_settings",
+      "args": {
+        "action": "set_volume",
+        "value": "{volume}"
+      }
+    },
+    {
+      "tool": "open_app",
+      "args": {
+        "app_name": "Maps"
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "agenda_evenement",
+  "description": "Ouvre Google Agenda avec un nouvel événement prérempli (titre et lieu). L'utilisateur choisit la date et valide. Pour « ajoute un rendez-vous ».",
+  "parameters": [
+    {
+      "name": "titre",
+      "description": "Titre de l'événement",
+      "required": true
+    },
+    {
+      "name": "lieu",
+      "description": "Lieu (facultatif)",
+      "required": false
+    }
+  ],
+  "type": "open",
+  "url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text={titre}&location={lieu}"
+}

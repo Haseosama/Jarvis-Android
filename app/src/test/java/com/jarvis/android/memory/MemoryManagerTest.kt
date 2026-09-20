@@ -199,4 +199,22 @@ class MemoryManagerTest {
         } catch (_: IOException) {
         }
     }
+
+    @Test
+    fun `backup exports and restores on another manager`() = runBlocking {
+        val source = MemoryManager(File(temporary.root, "a.json"))
+        source.remember("ville", "Lyon", "identity")
+        val text = source.exportJson()
+        val target = MemoryManager(File(temporary.root, "b.json"))
+        assertEquals(null, target.importJson(text))
+        assertEquals("Lyon", target.load().identity.getValue("ville").value)
+    }
+
+    @Test
+    fun `a bad backup is refused and changes nothing`() = runBlocking {
+        val memory = MemoryManager(file())
+        memory.remember("ville", "Paris", "identity")
+        assertTrue(memory.importJson("pas du json")!!.isNotBlank())
+        assertEquals("Paris", memory.load().identity.getValue("ville").value)
+    }
 }
