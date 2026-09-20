@@ -473,28 +473,24 @@ starts the answer again. Changes:
 
 The centre of the main screen shows an animated human head instead of the reactor core (Settings > Appearance turns it off).
 It is an Android adaptation of the avatar of [Mark-LIV](https://github.com/FatihMakes/Mark-LIV) by FatihMakes. **That
-work is licensed CC BY-NC 4.0: this avatar, and any app that includes it, may not be used commercially.** The face geometry is
-MediaPipe's canonical face model (Apache-2.0). Details and credits: `app/src/main/assets/avatar/NOTICE.txt`; the credit is
+work is licensed CC BY-NC 4.0: this avatar, and any app that includes it, may not be used commercially.** The head is a real 3D head scan
+("Infinite, 3D Head Scan" by Lee Perry-Smith, CC BY 3.0; the eyes and lips are placed with MediaPipe's face landmarks, Apache-2.0). Details and credits: `app/src/main/assets/avatar/NOTICE.txt`; the credit is
 also shown in the settings.
 
-- **Face.** Real measured face geometry (468 vertices) with a cranium and a neck built around it, run once through Mark-LIV's
-  generator, subdivided once with a curved (PN-style) midpoint rule so the surface and the silhouette are smooth, and stored as
-  a 900 KB asset (`head_mesh.bin`; the script that builds it, `tools/avatar/export_head.py`, is not part of the app). About 8,000 triangles, drawn on Android's
-  canvas: no OpenGL, no extra library.
-- **Head shape.** After a third reference photo the head is reshaped by `tools/avatar/export_head.py`: longer and narrower (about 0.6 as
-  wide as tall), straight sides down to a square jaw, a broad flat chin, a flatter and broader crown, a brow ridge and a slightly
-  stronger nose, plus an ear on each side (a bowl with a raised rim and a lobe). It is still the MediaPipe mask underneath: no
-  teeth, no eyelashes, a generic face; a photo-real head would need a scanned model, which this project does not include.
+- **Face.** A real human head scan (ears, nose, lips, jaw and neck included), resampled to about 8,500 vertices, normalised and
+  cut at the neck, then rigged (jaw, brow and lip weights, eye and mouth rings laid on its surface, ambient occlusion, a hair
+  shell with 700 strands and 56 fringe locks, circuit traces) by `tools/avatar/export_head.py` and stored as a 1.3 MB asset
+  (`head_mesh.bin`; the script is not part of the app). About 18,000 triangles, drawn on Android's canvas: no OpenGL, no library.
+  It replaced an earlier reshaped MediaPipe mask after reference photos showed a more natural head shape was wanted.
 - **Smooth shading.** Mark-LIV lit each facet flat; here each vertex is lit from normals rebuilt every frame on the posed
   geometry (so the lips and jaw relight as they move), and the triangles blend the colours. Structure lines (creases and
   silhouette) keep the anatomy readable.
-- **Four looks** (Settings > Appearance > Style du visage). *Réseau* (default) is a near-black head made of a web of fine glowing lines
-  and bright nodes (denser at the contour, the nose, the lips and the eye sockets), with two glowing eyes and glowing lips, after a
+- **Four looks** (Settings > Appearance > Style du visage). *Réseau* (default) is a near-black head made of an even web of fine glowing lines
+  joining about 2,000 bright nodes spread over the scan (closer together on the eyes, nose, lips and ears, brighter at the contour), with two glowing eyes and glowing lips, after a
   reference image the user supplied. *Cyber* is an android after another reference image the
   user supplied (glossy blue skin under a translucent violet cranial shell, neon circuit traces, a glowing forehead chip, a glowing
   outline along the jaw and the edge of the shell, luminous eyes, a mouth that lights up with small bars while it speaks, a ribbed
-  neck, an armoured collar, and a circuit-board backdrop with pulses of light); the face is reshaped from Mark-LIV's human mask
-  (narrower jaw, longer chin, higher cheekbones, slimmer nose) but it is still that mask, not a copy of the picture. *Realistic*
+  neck, an armoured collar, and a circuit-board backdrop with pulses of light); the face is the scanned head, not a copy of the picture. *Realistic*
   is a lit, skin-toned head with real eyes, coloured lips, teeth, brows, a shirt and hair (a hair shell plus 700 strands in three
   tones and 56 fringe locks; skin tone, hair colour and eye colour are settings). *Hologram* is the original blue look.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and

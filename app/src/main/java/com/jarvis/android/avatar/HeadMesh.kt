@@ -36,6 +36,8 @@ internal class HeadMesh(
     val hairVertexCount: Int,
     val crown: Float,
     val bottom: Float,
+    val netNodes: IntArray = IntArray(0),  // vertices spread evenly over the head: the nodes of the network look
+    val netEdges: IntArray = IntArray(0),  // pairs of positions in [netNodes] joined by a line
 ) {
     /** Index of the first circuit point: they come right after the strand points. */
     val circuitBase: Int get() = strandBase + strandCount * strandLength
@@ -92,12 +94,14 @@ internal class HeadMesh(
             val circuits = b.int
             val circuitLen = b.int
             val bright = b.int
+            val netNodes = ints(b.int)
+            val netEdges = ints(b.int * 2)
             require(faces.all { it in 0 until nv }) { "Mesh indices out of range" }
             require(landmarks.values.all { ring -> ring.all { it in 0 until nv } }) { "Landmark index out of range" }
             require(strandBase + nStrands * strandLen + circuits * circuitLen == nv && nBase + nHair == strandBase) { "Inconsistent hair layout" }
             return HeadMesh(
                 verts, normals, jaw, brow, lips, fade, ao, group, faces, landmarks, lipCentre,
-                nBase, nFace, nStrands, fringe, strandLen, circuits, circuitLen, bright, strandBase, nBase, nHair, crown, bottom,
+                nBase, nFace, nStrands, fringe, strandLen, circuits, circuitLen, bright, strandBase, nBase, nHair, crown, bottom, netNodes, netEdges,
             )
         }
     }
