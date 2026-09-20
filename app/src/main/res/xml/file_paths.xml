@@ -3,4 +3,5 @@
 <paths>
     <external-files-path name="documents" path="Documents/Jarvis/" />
     <files-path name="meetings" path="meetings/" />
+    <cache-path name="updates" path="updates/" />
 </paths>

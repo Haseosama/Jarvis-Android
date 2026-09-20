@@ -7,11 +7,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Mail
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -28,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.jarvis.android.JarvisApp
 import com.jarvis.android.docs.DocumentStore
 import com.jarvis.android.google.GoogleConnectActivity
 import com.jarvis.android.i18n.tr
@@ -35,6 +39,9 @@ import com.jarvis.android.i18n.trf
 import com.jarvis.android.meetings.MeetingRecorderService
 import com.jarvis.android.meetings.listNotes
 import com.jarvis.android.memory.ConfigStore
+import com.jarvis.android.update.AppUpdater
+import com.jarvis.android.update.ReleaseInfo
+import com.jarvis.android.update.UpdateCheck
 import com.jarvis.android.watch.Watch
 import com.jarvis.android.watch.WatchScheduler
 import com.jarvis.android.watch.title
@@ -149,5 +156,66 @@ internal fun GoogleCard(configStore: ConfigStore) {
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 6.dp),
         )
+    }
+}
+
+/** Look for a newer version on the GitHub releases of the project, download it and hand it to Android's installer. */
+@Composable
+internal fun UpdateCard() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val updater = remember { AppUpdater(context, (context.applicationContext as JarvisApp).container.http) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var available by remember { mutableStateOf<ReleaseInfo?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var progress by remember { mutableStateOf<Float?>(null) }
+    SettingsCard(tr("Mise à jour"), Icons.Filled.SystemUpdate, initiallyExpanded = false) {
+        Text(
+            trf("Version installée : {0}", updater.installedVersion()),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        Text(
+            trf("Jarvis cherche les nouvelles versions parmi les publications GitHub du projet ({0}). Android demandera de confirmer l’installation, et la mise à jour garde vos réglages et votre mémoire.", AppUpdater.REPO),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+            OutlinedButton(enabled = !busy, onClick = {
+                busy = true
+                message = tr("Recherche en cours…")
+                scope.launch {
+                    when (val result = updater.check()) {
+                        is UpdateCheck.Available -> { available = result.release; message = trf("Version {0} disponible.", result.release.version) }
+                        UpdateCheck.UpToDate -> { available = null; message = tr("Jarvis est à jour.") }
+                        is UpdateCheck.Failed -> { available = null; message = result.reason }
+                    }
+                    busy = false
+                }
+            }) { Text(tr("Rechercher une mise à jour")) }
+            available?.let { release ->
+                OutlinedButton(enabled = !busy, onClick = {
+                    busy = true
+                    progress = 0f
+                    message = tr("Téléchargement en cours…")
+                    scope.launch {
+                        updater.download(release) { progress = it }.fold(
+                            onSuccess = { apk ->
+                                message = if (updater.install(apk)) tr("Confirmez l’installation dans la fenêtre d’Android.")
+                                else tr("Autorisez d’abord Jarvis à installer des applications, puis touchez de nouveau le bouton.")
+                            },
+                            onFailure = { message = it.message },
+                        )
+                        progress = null
+                        busy = false
+                    }
+                }) { Text(tr("Télécharger et installer")) }
+            }
+        }
+        progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) }
+        message?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp)) }
+        available?.notes?.takeIf { it.isNotBlank() }?.let {
+            Text(it.take(600), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+        }
     }
 }

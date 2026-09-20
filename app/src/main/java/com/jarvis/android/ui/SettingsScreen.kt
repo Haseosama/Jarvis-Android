@@ -694,6 +694,7 @@ fun SettingsScreen(
             MeetingNotesCard()
             WatchesCard()
             GoogleCard(configStore)
+            UpdateCard()
             SettingsCard(tr("Sauvegarde de la mémoire"), Icons.Filled.Folder, initiallyExpanded = false) {
             Text(
                 tr("Enregistre ce que Jarvis sait de vous (identité, préférences, notes, résumés récents) dans un fichier, ou le restaure sur un autre téléphone. Le fichier n’est pas chiffré : gardez-le en lieu sûr. Une restauration remplace la mémoire actuelle."),
