@@ -11,6 +11,8 @@ the text-to-viseme table and the audio formant analysis that drive the lip-sync.
 Changed or added here: Kotlin port, drawing on Android's canvas, a lip-sync clock tied to what the speaker plays,
 rim light, scan lines, lids that follow the assistant's state.
 
-The face geometry inside head_mesh.bin comes from MediaPipe's canonical face model
-(https://github.com/google-ai-edge/mediapipe), Apache License 2.0,
-Copyright 2019-2023 The MediaPipe Authors.
+The head geometry inside head_mesh.bin comes from "Infinite, 3D Head Scan" by Lee Perry-Smith (Infinite Realities,
+https://triplegangers.com), Creative Commons Attribution 3.0 (https://creativecommons.org/licenses/by/3.0/), as shipped with the
+three.js examples (https://github.com/mrdoob/three.js). It was resampled, normalised, cut at the neck and rigged by
+tools/avatar/export_head.py; the eyes and lips are placed with the landmark positions of MediaPipe's canonical face model
+(https://github.com/google-ai-edge/mediapipe), Apache License 2.0, Copyright 2019-2023 The MediaPipe Authors.

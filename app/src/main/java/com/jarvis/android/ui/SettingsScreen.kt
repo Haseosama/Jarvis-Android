@@ -333,7 +333,7 @@ fun SettingsScreen(
                 Switch(checked = faceOn, onCheckedChange = { scope.launch { configStore.setAvatarFace(it) } })
             }
             Text(
-                tr("Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; géométrie du visage : MediaPipe (Apache-2.0)."),
+                tr("Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; tête : scan de Lee Perry-Smith (CC BY 3.0) ; repères du visage : MediaPipe (Apache-2.0)."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(bottom = 8.dp),
             )

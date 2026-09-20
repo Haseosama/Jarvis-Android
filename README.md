@@ -473,8 +473,7 @@ starts the answer again. Changes:
 
 The centre of the main screen shows an animated human head instead of the reactor core (Settings > Appearance turns it off).
 It is an Android adaptation of the avatar of [Mark-LIV](https://github.com/FatihMakes/Mark-LIV) by FatihMakes. **That
-work is licensed CC BY-NC 4.0: this avatar, and any app that includes it, may not be used commercially.** The face geometry is
-MediaPipe's canonical face model (Apache-2.0). Details and credits: `app/src/main/assets/avatar/NOTICE.txt`; the credit is
+work is licensed CC BY-NC 4.0: this avatar, and any app that includes it, may not be used commercially.** The head is a 3D head scan by Lee Perry-Smith (CC BY 3.0) and the face landmarks are MediaPipe's (Apache-2.0). Details and credits: `app/src/main/assets/avatar/NOTICE.txt`; the credit is
 also shown in the settings.
 
 - **Face.** Real measured face geometry (468 vertices) with a cranium and a neck built around it, run once through Mark-LIV's
@@ -486,7 +485,9 @@ also shown in the settings.
   2,800 nodes spread evenly over the mesh (closer together round the eyes and mouth, brighter towards the contour, with a slow
   twinkle) joined to their nearest neighbours by fine lines, in the interface colour. The nodes sit on the mesh's triangles by
   barycentric weights, so the web follows the jaw and the head pose. The eyes are dark openings with a faint iris. The geometry
-  is still Mark-LIV's (no ears).
+  is a real human head scan ("Infinite, 3D Head Scan" by Lee Perry-Smith, CC BY 3.0) with ears, nose, lips, jaw and neck, rigged
+  for the jaw, brows and lips by `tools/avatar/export_head.py` and stored in `head_mesh.bin`; the eyes and lips are placed with
+  MediaPipe's face landmarks. The animation and lip-sync are Mark-LIV's.
 - **Expression.** Brows follow the phrase, the gaze flicks between points, blinks, idle sway; the face looks away while thinking,
   meets your eyes while listening and lowers its lids while asleep.
 - **Changed from the original.** Structure lines (creases and silhouette) replace the arbitrary third of edges it drew;
