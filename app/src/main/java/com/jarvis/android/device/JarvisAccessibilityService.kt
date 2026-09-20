@@ -270,6 +270,8 @@ class JarvisAccessibilityService : AccessibilityService() {
             "recents" -> GLOBAL_ACTION_RECENTS
             "notifications" -> GLOBAL_ACTION_NOTIFICATIONS
             "quick_settings" -> GLOBAL_ACTION_QUICK_SETTINGS
+            "lock_screen" -> GLOBAL_ACTION_LOCK_SCREEN
+            "take_screenshot" -> GLOBAL_ACTION_TAKE_SCREENSHOT
             else -> return ActionResult.Failed("Action inconnue.")
         }
         return if (performGlobalAction(code)) ActionResult.Done else ActionResult.Failed("Action refusée par le système.")
