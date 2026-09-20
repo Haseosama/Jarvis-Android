@@ -64,6 +64,9 @@ fun SettingsScreen(
     val wakeWordEnabled by configStore.wakeWordEnabled.collectAsState(initial = false)
     val deviceControl by configStore.deviceControlEnabled.collectAsState(initial = true)
     val briefingOn by configStore.briefingEnabled.collectAsState(initial = true)
+    val muteWhileSpeaking by configStore.muteMicWhileSpeaking.collectAsState(initial = true)
+    val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
+    var langMenuOpen by remember { mutableStateOf(false) }
     val workFolder by configStore.workFolder.collectAsState(initial = "")
     val pluginStore = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.pluginStore }
     var pluginTick by remember { mutableStateOf(0) }
@@ -214,6 +217,40 @@ fun SettingsScreen(
                         })
                     }
                 }
+            }
+            val languages = listOf("" to "Automatique (peut changer sur demande)", "fr-FR" to "Français", "en-US" to "English", "fil-PH" to "Filipino")
+            ExposedDropdownMenuBox(
+                expanded = langMenuOpen,
+                onExpandedChange = { langMenuOpen = it },
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                OutlinedTextField(
+                    value = languages.firstOrNull { it.first == speechLanguage }?.second ?: speechLanguage,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Langue de la voix") },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                )
+                ExposedDropdownMenu(expanded = langMenuOpen, onDismissRequest = { langMenuOpen = false }) {
+                    languages.forEach { (code, label) ->
+                        DropdownMenuItem(text = { Text(label) }, onClick = {
+                            langMenuOpen = false
+                            scope.launch { configStore.setSpeechLanguage(code) }
+                        })
+                    }
+                }
+            }
+            Text(
+                "Fixer la langue garde un accent stable, mais Jarvis ne pourra plus passer à une autre langue sur demande. S’applique à la prochaine session.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                Text(
+                    "Couper le micro pendant que Jarvis parle (haut-parleur). Évite qu’il s’interrompe à cause de son propre écho ; avec un casque, vous pouvez toujours l’interrompre.",
+                    style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
+                )
+                Switch(checked = muteWhileSpeaking, onCheckedChange = { scope.launch { configStore.setMuteMicWhileSpeaking(it) } })
             }
             }
             SettingsCard("Périphériques audio", Icons.Filled.Headset, initiallyExpanded = false) {

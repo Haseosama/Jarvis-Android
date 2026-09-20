@@ -41,6 +41,8 @@ class GeminiLiveClient(
         toolDeclarations: List<JsonObject>,
         voiceName: String,
         resumeHandle: String?,
+        languageCode: String? = null,
+        tuneSpeechDetection: Boolean = false,
     ): Flow<LiveEvent> = callbackFlow {
         val request = Request.Builder()
             .url("${LiveProtocol.ENDPOINT}?key=$apiKey")
@@ -54,6 +56,8 @@ class GeminiLiveClient(
                     toolDeclarations = toolDeclarations,
                     voiceName = voiceName,
                     resumeHandle = resumeHandle,
+                    languageCode = languageCode,
+                    tuneSpeechDetection = tuneSpeechDetection,
                 )
                 synchronized(lock) {
                     if (!closed) webSocket.send(setup.toString())

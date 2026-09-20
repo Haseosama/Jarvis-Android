@@ -346,6 +346,23 @@ not real time, files only in the work folder). Something switched off is reporte
   folding cards with icons (identity and voice open, the rest closed). Checked on an emulator with screenshots of the
   home screen, the settings, the plugin list, the chat and the error state.
 
+### Sentence cut off and repeated (echo)
+
+Symptom reported: Jarvis stops in the middle of a sentence and says it again, sometimes with a different voice.
+Probable cause (inferred from the code and the audio state of the phone, **not reproduced on a device**): on the
+loudspeaker his own voice re-enters the microphone, the server detects "speech", sends `interrupted`, and the model
+starts the answer again. Changes:
+
+- The microphone recording now enables the phone's acoustic echo canceller and noise suppressor when available.
+- Voice-activity detection is made less sensitive in the setup message (`realtimeInputConfig`). If the server rejects
+  it (close code 1007) the session retries once without it.
+- While Jarvis speaks on the phone's loudspeaker the app sends silence instead of the microphone signal (half-duplex),
+  so he cannot be interrupted by voice in that case. Headset, Bluetooth and USB audio are not affected. Switch it
+  off in Settings > Voice.
+- Settings > Voice > "Langue de la voix" can pin the language (fixed accent); automatic keeps the ability to switch
+  language on request.
+- Each interruption is written to the activity log ("Interruption détectée…") so the cause can be checked next time.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

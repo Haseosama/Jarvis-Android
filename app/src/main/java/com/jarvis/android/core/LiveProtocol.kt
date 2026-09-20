@@ -27,14 +27,17 @@ object LiveProtocol {
         toolDeclarations: List<JsonObject>,
         voiceName: String,
         resumeHandle: String?,
+        languageCode: String? = null,
+        tuneSpeechDetection: Boolean = false,
     ): JsonObject = buildJsonObject {
         put("setup", buildJsonObject {
             put("model", model)
             put("generationConfig", buildJsonObject {
                 putJsonArray("responseModalities") { add("AUDIO") }
                 put("speechConfig", buildJsonObject {
-                    // No languageCode: it would pin the voice to one language, and the assistant must be
-                    // able to switch to English or Tagalog on request (the system prompt sets French by default).
+                    // Pinned only when the user asks for it in the settings: a fixed language keeps the accent
+                    // steady, but it stops the assistant from switching language on request.
+                    if (!languageCode.isNullOrBlank()) put("languageCode", languageCode)
                     put("voiceConfig", buildJsonObject {
                         put("prebuiltVoiceConfig", buildJsonObject {
                             put("voiceName", voiceName)
@@ -55,6 +58,17 @@ object LiveProtocol {
                         }
                     }
                 }
+            }
+            if (tuneSpeechDetection) {
+                // Less trigger-happy voice detection: a cough or the assistant's own echo should not cut its sentence.
+                put("realtimeInputConfig", buildJsonObject {
+                    put("automaticActivityDetection", buildJsonObject {
+                        put("startOfSpeechSensitivity", "START_SENSITIVITY_LOW")
+                        put("endOfSpeechSensitivity", "END_SENSITIVITY_LOW")
+                        put("prefixPaddingMs", 120)
+                        put("silenceDurationMs", 800)
+                    })
+                })
             }
             put("outputAudioTranscription", buildJsonObject {})
             put("inputAudioTranscription", buildJsonObject {})

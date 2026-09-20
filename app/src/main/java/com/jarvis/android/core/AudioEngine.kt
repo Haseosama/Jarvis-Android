@@ -64,8 +64,17 @@ class AudioEngine(private val context: Context) {
         )
         val capturing = AtomicBoolean(false)
         var thread: Thread? = null
+        val effects = mutableListOf<android.media.audiofx.AudioEffect>()
         try {
             check(rec.state == AudioRecord.STATE_INITIALIZED) { "Microphone indisponible." }
+            // The phone's own echo canceller and noise suppressor: without them the assistant's voice from the
+            // speaker re-enters the microphone and the server takes it for the user speaking.
+            if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) {
+                android.media.audiofx.AcousticEchoCanceler.create(rec.audioSessionId)?.also { it.enabled = true; effects += it }
+            }
+            if (android.media.audiofx.NoiseSuppressor.isAvailable()) {
+                android.media.audiofx.NoiseSuppressor.create(rec.audioSessionId)?.also { it.enabled = true; effects += it }
+            }
             AudioRoute.input(context)?.let { rec.preferredDevice = it }
             rec.startRecording()
             check(rec.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "Capture impossible." }
@@ -98,6 +107,7 @@ class AudioEngine(private val context: Context) {
                     if (rec.recordingState == AudioRecord.RECORDSTATE_RECORDING) rec.stop()
                 } catch (_: Exception) {
                 } finally {
+                    effects.forEach { try { it.release() } catch (_: Exception) {} }
                     rec.release()
                 }
             }
@@ -165,8 +175,36 @@ class AudioEngine(private val context: Context) {
         focusRequest = null
     }
 
+    /** Wall-clock time (elapsedRealtime) until which queued speech is still coming out of the speaker. */
+    @Volatile private var playingUntil = 0L
+
+    /** True while the assistant's voice is audible, with a short tail for the room's echo. */
+    fun isPlaybackActive(): Boolean = android.os.SystemClock.elapsedRealtime() < playingUntil + ECHO_TAIL_MS
+
+    /** True when the assistant's voice comes out of the phone's loudspeaker (no headset, Bluetooth or USB audio). */
+    fun playsOnLoudspeaker(): Boolean {
+        val outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        val chosen = AudioRoute.output(context)
+        if (chosen != null) return chosen.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+        return outputs.none { isPrivateOutput(it.type) }
+    }
+
+    private fun isPrivateOutput(type: Int) = when (type) {
+        android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET,
+        android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+        android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+        android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+        android.media.AudioDeviceInfo.TYPE_USB_HEADSET,
+        android.media.AudioDeviceInfo.TYPE_BLE_HEADSET,
+        android.media.AudioDeviceInfo.TYPE_HEARING_AID -> true
+        else -> false
+    }
+
     suspend fun playChunk(pcm16: ByteArray) {
         val player = synchronized(playbackLock) { track } ?: return
+        val now = android.os.SystemClock.elapsedRealtime()
+        val chunkMs = pcm16.size * 1000L / (2 * LiveProtocol.RECEIVE_SAMPLE_RATE)
+        playingUntil = maxOf(playingUntil, now) + chunkMs
         var offset = 0
         while (offset < pcm16.size) {
             currentCoroutineContext().ensureActive()
@@ -180,6 +218,7 @@ class AudioEngine(private val context: Context) {
     }
 
     fun flushPlayback() = synchronized(playbackLock) {
+        playingUntil = 0L
         track?.let {
             it.pause()
             it.flush()
@@ -188,6 +227,7 @@ class AudioEngine(private val context: Context) {
     }
 
     fun stopPlayback() = synchronized(playbackLock) {
+        playingUntil = 0L
         val player = track ?: return@synchronized
         track = null
         try {
@@ -202,5 +242,9 @@ class AudioEngine(private val context: Context) {
 
     fun isSpeaking(): Boolean = synchronized(playbackLock) {
         track?.playState == AudioTrack.PLAYSTATE_PLAYING
+    }
+
+    private companion object {
+        const val ECHO_TAIL_MS = 350L
     }
 }

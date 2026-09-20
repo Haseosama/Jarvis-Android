@@ -440,14 +440,23 @@ class JarvisEngine(
             val instruction = withContext(Dispatchers.IO) { buildSystemInstruction(container) }
             currentCoroutineContext().ensureActive()
 
+            val language = container.configStore.speechLanguage.first()
+            val muteWhileSpeaking = container.configStore.muteMicWhileSpeaking.first()
             resumeHandle = null
             var handleToSend: String? = null
             var consecutiveDrops = 0
+            var tuneDetection = true
             while (true) {
                 val drop = try {
-                    runConnection(apiKey, model, voice, instruction, handleToSend)
+                    runConnection(apiKey, model, voice, instruction, handleToSend, language.ifBlank { null }, tuneDetection, muteWhileSpeaking)
                 } catch (d: ConnectionDropped) {
                     d
+                }
+                if (tuneDetection && !drop.wasReady && drop.detail.contains("(1007)")) {
+                    // The server refused the setup: most likely the voice-detection tuning. Retry once without it.
+                    tuneDetection = false
+                    log("Réglage de détection vocale refusé par le serveur : nouvel essai sans.")
+                    continue
                 }
                 when (
                     val decision = decideReconnect(
@@ -500,6 +509,9 @@ class JarvisEngine(
         voice: String,
         instruction: String,
         handle: String?,
+        languageCode: String?,
+        tuneDetection: Boolean,
+        muteWhileSpeaking: Boolean,
     ): Nothing {
         connectionReadyAt = 0L
         val connection = GeminiLiveClient(apiKey)
@@ -515,7 +527,7 @@ class JarvisEngine(
                         throw dropped("Délai de connexion dépassé.")
                     }
                 }
-                connection.connect(model, instruction, ToolRegistry.declarations(), voice, handle)
+                connection.connect(model, instruction, ToolRegistry.declarations(), voice, handle, languageCode, tuneDetection)
                     .collect { event ->
                         currentCoroutineContext().ensureActive()
                         when (event) {
@@ -538,7 +550,10 @@ class JarvisEngine(
                                 launch(Dispatchers.IO) {
                                     audio.micFrames().collect { frame ->
                                         currentCoroutineContext().ensureActive()
-                                        if (!connection.sendAudio(frame)) throw dropped("Envoi audio interrompu.")
+                                        // Half-duplex on the loudspeaker: while Jarvis talks, send silence so his own
+                                        // voice cannot make the server think we interrupted him.
+                                        val out = if (muteWhileSpeaking && audio.isPlaybackActive() && audio.playsOnLoudspeaker()) ByteArray(frame.size) else frame
+                                        if (!connection.sendAudio(out)) throw dropped("Envoi audio interrompu.")
                                     }
                                 }
                                 launch {
@@ -592,6 +607,7 @@ class JarvisEngine(
                 _state.value = JarvisState.THINKING
             }
             is LiveEvent.Interrupted -> {
+                log("Interruption détectée : la phrase en cours est coupée.")
                 audio.flushPlayback()
                 _conversation.update { finishConversationTurn(it) }
                 _state.value = JarvisState.LISTENING
