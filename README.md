@@ -384,6 +384,15 @@ starts the answer again. Changes:
   The file is not encrypted.
 - **Plugins.** New examples: `musique_recherche`, `agenda_evenement`, `heure_monde`, `mode_voiture`.
 
+- **Uninstalling plugins.** Settings > Plugins shows "Désinstaller" (with a confirmation) next to every installed
+  plugin, in the installed list and in the catalogue; the catalogue entry can be installed again.
+- **Liberty Music.** The built-in `liberty_music` tool opens the Liberty Music app, sends play / pause / next / previous / stop
+  media keys, and opens a `music.youtube.com` watch, playlist or channel link inside Liberty. It is a built-in tool, not
+  a JSON plugin, because JSON plugins cannot send media keys or pin a link to one app. Checked on the phone with adb:
+  Liberty accepts no search intent (`MEDIA_PLAY_FROM_SEARCH` and search links do not resolve), so "play a song by name" is
+  left to the screen tools (open, tap search, type, tap the first result); that path was not tried, and the media-key
+  path was not tried on the phone either. Media keys go to the active media app, which is not always Liberty.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

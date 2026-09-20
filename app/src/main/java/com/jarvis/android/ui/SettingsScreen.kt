@@ -70,6 +70,7 @@ fun SettingsScreen(
     val workFolder by configStore.workFolder.collectAsState(initial = "")
     val pluginStore = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.pluginStore }
     var pluginTick by remember { mutableStateOf(0) }
+    var pluginToRemove by remember { mutableStateOf<String?>(null) }
     var pluginMessage by remember { mutableStateOf<String?>(null) }
     val pickPlugin = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -447,7 +448,7 @@ fun SettingsScreen(
                         Text(plugin.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         Text(plugin.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    OutlinedButton(onClick = { pluginStore.remove(plugin.name); pluginTick++ }) { Text("Retirer") }
+                    OutlinedButton(onClick = { pluginToRemove = plugin.name }) { Text("Désinstaller") }
                 }
             }
             Text("Catalogue intégré", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 16.dp))
@@ -460,7 +461,7 @@ fun SettingsScreen(
                         Text(entry.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (entry.name in installedNames) {
-                        Text("Installé ✓", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp))
+                        OutlinedButton(onClick = { pluginToRemove = entry.name }, modifier = Modifier.padding(start = 8.dp)) { Text("Désinstaller") }
                     } else {
                         FilledTonalButton(onClick = {
                             scope.launch {
@@ -470,6 +471,22 @@ fun SettingsScreen(
                         }, modifier = Modifier.padding(start = 8.dp)) { Text("Installer") }
                     }
                 }
+            }
+            pluginToRemove?.let { toRemove ->
+                AlertDialog(
+                    onDismissRequest = { pluginToRemove = null },
+                    title = { Text("Désinstaller « $toRemove » ?") },
+                    text = { Text("Le plugin est retiré de Jarvis. Vous pourrez le réinstaller depuis le catalogue.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            pluginStore.remove(toRemove)
+                            pluginTick++
+                            pluginMessage = "« $toRemove » désinstallé."
+                            pluginToRemove = null
+                        }) { Text("Désinstaller", color = MaterialTheme.colorScheme.error) }
+                    },
+                    dismissButton = { TextButton(onClick = { pluginToRemove = null }) { Text("Annuler") } },
+                )
             }
             OutlinedButton(onClick = { pickPlugin.launch(arrayOf("application/json", "text/plain", "*/*")) }, modifier = Modifier.padding(top = 12.dp)) {
                 Text("Importer un plugin (JSON)")

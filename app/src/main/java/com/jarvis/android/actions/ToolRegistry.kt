@@ -49,6 +49,7 @@ object ToolRegistry {
         AnalyzeFileTool,
         AgentTool,
         RoutineTool,
+        LibertyMusicTool,
         VisionStreamTool,
         FileManagerTool,
     )
