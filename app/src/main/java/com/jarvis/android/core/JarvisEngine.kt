@@ -404,18 +404,8 @@ class JarvisEngine(
     }
 
     /** Keeps a one-line memory of the session that just ended, for tomorrow's briefing. Best effort. */
-    private suspend fun summarizeSession(messages: List<ConversationMessage>) {
-        try {
-            val model = container.configStore.snapshotRestModel()
-            val reply = container.restChat.transport.generate(model, buildSummaryRequest(transcriptForSummary(messages)))
-            val text = (com.jarvis.android.rest.parseGenerateResponse(reply) as? com.jarvis.android.rest.RestReply.Text)?.text
-            if (!text.isNullOrBlank()) container.memoryManager.saveSessionSummary(text.trim())
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            // No summary: the next briefing simply has no recap.
-        }
-    }
+    private suspend fun summarizeSession(messages: List<ConversationMessage>) =
+        com.jarvis.android.rest.summarizeConversation(container, messages)
 
     private fun dropped(detail: String, serverClosed: Boolean = false): ConnectionDropped {
         val readyAt = connectionReadyAt

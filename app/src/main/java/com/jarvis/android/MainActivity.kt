@@ -69,10 +69,47 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    /** A launcher shortcut or the home-screen widget asks for a session: start it once a key and the mic permission exist. */
+    private fun handleLaunchIntent(intent: Intent?) {
+        if (intent?.action != ACTION_START_SESSION) return
+        intent.action = null
+        val container = (application as JarvisApp).container
+        if (!container.configStore.hasApiKey()) return
+        if (hasMicPermission()) {
+            startJarvisService()
+        } else {
+            startServiceOnGrant = true
+            requestNeededPermissions()
+        }
+    }
+
+    /** Long-press on the launcher icon: "Parler à Jarvis". Dynamic because the package name differs per build type. */
+    private fun publishShortcut() {
+        try {
+            val shortcut = androidx.core.content.pm.ShortcutInfoCompat.Builder(this, "talk")
+                .setShortLabel(getString(R.string.shortcut_talk_short))
+                .setLongLabel(getString(R.string.shortcut_talk_long))
+                .setIcon(androidx.core.graphics.drawable.IconCompat.createWithResource(this, R.mipmap.ic_launcher))
+                .setIntent(Intent(this, MainActivity::class.java).setAction(ACTION_START_SESSION))
+                .build()
+            androidx.core.content.pm.ShortcutManagerCompat.setDynamicShortcuts(this, listOf(shortcut))
+        } catch (_: Exception) {
+            // Shortcuts are a convenience; the widget and the app itself still work.
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleLaunchIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val container = (application as JarvisApp).container
         container.syncVoiceService()
+        if (savedInstanceState == null) handleLaunchIntent(intent)
+        publishShortcut()
 
         setContent {
             val hue by container.configStore.themeHue.collectAsState(initial = 190f)
@@ -171,5 +208,9 @@ class MainActivity : ComponentActivity() {
               }
             }
         }
+    }
+
+    companion object {
+        const val ACTION_START_SESSION = "com.jarvis.android.START_SESSION"
     }
 }

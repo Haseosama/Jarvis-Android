@@ -47,7 +47,8 @@ internal class AgentRunner(private val container: JarvisContainer, private val s
         return "Tâche annulée."
     }
 
-    private suspend fun execute(task: String) {
+    /** Runs [task] to the end and returns the outcome text, without announcing it anywhere. */
+    suspend fun runOnce(task: String): String {
         val session = RestChatSession(
             transport = container.restChat.transport,
             model = { container.configStore.snapshotRestModel() },
@@ -61,7 +62,7 @@ internal class AgentRunner(private val container: JarvisContainer, private val s
             },
             maxRounds = AGENT_MAX_ROUNDS,
         )
-        val outcome = try {
+        return try {
             withTimeout(AGENT_TIMEOUT_MS) { "Tâche terminée : " + session.send("Objectif : $task") }
         } catch (e: TimeoutCancellationException) {
             "Tâche interrompue : trop longue (5 minutes maximum) après $steps action(s)."
@@ -72,6 +73,10 @@ internal class AgentRunner(private val container: JarvisContainer, private val s
         } catch (_: Exception) {
             "Tâche interrompue : erreur inattendue."
         }
+    }
+
+    private suspend fun execute(task: String) {
+        val outcome = runOnce(task)
         container.log(outcome.take(160))
         container.restChat.postAssistant(outcome)
         container.engine.announce(outcome.take(600))

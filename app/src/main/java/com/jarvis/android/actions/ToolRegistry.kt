@@ -48,6 +48,7 @@ object ToolRegistry {
         TakePhotoTool,
         AnalyzeFileTool,
         AgentTool,
+        RoutineTool,
         VisionStreamTool,
         FileManagerTool,
     )

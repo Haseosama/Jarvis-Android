@@ -25,6 +25,7 @@ class JarvisContainer(val appContext: Context) {
     val configStore = ConfigStore(appContext)
     val memoryManager = MemoryManager(appContext)
     val undoManager = UndoManager()
+    val routines = com.jarvis.android.routines.RoutineStore(appContext)
     val confirmManager = ConfirmManager()
 
     val http: OkHttpClient = OkHttpClient.Builder()
@@ -81,6 +82,7 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch {
             configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
         }
+        com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)
         appScope.launch { configStore.audioInputKey.collect { com.jarvis.android.core.AudioRoute.inputKey = it } }
         appScope.launch { configStore.audioOutputKey.collect { com.jarvis.android.core.AudioRoute.outputKey = it } }
         val notifier = com.jarvis.android.core.ConfirmNotifier(appContext)

@@ -8,6 +8,7 @@ import com.jarvis.android.core.buildSystemInstruction
 import com.jarvis.android.core.appendConversation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -152,14 +153,34 @@ class RestChat internal constructor(
         _messages.update { appendConversation(it, ConversationRole.ASSISTANT, text, complete = true) }
     }
 
-    /** Starts over. Ignored while a message is being sent. */
+    private val summaryScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+
+    /** Starts over, keeping a one-line memory of the conversation if it was long enough. Ignored while a message is being sent. */
     fun reset() {
         if (!lock.tryLock()) return
         try {
+            val finished = _messages.value
+            if (com.jarvis.android.memory.worthSummarizing(finished)) {
+                summaryScope.launch { summarizeConversation(container, finished) }
+            }
             session.reset()
             _messages.value = emptyList()
         } finally {
             lock.unlock()
         }
+    }
+}
+
+/** Keeps a one-line memory of a finished conversation, for tomorrow's briefing. Best effort: failures are ignored. */
+internal suspend fun summarizeConversation(container: JarvisContainer, messages: List<ConversationMessage>) {
+    try {
+        val model = container.configStore.snapshotRestModel()
+        val request = com.jarvis.android.memory.buildSummaryRequest(com.jarvis.android.memory.transcriptForSummary(messages))
+        val reply = container.restChat.transport.generate(model, request)
+        val text = (parseGenerateResponse(reply) as? RestReply.Text)?.text
+        if (!text.isNullOrBlank()) container.memoryManager.saveSessionSummary(text.trim())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
     }
 }

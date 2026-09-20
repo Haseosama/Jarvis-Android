@@ -8,7 +8,7 @@ internal const val AGENT_TIMEOUT_MS = 5 * 60_000L
 internal const val MAX_GOAL_CHARS = 1_000
 
 /** Tools the agent must not call: itself (no recursion) and the one that ends the voice session. */
-internal val AGENT_EXCLUDED_TOOLS = setOf("agent_task", "end_session")
+internal val AGENT_EXCLUDED_TOOLS = setOf("agent_task", "end_session", "routine")
 
 internal fun agentToolDeclarations(all: List<JsonObject>): List<JsonObject> =
     all.filter { (it["name"]?.jsonPrimitive?.content ?: "") !in AGENT_EXCLUDED_TOOLS }
