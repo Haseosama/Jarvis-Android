@@ -682,7 +682,7 @@ def hairline_dist(P):
     hx, hy, hz = P[:, 0] - FACE_X0, P[:, 1], P[:, 2]
     front_hl = 0.46 + 0.03 * np.cos(np.pi * hx / 0.42)                   # low on the left (the fringe), high on the right (the part)
     hl = -0.12 + (-0.06 - -0.12) * smoothstep(-0.40, -0.05, hz)             # the nape, then above the ears
-    front_hl = front_hl + (0.22 - front_hl) * smoothstep(0.46, 0.62, np.abs(hx))      # at the temples the hair comes down in front of the ears
+    front_hl = front_hl + (0.24 - front_hl) * smoothstep(0.40, 0.58, np.abs(hx))      # at the temples the hair comes down in front of the ears
     hl = hl + (front_hl - hl) * smoothstep(0.02, 0.36, hz)
     d = hy - hl
     # the ears stay bare: the hair keeps clear of an ellipsoid round each one (a smooth distance, so the edge is clipped cleanly)
@@ -764,7 +764,7 @@ grain = 0.5 + 0.5 * np.sin(310.0 * hx + 170.0 * Hp[:, 1]) * np.sin(230.0 * Hp[:,
 base = np.array([0x1A, 0x12, 0x0E], dtype=float)
 hair_rgb = np.clip(base[None, :] * (1.0 + 0.9 * streak[:, None] + 0.3 * grain[:, None]), 0, 255).astype(np.int64)
 sideness = 1.0 - smoothstep(0.05, 0.35, hz)
-alpha = (1.0 - sideness) + sideness * smoothstep(0.10, 0.46, hy) * (0.85 + 0.15 * grain)
+alpha = (1.0 - sideness) + sideness * (0.32 + 0.68 * smoothstep(0.0, 0.32, hy)) * (0.85 + 0.15 * grain)
 alpha = np.maximum(alpha, np.clip(1.6 * ear_w, 0.0, 1.0))
 alpha_b = np.clip(np.round(255.0 * alpha), 8, 255).astype(np.int64)
 hair_paint = (alpha_b << 24) | (hair_rgb[:, 0] << 16) | (hair_rgb[:, 1] << 8) | hair_rgb[:, 2]

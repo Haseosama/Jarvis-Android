@@ -27,7 +27,7 @@ private const val LUT_N = 192
 private const val BROW_HAIRS = 160
 private const val LID_COLUMNS = 9
 private const val HAIR_STRANDS = 4200
-private const val SIDE_STRANDS = 2200
+private const val SIDE_STRANDS = 3200
 private const val HAIR_LOCKS = 0
 private const val LOCK_SAMPLES = 9
 
@@ -429,7 +429,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             if (u + w > 1f) { u = 1f - u; w = 1f - w }
             val s0 = 1f - u - w
             val cover = (((mesh.paint[a] ushr 24) and 0xFF) * s0 + ((mesh.paint[b] ushr 24) and 0xFF) * u + ((mesh.paint[c] ushr 24) and 0xFF) * w) / 255f
-            if (cover < 0.30f) continue                       // no strands on the faded, shaved part
+            if (cover < 0.20f) continue                       // no strands on the faded, shaved part
             val px = s0 * v[3 * a] + u * v[3 * b] + w * v[3 * c]
             val py = s0 * v[3 * a + 1] + u * v[3 * b + 1] + w * v[3 * c + 1]
             val pz = s0 * v[3 * a + 2] + u * v[3 * b + 2] + w * v[3 * c + 2]
@@ -439,6 +439,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val nl = max(sqrt(nx * nx + ny * ny + nz * nz), 1e-6f)
             // the flow: swept forward and to the left on top, falling on the sides and the back
             val fringe = pz > 0.36f && py > 0.42f                    // the front of the top: the hair rises and sweeps back from the hairline
+            if (py < 0.32f && pz > 0.15f) continue              // no strands on the temples: they would hang in front of the eyes
             val onTop = pz > 0.10f && py > 0.30f
             val isTop = onTop || fringe
             if (isTop && topN >= HAIR_STRANDS) continue
