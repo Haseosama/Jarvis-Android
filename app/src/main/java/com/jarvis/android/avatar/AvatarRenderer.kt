@@ -38,6 +38,9 @@ internal fun blend(bg: Int, col: Int, a: Float): Int {
     return argb(255, ch(16), ch(8), ch(0))
 }
 
+private val SKIN_TONES = intArrayOf(0xF1C9A8, 0xD9A47C, 0xB07A54, 0x7A4E36)
+private val LIP_TONES = intArrayOf(0xD9707F, 0xC02836, 0x8E3A6B, 0xE8735A)
+
 private fun withAlpha(col: Int, a: Float): Int = (col and 0x00FFFFFF) or (a.coerceIn(0f, 255f).toInt() shl 24)
 
 /**
@@ -56,6 +59,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private val keys = LongArray(nF)
     private val triPos = FloatArray(nF * 6)
     private val triCol = IntArray(nF * 3)
+    private val cornerCol = IntArray(nF * 3) // the skin is shaded per vertex, so it does not show its facets
     private val faceFront = BooleanArray(nF)
     private val structure = StructureEdges.build(mesh)
     private val edgeBuckets = Array(BUCKETS) { FloatArray(structure.count * 4) }
@@ -65,6 +69,11 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private val surfacePaint = Paint().apply { isAntiAlias = false; style = Paint.Style.FILL }
     private val trianglePath = android.graphics.Path()
     private val linePaint = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE }
+    /** 0 = the glowing web; 1..4 = a skin tone over the face. */
+    var skin = 0
+    /** 0 = natural lips; 1..4 = rose, red, plum, coral. */
+    var lips = 0
+    private var bgColor = 0
     private val web = NetworkWeb(mesh)
     private val wx = FloatArray(web.count)
     private val wy = FloatArray(web.count)
@@ -111,6 +120,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             ys[i] = cy - v[3 * i + 1] * k
         }
 
+        bgColor = bg
         buildLut(bg, primary)
         val visible = shadeFaces(v, n, amp, accent)
         scope.drawIntoCanvas { canvas ->
@@ -156,13 +166,30 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
             var bright = 0.26f + 0.20f * fres + 0.66f * Math.pow(lam.toDouble(), 1.05).toFloat()
             val fadeAvg = (fade[a] + fade[b] + fade[c]) / 3f
-            if (fadeAvg < 0.4f) continue // the far end of the neck is left out: it would end on a ragged cut
+            val cutoff = if (skin > 0) 0.15f else 0.4f
+            if (fadeAvg < cutoff) continue // the far end of the neck is left out: it would end on a ragged cut
             bright *= (fade[a] * fade[a] + fade[b] * fade[b] + fade[c] * fade[c]) / 3f
             bright *= 0.88f + 0.24f * amp
             var col = lut[(bright * LUT_N).toInt().coerceIn(0, LUT_N - 1)]
+            if (skin > 0) {
+                // a skin: the tone lit by the same light, sinking into the background down the neck; shaded per vertex
+                val tone = SKIN_TONES[skin - 1]
+                val tr = (tone shr 16) and 0xFF; val tg = (tone shr 8) and 0xFF; val tb = tone and 0xFF
+                for (corner in 0..2) {
+                    val vi = f[3 * t + corner]
+                    var vx = nrm[3 * vi]; var vy = nrm[3 * vi + 1]; var vz = nrm[3 * vi + 2]
+                    val vl = max(sqrt(vx * vx + vy * vy + vz * vz), 1e-9f)
+                    vx /= vl; vy /= vl; vz /= vl
+                    val vlam = (vx * -0.55f + vy * 0.50f + vz * 0.52f).coerceIn(0f, 1f)
+                    val lit = (0.30f + 0.85f * vlam + 0.10f * vz.coerceIn(0f, 1f)).coerceIn(0.15f, 1.15f) * (0.94f + 0.12f * amp)
+                    val fv = (fade[vi] * fade[vi]).coerceIn(0f, 1f)
+                    cornerCol[3 * t + corner] = mix(bgColor, argb(255, (tr * lit).toInt().coerceIn(0, 255), (tg * lit).toInt().coerceIn(0, 255), (tb * lit).toInt().coerceIn(0, 255)), fv)
+                }
+                col = cornerCol[3 * t]
+            }
             // Rim light: facets turning away from the viewer catch the accent colour.
             val rim = (fres * fres * 0.14f).coerceIn(0f, 0.14f)
-            if (rim > 0.01f) col = mix(col, accent, rim)
+            if (rim > 0.01f && skin == 0) col = mix(col, accent, rim)
             faceColor[t] = col
             val z = (v[3 * a + 2] + v[3 * b + 2] + v[3 * c + 2]) / 3f + mesh.faceGroup[t].let { g -> if (g > 0.5f) 0f else -1000f }
             // The neck (group 0) is drawn first: it interpenetrates the head and a pure depth sort tears the seam.
@@ -195,7 +222,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 val vi = f[3 * t + corner]
                 triPos[p++] = xs[vi]
                 triPos[p++] = ys[vi]
-                triCol[c++] = col
+                triCol[c++] = if (skin > 0) cornerCol[3 * t + corner] else col
             }
         }
         if (Build.VERSION.SDK_INT >= 29) {
@@ -258,8 +285,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
 
     /** The web: fine lines between neighbouring nodes and bright nodes, brighter towards the contour, with a slow twinkle. */
     private fun drawWeb(nc: Canvas, nrm: FloatArray, amp: Float, primary: Int, strokePx: Float, t: Float) {
+        if (skin > 0) return // a skin hides the web
         val w = web
-        val gain = 0.85f + 0.5f * amp
+        val gain = (0.85f + 0.5f * amp) * (if (skin > 0) 0.22f else 1f)
         for (i in 0 until w.count) {
             val a = w.triA[i]; val b = w.triB[i]; val c = w.triC[i]
             val u = w.wu[i]; val q = w.wv[i]; val s = 1f - u - q
@@ -296,6 +324,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val br = (0.55f + 0.9f * fres) * tw * w.fade[i] * w.fade[i]
             val hash = ((i * -1640531535) ushr 16) and 0xFF
             val bk = if (br > 0.85f || hash > 236) 2 else if (br > 0.5f) 1 else 0
+            if (skin > 0 && bk < 2) continue
             val arr = webNodes[bk]; val o = webNodeCounts[bk]
             arr[o] = wx[i]; arr[o + 1] = wy[i]
             webNodeCounts[bk] = o + 2
@@ -355,24 +384,34 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 if (k == 0) path.moveTo(xs[i], y) else path.lineTo(xs[i], y)
             }
             path.close()
-            scope.drawPath(path, Color(blend(bg, primary, 6f)))
-            scope.drawPath(path, Color(withAlpha(primary, 210f * face)), style = Stroke(width = strokePx * 1.1f))
+            scope.drawPath(path, Color(if (skin > 0) 0xFFEFEBE4.toInt() else blend(bg, primary, 6f)))
+            scope.drawPath(path, Color(if (skin > 0) withAlpha(0xFF2A1A12.toInt(), 230f * face) else withAlpha(primary, 210f * face)), style = Stroke(width = strokePx * (if (skin > 0) 1.5f else 1.1f)))
             if (vis > 0.35f) {
                 val w = maxX - minX
                 val h = maxY - minY
                 val gx = (minX + maxX) / 2f + avatar.gaze[0] * w * 0.16f
                 val gy = (minY + maxY) / 2f + avatar.gaze[1] * h * 0.20f
                 val rad = min(h * 0.62f, w * 0.20f)
-                scope.drawOval(Color(withAlpha(primary, (60f + 40f * amp) * face * vis)), Offset(gx - rad, gy - rad * vis), Size(rad * 2f, rad * 2f * vis))
-                scope.drawOval(Color(withAlpha(primary, 200f * face * vis)), Offset(gx - rad, gy - rad * vis), Size(rad * 2f, rad * 2f * vis), style = Stroke(width = strokePx * 0.9f))
+                if (skin > 0) {
+                    scope.drawOval(Color(withAlpha(0xFF3C6E8F.toInt(), 255f * face * vis)), Offset(gx - rad, gy - rad * vis), Size(rad * 2f, rad * 2f * vis))
+                    val pr = rad * 0.45f
+                    scope.drawOval(Color(withAlpha(0xFF05070A.toInt(), 255f * face * vis)), Offset(gx - pr, gy - pr * vis), Size(pr * 2f, pr * 2f * vis))
+                } else {
+                    scope.drawOval(Color(withAlpha(primary, (60f + 40f * amp) * face * vis)), Offset(gx - rad, gy - rad * vis), Size(rad * 2f, rad * 2f * vis))
+                    scope.drawOval(Color(withAlpha(primary, 200f * face * vis)), Offset(gx - rad, gy - rad * vis), Size(rad * 2f, rad * 2f * vis), style = Stroke(width = strokePx * 0.9f))
+                }
             }
         }
 
         // brows
         for (key in listOf("brow_l", "brow_r")) {
             val brow = ring(lm.getValue(key))
-            scope.drawPath(brow, Color(withAlpha(primary, 60f * face)), style = Stroke(width = strokePx * 4.5f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
-            scope.drawPath(brow, Color(withAlpha(primary, 230f * face)), style = Stroke(width = strokePx * 1.8f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            if (skin > 0) {
+                scope.drawPath(brow, Color(withAlpha(0xFF3A2A20.toInt(), 225f * face)), style = Stroke(width = strokePx * 2.6f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+            } else {
+                scope.drawPath(brow, Color(withAlpha(primary, 60f * face)), style = Stroke(width = strokePx * 4.5f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                scope.drawPath(brow, Color(withAlpha(primary, 230f * face)), style = Stroke(width = strokePx * 1.8f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
         }
 
         // mouth
@@ -393,11 +432,48 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             scope.drawPath(teeth, Color(blend(bg, primary, 150f + 60f * mouth)))
             scope.drawPath(innerPath, Color(withAlpha(accent, 40f * mouth * face)))
         }
-        scope.drawPath(innerPath, Color(withAlpha(primary, (150f + 70f * mouth) * face)), style = Stroke(width = strokePx * 1.3f))
-        val outerLips = closedRing(lm.getValue("lips_out"))
-        scope.drawPath(outerLips, Color(withAlpha(primary, 34f * face)))
-        scope.drawPath(outerLips, Color(withAlpha(primary, 70f * face)), style = Stroke(width = strokePx * 4f))
-        scope.drawPath(outerLips, Color(withAlpha(primary, 200f * face)), style = Stroke(width = strokePx * 1.3f))
+        // Lips: each lip is filled on its own (the upper one a little dimmer) in the chosen colour, or in the theme colour on the
+        // web; a crisp outline, a gloss line along the lower lip and, on the web, bright points on the outline like its nodes.
+        val outerIdx = lm.getValue("lips_out")
+        val topOf = { r: IntArray -> IntArray(10) { r[10 + it] } + r[0] }      // corner, upper edge, corner
+        val bottomOf = { r: IntArray -> IntArray(11) { r[it] } }               // corner, lower edge, corner
+        fun shape(outerChain: IntArray, innerChain: IntArray): Path {
+            val q = Path()
+            for ((k, i) in outerChain.withIndex()) if (k == 0) q.moveTo(xs[i], ys[i]) else q.lineTo(xs[i], ys[i])
+            for (i in innerChain.reversed()) q.lineTo(xs[i], ys[i])
+            q.close()
+            return q
+        }
+        val upper = shape(topOf(outerIdx), topOf(inner))
+        val lower = shape(bottomOf(outerIdx), bottomOf(inner))
+        var lipTop = Float.MAX_VALUE; var lipBottom = -Float.MAX_VALUE
+        for (i in outerIdx) { lipTop = min(lipTop, ys[i]); lipBottom = max(lipBottom, ys[i]) }
+        val lipH = lipBottom - lipTop
+        val black = 0xFF000000.toInt()
+        val white = 0xFFFFFFFF.toInt()
+        val lipColour: Int? = when {
+            lips > 0 -> black or LIP_TONES[lips - 1]
+            skin > 0 -> mix(black or SKIN_TONES[skin - 1], 0xFFB05060.toInt(), 0.5f) // natural: the skin tone pushed towards red
+            else -> null
+        }
+        val outerLips = closedRing(outerIdx)
+        if (lipColour != null) {
+            scope.drawPath(upper, Color(mix(lipColour, black, 0.10f)).copy(alpha = face))
+            scope.drawPath(lower, Color(mix(lipColour, white, 0.10f)).copy(alpha = face))
+            scope.drawPath(outerLips, Color(mix(lipColour, black, 0.40f)).copy(alpha = 0.85f * face), style = Stroke(width = strokePx * 1.1f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+            scope.drawPath(innerPath, Color(mix(lipColour, black, 0.55f)).copy(alpha = (0.5f + 0.4f * mouth) * face), style = Stroke(width = strokePx * 1.1f))
+        } else {
+            scope.drawPath(upper, Color(withAlpha(primary, 52f * face)))
+            scope.drawPath(lower, Color(withAlpha(primary, 92f * face)))
+            scope.drawPath(innerPath, Color(withAlpha(primary, (150f + 70f * mouth) * face)), style = Stroke(width = strokePx * 1.3f))
+            scope.drawPath(outerLips, Color(withAlpha(primary, 60f * face)), style = Stroke(width = strokePx * 4.5f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+            scope.drawPath(outerLips, Color(withAlpha(primary, 225f * face)), style = Stroke(width = strokePx * 1.3f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+            for (i in outerIdx) scope.drawCircle(Color(mix(withAlpha(primary, 255f), white, 0.5f)).copy(alpha = 0.9f * face), radius = strokePx * 1.05f, center = Offset(xs[i], ys[i]))
+        }
+        val gloss = Path()
+        val lowerEdge = bottomOf(outerIdx)
+        for (k in 2..8) { val i = lowerEdge[k]; val y = ys[i] - lipH * 0.16f; if (k == 2) gloss.moveTo(xs[i], y) else gloss.lineTo(xs[i], y) }
+        scope.drawPath(gloss, Color(white).copy(alpha = 0.5f * face), style = Stroke(width = strokePx * 1.4f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
     }
 }
 

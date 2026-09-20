@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -69,6 +70,8 @@ fun SettingsScreen(
     val muteWhileSpeaking by configStore.muteMicWhileSpeaking.collectAsState(initial = true)
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
     val faceOn by configStore.avatarFace.collectAsState(initial = true)
+    val skinTone by configStore.avatarSkin.collectAsState(initial = 0)
+    val lipTone by configStore.avatarLips.collectAsState(initial = 0)
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
     var langMenuOpen by remember { mutableStateOf(false) }
     val workFolder by configStore.workFolder.collectAsState(initial = "")
@@ -331,6 +334,18 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
                 )
                 Switch(checked = faceOn, onCheckedChange = { scope.launch { configStore.setAvatarFace(it) } })
+            }
+            Text(tr("Peau"), style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).horizontalScroll(rememberScrollState())) {
+                listOf(0 to "Réseau lumineux", 1 to "Claire", 2 to "Mate", 3 to "Bronzée", 4 to "Foncée").forEach { (v, label) ->
+                    FilterChip(selected = skinTone == v, onClick = { scope.launch { configStore.setAvatarSkin(v) } }, label = { Text(tr(label)) })
+                }
+            }
+            Text(tr("Lèvres"), style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp).horizontalScroll(rememberScrollState())) {
+                listOf(0 to "Naturelles", 1 to "Rose", 2 to "Rouge", 3 to "Prune", 4 to "Corail").forEach { (v, label) ->
+                    FilterChip(selected = lipTone == v, onClick = { scope.launch { configStore.setAvatarLips(v) } }, label = { Text(tr(label)) })
+                }
             }
             Text(
                 tr("Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; tête : scan de Lee Perry-Smith (CC BY 3.0) ; repères du visage : MediaPipe (Apache-2.0)."),

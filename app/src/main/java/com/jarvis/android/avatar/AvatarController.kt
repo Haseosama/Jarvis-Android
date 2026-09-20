@@ -20,6 +20,10 @@ internal class AvatarController(private val context: Context) {
     /** Set from the settings: when off, nothing is analysed and nothing is drawn. */
     @Volatile var enabled = true
 
+    /** How the head is dressed: 0 = the glowing web, 1..4 = a skin tone; lip colour 0 = natural, 1..4 = rose, red, plum, coral. */
+    @Volatile var skin = 0
+    @Volatile var lips = 0
+
     /** Debug builds can force the face's mood (see DebugAvatarReceiver); null means "follow the assistant's state". */
     @Volatile var debugMood: Mood? = null
 
