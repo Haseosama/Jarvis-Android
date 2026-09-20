@@ -41,6 +41,12 @@ internal class RestChatSession(
 
     fun snapshot(): List<JsonObject> = contents.toList()
 
+    /** Replaces the model's context with saved turns (used when the chat is reloaded from disk). */
+    fun restore(turns: List<JsonObject>) {
+        contents.clear()
+        contents += turns
+    }
+
     fun reset() {
         contents.clear()
     }
@@ -119,6 +125,32 @@ class RestChat internal constructor(
         )
     }
 
+    private val history = ChatHistoryStore(java.io.File(container.appContext.filesDir, "chat_history.json"))
+    private val historyScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+
+    /** Saves the chat (or deletes the file when saving is switched off). Runs in the background. */
+    private fun persist() {
+        val messages = _messages.value
+        val turns = session.snapshot()
+        historyScope.launch {
+            if (!container.configStore.snapshotChatHistoryEnabled()) {
+                history.clear()
+                return@launch
+            }
+            history.save(
+                SavedChat(
+                    messages.filter { it.complete || it.role != ConversationRole.ASSISTANT }.takeLast(60).map { SavedMessage(it.role.name, it.text) },
+                    trimTurns(turns, MAX_SAVED_TURN_CHARS),
+                )
+            )
+        }
+    }
+
+    /** Deletes the saved chat file (when the user switches saving off). */
+    fun clearSavedHistory() {
+        historyScope.launch { history.clear() }
+    }
+
     private val _messages = MutableStateFlow<List<ConversationMessage>>(emptyList())
     val messages: StateFlow<List<ConversationMessage>> = _messages.asStateFlow()
 
@@ -135,6 +167,7 @@ class RestChat internal constructor(
         try {
             val reply = session.send(draft)
             _messages.update { appendConversation(it, ConversationRole.ASSISTANT, reply, complete = true) }
+            persist()
             null
         } catch (e: CancellationException) {
             _messages.value = before
@@ -153,9 +186,25 @@ class RestChat internal constructor(
     /** Adds an answer that did not come from a message the user just sent (a finished background task). */
     fun postAssistant(text: String) {
         _messages.update { appendConversation(it, ConversationRole.ASSISTANT, text, complete = true) }
+        persist()
     }
 
     private val summaryScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+
+    init {
+        historyScope.launch {
+            if (!container.configStore.snapshotChatHistoryEnabled()) return@launch
+            val saved = history.load() ?: return@launch
+            lock.withLock {
+                if (_messages.value.isNotEmpty()) return@withLock
+                session.restore(saved.turns)
+                _messages.value = saved.messages.mapNotNull { m ->
+                    val role = ConversationRole.entries.firstOrNull { it.name == m.role } ?: return@mapNotNull null
+                    ConversationMessage(role, m.text, complete = true)
+                }
+            }
+        }
+    }
 
     /** Starts over, keeping a one-line memory of the conversation if it was long enough. Ignored while a message is being sent. */
     fun reset() {
@@ -167,6 +216,7 @@ class RestChat internal constructor(
             }
             session.reset()
             _messages.value = emptyList()
+            historyScope.launch { history.clear() }
         } finally {
             lock.unlock()
         }

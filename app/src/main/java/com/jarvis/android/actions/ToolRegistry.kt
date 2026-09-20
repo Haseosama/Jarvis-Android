@@ -50,6 +50,8 @@ object ToolRegistry {
         AgentTool,
         RoutineTool,
         LibertyMusicTool,
+        AlarmTool,
+        ContactTool,
         VisionStreamTool,
         FileManagerTool,
     )

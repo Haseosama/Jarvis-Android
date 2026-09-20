@@ -168,6 +168,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_WAKE_WORD = booleanPreferencesKey("wake_word_enabled")
     private val KEY_DEVICE_CONTROL = booleanPreferencesKey("device_control_enabled")
     private val KEY_BRIEFING = booleanPreferencesKey("briefing_enabled")
+    private val KEY_CHAT_HISTORY = booleanPreferencesKey("chat_history_enabled")
     private val KEY_MUTE_WHILE_SPEAKING = booleanPreferencesKey("mute_mic_while_speaking")
     private val KEY_SPEECH_LANGUAGE = stringPreferencesKey("speech_language")
     private val KEY_PROACTIVE = booleanPreferencesKey("proactive_enabled")
@@ -195,6 +196,7 @@ class ConfigStore(private val context: Context) {
     val proactiveEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PROACTIVE] ?: false }
     val audioInputKey: Flow<String> = context.dataStore.data.map { it[KEY_AUDIO_IN].orEmpty() }
     val audioOutputKey: Flow<String> = context.dataStore.data.map { it[KEY_AUDIO_OUT].orEmpty() }
+    val chatHistoryEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_CHAT_HISTORY] ?: true }
     val muteMicWhileSpeaking: Flow<Boolean> = context.dataStore.data.map { it[KEY_MUTE_WHILE_SPEAKING] ?: true }
     /** BCP-47 code the voice is pinned to, or empty for automatic (the assistant may switch language). */
     val speechLanguage: Flow<String> = context.dataStore.data.map { it[KEY_SPEECH_LANGUAGE].orEmpty() }
@@ -215,6 +217,8 @@ class ConfigStore(private val context: Context) {
     suspend fun setProactiveEnabled(v: Boolean) = context.dataStore.edit { it[KEY_PROACTIVE] = v }
     suspend fun setAudioInputKey(v: String) = context.dataStore.edit { it[KEY_AUDIO_IN] = v }
     suspend fun setAudioOutputKey(v: String) = context.dataStore.edit { it[KEY_AUDIO_OUT] = v }
+    suspend fun setChatHistoryEnabled(v: Boolean) = context.dataStore.edit { it[KEY_CHAT_HISTORY] = v }
+    suspend fun snapshotChatHistoryEnabled() = chatHistoryEnabled.first()
     suspend fun setMuteMicWhileSpeaking(v: Boolean) = context.dataStore.edit { it[KEY_MUTE_WHILE_SPEAKING] = v }
     suspend fun setSpeechLanguage(v: String) = context.dataStore.edit { it[KEY_SPEECH_LANGUAGE] = v }
     suspend fun setBriefingEnabled(v: Boolean) = context.dataStore.edit { it[KEY_BRIEFING] = v }

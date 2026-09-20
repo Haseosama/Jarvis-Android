@@ -67,6 +67,7 @@ fun SettingsScreen(
     val deviceControl by configStore.deviceControlEnabled.collectAsState(initial = true)
     val briefingOn by configStore.briefingEnabled.collectAsState(initial = true)
     val muteWhileSpeaking by configStore.muteMicWhileSpeaking.collectAsState(initial = true)
+    val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
     var langMenuOpen by remember { mutableStateOf(false) }
     val workFolder by configStore.workFolder.collectAsState(initial = "")
@@ -444,6 +445,28 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
             }
+            SettingsCard(tr("Contacts (appels et SMS)"), Icons.Filled.Person, initiallyExpanded = false) {
+            var contactsGranted by remember { mutableStateOf(androidx.core.content.ContextCompat.checkSelfPermission(context0, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED) }
+            val askContacts = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+                contactsGranted = granted
+            }
+            Text(
+                if (contactsGranted) tr("Contacts autorisés ✓ : « appelle Maman » ouvre le numéroteur avec son numéro, « écris à Paul » ouvre un brouillon de SMS. Vous appuyez vous-même sur appeler ou sur envoyer.")
+                else tr("Contacts non autorisés : Jarvis ne peut pas trouver un numéro par le nom."),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            if (!contactsGranted) {
+                OutlinedButton(onClick = { askContacts.launch(android.Manifest.permission.READ_CONTACTS) }, modifier = Modifier.padding(top = 8.dp)) {
+                    Text(tr("Autoriser les contacts"))
+                }
+            }
+            Text(
+                tr("Les contacts restent sur le téléphone : Jarvis cherche lui-même le numéro et ne le transmet pas à Gemini. Seuls le nom demandé et, s’il y a plusieurs correspondances, les noms proposés lui sont envoyés."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            }
             SettingsCard(tr("Accès rapide"), Icons.Filled.Bolt, initiallyExpanded = false) {
             var quickMessage by remember { mutableStateOf<String?>(null) }
             Text(
@@ -640,6 +663,18 @@ fun SettingsScreen(
                     onClick = { sessionLog.clear(); sessions = emptyList() },
                     modifier = Modifier.padding(top = 8.dp),
                 ) { Text(tr("Effacer l’historique")) }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text(
+                    tr("Garder le chat texte entre deux ouvertures de l’appli (fichier privé sur le téléphone, non chiffré). « Nouvelle conversation » l’efface."),
+                    style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
+                )
+                Switch(checked = chatHistoryOn, onCheckedChange = {
+                    scope.launch {
+                        configStore.setChatHistoryEnabled(it)
+                        if (!it) (context0.applicationContext as com.jarvis.android.JarvisApp).container.restChat.clearSavedHistory()
+                    }
+                })
             }
             }
             SettingsCard(tr("Briefing du matin"), Icons.Filled.WbSunny, initiallyExpanded = false) {

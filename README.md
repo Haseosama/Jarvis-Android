@@ -426,6 +426,27 @@ starts the answer again. Changes:
     sent until the user taps Summarise / Translate / Explain. A shared file is attached to the chat like the paperclip does.
     Checked on the emulator with a shared text (card and buttons shown). A shared image or PDF was not tried.
 
+- **Alarms.** The `alarm` tool sets an alarm in the phone's Clock app ("réveille-moi à 7 h", optional label and weekdays)
+  through the standard `AlarmClock` intent. Checked on the emulator: the alarm shows up in the Clock app's alarm
+  schedule. Android gives no confirmation, so the tool tells the model to say so; Jarvis cannot delete an alarm
+  (the standard intent has no way to), it can only open the alarm list.
+- **Calls and SMS by contact name.** The `call_contact` tool looks a name up in the contacts (permission requested in
+  Settings > Contacts, never automatically), matches it without accents or case, and opens the dialler with the number,
+  or an SMS draft. Nothing is dialled or sent by itself, and the numbers are never given to the model (only names and
+  types such as "Mobile" when several match). Checked on the emulator with a test contact: with the permission the
+  dialler opens on the right contact (only while Jarvis is in front, see below), without it a clear message is
+  returned. The matching rules are covered by unit tests.
+- **Text chat history.** The text chat is now saved in a private, unencrypted file and comes back after the app is
+  closed, with the model's context (text turns only, at most about 200,000 characters, images are never kept).
+  Settings > Historique des sessions has a switch to turn it off (it also deletes the file); "Nouvelle conversation"
+  deletes it. Covered by unit tests (trimming, reading back, broken file); a full close-and-reopen with a real
+  answer from Gemini was not tried.
+- **Limit that applies to every tool that opens another app** (the dialler, the Clock, Liberty Music, Messenger…):
+  since Android 10, an app running in the background may not start an activity. Tests show the dialler opens when Jarvis
+  is in front and is blocked silently when it is not (the tool still says it opened it). On MIUI/HyperOS there is an
+  extra permission, "Display pop-up windows while running in the background" (Settings > Apps > Jarvis > Other
+  permissions). Not measured for a session started by the wake word on the phone.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

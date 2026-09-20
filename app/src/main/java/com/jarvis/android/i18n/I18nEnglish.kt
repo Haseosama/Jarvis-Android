@@ -2,6 +2,12 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Garder le chat texte entre deux ouvertures de l’appli (fichier privé sur le téléphone, non chiffré). « Nouvelle conversation » l’efface." to "Keep the text chat between two openings of the app (private file on the phone, not encrypted). « New conversation » deletes it.",
+    "Contacts (appels et SMS)" to "Contacts (calls and SMS)",
+    "Contacts autorisés ✓ : « appelle Maman » ouvre le numéroteur avec son numéro, « écris à Paul » ouvre un brouillon de SMS. Vous appuyez vous-même sur appeler ou sur envoyer." to "Contacts allowed ✓: « call Mum » opens the dialler with her number, « write to Paul » opens an SMS draft. You press call or send yourself.",
+    "Contacts non autorisés : Jarvis ne peut pas trouver un numéro par le nom." to "Contacts not allowed: Jarvis cannot find a number from a name.",
+    "Autoriser les contacts" to "Allow contacts",
+    "Les contacts restent sur le téléphone : Jarvis cherche lui-même le numéro et ne le transmet pas à Gemini. Seuls le nom demandé et, s’il y a plusieurs correspondances, les noms proposés lui sont envoyés." to "Contacts stay on the phone: Jarvis looks the number up itself and does not pass it to Gemini. Only the requested name and, if several match, the names offered are sent to it.",
     "Partagé avec Jarvis" to "Shared with Jarvis",
     "Ignorer" to "Dismiss",
     "Fichier : {0}" to "File: {0}",
