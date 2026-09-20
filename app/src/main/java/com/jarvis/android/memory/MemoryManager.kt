@@ -357,6 +357,8 @@ class MemoryManager(private val file: File) {
         saveLocked(store, null)
     }
 
+    suspend fun peekLastSession(): SessionEntry? = mutex.withLock { loadLocked().sessions.lastOrNull() }
+
     suspend fun popLastSession(): SessionEntry? = mutex.withLock {
         val store = loadLocked()
         if (store.sessions.isEmpty()) return@withLock null

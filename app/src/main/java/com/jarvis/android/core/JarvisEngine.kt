@@ -5,6 +5,10 @@ import com.jarvis.android.actions.ToolRegistry
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import com.jarvis.android.memory.BRIEFING_TRIGGER
+import com.jarvis.android.memory.buildSummaryRequest
+import com.jarvis.android.memory.transcriptForSummary
+import com.jarvis.android.memory.worthSummarizing
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -293,6 +297,8 @@ class JarvisEngine(
 
     private suspend fun stopLocked() {
         endOfSession.reset()
+        val finished = _conversation.value
+        if (worthSummarizing(finished)) scope.launch(Dispatchers.IO) { summarizeSession(finished) }
         _sessionReady.value = false
         pendingAnnouncements.clear()
         sessionJob?.cancelAndJoin()
@@ -300,6 +306,20 @@ class JarvisEngine(
         resumeHandle = null
         _conversation.value = emptyList()
         _state.value = JarvisState.ASLEEP
+    }
+
+    /** Keeps a one-line memory of the session that just ended, for tomorrow's briefing. Best effort. */
+    private suspend fun summarizeSession(messages: List<ConversationMessage>) {
+        try {
+            val model = container.configStore.snapshotRestModel()
+            val reply = container.restChat.transport.generate(model, buildSummaryRequest(transcriptForSummary(messages)))
+            val text = (com.jarvis.android.rest.parseGenerateResponse(reply) as? com.jarvis.android.rest.RestReply.Text)?.text
+            if (!text.isNullOrBlank()) container.memoryManager.saveSessionSummary(text.trim())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // No summary: the next briefing simply has no recap.
+        }
     }
 
     private fun dropped(detail: String, serverClosed: Boolean = false): ConnectionDropped {
@@ -418,6 +438,7 @@ class JarvisEngine(
                                 connectionReadyAt = android.os.SystemClock.elapsedRealtime()
                                 _sessionReady.value = true
                                 _state.value = JarvisState.LISTENING
+                                launch { if (container.briefing.consumeTrigger()) announce(BRIEFING_TRIGGER) }
                                 log(
                                     if (handle != null) "Session reprise. Microphone actif."
                                     else "Session connectée. Microphone actif."

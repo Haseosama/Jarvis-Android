@@ -48,6 +48,8 @@ class JarvisContainer(val appContext: Context) {
     /** One engine per process, shared by the foreground service and the UI. */
     val engine: JarvisEngine by lazy { JarvisEngine(this, appScope) }
 
+    internal val briefing: com.jarvis.android.memory.BriefingCoordinator by lazy { com.jarvis.android.memory.BriefingCoordinator(this) }
+
     /** Text chat over generateContent; independent of the Live session. */
     val restChat: RestChat by lazy { RestChat(this) }
 }

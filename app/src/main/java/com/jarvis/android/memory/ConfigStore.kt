@@ -166,6 +166,8 @@ class ConfigStore(private val context: Context) {
     private val KEY_THEME_HUE = floatPreferencesKey("theme_hue")
     private val KEY_WAKE_WORD = booleanPreferencesKey("wake_word_enabled")
     private val KEY_DEVICE_CONTROL = booleanPreferencesKey("device_control_enabled")
+    private val KEY_BRIEFING = booleanPreferencesKey("briefing_enabled")
+    private val KEY_LAST_BRIEFING = stringPreferencesKey("last_briefing_date")
 
     val assistantName: Flow<String> = context.dataStore.data.map { it[KEY_ASSISTANT_NAME] ?: "JARVIS" }
     val userName: Flow<String> = context.dataStore.data.map { it[KEY_USER_NAME] ?: "" }
@@ -179,6 +181,8 @@ class ConfigStore(private val context: Context) {
     val themeHue: Flow<Float> = context.dataStore.data.map { it[KEY_THEME_HUE] ?: 190f }
     /** Master switch for the phone-control tools (on top of the system accessibility switch). */
     val deviceControlEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_DEVICE_CONTROL] ?: true }
+    val briefingEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_BRIEFING] ?: true }
+    val lastBriefingDate: Flow<String> = context.dataStore.data.map { it[KEY_LAST_BRIEFING].orEmpty() }
     val wakeWordEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_WORD] ?: false }
 
     suspend fun setAssistantName(v: String) = context.dataStore.edit { it[KEY_ASSISTANT_NAME] = v }
@@ -189,6 +193,8 @@ class ConfigStore(private val context: Context) {
     suspend fun setTtsModel(v: String) = context.dataStore.edit { it[KEY_TTS_MODEL] = v }
     suspend fun setThemeHue(v: Float) = context.dataStore.edit { it[KEY_THEME_HUE] = v }
     suspend fun setDeviceControlEnabled(v: Boolean) = context.dataStore.edit { it[KEY_DEVICE_CONTROL] = v }
+    suspend fun setBriefingEnabled(v: Boolean) = context.dataStore.edit { it[KEY_BRIEFING] = v }
+    suspend fun setLastBriefingDate(v: String) = context.dataStore.edit { it[KEY_LAST_BRIEFING] = v }
     suspend fun setWakeWordEnabled(v: Boolean) = context.dataStore.edit { it[KEY_WAKE_WORD] = v }
 
     suspend fun snapshotAssistantName() = assistantName.first()
@@ -196,6 +202,8 @@ class ConfigStore(private val context: Context) {
     suspend fun snapshotVoice() = voice.first()
     suspend fun snapshotModel() = model.first()
     suspend fun snapshotRestModel() = restModel.first()
+    suspend fun snapshotBriefingEnabled() = briefingEnabled.first()
+    suspend fun snapshotLastBriefingDate() = lastBriefingDate.first()
     suspend fun snapshotTtsModel() = ttsModel.first()
 
     companion object {

@@ -26,7 +26,8 @@ internal suspend fun buildSystemInstruction(container: JarvisContainer, textMode
     val identityCtx = "[IDENTITY]\nYour name is $assistantName. Always refer to yourself as $assistantName.\n$addr\n"
 
     val modeCtx = if (textMode) TEXT_MODE_DIRECTIVE else ""
-    return listOf(buildLanguageDirective(), modeCtx, timeCtx, identityCtx, memoryBlock, base)
+    val briefingCtx = if (textMode) "" else container.briefing.prepare()
+    return listOf(buildLanguageDirective(), modeCtx, timeCtx, identityCtx, memoryBlock, briefingCtx, base)
         .filter { it.isNotBlank() }
         .joinToString("\n")
 }

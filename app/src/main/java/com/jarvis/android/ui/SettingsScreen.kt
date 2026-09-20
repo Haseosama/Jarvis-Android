@@ -48,6 +48,7 @@ fun SettingsScreen(
     val hue by configStore.themeHue.collectAsState(initial = 190f)
     val wakeWordEnabled by configStore.wakeWordEnabled.collectAsState(initial = false)
     val deviceControl by configStore.deviceControlEnabled.collectAsState(initial = true)
+    val briefingOn by configStore.briefingEnabled.collectAsState(initial = true)
     var serviceOn by remember { mutableStateOf(false) }
     var assistantNameField by remember(assistantName) { mutableStateOf(assistantName) }
     var userNameField by remember(userName) { mutableStateOf(userName) }
@@ -165,6 +166,21 @@ fun SettingsScreen(
             Text(
                 "Utilise la reconnaissance vocale d’Android. La disponibilité et le fonctionnement hors connexion dépendent de l’appareil ; ce n’est pas le détecteur hors ligne de l’application de bureau. L’écoute reprend automatiquement en veille.",
                 style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(24.dp))
+            Text("Briefing du matin", style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            ) {
+                Text("Résumé de la dernière session et rappels du jour à la première session de la journée", modifier = Modifier.weight(1f))
+                Switch(checked = briefingOn, onCheckedChange = { scope.launch { configStore.setBriefingEnabled(it) } })
+            }
+            Text(
+                "À la fin d’une session d’au moins deux échanges, Jarvis en garde un résumé d’une ou deux phrases (généré par Gemini, conservé sur l’appareil, trois au maximum).",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
             )
             Spacer(Modifier.height(24.dp))
             Text("Contrôle du téléphone", style = MaterialTheme.typography.titleMedium)
