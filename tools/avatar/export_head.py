@@ -18,6 +18,7 @@ MARK_LIV = sys.argv[1]
 sys.path.insert(0, os.path.join(MARK_LIV, "core"))
 import avatar_mesh as am
 
+am._SKULL_R = (8.0, 12.6, 8.3)  # a slightly narrower skull: a human head is about 0.65 as wide as it is tall
 am._SKULL_RINGS = 7
 am._NECK_SEGS = 14
 am._NECK_RINGS = 9
@@ -49,13 +50,13 @@ def sculpt(V, region):
     x, y, z = V[:, 0].copy(), V[:, 1].copy(), V[:, 2].copy()
     m = region < 2
     t = smoothstep0(0.0, -1.0, y)                       # 0 at eye level, 1 at the chin
-    nx = x * (1.0 - 0.23 * t - 0.08 * t ** 4)           # a narrower, more pointed jaw
-    ny = np.where(y < -0.35, -0.35 + (y + 0.35) * 1.10, y)  # a longer chin
+    nx = x * (1.0 - 0.10 * t - 0.04 * t ** 4)           # a slightly narrower jaw
+    ny = np.where(y < -0.35, -0.35 + (y + 0.35) * 1.05, y)  # a slightly longer chin
     cheek = np.exp(-((y + 0.10) / 0.15) ** 2) * np.exp(-((np.abs(x) - 0.40) / 0.15) ** 2)
-    nz = z + 0.055 * cheek                              # high cheekbones
+    nz = z + 0.030 * cheek                              # higher cheekbones
     nx = nx * (1.0 + 0.04 * cheek)
     nose = np.exp(-(x / 0.16) ** 2) * np.exp(-((y + 0.10) / 0.22) ** 2) * (z > 0.35)
-    nx = nx * (1.0 - 0.16 * nose)                       # a slimmer nose
+    nx = nx * (1.0 - 0.06 * nose)                       # a slightly slimmer nose
     V[m, 0], V[m, 1], V[m, 2] = nx[m], ny[m], nz[m]
     return V
 
@@ -74,6 +75,49 @@ def vertex_normals(V, F, ref):
 
 N0 = mesh["normals"].astype(np.float64)
 V = sculpt(V, region)
+
+
+def build_ear(side, cy=-0.03, cz=-0.24):
+    """One ear as a polar grid: height 0.52, width 0.30, slanted back, a bowl in the middle, a raised rim, a soft lobe."""
+    rings, segs = 6, 22
+    verts, refs = [], []
+    tilt = np.radians(12.0)
+    for k in range(rings + 1):
+        r = k / rings
+        for j in range(segs if k > 0 else 1):
+            a = 2 * np.pi * j / max(segs, 1)
+            u = np.cos(a) * r * 0.15   # along the head (z), half width 0.15
+            v = np.sin(a) * r * 0.26   # up (y), half height 0.26
+            lobe = -0.03 * np.clip(-np.sin(a), 0, 1) * r ** 2
+            rim = 0.075 * smoothstep0(0.55, 0.92, r) - 0.03 * (1.0 - r) ** 1.5
+            fold = 0.020 * np.exp(-((r - 0.50) / 0.10) ** 2) * (np.cos(a) < 0.3)  # the anti-helix ridge
+            out = 0.60 + 0.055 + rim + fold + lobe * 0.0
+            yy = cy + v * np.cos(tilt) - u * np.sin(tilt) * 0.0
+            zz = cz + u + 0.10 * (v / 0.26) * np.sin(tilt) * 1.6 * -1.0
+            xx = side * out
+            verts.append([xx, yy + lobe, zz]); refs.append([side, 0.0, -0.25])
+    verts = np.array(verts); refs = np.array(refs)
+    faces = []
+    def idx(k, j):
+        return 0 if k == 0 else 1 + (k - 1) * segs + (j % segs)
+    for j in range(segs):
+        faces.append([0, idx(1, j), idx(1, j + 1)])
+    for k in range(1, rings):
+        for j in range(segs):
+            a0, a1, b0, b1 = idx(k, j), idx(k, j + 1), idx(k + 1, j), idx(k + 1, j + 1)
+            faces += [[a0, b0, b1], [a0, b1, a1]]
+    return verts, refs, np.array(faces)
+
+
+ear_faces_start = len(F)
+for side in (-1.0, 1.0):
+    ev, er, ef = build_ear(side)
+    base_i = len(V)
+    V = np.vstack([V, ev]); N0 = np.vstack([N0, er]); F = np.vstack([F, ef + base_i])
+    jaw = np.concatenate([jaw, np.zeros(len(ev))]); brow = np.concatenate([brow, np.zeros(len(ev))])
+    lips = np.concatenate([lips, np.zeros(len(ev))]); fade = np.concatenate([fade, np.ones(len(ev))])
+    region = np.concatenate([region, np.zeros(len(ev), dtype=np.int64)])
+    group = np.concatenate([group, np.full(len(ef), 1.3)])
 N = vertex_normals(V, F, N0)
 
 
@@ -180,7 +224,7 @@ def hairline(x, z):
 
 cent = V[F].mean(axis=1)
 above = cent[:, 1] > np.array([hairline(x, z) for x, z in zip(cent[:, 0], cent[:, 2])])
-not_neck = (region[F] != 2).all(axis=1)
+not_neck = (region[F] != 2).all(axis=1) & (group != 1.3)
 hair_f = np.flatnonzero(above & not_neck)
 
 used = np.unique(F[hair_f].ravel())

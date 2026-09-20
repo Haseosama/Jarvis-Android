@@ -481,10 +481,16 @@ also shown in the settings.
   generator, subdivided once with a curved (PN-style) midpoint rule so the surface and the silhouette are smooth, and stored as
   a 900 KB asset (`head_mesh.bin`; the script that builds it, `tools/avatar/export_head.py`, is not part of the app). About 8,000 triangles, drawn on Android's
   canvas: no OpenGL, no extra library.
+- **More human proportions.** The skull is a little narrower (a head is about 0.65 as wide as it is tall), the jaw, chin, cheekbones
+  and nose are reshaped only slightly, and each side now has an ear (a bowl with a raised rim and a lobe, built by
+  `tools/avatar/export_head.py`). It is still the MediaPipe mask underneath: it has no teeth, no eyelashes, no hair strands of
+  its own and a generic face; a photo-real head would need a scanned model, which this project does not include.
 - **Smooth shading.** Mark-LIV lit each facet flat; here each vertex is lit from normals rebuilt every frame on the posed
   geometry (so the lips and jaw relight as they move), and the triangles blend the colours. Structure lines (creases and
   silhouette) keep the anatomy readable.
-- **Three looks** (Settings > Appearance > Style du visage). *Cyber* (default) is an android after a reference image the
+- **Four looks** (Settings > Appearance > Style du visage). *Réseau* (default) is a near-black head made of a web of fine glowing lines
+  and bright nodes (denser at the contour, the nose, the lips and the eye sockets), with two glowing eyes and glowing lips, after a
+  reference image the user supplied. *Cyber* is an android after another reference image the
   user supplied (glossy blue skin under a translucent violet cranial shell, neon circuit traces, a glowing forehead chip, a glowing
   outline along the jaw and the edge of the shell, luminous eyes, a mouth that lights up with small bars while it speaks, a ribbed
   neck, an armoured collar, and a circuit-board backdrop with pulses of light); the face is reshaped from Mark-LIV's human mask

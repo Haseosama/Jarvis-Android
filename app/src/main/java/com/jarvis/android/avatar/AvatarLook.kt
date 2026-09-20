@@ -1,11 +1,11 @@
 package com.jarvis.android.avatar
 
-/** How the head is drawn: a cyber android (blue skin, neon circuits), a lit skin-toned head with real eyes and hair, or the original blue hologram. */
-internal enum class AvatarStyle { CYBER, REALISTIC, HOLOGRAPHIC }
+/** How the head is drawn: a web of glowing lines and nodes, a cyber android (blue skin, neon circuits), a lit skin-toned head with real eyes and hair, or the original blue hologram. */
+internal enum class AvatarStyle { CYBER, NETWORK, REALISTIC, HOLOGRAPHIC }
 
 /** The chosen look. [skin], [hair] and [eyes] index the palettes below and only matter for the realistic style. */
 internal data class AvatarLook(
-    val style: AvatarStyle = AvatarStyle.CYBER,
+    val style: AvatarStyle = AvatarStyle.NETWORK,
     val skin: Int = 1,
     val hair: Int = 1,
     val eyes: Int = 0,

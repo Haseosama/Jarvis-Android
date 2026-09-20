@@ -4,6 +4,7 @@ package com.jarvis.android.i18n
 internal val ENGLISH: Map<String, String> = mapOf(
     "Style du visage" to "Face style",
     "Cyber" to "Cyber",
+    "Réseau" to "Network",
     "Réaliste" to "Realistic",
     "Hologramme" to "Hologram",
     "Style réaliste (sinon hologramme bleu)" to "Realistic style (otherwise the blue hologram)",

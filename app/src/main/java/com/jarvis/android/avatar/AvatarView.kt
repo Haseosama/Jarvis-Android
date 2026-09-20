@@ -61,7 +61,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     Canvas(modifier.fillMaxWidth().aspectRatio(1f)) {
         @Suppress("UNUSED_VARIABLE") val tick = frame // reading it makes the canvas redraw with every animation step
         // The realistic bust needs room below the chin for the neck and shoulders.
-        val realistic = controller.look.style != AvatarStyle.HOLOGRAPHIC
+        val realistic = controller.look.style == AvatarStyle.CYBER || controller.look.style == AvatarStyle.REALISTIC
         val r = size.minDimension * (if (realistic) 0.305f else 0.36f) // head half-height
         val cyFactor = if (realistic) 0.385f else 0.44f
         renderer.scanY = avatar.scan

@@ -206,8 +206,8 @@ class ConfigStore(private val context: Context) {
     /** True (default): the HUD shows the holographic face; false: the reactor core. */
     val avatarFace: Flow<Boolean> = context.dataStore.data.map { it[KEY_AVATAR_FACE] ?: true }
     val avatarHair: Flow<Boolean> = context.dataStore.data.map { it[KEY_AVATAR_HAIR] ?: true }
-    /** "cyber" (default), "realistic" or "holo": how the avatar's head is drawn. */
-    val avatarStyle: Flow<String> = context.dataStore.data.map { it[KEY_AVATAR_STYLE] ?: "cyber" }
+    /** "network" (default), "cyber", "realistic" or "holo": how the avatar's head is drawn. */
+    val avatarStyle: Flow<String> = context.dataStore.data.map { it[KEY_AVATAR_STYLE] ?: "network" }
     val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 1 }
     val avatarHairColor: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_HAIR_COLOR] ?: 1 }
     val avatarEyes: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_EYES] ?: 0 }

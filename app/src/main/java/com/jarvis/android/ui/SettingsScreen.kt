@@ -70,7 +70,7 @@ fun SettingsScreen(
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
     val faceOn by configStore.avatarFace.collectAsState(initial = true)
     val hairOn by configStore.avatarHair.collectAsState(initial = true)
-    val avatarStyle by configStore.avatarStyle.collectAsState(initial = "cyber")
+    val avatarStyle by configStore.avatarStyle.collectAsState(initial = "network")
     val skinIdx by configStore.avatarSkin.collectAsState(initial = 1)
     val hairColorIdx by configStore.avatarHairColor.collectAsState(initial = 1)
     val eyesIdx by configStore.avatarEyes.collectAsState(initial = 0)
@@ -340,11 +340,11 @@ fun SettingsScreen(
             if (faceOn) {
                 Text(tr("Style du visage"), style = MaterialTheme.typography.labelLarge)
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)) {
-                    listOf("cyber" to "Cyber", "realistic" to "Réaliste", "holo" to "Hologramme").forEach { (key, name) ->
+                    listOf("cyber" to "Cyber", "network" to "Réseau", "realistic" to "Réaliste", "holo" to "Hologramme").forEach { (key, name) ->
                         FilterChip(selected = avatarStyle == key, onClick = { scope.launch { configStore.setAvatarStyle(key) } }, label = { Text(tr(name)) })
                     }
                 }
-                if (avatarStyle != "cyber") {
+                if (avatarStyle == "realistic" || avatarStyle == "holo") {
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
                         Text(tr("Cheveux"), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                         Switch(checked = hairOn, onCheckedChange = { scope.launch { configStore.setAvatarHair(it) } })

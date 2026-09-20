@@ -92,7 +92,8 @@ class JarvisContainer(val appContext: Context) {
                     when (style) {
                         "realistic" -> com.jarvis.android.avatar.AvatarStyle.REALISTIC
                         "holo" -> com.jarvis.android.avatar.AvatarStyle.HOLOGRAPHIC
-                        else -> com.jarvis.android.avatar.AvatarStyle.CYBER
+                        "cyber" -> com.jarvis.android.avatar.AvatarStyle.CYBER
+                        else -> com.jarvis.android.avatar.AvatarStyle.NETWORK
                     },
                     skin, hair, eyes,
                 )
