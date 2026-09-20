@@ -26,6 +26,8 @@ private const val MIN_ALPHA = 0.05f
 private const val LUT_N = 192
 private const val BROW_HAIRS = 160
 private const val LID_COLUMNS = 9
+private const val HAIR_FIBRE_LOCKS = 400
+private const val FIBRES_PER_LOCK = 3
 
 internal fun argb(a: Int, r: Int, g: Int, b: Int): Int = (a shl 24) or (r shl 16) or (g shl 8) or b
 
@@ -80,6 +82,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     var lips = 0
     private var bgColor = 0
     private val web = NetworkWeb(mesh)
+    private val fibres = FloatArray(HAIR_FIBRE_LOCKS * FIBRES_PER_LOCK * 4 * 8)
+    private val fibrePaint = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     private val wx = FloatArray(web.count)
     private val wy = FloatArray(web.count)
     private val wz = FloatArray(web.count)
@@ -133,6 +137,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val nc = canvas.nativeCanvas
             drawSurface(nc, visible)
             drawWeb(nc, n, amp, primary, strokePx, avatar.time)
+            drawFibres(nc, n, strokePx)
         }
         drawFeatures(scope, avatar, r, primary, accent, bg, amp, strokePx)
     }
@@ -214,7 +219,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val hairLit = lit(0xFF000000.toInt() or (pnt and 0x00FFFFFF), diffuse)
             // a sheen where the surface faces the light: the half vector of the key light
             val spec = Math.pow((vx * -0.22f + vy * 0.28f + vz * 0.93f).coerceIn(0f, 1f).toDouble(), 12.0).toFloat()
-            val sheen = (spec * 62f).toInt()
+            val sheen = (spec * 50f).toInt()
             val hair = argb(255, (((hairLit shr 16) and 0xFF) + sheen).coerceAtMost(255), (((hairLit shr 8) and 0xFF) + sheen).coerceAtMost(255), ((hairLit and 0xFF) + (sheen * 0.9f).toInt()).coerceAtMost(255))
             if (cover > 0.995f) return hair
             val skinRgb = 0xFF000000.toInt() or SKIN_TONES[skin - 1]
@@ -380,6 +385,40 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         linePaint.strokeCap = Paint.Cap.BUTT
     }
 
+
+    /**
+     * Fine hairs along the locks: a few thin lines per lock, running between the same points of consecutive rows (a fraction of the way
+     * from the middle towards a side), alternately dark and light. They give each lock a fibre texture and follow it as it moves.
+     */
+    private fun drawFibres(nc: Canvas, nrm: FloatArray, strokePx: Float) {
+        if (skin == 0 || mesh.lockCount == 0) return
+        val rows = mesh.lockRows
+        val offsets = floatArrayOf(-0.65f, 0.05f, 0.62f)
+        for (pass in 0 until 2) {
+            var count = 0
+            for (l in 0 until min(mesh.lockCount, HAIR_FIBRE_LOCKS)) {
+                val base = mesh.lockFirst + l * 3 * rows
+                if (nrm[3 * (base + 1) + 2] < 0.10f) continue           // the root faces away
+                for (f in 0 until FIBRES_PER_LOCK) {
+                    if ((f + l) % 2 != pass) continue
+                    val u = offsets[f]
+                    var px = 0f; var py = 0f
+                    for (s in 0 until rows) {
+                        val li = base + 3 * s; val ci = li + 1; val ri = li + 2
+                        val x = xs[ci] + (if (u < 0f) xs[ci] - xs[li] else xs[ri] - xs[ci]) * u
+                        val y = ys[ci] + (if (u < 0f) ys[ci] - ys[li] else ys[ri] - ys[ci]) * u
+                        if (s > 0) {
+                            fibres[count++] = px; fibres[count++] = py; fibres[count++] = x; fibres[count++] = y
+                        }
+                        px = x; py = y
+                    }
+                }
+            }
+            fibrePaint.strokeWidth = max(0.7f, strokePx * 0.55f)
+            fibrePaint.color = if (pass == 0) withAlpha(0xFF160D08.toInt(), 120f) else withAlpha(0xFF9A7A58.toInt(), 80f)
+            nc.drawLines(fibres, 0, count, fibrePaint)
+        }
+    }
 
     /** Height of the energy sweep, set by the caller each frame. */
     var scanY: Float = 0f

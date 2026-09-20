@@ -35,6 +35,9 @@ internal class HeadMesh(
     val eyelidRim: IntArray,      // edges round the eye openings: vertex, vertex, 1 for the upper lid / 0 for the lower
     val mouthUpper: IntArray,     // the two lip edges along the mouth line: points that follow the upper and the lower lip
     val mouthLower: IntArray,
+    val lockFirst: Int,           // the hair's locks: first vertex (three per row: side, middle, side), number of locks, rows per lock
+    val lockCount: Int,
+    val lockRows: Int,
 ) {
     val vertexCount: Int get() = verts.size / 3
     val faceCount: Int get() = faces.size / 3
@@ -84,9 +87,10 @@ internal class HeadMesh(
                 eyeFirst[e] = b.int; eyeCount[e] = b.int
                 for (k in 0..2) eyeCentre[3 * e + k] = b.float
             }
+            val lockFirst = b.int; val lockCount = b.int; val lockRows = b.int
             require(faces.all { it in 0 until nv } && edges.all { it in 0 until nv }) { "Mesh indices out of range" }
             require(landmarks.values.all { ring -> ring.all { it in 0 until nv } }) { "Landmark index out of range" }
-            return HeadMesh(verts, normals, jaw, brow, lips, fade, group, faces, edges, landmarks, lipCentre, nHead, nFace, crown, bottom, paint, lid, lipMask, eyeFirst, eyeCount, eyeCentre, eyelidRim, mouthUpper, mouthLower)
+            return HeadMesh(verts, normals, jaw, brow, lips, fade, group, faces, edges, landmarks, lipCentre, nHead, nFace, crown, bottom, paint, lid, lipMask, eyeFirst, eyeCount, eyeCentre, eyelidRim, mouthUpper, mouthLower, lockFirst, lockCount, lockRows)
         }
     }
 }

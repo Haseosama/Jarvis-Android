@@ -687,6 +687,7 @@ def push(pos, nrm, jaw_w, paint_v, tris):
 
 
 n_hair_faces = push(hair["cap_p"], hair["cap_n"], np.zeros(len(hair["cap_p"])), hair["cap_paint"], hair["cap_f"])
+lock_first = len(V) + len(added["V"])          # the lock vertices follow the cap: three per row (side, middle, side), rows per lock
 n_hair_faces += push(hair["lock_p"], hair["lock_n"], np.zeros(len(hair["lock_p"])), hair["lock_paint"], hair["lock_f"])
 print("hair: faces", n_hair_faces)
 
@@ -753,6 +754,7 @@ out += struct.pack("<i", len(mouth_lo)) + np.array(mouth_lo, dtype="<i4").tobyte
 out += struct.pack("<i", len(eye_info))
 for first, count, centre in eye_info:
     out += struct.pack("<2i3f", first, count, *[float(c) for c in centre])
+out += struct.pack("<3i", lock_first, hair["lock_count"], hair["lock_rows"])
 
 if os.environ.get("JHM_DEBUG"):
     np.savez(os.environ["JHM_DEBUG"], V=V, F=F, paint=paint, eye_l=ring_xy["eye_l"], eye_r=ring_xy["eye_r"], lips_out=ring_xy["lips_out"],
