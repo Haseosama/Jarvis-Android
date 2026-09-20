@@ -468,6 +468,193 @@ fade = np.concatenate([fade, np.ones(len(RV))]); ao = np.concatenate([ao, RA])
 n_base = len(V)
 rings = ring_index
 
+# ---- 8. real openings: the mouth is cut along the lip line and given a cavity with teeth, the eyes get holes with eyeballs
+#         behind them, and the lids get weights so the app can close them --------------------------------------------------
+scan_count = ring_first                       # vertices below this index are the scan's own; the ring vertices follow
+paint = np.zeros(len(V), dtype=np.int64)      # ARGB colour painted on a vertex (0 = none)
+lid = np.zeros(len(V))                        # y displacement at full closure (positive = down)
+lip_mask = np.zeros(len(V))                   # 1 on the lips, 0 elsewhere
+
+
+def point_in_poly(px, py, poly):
+    inside = np.zeros(len(px), dtype=bool)
+    x1, y1 = poly[:, 0], poly[:, 1]
+    x2, y2 = np.roll(x1, -1), np.roll(y1, -1)
+    for a, b, c, d in zip(x1, y1, x2, y2):
+        inside ^= ((b > py) != (d > py)) & (px < (c - a) * (py - b) / (d - b + 1e-12) + a)
+    return inside
+
+
+def dist_to_poly(px, py, poly):
+    best = np.full(len(px), 1e9)
+    for k in range(len(poly)):
+        a = poly[k]; b = poly[(k + 1) % len(poly)]
+        ab = b - a
+        t = np.clip(((px - a[0]) * ab[0] + (py - a[1]) * ab[1]) / max(ab @ ab, 1e-12), 0.0, 1.0)
+        best = np.minimum(best, np.hypot(px - (a[0] + t * ab[0]), py - (a[1] + t * ab[1])))
+    return best
+
+
+def surface_z(x, y):
+    d2 = (V[:scan_count, 0] - x) ** 2 + (V[:scan_count, 1] - y) ** 2
+    near = np.argsort(d2)[:4]
+    return float(V[near, 2].max())
+
+
+added = {"V": [], "N": [], "jaw": [], "paint": []}
+
+
+def add_vertex(pos, nrm, jaw_w, colour):
+    added["V"].append(pos); added["N"].append(nrm); added["jaw"].append(jaw_w); added["paint"].append(colour)
+    return len(V) + len(added["V"]) - 1
+
+
+new_faces = []
+
+# -- the mouth ------------------------------------------------------------------------------------------------------------
+li, lo = ring_xy["lips_in"], ring_xy["lips_out"]
+hwi = (li[:, 0].max() - li[:, 0].min()) / 2
+bottom_chain = li[:11]; top_chain = np.vstack([li[10:], li[:1]])
+order_b = np.argsort(bottom_chain[:, 0]); order_t = np.argsort(top_chain[:, 0])
+def seam_centre(x):
+    yb = np.interp(x, bottom_chain[order_b, 0], bottom_chain[order_b, 1])
+    yt = np.interp(x, top_chain[order_t, 0], top_chain[order_t, 1])
+    return 0.5 * (yb + yt)
+
+
+# settle the seam on the scan's own lip crease: the least open (lowest ao) vertex of each column near the ring's centre line
+xs_col = np.linspace(-hwi, hwi, 46)
+ys_col = np.zeros(len(xs_col))
+for k, x in enumerate(xs_col):
+    yc = seam_centre(x)
+    cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (np.abs(V[:scan_count, 1] - yc) < 0.035) & (V[:scan_count, 2] > 0.3))
+    ys_col[k] = yc
+ys_col = np.convolve(np.pad(ys_col, 3, mode="edge"), np.ones(7) / 7, mode="valid")
+def yseam(x):
+    return np.interp(x, xs_col, ys_col)
+
+
+mouth_w = lambda x: 1.0 - smoothstep(hwi * 0.9, hwi * 1.35, np.abs(x))
+tol = 0.02
+seam_v = np.flatnonzero((np.abs(V[:scan_count, 0]) < hwi * 0.92) & (np.abs(V[:scan_count, 1] - yseam(V[:scan_count, 0])) < tol) & (V[:scan_count, 2] > 0.3))
+dup = {int(i): len(V) + len(added["V"]) + n for n, i in enumerate(seam_v)}
+F2 = F.copy()
+F0 = F.copy()                                 # the faces before the seam is split: their indices are all the scan's own
+fc = V[F].mean(axis=1)
+below = (fc[:, 1] < yseam(fc[:, 0])) & (np.abs(fc[:, 0]) < hwi * 0.95) & (fc[:, 2] > 0.3)
+for t in np.flatnonzero(below):
+    for c in range(3):
+        if int(F2[t, c]) in dup:
+            F2[t, c] = dup[int(F2[t, c])]
+for i in seam_v:
+    added["V"].append(V[i].copy()); added["N"].append(N[i].copy()); added["jaw"].append(0.92 * float(mouth_w(V[i, 0]))); added["paint"].append(0)
+for n_, i in enumerate(seam_v):                  # the split edge is laid straight along the lip line (a jagged one shows as zigzags)
+    y_ = float(yseam(V[i, 0])); V[i, 1] = y_; added["V"][n_][1] = y_
+print("mouth: seam vertices", len(seam_v), "faces below", int(below.sum()))
+F = F2
+seam_dup = np.array([dup[int(i)] for i in seam_v])
+
+# jaw weights: the lower lip follows the jaw fully, the upper lip not at all, fading to the ordinary weights with distance
+dy_seam = V[:, 1] - yseam(V[:, 0])
+m = mouth_w(V[:, 0])
+front = V[:, 2] > 0.3
+lower_zone = front & (dy_seam <= tol) & (dy_seam > -0.20)
+jaw[lower_zone] = np.maximum(jaw[lower_zone], 0.92 * m[lower_zone] * (1.0 - smoothstep(0.06, 0.20, -dy_seam[lower_zone])))
+upper_zone = front & (dy_seam > tol) & (dy_seam < 0.12)
+jaw[upper_zone] = jaw[upper_zone] * (1.0 - m[upper_zone] * (1.0 - smoothstep(0.0, 0.12, dy_seam[upper_zone])))
+jaw[seam_v] = jaw[seam_v] * 0.0                   # the seam's upper copy stays with the upper lip
+for n_, i in enumerate(seam_dup):
+    pass
+
+# the cavity (dark) and the teeth
+DARK = 0xFF0B0A10; TEETH = 0xFFECE7DC
+cols = np.linspace(-hwi * 0.86, hwi * 0.86, 12)
+U, L, B = [], [], []
+for x in cols:
+    ys = float(yseam(x)); zs = surface_z(x, ys); w_ = float(mouth_w(x))
+    U.append(add_vertex(np.array([x, ys, zs - 0.004]), np.array([0, 0, 1.0]), 0.0, DARK))
+    L.append(add_vertex(np.array([x, ys, zs - 0.004]), np.array([0, 0, 1.0]), 0.92 * w_, DARK))
+    B.append(add_vertex(np.array([x * 0.9, ys - 0.005, zs - 0.15]), np.array([0, 0, 1.0]), 0.45, DARK))
+for k in range(len(cols) - 1):
+    new_faces += [(U[k], U[k + 1], B[k + 1]), (U[k], B[k + 1], B[k]), (L[k], B[k], B[k + 1]), (L[k], B[k + 1], L[k + 1])]
+tc = [k for k, x in enumerate(cols) if abs(x) < 0.78 * hwi]
+TU, TUb, TL, TLb = [], [], [], []
+for k in tc:
+    x = cols[k]; ys = float(yseam(x)); zs = surface_z(x, ys); w_ = float(mouth_w(x))
+    TU.append(add_vertex(np.array([x, ys, zs - 0.010]), np.array([0, 0, 1.0]), 0.0, TEETH))
+    TUb.append(add_vertex(np.array([x, ys - 0.045, zs - 0.045]), np.array([0, 0, 1.0]), 0.0, TEETH))
+    TL.append(add_vertex(np.array([x, ys, zs - 0.010]), np.array([0, 0, 1.0]), 0.92 * w_, TEETH))
+    TLb.append(add_vertex(np.array([x, ys + 0.026, zs - 0.038]), np.array([0, 0, 1.0]), 0.92 * w_, TEETH))
+for k in range(len(tc) - 1):
+    new_faces += [(TU[k], TU[k + 1], TUb[k + 1]), (TU[k], TUb[k + 1], TUb[k])]
+
+# -- the eyes -------------------------------------------------------------------------------------------------------------
+IRIS_RINGS = [(0, 0xFF05070A), (6, 0xFF05070A), (12, 0xFF16324F), (18, 0xFF3F7CA6), (25, 0xFF2A5B7C), (31, 0xFFDCDAD6), (42, 0xFFEEEBE6),
+              (60, 0xFFE9E5DF), (85, 0xFFD9D4CE), (110, 0xFFCFC9C3), (140, 0xFFC4BDB6)]
+SEG = 20
+eye_info = []
+removed = np.zeros(len(F), dtype=bool)
+LID_REACH = 0.055
+for name in ("eye_l", "eye_r"):
+    poly = ring_xy[name]
+    ctr = poly.mean(axis=0)
+    w_eye = poly[:, 0].max() - poly[:, 0].min()
+    hh = (poly[:, 1].max() - poly[:, 1].min()) / 2
+    hole = ctr + (poly - ctr) * 1.12
+    cf = fc
+    corner_in = np.stack([point_in_poly(V[F0[:, c], 0], V[F0[:, c], 1], hole) for c in range(3)], axis=1)
+    removed |= ((corner_in.sum(axis=1) >= 2) | point_in_poly(cf[:, 0], cf[:, 1], hole)) & (cf[:, 2] > 0.3)
+    # lid weights (on the scan's vertices, and on the ring vertices that are laid on it)
+    dist = dist_to_poly(V[:, 0], V[:, 1], hole)
+    inside_v = point_in_poly(V[:, 0], V[:, 1], hole)
+    dist = np.where(inside_v, 0.0, dist)
+    reach = front & (dist < LID_REACH)
+    f_ = np.where(reach, (1.0 - dist / LID_REACH) ** 2, 0.0)
+    g_ = np.clip((V[:, 1] - ctr[1]) / (0.6 * hh), -1.0, 1.0)
+    lid += np.where(g_ >= 0, 1.15 * hh, 0.85 * hh) * g_ * f_ * ((np.abs(V[:, 0] - ctr[0]) < w_eye * 0.8))
+    # the eyeball, behind the hole
+    rad = 0.5 * w_eye * 1.0
+    zc = surface_z(ctr[0], ctr[1]) - 1.1 * rad
+    centre = np.array([ctr[0], ctr[1], zc])
+    first = len(V) + len(added["V"])
+    ids = []
+    for theta_deg, colour in IRIS_RINGS:
+        th = np.radians(theta_deg)
+        row = []
+        for sg in range(SEG if theta_deg > 0 else 1):
+            ph = 2 * np.pi * sg / SEG
+            d = np.array([np.sin(th) * np.cos(ph), np.sin(th) * np.sin(ph), np.cos(th)])
+            row.append(add_vertex(centre + d * rad, d, 0.0, colour))
+        ids.append(row)
+    for r_ in range(len(IRIS_RINGS) - 1):
+        a_, b_ = ids[r_], ids[r_ + 1]
+        for sg in range(SEG):
+            n0, n1 = (sg + 1) % SEG, sg
+            if len(a_) == 1:
+                new_faces.append((a_[0], b_[n1], b_[n0]))
+            else:
+                new_faces += [(a_[sg], b_[sg], b_[n0]), (a_[sg], b_[n0], a_[n0])]
+    eye_info.append((first, len(V) + len(added["V"]) - first, centre))
+F = F[~removed]
+group = group[~removed]
+print("eyes: faces removed", int(removed.sum()))
+
+# -- the lips' colour mask ---------------------------------------------------------------------------------------------------
+inside_lip = point_in_poly(V[:, 0], V[:, 1], lo) & front
+d_lip = dist_to_poly(V[:, 0], V[:, 1], lo)
+lip_mask = np.where(inside_lip, 1.0, np.clip(1.0 - d_lip / 0.010, 0.0, 1.0) * front)
+
+# -- append everything ----------------------------------------------------------------------------------------------------
+n_new = len(added["V"])
+V = np.vstack([V, np.array(added["V"])]); N = np.vstack([N, np.array(added["N"])])
+jaw = np.concatenate([jaw, np.array(added["jaw"])])
+brow = np.concatenate([brow, np.zeros(n_new)]); lips = np.concatenate([lips, np.zeros(n_new)])
+fade = np.concatenate([fade, np.ones(n_new)]); ao = np.concatenate([ao, np.ones(n_new)])
+paint = np.concatenate([paint, np.array(added["paint"], dtype=np.int64)])
+lid = np.concatenate([lid, np.zeros(n_new)]); lip_mask = np.concatenate([lip_mask, np.zeros(n_new)])
+F = np.vstack([F, np.array(new_faces, dtype=np.int64)])
+group = np.concatenate([group, np.ones(len(new_faces))])
+
 nh, ns, nc_pts = len(HV), len(S_pts), len(C_pts)
 allV = np.vstack([V, HV, S_pts, C_pts])
 allN = np.vstack([N, HN, S_nrm, C_nrm])
@@ -485,8 +672,8 @@ strand_base = n_base + nh
 # The app's head file (JHM1): the scanned head and neck only, with the rig weights and the landmark rings. The hair, strands,
 # circuits and network nodes computed above belong to the other looks and are not stored; the app spreads its own web over the mesh.
 out = bytearray()
-out += b"JHM1"
-out += struct.pack("<5i", len(V), len(F), 0, n_base, n_base)
+out += b"JHM2"
+out += struct.pack("<5i", len(V), len(F), 0, scan_count, scan_count)
 out += struct.pack("<2f", float(V[:, 1].max()), float(V[:, 1].min()))
 out += lip_centre.astype("<f4").tobytes()
 for arr in (V, N):
@@ -500,6 +687,12 @@ out += struct.pack("<i", len(names))
 for k in names:
     idx = rings[k].astype("<i4")
     out += struct.pack("<i", len(idx)) + idx.tobytes()
+out += (paint & 0xFFFFFFFF).astype("<u4").tobytes()
+out += lid.astype("<f4").tobytes()
+out += lip_mask.astype("<f4").tobytes()
+out += struct.pack("<i", len(eye_info))
+for first, count, centre in eye_info:
+    out += struct.pack("<2i3f", first, count, *[float(c) for c in centre])
 
 dest = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "app", "src", "main", "assets", "avatar")
 open(os.path.join(dest, "head_mesh.bin"), "wb").write(bytes(out))

@@ -215,6 +215,27 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
             val k = brow * BROW_LIFT
             for (i in 0 until n) v[3 * i + 1] += mesh.brow[i] * k
         }
+        // The lids: the skin round each eye drops (upper lid) and rises (lower lid) as the eyes close.
+        val close = (1f - ((1f - blink) * lids.coerceIn(0f, 1f))).coerceIn(0f, 0.97f)
+        if (close > 0.01f) {
+            for (i in 0 until n) {
+                val l = mesh.lid[i]
+                if (l != 0f) v[3 * i + 1] -= l * close
+            }
+        }
+        // The eyeballs turn towards the gaze, about their own centres.
+        val ey = gaze[0] * 0.32f
+        val ep = gaze[1] * 0.26f
+        val cye = cos(ey); val sye = sin(ey); val cpe = cos(ep); val spe = sin(ep)
+        for (e in mesh.eyeFirst.indices) {
+            val cx = mesh.eyeCentre[3 * e]; val cy0 = mesh.eyeCentre[3 * e + 1]; val cz = mesh.eyeCentre[3 * e + 2]
+            for (i in mesh.eyeFirst[e] until mesh.eyeFirst[e] + mesh.eyeCount[e]) {
+                val x = v[3 * i] - cx; val y = v[3 * i + 1] - cy0; val z = v[3 * i + 2] - cz
+                val x1 = x * cye + z * sye; val z1 = -x * sye + z * cye
+                val y2 = y * cpe - z1 * spe; val z2 = y * spe + z1 * cpe
+                v[3 * i] = cx + x1; v[3 * i + 1] = cy0 + y2; v[3 * i + 2] = cz + z2
+            }
+        }
         if (abs(wide) > 0.01f && mouth > 0f) {
             val kk = wide * mouth
             val lx = mesh.lipCentre[0]

@@ -491,6 +491,10 @@ also shown in the settings.
 - **Skin and lips.** Settings > Appearance > Peau: the glowing web (default) or a skin tone (light, medium, tanned, dark) over the
   head, shaded per vertex, with dark brows and eyes with a white and an iris; Lèvres: natural (the skin tone pushed towards
   red, or the theme colour on the web), rose, red, plum or coral. Each lip is filled on its own, with a gloss line on the lower one.
+- **Eyes and mouth are part of the head.** `export_head.py` cuts real holes in the scan: the eyes get openings with an eyeball
+  behind each (sclera, iris, pupil, painted per vertex) that turns towards the gaze, and the skin round them drops and rises as
+  the lids close; the mouth is split along the lip line, the lower lip follows the jaw, and a dark cavity with upper teeth sits
+  behind the slit. Nothing is drawn over the face any more except the brows; the lips' colour is painted on the lip vertices.
 - **Expression.** Brows follow the phrase, the gaze flicks between points, blinks, idle sway; the face looks away while thinking,
   meets your eyes while listening and lowers its lids while asleep.
 - **Changed from the original.** Structure lines (creases and silhouette) replace the arbitrary third of edges it drew;

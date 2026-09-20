@@ -26,6 +26,12 @@ internal class HeadMesh(
     val nFace: Int,
     val crown: Float,
     val bottom: Float,
+    val paint: IntArray,          // ARGB painted on a vertex (mouth cavity, teeth, eyeballs); 0 = none
+    val lid: FloatArray,          // how far a vertex drops when the lids close (negative: rises)
+    val lipMask: FloatArray,      // 1 on the lips, 0 elsewhere
+    val eyeFirst: IntArray,       // the two eyeballs: first vertex, vertex count, centre
+    val eyeCount: IntArray,
+    val eyeCentre: FloatArray,
 ) {
     val vertexCount: Int get() = verts.size / 3
     val faceCount: Int get() = faces.size / 3
@@ -37,7 +43,7 @@ internal class HeadMesh(
         fun parse(bytes: ByteArray): HeadMesh {
             val b = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
             require(bytes.size > 40 && bytes[0] == 'J'.code.toByte() && bytes[1] == 'H'.code.toByte() &&
-                bytes[2] == 'M'.code.toByte() && bytes[3] == '1'.code.toByte()) { "Not a head mesh file" }
+                bytes[2] == 'M'.code.toByte() && bytes[3] == '2'.code.toByte()) { "Not a head mesh file" }
             b.position(4)
             val nv = b.int
             val nf = b.int
@@ -62,13 +68,22 @@ internal class HeadMesh(
             require(rings == NAMES.size) { "Unexpected landmark rings: $rings" }
             val landmarks = LinkedHashMap<String, IntArray>()
             for (name in NAMES) landmarks[name] = ints(b.int)
+            val paint = ints(nv)
+            val lid = floats(nv)
+            val lipMask = floats(nv)
+            val eyes = b.int
+            val eyeFirst = IntArray(eyes); val eyeCount = IntArray(eyes); val eyeCentre = FloatArray(eyes * 3)
+            for (e in 0 until eyes) {
+                eyeFirst[e] = b.int; eyeCount[e] = b.int
+                for (k in 0..2) eyeCentre[3 * e + k] = b.float
+            }
             require(faces.all { it in 0 until nv } && edges.all { it in 0 until nv }) { "Mesh indices out of range" }
             require(landmarks.values.all { ring -> ring.all { it in 0 until nv } }) { "Landmark index out of range" }
-            return HeadMesh(verts, normals, jaw, brow, lips, fade, group, faces, edges, landmarks, lipCentre, nHead, nFace, crown, bottom)
+            return HeadMesh(verts, normals, jaw, brow, lips, fade, group, faces, edges, landmarks, lipCentre, nHead, nFace, crown, bottom, paint, lid, lipMask, eyeFirst, eyeCount, eyeCentre)
         }
     }
 }
 
 /** Jaw hinge between the ears, and the largest jaw drop in radians (speech barely moves a real jaw). */
 internal val JAW_PIVOT = floatArrayOf(0f, 0.06f, -0.34f)
-internal const val JAW_MAX = 0.115f
+internal const val JAW_MAX = 0.15f

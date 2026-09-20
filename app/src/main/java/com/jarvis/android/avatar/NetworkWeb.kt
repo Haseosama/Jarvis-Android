@@ -30,7 +30,8 @@ internal class NetworkWeb(mesh: HeadMesh) {
         for (t in 0 until nF) {
             val a = f[3 * t]; val b = f[3 * t + 1]; val c = f[3 * t + 2]
             val avgFade = (mesh.fade[a] + mesh.fade[b] + mesh.fade[c]) / 3f
-            if (avgFade > 0.2f) {
+            val plain = mesh.paint[a] == 0 && mesh.paint[b] == 0 && mesh.paint[c] == 0 // no nodes on the eyeballs or in the mouth
+            if (avgFade > 0.2f && plain) {
                 val abx = v[3 * b] - v[3 * a]; val aby = v[3 * b + 1] - v[3 * a + 1]; val abz = v[3 * b + 2] - v[3 * a + 2]
                 val acx = v[3 * c] - v[3 * a]; val acy = v[3 * c + 1] - v[3 * a + 1]; val acz = v[3 * c + 2] - v[3 * a + 2]
                 val cx = aby * acz - abz * acy; val cy = abz * acx - abx * acz; val cz = abx * acy - aby * acx
@@ -66,6 +67,7 @@ internal class NetworkWeb(mesh: HeadMesh) {
             val t = lo
             val a = f[3 * t]; val b = f[3 * t + 1]; val c = f[3 * t + 2]
             if ((mesh.fade[a] + mesh.fade[b] + mesh.fade[c]) / 3f <= 0.2f) continue
+            if (mesh.paint[a] != 0 || mesh.paint[b] != 0 || mesh.paint[c] != 0) continue
             var u = rnd.nextFloat(); var w = rnd.nextFloat()
             if (u + w > 1f) { u = 1f - u; w = 1f - w }
             val s = 1f - u - w
