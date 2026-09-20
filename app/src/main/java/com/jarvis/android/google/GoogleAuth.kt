@@ -57,7 +57,7 @@ internal object GoogleAuth {
         val identity = context?.let { " Paquet : ${it.packageName}, SHA-1 : ${AppIdentity.sha1(it) ?: "?"}." }.orEmpty()
         return when (e.statusCode) {
             10 -> "Google refuse cette application (erreur 10) : il faut un client OAuth de type Android pour ce paquet et cette signature, dans Google Cloud (voir le README).$identity"
-            8 -> "Google Play Services a signalé une erreur interne (8). Le plus souvent, aucun client OAuth de type Android ne correspond à cette application, ou les API Gmail et Drive ne sont pas activées, ou ce compte n’est pas déclaré testeur. Voir le README.$identity"
+            8 -> if (e.message.orEmpty().contains("UNREGISTERED_ON_API_CONSOLE")) "Google ne connaît pas cette application (UNREGISTERED_ON_API_CONSOLE) : aucun client OAuth de type Android ne porte exactement ce nom de paquet et cette empreinte SHA-1 dans le projet Google Cloud.$identity" else "Google Play Services a signalé une erreur interne (8). Le plus souvent, aucun client OAuth de type Android ne correspond à cette application, ou les API Gmail et Drive ne sont pas activées, ou ce compte n’est pas déclaré testeur. Voir le README.$identity"
             7 -> "Pas de connexion réseau."
             12501 -> "Connexion à Google annulée."
             else -> "Google a répondu par une erreur (${e.statusCode}).$identity"

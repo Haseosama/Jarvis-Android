@@ -1,6 +1,7 @@
 package com.jarvis.android.google
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.IntentSenderRequest
@@ -18,10 +19,13 @@ import kotlinx.coroutines.launch
  * account is connected. It closes itself when done.
  */
 class GoogleConnectActivity : ComponentActivity() {
+    private companion object { const val TAG = "GoogleConnect" }
+
     private val consent = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         try {
             done(Identity.getAuthorizationClient(this).getAuthorizationResultFromIntent(result.data))
         } catch (e: ApiException) {
+            Log.e(TAG, "consent result failed: status=${e.statusCode} message=${e.message} status=${e.status}", e)
             fail(GoogleAuth.explain(e, this))
         }
     }
@@ -34,8 +38,10 @@ class GoogleConnectActivity : ComponentActivity() {
                 val pending = result.pendingIntent
                 if (result.hasResolution() && pending != null) consent.launch(IntentSenderRequest.Builder(pending.intentSender).build()) else done(result)
             } catch (e: ApiException) {
+                Log.e(TAG, "authorize failed: status=${e.statusCode} message=${e.message} status=${e.status}", e)
                 fail(GoogleAuth.explain(e, this@GoogleConnectActivity))
             } catch (e: Exception) {
+                Log.e(TAG, "authorize failed", e)
                 fail(e.message ?: tr("Connexion à Google impossible."))
             }
         }
