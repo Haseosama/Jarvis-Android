@@ -94,6 +94,15 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             radius = ar, center = Offset(cx, cy),
         )
 
+        // a few drifting points of light in the dark, as in the reference photos
+        for (k in 0 until 26) {
+            val h = ((k * -1640531535) ushr 8) and 0xFFFF
+            val ang = (h % 628) / 100f + 0.05f * avatar.time * (if (k % 2 == 0) 1f else -1f)
+            val dist = r * (1.15f + 0.85f * ((h / 7) % 100) / 100f)
+            val tw = 0.35f + 0.65f * (0.5f + 0.5f * kotlin.math.sin(avatar.time * (0.8f + (h % 5) * 0.3f) + k))
+            scope.drawCircle(Color(withAlpha(primary, 150f * tw)), radius = 1.2f + (h % 3), center = Offset(cx + cos(ang) * dist * 0.8f, cy + kotlin.math.sin(ang) * dist * 1.05f))
+        }
+
         // project
         for (i in 0 until nV) {
             val w = max(CAM_D - v[3 * i + 2], 0.35f)
@@ -146,7 +155,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val fres = Math.pow((1f - nz).coerceIn(0f, 2f).toDouble(), 1.7).toFloat()
             val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
             var bright = 0.26f + 0.20f * fres + 0.66f * Math.pow(lam.toDouble(), 1.05).toFloat()
-            bright *= (fade[a] + fade[b] + fade[c]) / 3f
+            val fadeAvg = (fade[a] + fade[b] + fade[c]) / 3f
+            if (fadeAvg < 0.4f) continue // the far end of the neck is left out: it would end on a ragged cut
+            bright *= (fade[a] * fade[a] + fade[b] * fade[b] + fade[c] * fade[c]) / 3f
             bright *= 0.88f + 0.24f * amp
             var col = lut[(bright * LUT_N).toInt().coerceIn(0, LUT_N - 1)]
             // Rim light: facets turning away from the viewer catch the accent colour.
@@ -262,8 +273,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val i = e[2 * k]; val j = e[2 * k + 1]
             val nzi = wz[i]; val nzj = wz[j]
             if (nzi < 0.05f && nzj < 0.05f) continue
-            val fres = Math.pow((1f - 0.5f * (nzi + nzj)).coerceIn(0f, 1f).toDouble(), 1.2).toFloat()
-            var a = (0.22f + 0.55f * fres) * 0.5f * (w.fade[i] + w.fade[j]) * gain
+            val fres = Math.pow((1f - 0.5f * (nzi + nzj)).coerceIn(0f, 1f).toDouble(), 2.4).toFloat()
+            var a = (0.30f + 0.55f * fres) * 0.5f * (w.fade[i] * w.fade[i] + w.fade[j] * w.fade[j]) * gain
             if (nzi < 0.15f || nzj < 0.15f) a *= 0.6f
             if (a <= MIN_ALPHA) continue
             val bk = (a * 4f).toInt().coerceIn(0, 3)
@@ -280,9 +291,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         for (i in 0 until w.count) {
             val nz = wz[i]
             if (nz < 0f || w.fade[i] < 0.25f) continue
-            val fres = Math.pow((1f - nz).coerceIn(0f, 1f).toDouble(), 1.3).toFloat()
+            val fres = Math.pow((1f - nz).coerceIn(0f, 1f).toDouble(), 2.4).toFloat()
             val tw = 0.8f + 0.2f * kotlin.math.sin(t * 2.1f + i * 1.7f)
-            val br = (0.45f + 0.7f * fres) * tw * w.fade[i]
+            val br = (0.55f + 0.9f * fres) * tw * w.fade[i] * w.fade[i]
             val hash = ((i * -1640531535) ushr 16) and 0xFF
             val bk = if (br > 0.85f || hash > 236) 2 else if (br > 0.5f) 1 else 0
             val arr = webNodes[bk]; val o = webNodeCounts[bk]
@@ -359,7 +370,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
 
         // brows
         for (key in listOf("brow_l", "brow_r")) {
-            scope.drawPath(ring(lm.getValue(key)), Color(withAlpha(primary, 150f * face)), style = Stroke(width = strokePx * 1.4f))
+            val brow = ring(lm.getValue(key))
+            scope.drawPath(brow, Color(withAlpha(primary, 60f * face)), style = Stroke(width = strokePx * 4.5f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            scope.drawPath(brow, Color(withAlpha(primary, 230f * face)), style = Stroke(width = strokePx * 1.8f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
         }
 
         // mouth
@@ -381,7 +394,10 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             scope.drawPath(innerPath, Color(withAlpha(accent, 40f * mouth * face)))
         }
         scope.drawPath(innerPath, Color(withAlpha(primary, (150f + 70f * mouth) * face)), style = Stroke(width = strokePx * 1.3f))
-        scope.drawPath(closedRing(lm.getValue("lips_out")), Color(withAlpha(primary, 110f * face)), style = Stroke(width = strokePx * 1.1f))
+        val outerLips = closedRing(lm.getValue("lips_out"))
+        scope.drawPath(outerLips, Color(withAlpha(primary, 34f * face)))
+        scope.drawPath(outerLips, Color(withAlpha(primary, 70f * face)), style = Stroke(width = strokePx * 4f))
+        scope.drawPath(outerLips, Color(withAlpha(primary, 200f * face)), style = Stroke(width = strokePx * 1.3f))
     }
 }
 

@@ -72,10 +72,12 @@ internal class NetworkWeb(mesh: HeadMesh) {
             val x = s * v[3 * a] + u * v[3 * b] + w * v[3 * c]
             val y = s * v[3 * a + 1] + u * v[3 * b + 1] + w * v[3 * c + 1]
             val z = s * v[3 * a + 2] + u * v[3 * b + 2] + w * v[3 * c + 2]
+            // the spacing widens smoothly away from the eyes and the mouth: a hard edge would line the nodes up along it
             var radius = r0
             for (d in dense) {
                 val dx = x - d[0]; val dy = y - d[1]; val dz = z - d[2]
-                if (dx * dx + dy * dy + dz * dz < d[3] * d[3]) { radius = r0 * 0.68f; break }
+                val q = (dx * dx + dy * dy + dz * dz) / (d[3] * d[3] * 2.2f)
+                if (q < 1f) radius = minOf(radius, r0 * (0.68f + 0.32f * q))
             }
             val ci = cell(x); val cj = cell(y); val ck = cell(z)
             var ok = true
