@@ -49,7 +49,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     configStore: ConfigStore,
@@ -70,6 +70,10 @@ fun SettingsScreen(
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
     val faceOn by configStore.avatarFace.collectAsState(initial = true)
     val hairOn by configStore.avatarHair.collectAsState(initial = true)
+    val avatarStyle by configStore.avatarStyle.collectAsState(initial = "cyber")
+    val skinIdx by configStore.avatarSkin.collectAsState(initial = 1)
+    val hairColorIdx by configStore.avatarHairColor.collectAsState(initial = 1)
+    val eyesIdx by configStore.avatarEyes.collectAsState(initial = 0)
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
     var langMenuOpen by remember { mutableStateOf(false) }
     val workFolder by configStore.workFolder.collectAsState(initial = "")
@@ -334,9 +338,39 @@ fun SettingsScreen(
                 Switch(checked = faceOn, onCheckedChange = { scope.launch { configStore.setAvatarFace(it) } })
             }
             if (faceOn) {
-                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-                    Text(tr("Cheveux"), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Switch(checked = hairOn, onCheckedChange = { scope.launch { configStore.setAvatarHair(it) } })
+                Text(tr("Style du visage"), style = MaterialTheme.typography.labelLarge)
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)) {
+                    listOf("cyber" to "Cyber", "realistic" to "Réaliste", "holo" to "Hologramme").forEach { (key, name) ->
+                        FilterChip(selected = avatarStyle == key, onClick = { scope.launch { configStore.setAvatarStyle(key) } }, label = { Text(tr(name)) })
+                    }
+                }
+                if (avatarStyle != "cyber") {
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                        Text(tr("Cheveux"), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Switch(checked = hairOn, onCheckedChange = { scope.launch { configStore.setAvatarHair(it) } })
+                    }
+                }
+                if (avatarStyle == "realistic") {
+                    Text(tr("Teint"), style = MaterialTheme.typography.labelLarge)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)) {
+                        com.jarvis.android.avatar.SKIN_NAMES.forEachIndexed { i, name ->
+                            FilterChip(selected = skinIdx == i, onClick = { scope.launch { configStore.setAvatarSkin(i) } }, label = { Text(tr(name)) })
+                        }
+                    }
+                    if (hairOn) {
+                        Text(tr("Couleur des cheveux"), style = MaterialTheme.typography.labelLarge)
+                        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)) {
+                            com.jarvis.android.avatar.HAIR_NAMES.forEachIndexed { i, name ->
+                                FilterChip(selected = hairColorIdx == i, onClick = { scope.launch { configStore.setAvatarHairColor(i) } }, label = { Text(tr(name)) })
+                            }
+                        }
+                    }
+                    Text(tr("Couleur des yeux"), style = MaterialTheme.typography.labelLarge)
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)) {
+                        com.jarvis.android.avatar.EYE_NAMES.forEachIndexed { i, name ->
+                            FilterChip(selected = eyesIdx == i, onClick = { scope.launch { configStore.setAvatarEyes(i) } }, label = { Text(tr(name)) })
+                        }
+                    }
                 }
             }
             Text(

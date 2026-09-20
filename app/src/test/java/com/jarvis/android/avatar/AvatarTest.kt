@@ -23,7 +23,7 @@ class AvatarTest {
         assertEquals(mapOf("eye_l" to 16, "eye_r" to 16, "brow_l" to 5, "brow_r" to 5, "lips_out" to 20, "lips_in" to 20), mesh.landmarks.mapValues { it.value.size })
         assertTrue(mesh.crown > mesh.bottom)
         assertEquals(mesh.baseCount + mesh.hairVertexCount, mesh.strandBase)
-        assertEquals(mesh.strandBase + mesh.strandCount * mesh.strandLength, mesh.vertexCount)
+        assertEquals(mesh.circuitBase + mesh.circuitCount * mesh.circuitLength, mesh.vertexCount)
         val hairFaces = (0 until mesh.faceCount).count { mesh.isHairFace(it) }
         assertTrue(hairFaces > 500)
         // every hair triangle uses hair vertices only, and no head triangle does
@@ -34,6 +34,10 @@ class AvatarTest {
         // the hair sits on the top of the head, the strands on the hair
         val topHair = (mesh.hairFirst until mesh.strandBase).maxOf { mesh.verts[3 * it + 1] }
         assertTrue(topHair > 0.95f)
+        // the individual strands, the fringe locks and the glowing circuit traces (with the forehead chip) are all there
+        assertTrue(mesh.strandCount >= 700 && mesh.fringeCount in 1 until mesh.strandCount)
+        assertTrue(mesh.circuitCount > mesh.brightCount && mesh.brightCount >= 4 && mesh.circuitLength >= 16)
+        assertTrue(mesh.ao.all { it in 0.4f..1.0f })
     }
 
     @Test

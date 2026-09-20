@@ -61,6 +61,12 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     /** Set from the settings: when false the hair shell and strands are skipped. */
     @Volatile var showHair = true
 
+    /** The chosen look (realistic or holographic, skin, hair and eye colours). */
+    @Volatile var look = AvatarLook()
+
+    private val realistic = RealisticPainter(mesh)
+    private val cyber = CyberPainter(mesh)
+
     private val nV = mesh.vertexCount
     private val nF = mesh.faceCount
     private val nSurface = mesh.strandBase // vertices that belong to a surface (the strand points do not)
@@ -97,13 +103,19 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         val amp = avatar.glow
         val v = avatar.pv
         val n = avatar.pn
+        val look = look
+        val real = look.style == AvatarStyle.REALISTIC
+        val cyb = look.style == AvatarStyle.CYBER
+        realistic.prepare(look, bg)
+        if (cyb) cyber.drawBackdrop(scope, scope.size.minDimension, avatar.time, amp)
 
-        // aura
+        // aura: a soft halo behind the head (fainter for the realistic look)
         val ar = r * 1.95f
+        val haze = if (real) 0.4f else if (cyb) 0.7f else 1f
         scope.drawCircle(
             brush = Brush.radialGradient(
-                0f to Color(withAlpha(primary, 34f + 66f * amp)),
-                0.38f to Color(withAlpha(primary, 20f + 40f * amp)),
+                0f to Color(withAlpha(primary, (34f + 66f * amp) * haze)),
+                0.38f to Color(withAlpha(primary, (20f + 40f * amp) * haze)),
                 1f to Color(withAlpha(primary, 0f)),
                 center = Offset(cx, cy), radius = ar,
             ),
@@ -123,11 +135,25 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         scope.drawIntoCanvas { canvas ->
             val nc = canvas.nativeCanvas
             drawSurface(nc, visible)
-            drawWire(nc, v, amp, primary, bg, strokePx)
-            if (showHair) drawStrands(nc, n, amp, accent, bg, strokePx)
+            if (cyb) {
+                cyber.drawCircuits(nc, scope, xs, ys, n, avatar.time, amp, strokePx)
+            } else if (real) {
+                if (showHair) realistic.drawStrands(nc, xs, ys, n, strokePx)
+            } else {
+                drawWire(nc, v, amp, primary, bg, strokePx)
+                if (showHair) drawStrands(nc, n, amp, accent, bg, strokePx)
+            }
         }
-        drawScanLines(scope, cx, cy, r, primary)
-        drawFeatures(scope, avatar, r, primary, accent, bg, amp, strokePx)
+        if (cyb) {
+            cyber.drawNeckAndCollar(scope, cx, cy, r, strokePx, avatar.time)
+            cyber.drawFeatures(scope, avatar, xs, ys, r, amp, strokePx)
+        } else if (real) {
+            realistic.drawShirt(scope, cx, cy, r)
+            realistic.drawFeatures(scope, avatar, xs, ys, r, look, amp, strokePx)
+        } else {
+            drawScanLines(scope, cx, cy, r, primary)
+            drawFeatures(scope, avatar, r, primary, accent, bg, amp, strokePx)
+        }
     }
 
     private fun buildLuts(bg: Int, primary: Int, accent: Int) {
@@ -148,7 +174,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private fun shadeSurface(v: FloatArray, nrm: FloatArray, amp: Float, accent: Int): Int {
         val f = mesh.faces
         vnx.fill(0f, 0, nSurface); vny.fill(0f, 0, nSurface); vnz.fill(0f, 0, nSurface)
-        val hairOn = showHair
+        val hairOn = showHair || look.style == AvatarStyle.CYBER // in the cyber style the shell is the cranial glass: always there
         var count = 0
         for (t in 0 until nF) {
             val hair = mesh.isHairFace(t)
@@ -189,7 +215,11 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val nx = vnx[i] / len; val ny = vny[i] / len; val nz = vnz[i] / len
             val fres = Math.pow((1f - nz).coerceIn(0f, 2f).toDouble(), 1.7).toFloat()
             val lam = (nx * LX + ny * LY + nz * LZ).coerceIn(0f, 1f)
-            if (mesh.isHairVertex(i)) {
+            if (look.style == AvatarStyle.CYBER) {
+                vertexColor[i] = if (mesh.isHairVertex(i)) cyber.shellVertex(i, nx, ny, nz, amp) else cyber.skinVertex(i, nx, ny, nz, amp)
+            } else if (look.style == AvatarStyle.REALISTIC) {
+                vertexColor[i] = if (mesh.isHairVertex(i)) realistic.hairVertex(i, nx, ny, nz, amp) else realistic.skinVertex(i, nx, ny, nz, amp)
+            } else if (mesh.isHairVertex(i)) {
                 // Hair: a darker body with a soft sheen band where the light glances off it.
                 val sheen = Math.pow((nx * HX + ny * HY + nz * HZ).coerceIn(0f, 1f).toDouble(), 14.0).toFloat()
                 val bright = (0.20f + 0.42f * lam + 0.14f * fres) * mesh.fade[i] * (0.90f + 0.20f * amp)
@@ -258,7 +288,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             // The strip between the face mask and the skull is nearly edge-on: its facing flips from triangle to triangle and would draw noise.
             if (silhouette && (mesh.isSweepFace(f0) || (f1 >= 0 && mesh.isSweepFace(f1)))) continue
             val hair = mesh.isHairFace(f0)
-            if (hair && !showHair) continue
+            if (hair && !(showHair || look.style == AvatarStyle.CYBER)) continue
             // The top of the neck tube is inside the head: its lines would show through the jaw as a box.
             if (mesh.faceGroup[f0] < 0.5f && v[3 * i0 + 1] > -1.02f && v[3 * i1 + 1] > -1.02f) continue
             val fadeE = 0.5f * (mesh.fade[i0] + mesh.fade[i1])

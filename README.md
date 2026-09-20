@@ -479,14 +479,18 @@ also shown in the settings.
 
 - **Face.** Real measured face geometry (468 vertices) with a cranium and a neck built around it, run once through Mark-LIV's
   generator, subdivided once with a curved (PN-style) midpoint rule so the surface and the silhouette are smooth, and stored as
-  a 400 KB asset (`head_mesh.bin`; the script that builds it is not part of the app). About 8,000 triangles, drawn on Android's
+  a 900 KB asset (`head_mesh.bin`; the script that builds it, `tools/avatar/export_head.py`, is not part of the app). About 8,000 triangles, drawn on Android's
   canvas: no OpenGL, no extra library.
 - **Smooth shading.** Mark-LIV lit each facet flat; here each vertex is lit from normals rebuilt every frame on the posed
   geometry (so the lips and jaw relight as they move), and the triangles blend the colours. Structure lines (creases and
   silhouette) keep the anatomy readable.
-- **Hair.** A hair shell over the cranium (thin at the hairline, fuller on top, at the sides and at the back, roots darker) with
-  120 flowing strands from the crown; sheen where the light glances off it. It is a stylised holographic haircut, not a
-  photo-real one, and it has no ears or fringe. Settings > Appearance has a switch to remove it.
+- **Three looks** (Settings > Appearance > Style du visage). *Cyber* (default) is an android after a reference image the
+  user supplied (glossy blue skin under a translucent violet cranial shell, neon circuit traces, a glowing forehead chip, a glowing
+  outline along the jaw and the edge of the shell, luminous eyes, a mouth that lights up with small bars while it speaks, a ribbed
+  neck, an armoured collar, and a circuit-board backdrop with pulses of light); the face is reshaped from Mark-LIV's human mask
+  (narrower jaw, longer chin, higher cheekbones, slimmer nose) but it is still that mask, not a copy of the picture. *Realistic*
+  is a lit, skin-toned head with real eyes, coloured lips, teeth, brows, a shirt and hair (a hair shell plus 700 strands in three
+  tones and 56 fringe locks; skin tone, hair colour and eye colour are settings). *Hologram* is the original blue look.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.
@@ -499,7 +503,7 @@ also shown in the settings.
   synthetic voice (debug-only `DEBUG_AVATAR` broadcast feeding the real analysis path); 40 unit tests (mesh loading, text to
   shapes, formant analysis, fusion, clock, animation). **Not checked:** with Gemini's real voice on a phone (timing of the lips
   against the sound, the value of the 40 ms output-latency guess), frame rate and battery on a real phone with the denser mesh
-  (about 8,000 triangles sorted and drawn each frame), the hair seen from the sides and the back while the head turns, the drawing
+  (about 8,500 triangles sorted and drawn each frame, plus up to 17,000 points for strands and circuits), the hair and the circuits seen from the sides and the back while the head turns, the realistic style on a real phone, the drawing
   on Android 8 and 9 (there the triangles are drawn one by one, slower, and without the colour blending).
 
 ### Text chat (REST)

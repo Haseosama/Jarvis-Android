@@ -84,6 +84,20 @@ class JarvisContainer(val appContext: Context) {
         }
         appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }
         appScope.launch { configStore.avatarHair.collect { avatar.hair = it } }
+        appScope.launch {
+            kotlinx.coroutines.flow.combine(
+                configStore.avatarStyle, configStore.avatarSkin, configStore.avatarHairColor, configStore.avatarEyes,
+            ) { style, skin, hair, eyes ->
+                com.jarvis.android.avatar.AvatarLook(
+                    when (style) {
+                        "realistic" -> com.jarvis.android.avatar.AvatarStyle.REALISTIC
+                        "holo" -> com.jarvis.android.avatar.AvatarStyle.HOLOGRAPHIC
+                        else -> com.jarvis.android.avatar.AvatarStyle.CYBER
+                    },
+                    skin, hair, eyes,
+                )
+            }.collect { avatar.look = it }
+        }
         com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)
         appScope.launch { configStore.audioInputKey.collect { com.jarvis.android.core.AudioRoute.inputKey = it } }
         appScope.launch { configStore.audioOutputKey.collect { com.jarvis.android.core.AudioRoute.outputKey = it } }
