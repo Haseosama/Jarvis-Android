@@ -86,6 +86,7 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch { configStore.avatarSkin.collect { avatar.skin = it } }
         appScope.launch { configStore.avatarLips.collect { avatar.lips = it } }
         com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)
+        com.jarvis.android.watch.WatchScheduler.sync(appContext)
         appScope.launch { configStore.audioInputKey.collect { com.jarvis.android.core.AudioRoute.inputKey = it } }
         appScope.launch { configStore.audioOutputKey.collect { com.jarvis.android.core.AudioRoute.outputKey = it } }
         val notifier = com.jarvis.android.core.ConfirmNotifier(appContext)

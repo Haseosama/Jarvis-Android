@@ -551,6 +551,39 @@ on an emulator the record → transcribe → error path with a fake key. Not yet
 the transcription quality, the speech-model auto-detection and the actual playback. It does not stop
 a running Live voice session; use one or the other.
 
+### Meeting notes, documents, watches, Gmail and Drive
+
+Four abilities inspired by [Brahma-Echo](https://github.com/titechprabhasolutions/Brahma-Echo) (a Windows assistant), each with its own tool for the
+voice session and, where it makes sense, a card in the settings. All of them are covered by unit tests; what could not be tried without a real
+Google account or a Gemini key is said below.
+
+- **Meeting notes** (`meeting_notes`, Settings > Meeting notes). Records a meeting or a voice note (AAC, 32 kbit/s, an hour at most, as a microphone
+  foreground service with a notification whose buttons finish or drop the recording), then sends the audio to Gemini, which writes a summary, key
+  points, decisions, actions and a transcript in Markdown. The notes are kept in the app (excluded from backups), announced by a notification with
+  Open and Share buttons; the audio is deleted once the notes are saved and kept if they could not be written ("Retry" in the notification and in the
+  settings). The microphone serves one use at a time, so starting from a voice session closes the session first; the reliable way to start is the
+  button in the settings. *Not tried:* the real Gemini answer (no key on the test emulator); the recording, the stop, the failure and retry paths were.
+- **Documents** (`create_document`). Writes a PDF, a Word (.docx), an Excel (.xlsx), a CSV, a Markdown or a text file from what the assistant
+  composed (light Markdown for text documents; rows for tables, `=SUM(...)` cells become formulas), in the app's `Documents/Jarvis` folder, and shows a
+  notification with Open and Share. The Word and Excel files are written by hand (a small OOXML writer), the PDF with Android's `PdfDocument`.
+  *Checked:* the PDF was laid out and read back; the Word file round-trips through the app's own reader; the Excel XML was read back.
+  *Not tried:* opening the Word and Excel files in Office. No presentation (.pptx) yet.
+- **Watches** (`watch`, Settings > Watches). Keeps an eye on a crypto price in euros (CoinGecko, no key), a website (alerts when it stops answering and
+  when it is back), the battery temperature or the free memory, about every 15 minutes with WorkManager, and alerts once per crossing (with a small
+  margin so a value at the threshold does not ring every check). Battery and storage alerts already existed in "Background checks". *Checked:* a live
+  price and a site check on the emulator.
+- **Gmail and Drive** (`gmail`, `drive`, Settings > Google). Reads unread or searched mail, reads a message, and prepares **drafts** (nothing is ever
+  sent); searches and reads Drive files (Docs and Sheets exported as text, PDF and images analysed by Gemini), and uploads documents Jarvis wrote.
+  Sign-in uses Google's Authorization API (Play services), so Jarvis never sees a password, with the narrowest scopes: `gmail.readonly`,
+  `gmail.compose`, `drive.readonly`, `drive.file`. Mail and file contents reach the model as data, marked so that instructions inside them are not followed.
+  *Not tried:* everything that needs a signed-in Google account (the emulator has none); the tools answer "Google is not connected" without one.
+  To connect: in a Google Cloud project, enable the Gmail API and the Google Drive API; configure the OAuth consent screen (External, in testing, with
+  your Google account as a test user, and the four scopes above); create an OAuth client ID of type **Android** with the app's package name
+  (`com.jarvis.android`, or `com.jarvis.android.dev` for the debug build) and the SHA-1 of the key that signs the APK
+  (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`); then Settings > Google > Connect. Google
+  treats Gmail scopes as restricted: an unverified app in testing mode is limited to its test users, and the access may need to be renewed about every
+  week.
+
 ## Instrumented tests
 
 `app/src/androidTest` holds 14 tests that need a real Android runtime: `SecureStore` on the real

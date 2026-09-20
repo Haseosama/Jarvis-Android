@@ -121,6 +121,26 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/jarvis_widget_info" />
         </receiver>
 
+        <activity
+            android:name=".google.GoogleConnectActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <service
+            android:name=".meetings.MeetingRecorderService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <service
             android:name=".core.JarvisVoiceService"
             android:foregroundServiceType="microphone"

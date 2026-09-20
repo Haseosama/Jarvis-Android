@@ -3,8 +3,10 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="jarvis_secure_prefs.xml" />
+        <exclude domain="file" path="meetings" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="jarvis_secure_prefs.xml" />
+        <exclude domain="file" path="meetings" />
     </device-transfer>
 </data-extraction-rules>

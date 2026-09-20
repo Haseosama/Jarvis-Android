@@ -24,11 +24,14 @@ class DebugToolReceiver : BroadcastReceiver() {
         val tool = intent.getStringExtra("tool") ?: return
         // Simple extras (--es text Stopwatch) are easier to pass through adb than JSON.
         val simple = intent.extras?.keySet().orEmpty()
-            .filter { it != "tool" && it != "args" }
+            .filter { it != "tool" && it != "args" && it != "args_file" }
             .mapNotNull { key -> intent.getStringExtra(key)?.let { key to JsonPrimitive(it) } }
             .toMap()
+        // Long or awkward arguments (Markdown with line breaks) are easier to put in a file inside the app's own folder:
+        // `adb shell run-as <package> sh -c 'cat > files/args.json' < args.json`, then `--es args_file args.json`.
+        val fromFile = intent.getStringExtra("args_file")?.let { java.io.File(context.filesDir, it).takeIf { f -> f.isFile }?.readText() }
         val args = try {
-            JsonObject(Json.parseToJsonElement(intent.getStringExtra("args") ?: "{}").jsonObject + simple)
+            JsonObject(Json.parseToJsonElement(fromFile ?: intent.getStringExtra("args") ?: "{}").jsonObject + simple.filterKeys { it != "args_file" })
         } catch (_: Exception) {
             JsonObject(simple)
         }

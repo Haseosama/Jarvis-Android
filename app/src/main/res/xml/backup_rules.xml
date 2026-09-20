@@ -3,4 +3,5 @@
      never backed up: restoring one without the other crashes the app at startup. -->
 <full-backup-content>
     <exclude domain="sharedpref" path="jarvis_secure_prefs.xml" />
+    <exclude domain="file" path="meetings" />
 </full-backup-content>

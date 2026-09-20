@@ -56,6 +56,11 @@ object ToolRegistry {
         NotificationsTool,
         VisionStreamTool,
         FileManagerTool,
+        DocumentTool,
+        MeetingTool,
+        WatchTool,
+        GmailTool,
+        DriveTool,
     )
 
     private val byName = ALL.associateBy { it.name }

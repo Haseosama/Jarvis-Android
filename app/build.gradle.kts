@@ -122,6 +122,9 @@ dependencies {
     // API key stored encrypted on-device, never bundled/hardcoded
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
+    // Google sign-in for Gmail and Drive (the Authorization API).
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+
     // Reminders
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 

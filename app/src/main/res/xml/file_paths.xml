@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The files Jarvis hands to other apps (to open or to share): its documents and the notes of meetings. -->
+<paths>
+    <external-files-path name="documents" path="Documents/Jarvis/" />
+    <files-path name="meetings" path="meetings/" />
+</paths>

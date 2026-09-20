@@ -1,0 +1,64 @@
+package com.jarvis.android.google
+
+import android.content.Context
+import com.google.android.gms.auth.api.identity.AuthorizationRequest
+import com.google.android.gms.auth.api.identity.AuthorizationResult
+import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+/**
+ * Google sign-in for Gmail and Drive, through Google's Authorization API (Play services): the consent screen and the tokens are handled
+ * by Android, Jarvis never sees a password. It needs an OAuth client of type "Android" for this app (package name and signing
+ * certificate) in a Google Cloud project, and the user added as a test user while the consent screen is in test mode.
+ *
+ * The scopes are the narrowest that do the job: read mail, create drafts (nothing is ever sent), read Drive, and add files
+ * that Jarvis itself created to Drive.
+ */
+internal object GoogleAuth {
+    val SCOPES = listOf(
+        "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/drive.readonly",
+        "https://www.googleapis.com/auth/drive.file",
+    )
+
+    fun request(): AuthorizationRequest = AuthorizationRequest.builder().setRequestedScopes(SCOPES.map { Scope(it) }).build()
+
+    /** Asks for authorisation. If the user has to be asked, [AuthorizationResult.hasResolution] is true and the UI must launch its pending intent. */
+    suspend fun authorize(context: Context): AuthorizationResult = suspendCancellableCoroutine { cont ->
+        Identity.getAuthorizationClient(context).authorize(request())
+            .addOnSuccessListener { cont.resume(it) }
+            .addOnFailureListener { cont.resumeWithException(it) }
+    }
+
+    /** An access token for the API calls, or a message that says what is wrong. Never asks the user anything by itself. */
+    suspend fun accessToken(context: Context): Result<String> = try {
+        val result = authorize(context)
+        val token = result.accessToken
+        when {
+            token != null -> Result.success(token)
+            result.hasResolution() -> Result.failure(GoogleException(NOT_CONNECTED))
+            else -> Result.failure(GoogleException(NOT_CONNECTED))
+        }
+    } catch (e: ApiException) {
+        Result.failure(GoogleException(explain(e)))
+    } catch (e: Exception) {
+        Result.failure(GoogleException(e.message ?: NOT_CONNECTED))
+    }
+
+    const val NOT_CONNECTED = "Google n’est pas connecté : l’utilisateur doit toucher « Connecter Google » dans les réglages de Jarvis."
+
+    /** What an [ApiException] usually means here, in plain words. */
+    fun explain(e: ApiException): String = when (e.statusCode) {
+        10 -> "Google refuse cette application (erreur 10) : il faut un client OAuth de type Android pour ce paquet et cette signature, dans Google Cloud (voir le README)."
+        7 -> "Pas de connexion réseau."
+        12501 -> "Connexion à Google annulée."
+        else -> "Google a répondu par une erreur (${e.statusCode})."
+    }
+}
+
+internal class GoogleException(message: String) : Exception(message)

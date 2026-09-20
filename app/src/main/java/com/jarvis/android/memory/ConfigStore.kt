@@ -170,6 +170,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_BRIEFING = booleanPreferencesKey("briefing_enabled")
     private val KEY_CHAT_HISTORY = booleanPreferencesKey("chat_history_enabled")
     private val KEY_AVATAR_FACE = booleanPreferencesKey("avatar_face")
+    private val KEY_GOOGLE = booleanPreferencesKey("google_connected")
     private val KEY_AVATAR_SKIN = intPreferencesKey("avatar_face_skin")
     private val KEY_AVATAR_LIPS = intPreferencesKey("avatar_lip_colour")
     private val KEY_MUTE_WHILE_SPEAKING = booleanPreferencesKey("mute_mic_while_speaking")
@@ -201,6 +202,8 @@ class ConfigStore(private val context: Context) {
     val audioOutputKey: Flow<String> = context.dataStore.data.map { it[KEY_AUDIO_OUT].orEmpty() }
     val chatHistoryEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_CHAT_HISTORY] ?: true }
     /** True (default): the HUD shows the holographic face; false: the reactor core. */
+    /** Whether the user connected their Google account for Gmail and Drive. */
+    val googleConnected: Flow<Boolean> = context.dataStore.data.map { it[KEY_GOOGLE] ?: false }
     val avatarFace: Flow<Boolean> = context.dataStore.data.map { it[KEY_AVATAR_FACE] ?: true }
     /** 0 = the glowing web, 1..4 = a skin of that tone over the face (light by default). */
     val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 1 }
@@ -228,6 +231,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setAudioOutputKey(v: String) = context.dataStore.edit { it[KEY_AUDIO_OUT] = v }
     suspend fun setChatHistoryEnabled(v: Boolean) = context.dataStore.edit { it[KEY_CHAT_HISTORY] = v }
     suspend fun snapshotChatHistoryEnabled() = chatHistoryEnabled.first()
+    suspend fun setGoogleConnected(v: Boolean) = context.dataStore.edit { it[KEY_GOOGLE] = v }
     suspend fun setAvatarFace(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_FACE] = v }
     suspend fun setAvatarSkin(v: Int) = context.dataStore.edit { it[KEY_AVATAR_SKIN] = v }
     suspend fun setAvatarLips(v: Int) = context.dataStore.edit { it[KEY_AVATAR_LIPS] = v }
