@@ -21,6 +21,18 @@ object WebSearchTool : Tool {
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String = withContext(Dispatchers.IO) {
         val query = normalizedUtilityQuery(args.utilityString("query"), 500)
             ?: return@withContext "Indiquez une recherche non vide, de 500 caractères maximum."
+        // First choice: Gemini answering with Google Search. Any failure falls back to DuckDuckGo.
+        try {
+            val model = ctx.configStore.snapshotRestModel()
+            val answer = com.jarvis.android.rest.formatGroundedAnswer(
+                ctx.restChat.transport.generate(model, com.jarvis.android.rest.buildGroundedRequest(query))
+            )
+            return@withContext "Recherche Google pour « $query » :\n$answer"
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // fall through to the DuckDuckGo path below
+        }
         try {
             val url = "https://lite.duckduckgo.com/lite/".toHttpUrl().newBuilder()
                 .addQueryParameter("q", query).build()
