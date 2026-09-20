@@ -528,9 +528,7 @@ class JarvisEngine(
                         when (event) {
                             is LiveEvent.SetupComplete -> if (!ready.isCompleted) {
                                 if (!audio.startPlayback()) {
-                                    log(tr("Impossible d'acquérir le focus audio."))
-                                    _state.value = JarvisState.ERROR
-                                    throw IllegalStateException(tr("Focus audio non acquis."))
+                                    log(tr("Focus audio refusé par Android : la lecture continue sans."))
                                 }
                                 ready.complete(Unit)
                                 handshake.cancel()

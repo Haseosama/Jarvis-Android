@@ -38,11 +38,10 @@ class AudioEngine(private val context: Context) {
                         }
                     }
                 }
-                AudioManager.AUDIOFOCUS_LOSS,
-                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                     track?.pause()
                 }
+                // A lasting loss (music the assistant itself started) or ducking must not cut a sentence: keep talking.
             }
         }
     }
@@ -132,11 +131,13 @@ class AudioEngine(private val context: Context) {
                     .build()
             )
             .setOnAudioFocusChangeListener(focusListener)
+            .setAcceptsDelayedFocusGain(true)
             .build()
-        val focusGranted = audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        val result = audioManager.requestAudioFocus(request)
+        val focusGranted = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED || result == AudioManager.AUDIOFOCUS_REQUEST_DELAYED
         if (focusGranted) focusRequest = request
         inSetup = false
-        if (!focusGranted) return@synchronized false
+        // A refused focus (another app holds it, some Samsung phones) is not fatal: the voice can still play, so go on.
         val minBuf = AudioTrack.getMinBufferSize(
             LiveProtocol.RECEIVE_SAMPLE_RATE,
             AudioFormat.CHANNEL_OUT_MONO,
@@ -173,7 +174,7 @@ class AudioEngine(private val context: Context) {
             player.release()
             throw e
         }
-        true
+        focusGranted
     }
 
     fun abandonAudioFocus() {

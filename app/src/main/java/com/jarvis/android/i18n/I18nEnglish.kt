@@ -2,6 +2,7 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Focus audio refusé par Android : la lecture continue sans." to "Audio focus refused by Android: playback goes on without it.",
     "Action : {0}" to "Action: {0}",
     "Appareil auditif" to "Hearing aid",
     "Arrêter" to "Stop",
