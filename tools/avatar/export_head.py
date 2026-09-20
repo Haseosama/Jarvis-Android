@@ -529,7 +529,7 @@ for k, x in enumerate(xs_col):
     yc = seam_centre(x)
     cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (np.abs(V[:scan_count, 1] - yc) < 0.035) & (V[:scan_count, 2] > 0.3))
     cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (V[:scan_count, 1] > yc - 0.05) & (V[:scan_count, 1] < yc + 0.02) & (V[:scan_count, 2] > 0.3))
-    ys_col[k] = yc + 0.025                             # the mouth line sits in the middle of the coloured lips (the deepest groove lies behind them and would hide the slit)
+    ys_col[k] = yc + 0.06                             # the mouth line sits in the middle of the coloured lips (the deepest groove lies behind them and would hide the slit)
 ys_col = np.convolve(np.pad(ys_col, 3, mode="edge"), np.ones(7) / 7, mode="valid")
 print("mouth line: mean y", float(ys_col.mean()), "(ring centre", float(np.mean([seam_centre(x) for x in xs_col])), ")")
 def yseam(x):
