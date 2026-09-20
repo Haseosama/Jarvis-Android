@@ -50,6 +50,16 @@ fun SettingsScreen(
     val wakeWordEnabled by configStore.wakeWordEnabled.collectAsState(initial = false)
     val deviceControl by configStore.deviceControlEnabled.collectAsState(initial = true)
     val briefingOn by configStore.briefingEnabled.collectAsState(initial = true)
+    val workFolder by configStore.workFolder.collectAsState(initial = "")
+    val pickFolder = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            try {
+                context0.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                scope.launch { configStore.setWorkFolder(uri.toString()) }
+            } catch (_: Exception) {
+            }
+        }
+    }
     val sessionLog = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.sessionLog }
     var sessions by remember { mutableStateOf(emptyList<com.jarvis.android.core.SessionRecord>()) }
     val proactiveOn by configStore.proactiveEnabled.collectAsState(initial = false)
@@ -278,6 +288,34 @@ fun SettingsScreen(
             wakeMessage?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
+            Spacer(Modifier.height(24.dp))
+            Text("Dossier de travail (fichiers)", style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (workFolder.isBlank()) "Aucun dossier choisi : Jarvis ne touche à aucun fichier."
+                else "Dossier choisi : ${android.net.Uri.decode(workFolder.substringAfterLast("tree/"))}",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                OutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (workFolder.isBlank()) "Choisir un dossier" else "Changer de dossier") }
+                if (workFolder.isNotBlank()) {
+                    OutlinedButton(onClick = {
+                        try {
+                            context0.contentResolver.releasePersistableUriPermission(
+                                android.net.Uri.parse(workFolder),
+                                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                            )
+                        } catch (_: Exception) {
+                        }
+                        scope.launch { configStore.setWorkFolder("") }
+                    }) { Text("Retirer l’accès") }
+                }
+            }
+            Text(
+                "Jarvis peut lister, lire, chercher, créer, modifier, renommer, déplacer, copier, supprimer (corbeille dans le dossier) et ranger des fichiers, seulement dans ce dossier. La suppression, l’écriture et le rangement demandent votre confirmation ; tout peut être annulé.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
             Spacer(Modifier.height(24.dp))
             Text("Historique des sessions", style = MaterialTheme.typography.titleMedium)
             Text(

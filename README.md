@@ -276,6 +276,26 @@ Checked on an emulator: enabling the setting starts a microphone foreground serv
 listening continues with the app closed, and disabling the setting stops the service and frees the microphone.
 Not checked on the real phone with a real voice.
 
+### File management and device controls
+
+- **`file_manager`** (`filemanager/`, port of Mark-LIII's `file_controller`). Works only inside **one folder chosen by
+  the user** (Settings → *Dossier de travail*, through Android's folder picker, which refuses the storage root;
+  the access can be withdrawn there). Actions: list, info, read (start of a text file), find (name/extension),
+  largest, usage, create file/folder, write/append, rename, move, copy, delete and organize (sorts the files of a
+  folder into Images/Documents/Audio/Videos/Archives/Apps/Autres). Paths are relative to the folder and `..`
+  is refused. Delete moves to a `.jarvis_trash` folder inside it (nothing is erased for good), and deleting,
+  overwriting and organizing ask for confirmation in the notification. Every change is registered for `undo`,
+  and undoing a delete will not overwrite a newer file.
+  Checked with unit tests on an in-memory tree (22 cases) and on an emulator on a real folder: list, read, create,
+  rename, copy, move, find, largest, usage, undo and the `..` refusal, then confirmed on disk. **Not exercised
+  on a device:** the confirmation of delete/write/organize (it needs a tap on the notification), and any
+  provider other than the emulator's.
+- **`device_settings`** now also sets brightness (needs the "modify system settings" special access, which the app
+  opens for you to grant), switches the flashlight, presses media keys (play/pause, next, previous, stop), locks
+  the screen and takes a screenshot (both through the accessibility service), and opens named settings pages
+  (Wi-Fi, Bluetooth, airplane, display, sound, battery, location, apps, storage, NFC, date, language,
+  accessibility, security, network). Media keys and screenshots cannot be verified: the tool says so.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

@@ -170,6 +170,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_BRIEFING = booleanPreferencesKey("briefing_enabled")
     private val KEY_PROACTIVE = booleanPreferencesKey("proactive_enabled")
     private val KEY_WAKE_SENSITIVITY = intPreferencesKey("wake_sensitivity")
+    private val KEY_WORK_FOLDER = stringPreferencesKey("work_folder_uri")
     private val KEY_AUDIO_IN = stringPreferencesKey("audio_input_device")
     private val KEY_AUDIO_OUT = stringPreferencesKey("audio_output_device")
     private val KEY_LAST_BRIEFING = stringPreferencesKey("last_briefing_date")
@@ -186,6 +187,8 @@ class ConfigStore(private val context: Context) {
     val themeHue: Flow<Float> = context.dataStore.data.map { it[KEY_THEME_HUE] ?: 190f }
     /** Master switch for the phone-control tools (on top of the system accessibility switch). */
     val deviceControlEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_DEVICE_CONTROL] ?: true }
+    /** The folder (a Storage Access Framework tree URI) the file manager may work in; empty when none was chosen. */
+    val workFolder: Flow<String> = context.dataStore.data.map { it[KEY_WORK_FOLDER].orEmpty() }
     val wakeSensitivity: Flow<Int> = context.dataStore.data.map { it[KEY_WAKE_SENSITIVITY] ?: 1 }
     val proactiveEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PROACTIVE] ?: false }
     val audioInputKey: Flow<String> = context.dataStore.data.map { it[KEY_AUDIO_IN].orEmpty() }
@@ -202,6 +205,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setTtsModel(v: String) = context.dataStore.edit { it[KEY_TTS_MODEL] = v }
     suspend fun setThemeHue(v: Float) = context.dataStore.edit { it[KEY_THEME_HUE] = v }
     suspend fun setDeviceControlEnabled(v: Boolean) = context.dataStore.edit { it[KEY_DEVICE_CONTROL] = v }
+    suspend fun setWorkFolder(v: String) = context.dataStore.edit { it[KEY_WORK_FOLDER] = v }
     suspend fun setWakeSensitivity(v: Int) = context.dataStore.edit { it[KEY_WAKE_SENSITIVITY] = v.coerceIn(0, 2) }
     suspend fun setProactiveEnabled(v: Boolean) = context.dataStore.edit { it[KEY_PROACTIVE] = v }
     suspend fun setAudioInputKey(v: String) = context.dataStore.edit { it[KEY_AUDIO_IN] = v }
