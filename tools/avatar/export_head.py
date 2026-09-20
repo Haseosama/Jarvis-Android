@@ -686,7 +686,7 @@ def hairline_dist(P):
     hl = hl + (front_hl - hl) * smoothstep(0.02, 0.36, hz)
     d = hy - hl
     # the ears stay bare: the hair keeps clear of an ellipsoid round each one (a smooth distance, so the edge is clipped cleanly)
-    e = ((np.abs(hx) - 0.60) / 0.20) ** 2 + ((hy - 0.14) / 0.30) ** 2 + ((hz + 0.12) / 0.33) ** 2
+    e = ((np.abs(hx) - 0.62) / 0.17) ** 2 + ((hy - 0.15) / 0.24) ** 2 + ((hz + 0.14) / 0.23) ** 2
     return np.minimum(d, 0.2 * (np.sqrt(e) - 1.0))
 
 
