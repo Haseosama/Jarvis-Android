@@ -682,7 +682,7 @@ def hairline_dist(P):
     hx, hy, hz = P[:, 0] - FACE_X0, P[:, 1], P[:, 2]
     front_hl = 0.46 + 0.03 * np.cos(np.pi * hx / 0.42)                   # low on the left (the fringe), high on the right (the part)
     hl = -0.12 + (-0.06 - -0.12) * smoothstep(-0.40, -0.05, hz)             # the nape, then above the ears
-    front_hl = front_hl + (0.24 - front_hl) * smoothstep(0.40, 0.58, np.abs(hx))      # at the temples the hair comes down in front of the ears
+    front_hl = front_hl + (0.08 - front_hl) * smoothstep(0.36, 0.52, np.abs(hx))      # at the temples the hair comes down in front of the ears
     hl = hl + (front_hl - hl) * smoothstep(0.02, 0.36, hz)
     d = hy - hl
     # the ears stay bare: the hair keeps clear of an ellipsoid round each one (a smooth distance, so the edge is clipped cleanly)
@@ -766,6 +766,7 @@ hair_rgb = np.clip(base[None, :] * (1.0 + 0.9 * streak[:, None] + 0.3 * grain[:,
 sideness = 1.0 - smoothstep(0.05, 0.35, hz)
 alpha = (1.0 - sideness) + sideness * (0.32 + 0.68 * smoothstep(0.0, 0.32, hy)) * (0.85 + 0.15 * grain)
 alpha = np.maximum(alpha, np.clip(1.6 * ear_w, 0.0, 1.0))
+alpha = np.maximum(alpha, smoothstep(0.36, 0.50, np.abs(hx)) * smoothstep(0.05, 0.22, hy))     # the temples, on both sides, are covered
 alpha_b = np.clip(np.round(255.0 * alpha), 8, 255).astype(np.int64)
 hair_paint = (alpha_b << 24) | (hair_rgb[:, 0] << 16) | (hair_rgb[:, 1] << 8) | hair_rgb[:, 2]
 hair_first = len(V) + len(added["V"])

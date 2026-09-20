@@ -439,7 +439,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val nl = max(sqrt(nx * nx + ny * ny + nz * nz), 1e-6f)
             // the flow: swept forward and to the left on top, falling on the sides and the back
             val fringe = pz > 0.36f && py > 0.42f                    // the front of the top: the hair rises and sweeps back from the hairline
-            if (py < 0.32f && pz > 0.15f) continue              // no strands on the temples: they would hang in front of the eyes
+            val temple = kotlin.math.abs(px + 0.035f) > 0.34f && pz > 0.08f && py < 0.50f   // the temples: the hair runs back towards the ear
             val onTop = pz > 0.10f && py > 0.30f
             val isTop = onTop || fringe
             if (isTop && topN >= HAIR_STRANDS) continue
@@ -447,9 +447,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val jx = (rnd.nextFloat() - 0.5f) * 0.7f
             val jz = (rnd.nextFloat() - 0.5f) * 0.5f
             // combed: from the front it rises and goes back, across the top it runs to the right and back, at the sides it goes back and down
-            var fx = if (fringe) 0.40f + jx * 0.25f else if (onTop) 0.75f + jx * 0.25f else 0.10f * jx
-            var fy = if (fringe) 0.65f else if (onTop) 0.20f + 0.1f * (rnd.nextFloat() - 0.5f) else -0.45f
-            var fz = if (fringe) -0.30f + jz * 0.3f else if (onTop) -0.55f + jz * 0.3f else -0.85f
+            var fx = if (temple) (if (px + 0.035f < 0f) -0.55f else 0.55f) + jx * 0.2f else if (fringe) 0.40f + jx * 0.25f else if (onTop) 0.75f + jx * 0.25f else 0.10f * jx
+            var fy = if (temple) 0.10f else if (fringe) 0.65f else if (onTop) 0.20f + 0.1f * (rnd.nextFloat() - 0.5f) else -0.45f
+            var fz = if (temple) -0.75f + jz * 0.3f else if (fringe) -0.30f + jz * 0.3f else if (onTop) -0.55f + jz * 0.3f else -0.85f
             // remove the part along the normal: the strand runs along the surface
             val d = (fx * nx + fy * ny + fz * nz) / nl / nl
             fx -= d * nx; fy -= d * ny; fz -= d * nz
