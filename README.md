@@ -79,7 +79,7 @@ Mouse/keyboard automation, desktop/taskbar/window management (`computer_control`
 `desktop.py`), Steam/Epic game updates (`game_updater`), full desktop screen capture
 (`screen_processor`), and the remote dashboard all depend on APIs a sandboxed phone
 app cannot reach. `file_processor`, `background_monitor`/`proactive` check-ins, vision
-(camera / screen frames sent to the Live session), the audio-device picker and the
+(continuous camera / screen frames streamed to the Live session; single screenshots are covered by `screen_look`), the audio-device picker and the
 multi-step `dev_agent`/agent-mode planner are not yet ported (not impossible on Android,
 just not done yet).
 
@@ -190,6 +190,14 @@ typing without a field refused, and the confirmation notification appearing for 
 notification, typing into a real text field, Photos/Messenger flows, and anything on the real phone
 (the service has to be enabled there first). Apps that mark their window secure or draw their own
 UI without accessibility labels (some games, banking apps) may not be readable.
+
+**Vision (`screen_look`).** Where `screen_read` lists labelled elements, `screen_look` takes a screenshot
+through the accessibility service (Android 11+, scaled to 1280 px, JPEG), sends it with the user's question
+to the text model (`generateContent`, same key rotation) and returns the answer, for images, games and
+unlabelled buttons. The screenshot leaves the phone for Gemini, so it is only taken when asked for; a
+window an app marks as secure cannot be captured and the tool says so. Checked: unit tests for the request,
+scaling and answer parsing, and on an emulator that the screenshot is captured and the call reaches the
+network step (no key there). Not checked: an actual description from Gemini.
 
 **Taking a photo.** `take_photo` opens the camera and presses the shutter through the accessibility
 service (`front` for the selfie camera). It reports exactly what it did and never claims the picture

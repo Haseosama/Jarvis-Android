@@ -79,7 +79,7 @@ class RestChat internal constructor(
 
     private val httpClient = container.http.newBuilder().readTimeout(90, TimeUnit.SECONDS).build()
 
-    private val transport: GenerateTransport = transport ?: OkHttpGenerateTransport(
+    internal val transport: GenerateTransport = transport ?: OkHttpGenerateTransport(
         client = httpClient,
         apiKey = { container.configStore.getApiKey() },
         nextKey = { container.configStore.keyRejected(it) },

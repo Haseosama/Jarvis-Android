@@ -39,6 +39,7 @@ object ToolRegistry {
         UndoTool,
         EndSessionTool,
         ScreenReadTool,
+        ScreenLookTool,
         ScreenTapTool,
         ScreenTypeTool,
         ScreenScrollTool,

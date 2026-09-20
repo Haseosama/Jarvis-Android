@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.os.Bundle
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.jarvis.android.rest.scaledSize
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -203,6 +204,48 @@ class JarvisAccessibilityService : AccessibilityService() {
         val metrics = resources.displayMetrics
         return if (dispatchTap(metrics.widthPixels * x, metrics.heightPixels * y)) ActionResult.Done
         else ActionResult.Failed("Geste refusé par le système.")
+    }
+
+    /** The current screen as a JPEG scaled to [com.jarvis.android.rest.MAX_IMAGE_SIDE], or the reason it could not be captured. */
+    internal suspend fun screenshotJpeg(): Pair<ByteArray?, String?> {
+        if (android.os.Build.VERSION.SDK_INT < 30) return null to "La capture d’écran demande Android 11 ou plus."
+        val done = CompletableDeferred<Pair<ByteArray?, String?>>()
+        takeScreenshot(
+            android.view.Display.DEFAULT_DISPLAY,
+            java.util.concurrent.Executors.newSingleThreadExecutor(),
+            object : TakeScreenshotCallback {
+                override fun onSuccess(result: ScreenshotResult) {
+                    try {
+                        val hardware = android.graphics.Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
+                        val soft = hardware?.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                        result.hardwareBuffer.close()
+                        if (soft == null) {
+                            done.complete(null to "Capture d’écran illisible.")
+                            return
+                        }
+                        val (w, h) = scaledSize(soft.width, soft.height)
+                        val scaled = if (w == soft.width && h == soft.height) soft
+                        else android.graphics.Bitmap.createScaledBitmap(soft, w, h, true)
+                        val out = java.io.ByteArrayOutputStream()
+                        scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out)
+                        done.complete(out.toByteArray() to null)
+                    } catch (e: Exception) {
+                        done.complete(null to "Capture d’écran impossible.")
+                    }
+                }
+
+                override fun onFailure(errorCode: Int) {
+                    done.complete(
+                        null to when (errorCode) {
+                            ERROR_TAKE_SCREENSHOT_SECURE_WINDOW -> "Cette fenêtre est protégée : la capture d’écran est interdite par l’application."
+                            ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT -> "Captures trop rapprochées : réessayez dans une seconde."
+                            else -> "Capture d’écran refusée par le système (code $errorCode)."
+                        }
+                    )
+                }
+            },
+        )
+        return withTimeoutOrNull(5_000) { done.await() } ?: (null to "Capture d’écran trop lente.")
     }
 
     internal fun global(action: String): ActionResult {

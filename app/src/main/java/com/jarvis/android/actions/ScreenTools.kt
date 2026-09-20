@@ -78,6 +78,31 @@ object ScreenReadTool : Tool {
     }
 }
 
+object ScreenLookTool : Tool {
+    override val name = "screen_look"
+    override val description =
+        "Regarder l’écran actuel du téléphone avec la vision (capture d’écran analysée par Gemini) et répondre à une question : images, jeux, boutons sans texte, ce qui n’apparaît pas dans screen_read. La capture est envoyée à Gemini."
+    override val parameters = objectSchema {
+        string("question", "Ce que l’utilisateur veut savoir de l’écran ; vide pour une description générale.")
+    }
+
+    override suspend fun run(args: JsonObject, ctx: JarvisContainer): String {
+        val (service, reason) = serviceOrReason(ctx)
+        if (service == null) return reason!!
+        val question = args["question"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val (jpeg, failure) = service.screenshotJpeg()
+        if (jpeg == null) return failure ?: ERROR_NO_SCREEN
+        return try {
+            val request = com.jarvis.android.rest.buildVisionRequest(question, jpeg)
+            val model = ctx.configStore.snapshotRestModel()
+            val answer = com.jarvis.android.rest.parseVisionAnswer(ctx.restChat.transport.generate(model, request))
+            answer + SCREEN_DATA_NOTE
+        } catch (e: com.jarvis.android.rest.RestChatException) {
+            "Analyse de l’écran impossible : ${e.message}"
+        }
+    }
+}
+
 object ScreenTapTool : Tool {
     override val name = "screen_tap"
     override val description =
