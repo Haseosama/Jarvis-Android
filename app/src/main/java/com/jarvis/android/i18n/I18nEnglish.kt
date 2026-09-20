@@ -2,6 +2,8 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Nom de paquet : {0}" to "Package name: {0}",
+    "Empreinte SHA-1 : {0}" to "SHA-1 fingerprint: {0}",
     "Documents Jarvis" to "Jarvis documents",
     "Partager" to "Share",
     "Ouvrir" to "Open",

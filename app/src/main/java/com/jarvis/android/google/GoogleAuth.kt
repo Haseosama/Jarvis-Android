@@ -53,11 +53,15 @@ internal object GoogleAuth {
     const val NOT_CONNECTED = "Google n’est pas connecté : l’utilisateur doit toucher « Connecter Google » dans les réglages de Jarvis."
 
     /** What an [ApiException] usually means here, in plain words. */
-    fun explain(e: ApiException): String = when (e.statusCode) {
-        10 -> "Google refuse cette application (erreur 10) : il faut un client OAuth de type Android pour ce paquet et cette signature, dans Google Cloud (voir le README)."
-        7 -> "Pas de connexion réseau."
-        12501 -> "Connexion à Google annulée."
-        else -> "Google a répondu par une erreur (${e.statusCode})."
+    fun explain(e: ApiException, context: Context? = null): String {
+        val identity = context?.let { " Paquet : ${it.packageName}, SHA-1 : ${AppIdentity.sha1(it) ?: "?"}." }.orEmpty()
+        return when (e.statusCode) {
+            10 -> "Google refuse cette application (erreur 10) : il faut un client OAuth de type Android pour ce paquet et cette signature, dans Google Cloud (voir le README).$identity"
+            8 -> "Google Play Services a signalé une erreur interne (8). Le plus souvent, aucun client OAuth de type Android ne correspond à cette application, ou les API Gmail et Drive ne sont pas activées, ou ce compte n’est pas déclaré testeur. Voir le README.$identity"
+            7 -> "Pas de connexion réseau."
+            12501 -> "Connexion à Google annulée."
+            else -> "Google a répondu par une erreur (${e.statusCode}).$identity"
+        }
     }
 }
 

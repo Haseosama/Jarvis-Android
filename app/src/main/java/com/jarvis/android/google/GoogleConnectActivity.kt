@@ -22,7 +22,7 @@ class GoogleConnectActivity : ComponentActivity() {
         try {
             done(Identity.getAuthorizationClient(this).getAuthorizationResultFromIntent(result.data))
         } catch (e: ApiException) {
-            fail(GoogleAuth.explain(e))
+            fail(GoogleAuth.explain(e, this))
         }
     }
 
@@ -34,7 +34,7 @@ class GoogleConnectActivity : ComponentActivity() {
                 val pending = result.pendingIntent
                 if (result.hasResolution() && pending != null) consent.launch(IntentSenderRequest.Builder(pending.intentSender).build()) else done(result)
             } catch (e: ApiException) {
-                fail(GoogleAuth.explain(e))
+                fail(GoogleAuth.explain(e, this@GoogleConnectActivity))
             } catch (e: Exception) {
                 fail(e.message ?: tr("Connexion à Google impossible."))
             }

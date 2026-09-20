@@ -138,6 +138,12 @@ internal fun GoogleCard(configStore: ConfigStore) {
             }
             if (connected) OutlinedButton(onClick = { scope.launch { configStore.setGoogleConnected(false) } }) { Text(tr("Oublier")) }
         }
+        val sha1 = remember { com.jarvis.android.google.AppIdentity.sha1(context) }
+        Text(
+            trf("Nom de paquet : {0}", context.packageName) + "\n" + trf("Empreinte SHA-1 : {0}", sha1 ?: "?"),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 6.dp),
+        )
         Text(
             tr("Cela demande un client OAuth de type Android pour cette application dans un projet Google Cloud (voir le README). Pour retirer l’accès côté Google : compte Google > Sécurité > Applications tierces."),
             style = MaterialTheme.typography.bodySmall,
