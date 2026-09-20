@@ -49,6 +49,7 @@ fun SettingsScreen(
     val wakeWordEnabled by configStore.wakeWordEnabled.collectAsState(initial = false)
     val deviceControl by configStore.deviceControlEnabled.collectAsState(initial = true)
     val briefingOn by configStore.briefingEnabled.collectAsState(initial = true)
+    val proactiveOn by configStore.proactiveEnabled.collectAsState(initial = false)
     var serviceOn by remember { mutableStateOf(false) }
     var assistantNameField by remember(assistantName) { mutableStateOf(assistantName) }
     var userNameField by remember(userName) { mutableStateOf(userName) }
@@ -230,6 +231,21 @@ fun SettingsScreen(
             }
             Text(
                 "À la fin d’une session d’au moins deux échanges, Jarvis en garde un résumé d’une ou deux phrases (généré par Gemini, conservé sur l’appareil, trois au maximum).",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Spacer(Modifier.height(24.dp))
+            Text("Vérifications en arrière-plan", style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            ) {
+                Text("Notifier : batterie faible, stockage presque plein, briefing du matin", modifier = Modifier.weight(1f))
+                Switch(checked = proactiveOn, onCheckedChange = { scope.launch { configStore.setProactiveEnabled(it) } })
+            }
+            Text(
+                "Contrôle local toutes les 15 minutes environ, sans connexion ni micro. Chaque alerte n’est envoyée qu’une fois ; le briefing du matin (7 h à 11 h) reprend le résumé de la dernière session et vos rappels du jour. Désactivé par défaut.",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )

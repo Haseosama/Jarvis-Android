@@ -41,6 +41,9 @@ class JarvisContainer(val appContext: Context) {
 
     init {
         com.jarvis.android.device.AccessibilityKeeper.ensureEnabled(appContext)
+        appScope.launch {
+            configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
+        }
         appScope.launch { configStore.audioInputKey.collect { com.jarvis.android.core.AudioRoute.inputKey = it } }
         appScope.launch { configStore.audioOutputKey.collect { com.jarvis.android.core.AudioRoute.outputKey = it } }
         val notifier = com.jarvis.android.core.ConfirmNotifier(appContext)

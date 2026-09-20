@@ -167,6 +167,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_WAKE_WORD = booleanPreferencesKey("wake_word_enabled")
     private val KEY_DEVICE_CONTROL = booleanPreferencesKey("device_control_enabled")
     private val KEY_BRIEFING = booleanPreferencesKey("briefing_enabled")
+    private val KEY_PROACTIVE = booleanPreferencesKey("proactive_enabled")
     private val KEY_AUDIO_IN = stringPreferencesKey("audio_input_device")
     private val KEY_AUDIO_OUT = stringPreferencesKey("audio_output_device")
     private val KEY_LAST_BRIEFING = stringPreferencesKey("last_briefing_date")
@@ -183,6 +184,7 @@ class ConfigStore(private val context: Context) {
     val themeHue: Flow<Float> = context.dataStore.data.map { it[KEY_THEME_HUE] ?: 190f }
     /** Master switch for the phone-control tools (on top of the system accessibility switch). */
     val deviceControlEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_DEVICE_CONTROL] ?: true }
+    val proactiveEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PROACTIVE] ?: false }
     val audioInputKey: Flow<String> = context.dataStore.data.map { it[KEY_AUDIO_IN].orEmpty() }
     val audioOutputKey: Flow<String> = context.dataStore.data.map { it[KEY_AUDIO_OUT].orEmpty() }
     val briefingEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_BRIEFING] ?: true }
@@ -197,6 +199,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setTtsModel(v: String) = context.dataStore.edit { it[KEY_TTS_MODEL] = v }
     suspend fun setThemeHue(v: Float) = context.dataStore.edit { it[KEY_THEME_HUE] = v }
     suspend fun setDeviceControlEnabled(v: Boolean) = context.dataStore.edit { it[KEY_DEVICE_CONTROL] = v }
+    suspend fun setProactiveEnabled(v: Boolean) = context.dataStore.edit { it[KEY_PROACTIVE] = v }
     suspend fun setAudioInputKey(v: String) = context.dataStore.edit { it[KEY_AUDIO_IN] = v }
     suspend fun setAudioOutputKey(v: String) = context.dataStore.edit { it[KEY_AUDIO_OUT] = v }
     suspend fun setBriefingEnabled(v: Boolean) = context.dataStore.edit { it[KEY_BRIEFING] = v }
@@ -209,6 +212,7 @@ class ConfigStore(private val context: Context) {
     suspend fun snapshotModel() = model.first()
     suspend fun snapshotRestModel() = restModel.first()
     suspend fun snapshotBriefingEnabled() = briefingEnabled.first()
+    suspend fun snapshotProactiveEnabled() = proactiveEnabled.first()
     suspend fun snapshotLastBriefingDate() = lastBriefingDate.first()
     suspend fun snapshotTtsModel() = ttsModel.first()
 
