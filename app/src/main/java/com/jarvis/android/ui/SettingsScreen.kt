@@ -467,6 +467,39 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
             }
+            SettingsCard(tr("Notifications"), Icons.Filled.NotificationsActive, initiallyExpanded = false) {
+            var notifEnabled by remember { mutableStateOf(com.jarvis.android.notifications.JarvisNotificationListener.isEnabled(context0)) }
+            val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+            androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+                val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                    if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                        notifEnabled = com.jarvis.android.notifications.JarvisNotificationListener.isEnabled(context0)
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+            }
+            Text(
+                if (notifEnabled) tr("Lecture des notifications activée ✓ : « qu’est-ce que j’ai manqué ? » résume les dernières notifications. Lecture seule : Jarvis ne peut ni les ouvrir, ni y répondre, ni les supprimer.")
+                else tr("Lecture des notifications désactivée : Jarvis ne voit pas vos notifications."),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            OutlinedButton(
+                onClick = {
+                    try {
+                        context0.startActivity(android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    } catch (_: Exception) {
+                    }
+                },
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text(if (notifEnabled) tr("Gérer l’accès aux notifications") else tr("Activer l’accès aux notifications")) }
+            Text(
+                tr("Android exige que vous l’activiez vous-même dans « Accès aux notifications ». Si l’option est grisée : Paramètres > Applications > Jarvis > ⋮ > Autoriser les paramètres restreints. Les notifications sont gardées en mémoire seulement (les dernières dizaines, jamais écrites sur le téléphone). Quand vous posez la question, leur contenu est envoyé à Gemini ; les messages contenant un code ou un mot de passe sont masqués avant."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            }
             SettingsCard(tr("Agenda"), Icons.Filled.Alarm, initiallyExpanded = false) {
             var calendarGranted by remember { mutableStateOf(com.jarvis.android.calendar.hasCalendarPermission(context0)) }
             val askCalendar = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->

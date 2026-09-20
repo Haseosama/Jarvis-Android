@@ -9,4 +9,5 @@
     <string name="tile_label">Jarvis</string>
     <string name="share_label">Jarvis</string>
     <string name="assist_label">Jarvis</string>
+    <string name="notification_listener_label">Jarvis : lecture des notifications</string>
 </resources>

@@ -53,6 +53,7 @@ object ToolRegistry {
         AlarmTool,
         ContactTool,
         CalendarTool,
+        NotificationsTool,
         VisionStreamTool,
         FileManagerTool,
     )

@@ -451,6 +451,18 @@ starts the answer again. Changes:
   recurring events, the briefing spoken with events on the phone.
   The "add" form opens another app, so the background-launch limit described above applies.
 
+- **Reading notifications.** The `notifications` tool ("qu'est-ce que j'ai manqué ?") reads the last notifications, newest first
+  (app, time, title, start of the text), optionally for one app. It needs "Notification access", which only the user can
+  switch on in Android's settings (Settings > Notifications shows the state and opens that screen; on a sideloaded APK the
+  option can be greyed out until "Allow restricted settings" is chosen in the app info). Read only: Jarvis cannot open,
+  answer or dismiss a notification. They are kept in memory only (the last 60, never written to disk, forgotten when the
+  service stops); ongoing ones (media, downloads), group summaries and secret-visibility ones are skipped, and a message
+  that contains both a "code / OTP / password" word and a long number is replaced by a placeholder before it can reach
+  the model. The content is data from arbitrary senders and is marked as not instructions. Checked on the emulator with
+  notification access enabled by adb: newest first, a normal message readable, a verification-code message masked, and a
+  clear message when access is off. Not checked: on the Xiaomi or the Samsung (the access screen, and how each brand's
+  notification shade feeds the service), messaging apps that hide the text on the lock screen.
+
 - **Limit that applies to every tool that opens another app** (the dialler, the Clock, Liberty Music, Messenger…):
   since Android 10, an app running in the background may not start an activity. Tests show the dialler opens when Jarvis
   is in front and is blocked silently when it is not (the tool still says it opened it). On MIUI/HyperOS there is an

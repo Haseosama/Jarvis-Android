@@ -2,6 +2,12 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Notifications" to "Notifications",
+    "Lecture des notifications activée ✓ : « qu’est-ce que j’ai manqué ? » résume les dernières notifications. Lecture seule : Jarvis ne peut ni les ouvrir, ni y répondre, ni les supprimer." to "Notification reading on ✓: « what did I miss? » summarises the latest notifications. Read only: Jarvis can neither open, answer nor dismiss them.",
+    "Lecture des notifications désactivée : Jarvis ne voit pas vos notifications." to "Notification reading off: Jarvis does not see your notifications.",
+    "Gérer l’accès aux notifications" to "Manage notification access",
+    "Activer l’accès aux notifications" to "Turn on notification access",
+    "Android exige que vous l’activiez vous-même dans « Accès aux notifications ». Si l’option est grisée : Paramètres > Applications > Jarvis > ⋮ > Autoriser les paramètres restreints. Les notifications sont gardées en mémoire seulement (les dernières dizaines, jamais écrites sur le téléphone). Quand vous posez la question, leur contenu est envoyé à Gemini ; les messages contenant un code ou un mot de passe sont masqués avant." to "Android requires you to turn it on yourself in « Notification access ». If the option is greyed out: Settings > Apps > Jarvis > ⋮ > Allow restricted settings. Notifications are kept in memory only (the last few dozen, never written to the phone). When you ask, their content is sent to Gemini; messages containing a code or a password are masked first.",
     "Agenda" to "Calendar",
     "Agenda du jour : {0}" to "Today's calendar: {0}",
     "Agenda autorisé ✓ : « qu’est-ce que j’ai demain ? » lit vos événements, et le briefing du matin les mentionne. « Ajoute un rendez-vous » ouvre le formulaire prérempli : vous enregistrez vous-même." to "Calendar allowed ✓: « what do I have tomorrow? » reads your events, and the morning briefing mentions them. « Add an appointment » opens the prefilled form: you save it yourself.",
