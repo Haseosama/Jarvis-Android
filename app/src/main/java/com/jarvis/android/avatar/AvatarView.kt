@@ -62,6 +62,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         @Suppress("UNUSED_VARIABLE") val tick = frame // reading it makes the canvas redraw with every animation step
         val r = size.minDimension * 0.36f // head half-height: the head fills about 72 % of the square, the neck fades below it
         renderer.scanY = avatar.scan
+        renderer.showHair = controller.hair
         renderer.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, accent, bg, stroke)
     }
 }

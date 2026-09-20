@@ -83,6 +83,7 @@ class JarvisContainer(val appContext: Context) {
             configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
         }
         appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }
+        appScope.launch { configStore.avatarHair.collect { avatar.hair = it } }
         com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)
         appScope.launch { configStore.audioInputKey.collect { com.jarvis.android.core.AudioRoute.inputKey = it } }
         appScope.launch { configStore.audioOutputKey.collect { com.jarvis.android.core.AudioRoute.outputKey = it } }

@@ -478,20 +478,29 @@ MediaPipe's canonical face model (Apache-2.0). Details and credits: `app/src/mai
 also shown in the settings.
 
 - **Face.** Real measured face geometry (468 vertices) with a cranium and a neck built around it, run once through Mark-LIV's
-  generator and stored as a 64 KB asset (`head_mesh.bin`). Lit per facet, drawn on Android's canvas: no OpenGL, no extra library.
+  generator, subdivided once with a curved (PN-style) midpoint rule so the surface and the silhouette are smooth, and stored as
+  a 400 KB asset (`head_mesh.bin`; the script that builds it is not part of the app). About 8,000 triangles, drawn on Android's
+  canvas: no OpenGL, no extra library.
+- **Smooth shading.** Mark-LIV lit each facet flat; here each vertex is lit from normals rebuilt every frame on the posed
+  geometry (so the lips and jaw relight as they move), and the triangles blend the colours. Structure lines (creases and
+  silhouette) keep the anatomy readable.
+- **Hair.** A hair shell over the cranium (thin at the hairline, fuller on top, at the sides and at the back, roots darker) with
+  120 flowing strands from the crown; sheen where the light glances off it. It is a stylised holographic haircut, not a
+  photo-real one, and it has no ears or fringe. Settings > Appearance has a switch to remove it.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.
 - **Expression.** Brows follow the phrase, the gaze flicks between points, blinks, idle sway; the face looks away while thinking,
   meets your eyes while listening and lowers its lids while asleep.
-- **Changed from the original.** Structure lines (creases and silhouette) replace the arbitrary third of edges it drew;
-  the lattice lights up as a scan sweeps by; a rim light in the accent colour; lids really close when asleep; a lip-sync clock
-  based on the audio playing; half the frame rate while asleep. Colours follow the interface hue.
+- **Changed from the original.** Subdivided mesh and smooth shading; hair; structure lines (creases and silhouette) replace the
+  arbitrary third of edges it drew; the lattice lights up as a scan sweeps by; a rim light in the accent colour; lids really close
+  when asleep; a lip-sync clock based on the audio playing; half the frame rate while asleep. Colours follow the interface hue.
 - **Checked:** on the emulator, the head draws in the idle, listening and thinking states and the mouth opens and closes on a
   synthetic voice (debug-only `DEBUG_AVATAR` broadcast feeding the real analysis path); 40 unit tests (mesh loading, text to
   shapes, formant analysis, fusion, clock, animation). **Not checked:** with Gemini's real voice on a phone (timing of the lips
-  against the sound, the value of the 40 ms output-latency guess), frame rate and battery on a real phone, the drawing on
-  Android 8 and 9 (there the triangles are drawn one by one, slower).
+  against the sound, the value of the 40 ms output-latency guess), frame rate and battery on a real phone with the denser mesh
+  (about 8,000 triangles sorted and drawn each frame), the hair seen from the sides and the back while the head turns, the drawing
+  on Android 8 and 9 (there the triangles are drawn one by one, slower, and without the colour blending).
 
 ### Text chat (REST)
 

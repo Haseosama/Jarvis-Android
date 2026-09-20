@@ -69,6 +69,7 @@ fun SettingsScreen(
     val muteWhileSpeaking by configStore.muteMicWhileSpeaking.collectAsState(initial = true)
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
     val faceOn by configStore.avatarFace.collectAsState(initial = true)
+    val hairOn by configStore.avatarHair.collectAsState(initial = true)
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
     var langMenuOpen by remember { mutableStateOf(false) }
     val workFolder by configStore.workFolder.collectAsState(initial = "")
@@ -331,6 +332,12 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
                 )
                 Switch(checked = faceOn, onCheckedChange = { scope.launch { configStore.setAvatarFace(it) } })
+            }
+            if (faceOn) {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                    Text(tr("Cheveux"), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Switch(checked = hairOn, onCheckedChange = { scope.launch { configStore.setAvatarHair(it) } })
+                }
             }
             Text(
                 tr("Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; géométrie du visage : MediaPipe (Apache-2.0)."),

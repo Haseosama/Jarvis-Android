@@ -17,12 +17,23 @@ class AvatarTest {
     // ── mesh ────────────────────────────────────────────────────────────────
 
     @Test
-    fun `the head asset loads with the expected shape`() {
-        assertEquals(810, mesh.vertexCount)
-        assertEquals(1554, mesh.faceCount)
+    fun `the head asset loads with a subdivided head, hair and strands`() {
+        assertTrue("smooth head", mesh.baseCount > 3000)
+        assertEquals(mesh.vertexCount, mesh.verts.size / 3)
         assertEquals(mapOf("eye_l" to 16, "eye_r" to 16, "brow_l" to 5, "brow_r" to 5, "lips_out" to 20, "lips_in" to 20), mesh.landmarks.mapValues { it.value.size })
         assertTrue(mesh.crown > mesh.bottom)
-        assertEquals(mesh.vertexCount * 3, mesh.normals.size)
+        assertEquals(mesh.baseCount + mesh.hairVertexCount, mesh.strandBase)
+        assertEquals(mesh.strandBase + mesh.strandCount * mesh.strandLength, mesh.vertexCount)
+        val hairFaces = (0 until mesh.faceCount).count { mesh.isHairFace(it) }
+        assertTrue(hairFaces > 500)
+        // every hair triangle uses hair vertices only, and no head triangle does
+        for (t in 0 until mesh.faceCount) {
+            val hairVerts = (0..2).count { mesh.isHairVertex(mesh.faces[3 * t + it]) }
+            assertEquals(if (mesh.isHairFace(t)) 3 else 0, hairVerts)
+        }
+        // the hair sits on the top of the head, the strands on the hair
+        val topHair = (mesh.hairFirst until mesh.strandBase).maxOf { mesh.verts[3 * it + 1] }
+        assertTrue(topHair > 0.95f)
     }
 
     @Test
