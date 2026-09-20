@@ -561,13 +561,16 @@ Google account or a Gemini key is said below.
   foreground service with a notification whose buttons finish or drop the recording), then sends the audio to Gemini, which writes a summary, key
   points, decisions, actions and a transcript in Markdown. The notes are kept in the app (excluded from backups), announced by a notification with
   Open and Share buttons; the audio is deleted once the notes are saved and kept if they could not be written ("Retry" in the notification and in the
-  settings). The microphone serves one use at a time, so starting from a voice session closes the session first; the reliable way to start is the
-  button in the settings. *Not tried:* the real Gemini answer (no key on the test emulator); the recording, the stop, the failure and retry paths were.
-- **Documents** (`create_document`). Writes a PDF, a Word (.docx), an Excel (.xlsx), a CSV, a Markdown or a text file from what the assistant
+  settings). The microphone serves one use at a time, so starting from a voice session closes the session first (after a short spoken
+  announcement) and the recorder starts the moment the microphone is free, while the voice service still allows a background start; if Android
+  refuses anyway, a notification starts it with one tap. The wake word stops listening while a meeting is recorded. The button in the settings
+  always works. *Not tried:* the real Gemini answer (no key on the test emulator); the recording, the stop, the failure and retry paths were.
+- **Documents** (`create_document`). Writes a PDF, a Word (.docx), an Excel (.xlsx), a PowerPoint (.pptx), a CSV, a Markdown or a text file from what the assistant
   composed (light Markdown for text documents; rows for tables, `=SUM(...)` cells become formulas), in the app's `Documents/Jarvis` folder, and shows a
-  notification with Open and Share. The Word and Excel files are written by hand (a small OOXML writer), the PDF with Android's `PdfDocument`.
+  notification with Open and Share. The Word, Excel and PowerPoint files are written by hand (a small OOXML writer), the PDF with Android's `PdfDocument`. In a presentation, the
+  title is the title slide, each `#`/`##` heading opens a slide, bullets stay bullets and a crowded slide continues on the next.
   *Checked:* the PDF was laid out and read back; the Word file round-trips through the app's own reader; the Excel XML was read back.
-  *Not tried:* opening the Word and Excel files in Office. No presentation (.pptx) yet.
+  The deck was read back with python-pptx. *Not tried:* opening the Word, Excel and PowerPoint files in Office itself.
 - **Watches** (`watch`, Settings > Watches). Keeps an eye on a crypto price in euros (CoinGecko, no key), a website (alerts when it stops answering and
   when it is back), the battery temperature or the free memory, about every 15 minutes with WorkManager, and alerts once per crossing (with a small
   margin so a value at the threshold does not ring every check). Battery and storage alerts already existed in "Background checks". *Checked:* a live
@@ -583,6 +586,19 @@ Google account or a Gemini key is said below.
   (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`); then Settings > Google > Connect. Google
   treats Gmail scopes as restricted: an unverified app in testing mode is limited to its test users, and the access may need to be renewed about every
   week.
+
+### Updating from GitHub
+
+Settings > Update asks the GitHub releases of this repository for the latest version, compares it with the installed one, downloads the APK
+(size and package name are checked) and hands it to Android's installer, which asks for confirmation; settings and memory are kept. The first time,
+Android asks to allow installs from Jarvis. An update only installs over the same app signed with the same key, so a debug build (`.dev`,
+debug key) needs the debug APK and the release build the release APK; the app picks the asset whose name says `debug` or `dev` for a debug build.
+
+The version is bumped with every change (`versionCode` and `versionName` in `app/build.gradle.kts`). To publish a version once it is built:
+
+```
+gh release create v0.4.3 app/build/outputs/apk/debug/app-debug.apk#jarvis-0.4.3-debug.apk --title "0.4.3" --notes "What changed"
+```
 
 ## Instrumented tests
 
