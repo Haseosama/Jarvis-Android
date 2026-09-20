@@ -26,10 +26,6 @@ private const val MIN_ALPHA = 0.05f
 private const val LUT_N = 192
 private const val BROW_HAIRS = 160
 private const val LID_COLUMNS = 9
-private const val HAIR_STRANDS = 4200
-private const val SIDE_STRANDS = 3200
-private const val HAIR_LOCKS = 0
-private const val LOCK_SAMPLES = 9
 
 internal fun argb(a: Int, r: Int, g: Int, b: Int): Int = (a shl 24) or (r shl 16) or (g shl 8) or b
 
@@ -137,8 +133,6 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val nc = canvas.nativeCanvas
             drawSurface(nc, visible)
             drawWeb(nc, n, amp, primary, strokePx, avatar.time)
-            drawHairStrands(nc, v, n, r, strokePx, amp)
-            drawLocks(nc, v, n, r, strokePx)
         }
         drawFeatures(scope, avatar, r, primary, accent, bg, amp, strokePx)
     }
@@ -177,7 +171,6 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val fres = Math.pow((1f - nz).coerceIn(0f, 2f).toDouble(), 1.7).toFloat()
             val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
             var bright = 0.26f + 0.20f * fres + 0.66f * Math.pow(lam.toDouble(), 1.05).toFloat()
-            if (skin == 0 && mesh.faceGroup[t] > 1.5f) continue // the hair belongs to the skin looks
             val fadeAvg = (fade[a] + fade[b] + fade[c]) / 3f
             val cutoff = if (skin > 0) 0.15f else 0.4f
             if (fadeAvg < cutoff) continue // the far end of the neck is left out: it would end on a ragged cut
@@ -195,8 +188,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val rim = (fres * fres * 0.14f).coerceIn(0f, 0.14f)
             if (rim > 0.01f && !perVertex[t]) col = mix(col, accent, rim)
             faceColor[t] = col
-            // the hair is drawn over the skin it lies on: a small bias in its depth, so an ear under a mound of hair does not show through
-            val z = (v[3 * a + 2] + v[3 * b + 2] + v[3 * c + 2]) / 3f + mesh.faceGroup[t].let { g -> if (g > 1.5f) 0.07f else if (g > 0.5f) 0f else -1000f }
+            val z = (v[3 * a + 2] + v[3 * b + 2] + v[3 * c + 2]) / 3f + mesh.faceGroup[t].let { g -> if (g > 0.5f) 0f else -1000f }
             // The neck (group 0) is drawn first: it interpenetrates the head and a pure depth sort tears the seam.
             val bits = java.lang.Float.floatToIntBits(z)
             val mapped = if (bits >= 0) bits else bits xor 0x7fffffff
@@ -215,23 +207,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         fun lit(rgb: Int, k: Float): Int = argb(255, (((rgb shr 16) and 0xFF) * k).toInt().coerceIn(0, 255), (((rgb shr 8) and 0xFF) * k).toInt().coerceIn(0, 255), ((rgb and 0xFF) * k).toInt().coerceIn(0, 255))
         val pnt = mesh.paint[vi]
         if (pnt != 0) {
-            val cover = ((pnt ushr 24) and 0xFF) / 255f
-            if (cover < 0.999f && skin > 0) {
-                // hair that thins out over the skin: the paint's colour mixed with the skin's
-                val skinRgb = 0xFF000000.toInt() or SKIN_TONES[skin - 1]
-                val ks = (0.30f + 0.85f * vlam + 0.10f * vz.coerceIn(0f, 1f)).coerceIn(0.15f, 1.15f) * (0.94f + 0.12f * amp)
-                val hairLit = lit(0xFF000000.toInt() or (pnt and 0x00FFFFFF), 0.62f + 0.42f * vlam)
-                val fvv = (mesh.fade[vi] * mesh.fade[vi]).coerceIn(0f, 1f)
-                return mix(bgColor, mix(lit(skinRgb, ks), hairLit, cover), fvv)
-            }
             // the mouth's inside, the teeth and the eyeballs: their own colours, lit a little; on the web they take a cool tint
             val base = if (skin > 0) pnt else mix(pnt, primaryColor, 0.22f)
-            val shaded = lit(base, 0.62f + 0.42f * vlam)
-            val dark = ((pnt shr 16) and 0xFF) + ((pnt shr 8) and 0xFF) + (pnt and 0xFF) < 240
-            if (!dark) return shaded
-            // dark paint (the hair) gets a soft sheen where the surface faces the light
-            val sheen = (Math.pow(vlam.toDouble(), 5.0).toFloat() * 38f).toInt()
-            return argb(255, (((shaded shr 16) and 0xFF) + sheen).coerceAtMost(255), (((shaded shr 8) and 0xFF) + sheen).coerceAtMost(255), ((shaded and 0xFF) + (sheen * 1.1f).toInt()).coerceAtMost(255))
+            return lit(base, 0.62f + 0.42f * vlam)
         }
         val lipW = mesh.lipMask[vi]
         if (skin == 0) return if (lipW > 0.02f && lips > 0) mix(flat, lit(0xFF000000.toInt() or LIP_TONES[lips - 1], 0.75f + 0.3f * vlam), lipW) else flat
@@ -387,281 +365,6 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         linePaint.strokeCap = Paint.Cap.BUTT
     }
 
-
-    // ── the hair's strands ───────────────────────────────────────────────────
-
-    private class Strand(val a: Int, val b: Int, val c: Int, val u: Float, val v: Float, val al: Float, val be: Float, val len: Float, val lift: Float, val bend: Float, val tone: Int)
-
-    /**
-     * Hundreds of individual strands over the hair mesh, anchored to its triangles by barycentric weights. Each one leaves the surface
-     * along the flow of the cut (swept forward and to the left on top, falling on the sides), lifts and bends a little, and ends beyond
-     * the volume: that is what makes the edge of the hair look like hair. Their direction is a combination of the posed triangle's
-     * edges, so they turn with the head.
-     */
-    private val strands: List<Strand> = run {
-        val rnd = kotlin.random.Random(41)
-        val f = mesh.faces
-        val v = mesh.verts
-        val hairFaces = (0 until nF).filter { mesh.faceGroup[it] > 1.5f }
-        if (hairFaces.isEmpty()) return@run emptyList()
-        // faces are picked in proportion to their area, so the strands are spread evenly over the hair
-        val cum = DoubleArray(hairFaces.size)
-        var acc = 0.0
-        for ((k, tf) in hairFaces.withIndex()) {
-            val a0 = f[3 * tf]; val b0 = f[3 * tf + 1]; val c0 = f[3 * tf + 2]
-            val ux = v[3 * b0] - v[3 * a0]; val uy = v[3 * b0 + 1] - v[3 * a0 + 1]; val uz = v[3 * b0 + 2] - v[3 * a0 + 2]
-            val wx = v[3 * c0] - v[3 * a0]; val wy = v[3 * c0 + 1] - v[3 * a0 + 1]; val wz = v[3 * c0 + 2] - v[3 * a0 + 2]
-            val cx = uy * wz - uz * wy; val cy = uz * wx - ux * wz; val cz = ux * wy - uy * wx
-            acc += 0.5 * sqrt((cx * cx + cy * cy + cz * cz).toDouble())
-            cum[k] = acc
-        }
-        val list = ArrayList<Strand>()
-        var topN = 0
-        var sideN = 0
-        var tries = 0
-        while ((topN < HAIR_STRANDS || sideN < SIDE_STRANDS) && tries++ < (HAIR_STRANDS + SIDE_STRANDS) * 14) {
-            val pick = rnd.nextDouble() * acc
-            var lo = 0; var hi = hairFaces.size - 1
-            while (lo < hi) { val mid = (lo + hi) ushr 1; if (cum[mid] < pick) lo = mid + 1 else hi = mid }
-            val t = hairFaces[lo]
-            val a = f[3 * t]; val b = f[3 * t + 1]; val c = f[3 * t + 2]
-            var u = rnd.nextFloat(); var w = rnd.nextFloat()
-            if (u + w > 1f) { u = 1f - u; w = 1f - w }
-            val s0 = 1f - u - w
-            val cover = (((mesh.paint[a] ushr 24) and 0xFF) * s0 + ((mesh.paint[b] ushr 24) and 0xFF) * u + ((mesh.paint[c] ushr 24) and 0xFF) * w) / 255f
-            if (cover < 0.20f) continue                       // no strands on the faded, shaved part
-            val px = s0 * v[3 * a] + u * v[3 * b] + w * v[3 * c]
-            val py = s0 * v[3 * a + 1] + u * v[3 * b + 1] + w * v[3 * c + 1]
-            val pz = s0 * v[3 * a + 2] + u * v[3 * b + 2] + w * v[3 * c + 2]
-            val nx = s0 * mesh.normals[3 * a] + u * mesh.normals[3 * b] + w * mesh.normals[3 * c]
-            val ny = s0 * mesh.normals[3 * a + 1] + u * mesh.normals[3 * b + 1] + w * mesh.normals[3 * c + 1]
-            val nz = s0 * mesh.normals[3 * a + 2] + u * mesh.normals[3 * b + 2] + w * mesh.normals[3 * c + 2]
-            val nl = max(sqrt(nx * nx + ny * ny + nz * nz), 1e-6f)
-            // the flow: swept forward and to the left on top, falling on the sides and the back
-            val fringe = pz > 0.36f && py > 0.42f                    // the front of the top: the hair rises and sweeps back from the hairline
-            val temple = kotlin.math.abs(px + 0.035f) > 0.34f && pz > 0.08f && py < 0.50f   // the temples: the hair runs back towards the ear
-            val onTop = pz > 0.10f && py > 0.30f
-            val isTop = onTop || fringe
-            if (isTop && topN >= HAIR_STRANDS) continue
-            if (!isTop && sideN >= SIDE_STRANDS) continue
-            val jx = (rnd.nextFloat() - 0.5f) * 0.7f
-            val jz = (rnd.nextFloat() - 0.5f) * 0.5f
-            // combed: from the front it rises and goes back, across the top it runs to the right and back, at the sides it goes back and down
-            var fx = if (temple) (if (px + 0.035f < 0f) -0.55f else 0.55f) + jx * 0.2f else if (fringe) 0.40f + jx * 0.25f else if (onTop) 0.75f + jx * 0.25f else 0.10f * jx
-            var fy = if (temple) 0.10f else if (fringe) 0.65f else if (onTop) 0.20f + 0.1f * (rnd.nextFloat() - 0.5f) else -0.45f
-            var fz = if (temple) -0.75f + jz * 0.3f else if (fringe) -0.30f + jz * 0.3f else if (onTop) -0.55f + jz * 0.3f else -0.85f
-            // remove the part along the normal: the strand runs along the surface
-            val d = (fx * nx + fy * ny + fz * nz) / nl / nl
-            fx -= d * nx; fy -= d * ny; fz -= d * nz
-            val fl = max(sqrt(fx * fx + fy * fy + fz * fz), 1e-6f)
-            fx /= fl; fy /= fl; fz /= fl
-            // its coordinates in the triangle's edges (least squares in the plane of the triangle)
-            val e1x = v[3 * b] - v[3 * a]; val e1y = v[3 * b + 1] - v[3 * a + 1]; val e1z = v[3 * b + 2] - v[3 * a + 2]
-            val e2x = v[3 * c] - v[3 * a]; val e2y = v[3 * c + 1] - v[3 * a + 1]; val e2z = v[3 * c + 2] - v[3 * a + 2]
-            val g11 = e1x * e1x + e1y * e1y + e1z * e1z
-            val g12 = e1x * e2x + e1y * e2y + e1z * e2z
-            val g22 = e2x * e2x + e2y * e2y + e2z * e2z
-            val r1 = fx * e1x + fy * e1y + fz * e1z
-            val r2 = fx * e2x + fy * e2y + fz * e2z
-            val det = g11 * g22 - g12 * g12
-            if (kotlin.math.abs(det) < 1e-9f) continue
-            val al = (r1 * g22 - r2 * g12) / det
-            val be = (r2 * g11 - r1 * g12) / det
-            val band = kotlin.math.sin(px * 75f + py * 34f + pz * 16f) + 0.5f * (rnd.nextFloat() - 0.5f)
-            val tone = if (band > 0.85f) 2 else if (band > 0.05f) 1 else 0
-            if (isTop) topN++ else sideN++
-            list += Strand(a, b, c, u, w, al, be, (if (fringe) 0.10f + 0.07f * rnd.nextFloat() else if (onTop) 0.10f + 0.08f * rnd.nextFloat() else 0.05f + 0.04f * rnd.nextFloat()), 0.10f + 0.25f * rnd.nextFloat(), (rnd.nextFloat() - 0.5f) * 0.5f, tone)
-        }
-        list
-    }
-    private val strandLines = Array(3) { FloatArray((HAIR_STRANDS + SIDE_STRANDS) * 8) }
-    private val strandCounts = IntArray(3)
-    private val strandPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
-
-    private fun drawHairStrands(nc: Canvas, v: FloatArray, nrm: FloatArray, r: Float, strokePx: Float, amp: Float) {
-        if (skin == 0 || strands.isEmpty()) return
-        strandCounts.fill(0)
-        for (s in strands) {
-            val s0 = 1f - s.u - s.v
-            val a = s.a; val b = s.b; val c = s.c
-            val nzr = s0 * nrm[3 * a + 2] + s.u * nrm[3 * b + 2] + s.v * nrm[3 * c + 2]
-            if (nzr < -0.05f) continue                       // on the far side of the head
-            val rx = s0 * v[3 * a] + s.u * v[3 * b] + s.v * v[3 * c]
-            val ry = s0 * v[3 * a + 1] + s.u * v[3 * b + 1] + s.v * v[3 * c + 1]
-            val rz = s0 * v[3 * a + 2] + s.u * v[3 * b + 2] + s.v * v[3 * c + 2]
-            val nx = s0 * nrm[3 * a] + s.u * nrm[3 * b] + s.v * nrm[3 * c]
-            val ny = s0 * nrm[3 * a + 1] + s.u * nrm[3 * b + 1] + s.v * nrm[3 * c + 1]
-            // the posed direction along the surface
-            val tx = s.al * (v[3 * b] - v[3 * a]) + s.be * (v[3 * c] - v[3 * a])
-            val ty = s.al * (v[3 * b + 1] - v[3 * a + 1]) + s.be * (v[3 * c + 1] - v[3 * a + 1])
-            val k = CAM_D / max(CAM_D - rz, 0.35f) * r
-            val x0 = xs[a] * s0 + xs[b] * s.u + xs[c] * s.v
-            val y0 = ys[a] * s0 + ys[b] * s.u + ys[c] * s.v
-            val len = s.len
-            // the strand lifts off the surface, bends, and its tip flicks away from the head
-            val mx = x0 + (tx * len * 0.5f + nx * len * 0.35f * s.lift) * k
-            val my = y0 - (ty * len * 0.5f + ny * len * 0.35f * s.lift) * k
-            val ex = x0 + (tx * len + nx * len * 0.25f * s.lift + s.bend * len * 0.5f * ty) * k
-            val ey = y0 - (ty * len + ny * len * 0.25f * s.lift - s.bend * len * 0.5f * tx) * k
-            val arr = strandLines[s.tone]
-            val o = strandCounts[s.tone]
-            arr[o] = x0; arr[o + 1] = y0; arr[o + 2] = mx; arr[o + 3] = my
-            arr[o + 4] = mx; arr[o + 5] = my; arr[o + 6] = ex; arr[o + 7] = ey
-            strandCounts[s.tone] = o + 8
-        }
-        val colours = intArrayOf(0xFF110B08.toInt(), 0xFF241811.toInt(), 0xFF463629.toInt())
-        val alphas = floatArrayOf(235f, 220f, 175f)
-        strandPaint.strokeWidth = max(0.9f, strokePx * 0.65f)
-        for (i in 0 until 3) {
-            if (strandCounts[i] == 0) continue
-            strandPaint.color = withAlpha(colours[i], alphas[i])
-            nc.drawLines(strandLines[i], 0, strandCounts[i], strandPaint)
-        }
-    }
-
-
-    // ── the fringe: locks ────────────────────────────────────────────────────
-
-    private class Lock(val a: Int, val b: Int, val c: Int, val u: Float, val v: Float, val al: Float, val be: Float, val len: Float, val bend: Float, val width: Float)
-
-    /**
-     * The fringe is a set of locks, each a curved, tapering ribbon of hair (thick at the root, pointed at the tip) with a highlight along
-     * it and a soft shadow on the forehead. They start a little above the hairline, run diagonally over the forehead from the upper
-     * right to the lower left and overlap one another. Anchored like the strands, so they turn with the head.
-     */
-    private val locks: List<Lock> = run {
-        val rnd = kotlin.random.Random(59)
-        val f = mesh.faces
-        val v = mesh.verts
-        val faces = (0 until nF).filter { mesh.faceGroup[it] > 1.5f }
-        if (faces.isEmpty()) return@run emptyList()
-        fun smooth(e0: Float, e1: Float, x: Float): Float { val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f); return t * t * (3f - 2f * t) }
-        val list = ArrayList<Lock>()
-        var tries = 0
-        while (list.size < HAIR_LOCKS && tries++ < 20000) {
-            val t = faces[rnd.nextInt(faces.size)]
-            val a = f[3 * t]; val b = f[3 * t + 1]; val c = f[3 * t + 2]
-            var u = rnd.nextFloat(); var w = rnd.nextFloat()
-            if (u + w > 1f) { u = 1f - u; w = 1f - w }
-            val s0 = 1f - u - w
-            val px = s0 * v[3 * a] + u * v[3 * b] + w * v[3 * c]
-            val py = s0 * v[3 * a + 1] + u * v[3 * b + 1] + w * v[3 * c + 1]
-            val pz = s0 * v[3 * a + 2] + u * v[3 * b + 2] + w * v[3 * c + 2]
-            val hx = px + 0.035f
-            val hairline = 0.31f + 0.27f * smooth(-0.42f, 0.42f, hx) + 0.10f * smooth(-0.40f, -0.58f, hx)
-            if (pz < 0.28f || py < hairline + 0.02f || py > hairline + 0.13f) continue   // a root a little above the hairline
-            val nx = s0 * mesh.normals[3 * a] + u * mesh.normals[3 * b] + w * mesh.normals[3 * c]
-            val ny = s0 * mesh.normals[3 * a + 1] + u * mesh.normals[3 * b + 1] + w * mesh.normals[3 * c + 1]
-            val nz = s0 * mesh.normals[3 * a + 2] + u * mesh.normals[3 * b + 2] + w * mesh.normals[3 * c + 2]
-            val nl = max(sqrt(nx * nx + ny * ny + nz * nz), 1e-6f)
-            // the lock runs down and to the left, over the forehead
-            var fx = -0.42f + (rnd.nextFloat() - 0.5f) * 0.4f
-            var fy = -0.88f
-            var fz = 0.28f + (rnd.nextFloat() - 0.5f) * 0.2f
-            val d = (fx * nx + fy * ny + fz * nz) / nl / nl
-            fx -= d * nx; fy -= d * ny; fz -= d * nz
-            val fl = max(sqrt(fx * fx + fy * fy + fz * fz), 1e-6f)
-            fx /= fl; fy /= fl; fz /= fl
-            val e1x = v[3 * b] - v[3 * a]; val e1y = v[3 * b + 1] - v[3 * a + 1]; val e1z = v[3 * b + 2] - v[3 * a + 2]
-            val e2x = v[3 * c] - v[3 * a]; val e2y = v[3 * c + 1] - v[3 * a + 1]; val e2z = v[3 * c + 2] - v[3 * a + 2]
-            val g11 = e1x * e1x + e1y * e1y + e1z * e1z
-            val g12 = e1x * e2x + e1y * e2y + e1z * e2z
-            val g22 = e2x * e2x + e2y * e2y + e2z * e2z
-            val r1 = fx * e1x + fy * e1y + fz * e1z
-            val r2 = fx * e2x + fy * e2y + fz * e2z
-            val det = g11 * g22 - g12 * g12
-            if (kotlin.math.abs(det) < 1e-9f) continue
-            val al = (r1 * g22 - r2 * g12) / det
-            val be = (r2 * g11 - r1 * g12) / det
-            // the locks on the left (where the hairline is lowest) are the longest
-            val longer = 1f - smooth(-0.45f, 0.30f, hx)
-            list += Lock(a, b, c, u, w, al, be, 0.15f + 0.10f * longer + 0.05f * rnd.nextFloat(), (rnd.nextFloat() - 0.4f) * 0.9f, 0.85f + 0.5f * rnd.nextFloat())
-        }
-        list
-    }
-    private val lockPath = android.graphics.Path()
-    private val lockPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
-    private val lockPts = FloatArray(2 * (LOCK_SAMPLES + 1))
-    private val lockLeft = FloatArray(2 * (LOCK_SAMPLES + 1))
-    private val lockRight = FloatArray(2 * (LOCK_SAMPLES + 1))
-
-    private fun drawLocks(nc: Canvas, v: FloatArray, nrm: FloatArray, r: Float, strokePx: Float) {
-        if (skin == 0 || locks.isEmpty()) return
-        for (pass in 0 until 2) {                // first the soft shadows on the forehead, then the locks
-            for (lk in locks) {
-                val s0 = 1f - lk.u - lk.v
-                val a = lk.a; val b = lk.b; val c = lk.c
-                val nzr = s0 * nrm[3 * a + 2] + lk.u * nrm[3 * b + 2] + lk.v * nrm[3 * c + 2]
-                if (nzr < 0.05f) continue
-                val rz = s0 * v[3 * a + 2] + lk.u * v[3 * b + 2] + lk.v * v[3 * c + 2]
-                val nx = s0 * nrm[3 * a] + lk.u * nrm[3 * b] + lk.v * nrm[3 * c]
-                val ny = s0 * nrm[3 * a + 1] + lk.u * nrm[3 * b + 1] + lk.v * nrm[3 * c + 1]
-                val tx = lk.al * (v[3 * b] - v[3 * a]) + lk.be * (v[3 * c] - v[3 * a])
-                val ty = lk.al * (v[3 * b + 1] - v[3 * a + 1]) + lk.be * (v[3 * c + 1] - v[3 * a + 1])
-                val k = CAM_D / max(CAM_D - rz, 0.35f) * r
-                val x0 = xs[a] * s0 + xs[b] * lk.u + xs[c] * lk.v
-                val y0 = ys[a] * s0 + ys[b] * lk.u + ys[c] * lk.v
-                val len = lk.len
-                // a quadratic curve: the root, a control point that lifts and bends, the tip
-                val cx = x0 + (tx * len * 0.5f + nx * len * 0.20f) * k + lk.bend * len * 0.5f * ty * k
-                val cy = y0 - (ty * len * 0.5f + ny * len * 0.20f) * k - lk.bend * len * 0.5f * tx * k
-                val ex = x0 + (tx * len + nx * len * 0.05f) * k
-                val ey = y0 - (ty * len + ny * len * 0.05f) * k
-                val shadow = pass == 0
-                val offY = if (shadow) r * 0.018f else 0f
-                for (i in 0..LOCK_SAMPLES) {
-                    val t = i / LOCK_SAMPLES.toFloat()
-                    val q = 1f - t
-                    lockPts[2 * i] = q * q * x0 + 2f * q * t * cx + t * t * ex
-                    lockPts[2 * i + 1] = q * q * y0 + 2f * q * t * cy + t * t * ey + offY
-                }
-                // a tapering ribbon: wide at the root, a point at the tip, a little fuller in the middle
-                for (i in 0..LOCK_SAMPLES) {
-                    val t = i / LOCK_SAMPLES.toFloat()
-                    val i0 = max(i - 1, 0); val i1 = min(i + 1, LOCK_SAMPLES)
-                    var dx = lockPts[2 * i1] - lockPts[2 * i0]; var dy = lockPts[2 * i1 + 1] - lockPts[2 * i0 + 1]
-                    val dl = max(kotlin.math.hypot(dx, dy), 1e-3f)
-                    dx /= dl; dy /= dl
-                    val half = r * 0.022f * lk.width * (1f - t) * (0.75f + 0.5f * kotlin.math.sin(Math.PI.toFloat() * min(t * 1.6f, 1f)))
-                    lockLeft[2 * i] = lockPts[2 * i] - dy * half; lockLeft[2 * i + 1] = lockPts[2 * i + 1] + dx * half
-                    lockRight[2 * i] = lockPts[2 * i] + dy * half; lockRight[2 * i + 1] = lockPts[2 * i + 1] - dx * half
-                }
-                lockPath.reset()
-                lockPath.moveTo(lockLeft[0], lockLeft[1])
-                for (i in 1..LOCK_SAMPLES) lockPath.lineTo(lockLeft[2 * i], lockLeft[2 * i + 1])
-                for (i in LOCK_SAMPLES downTo 0) lockPath.lineTo(lockRight[2 * i], lockRight[2 * i + 1])
-                lockPath.close()
-                lockPaint.style = Paint.Style.FILL
-                if (shadow) {
-                    lockPaint.color = withAlpha(0xFF1A0F0A.toInt(), 48f)
-                    nc.drawPath(lockPath, lockPaint)
-                } else {
-                    lockPaint.color = 0xFF1B120D.toInt()
-                    nc.drawPath(lockPath, lockPaint)
-                    // the sheen: two thin highlights along the lock, and its lit edge
-                    lockPaint.style = Paint.Style.STROKE
-                    lockPaint.strokeCap = Paint.Cap.ROUND
-                    lockPaint.strokeWidth = max(1f, strokePx * 0.8f)
-                    lockPaint.color = withAlpha(0xFF7A6455.toInt(), 150f)
-                    for (side in 0..1) {
-                        val mixA = if (side == 0) 0.55f else 0.20f
-                        for (i in 1 until LOCK_SAMPLES - 1) {
-                            val ax = lockPts[2 * i] + (lockLeft[2 * i] - lockPts[2 * i]) * mixA
-                            val ay = lockPts[2 * i + 1] + (lockLeft[2 * i + 1] - lockPts[2 * i + 1]) * mixA
-                            val bx = lockPts[2 * i + 2] + (lockLeft[2 * i + 2] - lockPts[2 * i + 2]) * mixA
-                            val by = lockPts[2 * i + 3] + (lockLeft[2 * i + 3] - lockPts[2 * i + 3]) * mixA
-                            if (side == 1 && i % 2 == 0) continue
-                            nc.drawLine(ax, ay, bx, by, lockPaint)
-                        }
-                    }
-                    lockPaint.strokeWidth = max(0.8f, strokePx * 0.6f)
-                    lockPaint.color = withAlpha(0xFF0C0705.toInt(), 200f)
-                    for (i in 0 until LOCK_SAMPLES) nc.drawLine(lockRight[2 * i], lockRight[2 * i + 1], lockRight[2 * i + 2], lockRight[2 * i + 3], lockPaint)
-                    lockPaint.style = Paint.Style.FILL
-                }
-            }
-        }
-    }
 
     /** Height of the energy sweep, set by the caller each frame. */
     var scanY: Float = 0f
