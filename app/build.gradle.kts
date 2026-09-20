@@ -125,6 +125,11 @@ dependencies {
     // Reminders
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
+    // Camera frames for the Live session
+    implementation("androidx.camera:camera-core:1.3.4")
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+
     // HTML parsing for the web_search action's DuckDuckGo results
     implementation("org.jsoup:jsoup:1.17.2")
 

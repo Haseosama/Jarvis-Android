@@ -76,6 +76,16 @@ object LiveProtocol {
         })
     }
 
+    /** One video frame (a JPEG) for the session; sent about once per second at most. */
+    fun buildRealtimeVideo(jpeg: ByteArray): JsonObject = buildJsonObject {
+        put("realtimeInput", buildJsonObject {
+            put("video", buildJsonObject {
+                put("data", java.util.Base64.getEncoder().encodeToString(jpeg))
+                put("mimeType", "image/jpeg")
+            })
+        })
+    }
+
     fun buildClientText(text: String, turnComplete: Boolean = true): JsonObject = buildJsonObject {
         put("clientContent", buildJsonObject {
             putJsonArray("turns") {

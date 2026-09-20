@@ -20,13 +20,15 @@ import kotlinx.coroutines.launch
 class JarvisVoiceService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var stopping = false
+    private var sharedView = VideoSource.OFF
 
     override fun onCreate() {
         super.onCreate()
         startForeground(NOTIFICATION_ID, buildNotification(JarvisState.CONNECTING))
         val engine = (application as JarvisApp).container.engine
         scope.launch {
-            engine.state.collect { state ->
+            kotlinx.coroutines.flow.combine(engine.state, engine.videoSource) { state, video -> state to video }.collect { (state, video) ->
+                sharedView = video
                 getSystemService(NotificationManager::class.java)
                     .notify(NOTIFICATION_ID, buildNotification(state))
             }
@@ -80,7 +82,13 @@ class JarvisVoiceService : Service() {
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Jarvis · session vocale")
-            .setContentText(status)
+            .setContentText(
+                when (sharedView) {
+                    VideoSource.SCREEN -> "$status · écran partagé"
+                    VideoSource.CAMERA -> "$status · caméra partagée"
+                    VideoSource.OFF -> status
+                }
+            )
             .setContentIntent(openIntent)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .addAction(android.R.drawable.ic_media_pause, "Arrêter", stopIntent)

@@ -56,6 +56,9 @@ fun HudScreen(
     onOpenMemory: () -> Unit,
     onOpenChat: () -> Unit = {},
     outputLevel: Float = 0f,
+    videoSource: com.jarvis.android.core.VideoSource = com.jarvis.android.core.VideoSource.OFF,
+    onVideoSource: (com.jarvis.android.core.VideoSource) -> Unit = {},
+    onCameraFrame: (ByteArray) -> Unit = {},
     conversation: List<ConversationMessage> = emptyList(),
     sessionReady: Boolean = false,
     onSendText: suspend (String) -> Boolean = { false },
@@ -110,6 +113,26 @@ fun HudScreen(
             Spacer(Modifier.height(24.dp))
             if (state != JarvisState.ASLEEP) {
                 OutlinedButton(onClick = onStop) { Text("Arrêter la session") }
+            }
+            CameraStreamer(active = videoSource == com.jarvis.android.core.VideoSource.CAMERA, onFrame = onCameraFrame)
+            if (sessionReady) {
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    when (videoSource) {
+                        com.jarvis.android.core.VideoSource.OFF -> {
+                            OutlinedButton(onClick = { onVideoSource(com.jarvis.android.core.VideoSource.SCREEN) }) { Text("Partager l’écran") }
+                            OutlinedButton(onClick = { onVideoSource(com.jarvis.android.core.VideoSource.CAMERA) }) { Text("Partager la caméra") }
+                        }
+                        else -> {
+                            Text(
+                                if (videoSource == com.jarvis.android.core.VideoSource.SCREEN) "Écran partagé avec Gemini" else "Caméra partagée avec Gemini",
+                                color = androidx.compose.ui.graphics.Color(0xFFE05252),
+                                fontWeight = FontWeight.Bold,
+                            )
+                            OutlinedButton(onClick = { onVideoSource(com.jarvis.android.core.VideoSource.OFF) }) { Text("Arrêter") }
+                        }
+                    }
+                }
             }
 
             Spacer(Modifier.height(12.dp))

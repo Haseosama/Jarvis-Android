@@ -52,6 +52,21 @@ class JarvisAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() = Unit
 
+    /** True when a password field is visible: what is shown may then reveal secrets, so nothing must be streamed. */
+    internal fun hasVisiblePasswordField(): Boolean {
+        val root = rootInActiveWindow ?: return false
+        fun walk(node: AccessibilityNodeInfo, depth: Int): Boolean {
+            if (depth > MAX_DEPTH) return false
+            if (node.isVisibleToUser && node.isPassword) return true
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i) ?: continue
+                if (walk(child, depth + 1)) return true
+            }
+            return false
+        }
+        return walk(root, 0)
+    }
+
     internal fun activePackage(): String? = rootInActiveWindow?.packageName?.toString()
 
     internal fun appLabel(packageName: String): String = try {
@@ -207,7 +222,7 @@ class JarvisAccessibilityService : AccessibilityService() {
     }
 
     /** The current screen as a JPEG scaled to [com.jarvis.android.rest.MAX_IMAGE_SIDE], or the reason it could not be captured. */
-    internal suspend fun screenshotJpeg(): Pair<ByteArray?, String?> {
+    internal suspend fun screenshotJpeg(maxSide: Int = com.jarvis.android.rest.MAX_IMAGE_SIDE): Pair<ByteArray?, String?> {
         if (android.os.Build.VERSION.SDK_INT < 30) return null to "La capture d’écran demande Android 11 ou plus."
         val done = CompletableDeferred<Pair<ByteArray?, String?>>()
         takeScreenshot(
@@ -223,7 +238,7 @@ class JarvisAccessibilityService : AccessibilityService() {
                             done.complete(null to "Capture d’écran illisible.")
                             return
                         }
-                        val (w, h) = scaledSize(soft.width, soft.height)
+                        val (w, h) = scaledSize(soft.width, soft.height, maxSide)
                         val scaled = if (w == soft.width && h == soft.height) soft
                         else android.graphics.Bitmap.createScaledBitmap(soft, w, h, true)
                         val out = java.io.ByteArrayOutputStream()

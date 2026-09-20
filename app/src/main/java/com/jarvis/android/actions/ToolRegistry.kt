@@ -48,6 +48,7 @@ object ToolRegistry {
         TakePhotoTool,
         AnalyzeFileTool,
         AgentTool,
+        VisionStreamTool,
     )
 
     private val byName = ALL.associateBy { it.name }

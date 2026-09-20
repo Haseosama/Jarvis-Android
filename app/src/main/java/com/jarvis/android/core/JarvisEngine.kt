@@ -22,6 +22,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -147,6 +148,11 @@ class JarvisEngine(
     private var sessionJob: Job? = null
     private var lastActivityAt = 0L
     private val endOfSession = EndOfSession()
+    private val _videoSource = MutableStateFlow(VideoSource.OFF)
+
+    /** What the live session currently sees, if anything. */
+    val videoSource: StateFlow<VideoSource> = _videoSource.asStateFlow()
+    private var videoJob: Job? = null
     private var wakeDetector: WakeWordDetector? = null
     private val pendingAnnouncements = ArrayDeque<String>()
     private var resumeHandle: String? = null
@@ -226,6 +232,61 @@ class JarvisEngine(
         )
     }
 
+    /** Sends one camera or screen picture to the session. Returns false when there is no live session. */
+    fun sendVideoFrame(jpeg: ByteArray): Boolean = _sessionReady.value && client?.sendVideoFrame(jpeg) == true
+
+    /**
+     * Starts or stops sharing the screen or the camera with the live session. The screen is
+     * captured here (through the accessibility service); camera frames come from the UI, which owns
+     * the camera lifecycle. Returns what to tell the user.
+     */
+    fun setVideoSource(source: VideoSource): String {
+        if (source != VideoSource.OFF && !_sessionReady.value) return "Aucune session vocale active : démarrez-la d’abord."
+        videoJob?.cancel()
+        videoJob = null
+        _videoSource.value = source
+        return when (source) {
+            VideoSource.OFF -> "Partage de l’écran et de la caméra arrêté."
+            VideoSource.CAMERA -> {
+                log("Caméra partagée avec la session.")
+                "Caméra activée. Elle n’envoie des images que si l’écran principal de Jarvis est au premier plan."
+            }
+            VideoSource.SCREEN -> {
+                if (com.jarvis.android.device.JarvisAccessibilityService.instance == null) {
+                    _videoSource.value = VideoSource.OFF
+                    return "Le contrôle du téléphone n’est pas activé : impossible de partager l’écran (Paramètres > Accessibilité > Jarvis)."
+                }
+                log("Écran partagé avec la session.")
+                videoJob = scope.launch(Dispatchers.Default) { streamScreen() }
+                "Écran partagé : une image environ toutes les deux secondes, seulement si l’écran change."
+            }
+        }
+    }
+
+    private suspend fun streamScreen() {
+        val gate = FrameGate()
+        var pausedForPassword = false
+        while (currentCoroutineContext().isActive && _sessionReady.value && _videoSource.value == VideoSource.SCREEN) {
+            val service = com.jarvis.android.device.JarvisAccessibilityService.instance
+            if (service == null) {
+                withContext(Dispatchers.Main.immediate) { _videoSource.value = VideoSource.OFF }
+                log("Partage d’écran arrêté : le service d’accessibilité s’est déconnecté.")
+                return
+            }
+            if (service.hasVisiblePasswordField()) {
+                if (!pausedForPassword) log("Partage d’écran en pause : un champ de mot de passe est visible.")
+                pausedForPassword = true
+            } else {
+                pausedForPassword = false
+                val (jpeg, _) = service.screenshotJpeg(VIDEO_MAX_SIDE)
+                if (jpeg != null && gate.shouldSend(android.os.SystemClock.elapsedRealtime(), jpeg.contentHashCode())) {
+                    withContext(Dispatchers.Main.immediate) { sendVideoFrame(jpeg) }
+                }
+            }
+            delay(1_200)
+        }
+    }
+
     fun toggleAwake() {
         if (state.value == JarvisState.ASLEEP || state.value == JarvisState.ERROR) {
             scope.launch(start = CoroutineStart.UNDISPATCHED) { start() }
@@ -297,6 +358,9 @@ class JarvisEngine(
 
     private suspend fun stopLocked() {
         endOfSession.reset()
+        videoJob?.cancel()
+        videoJob = null
+        _videoSource.value = VideoSource.OFF
         container.agent.cancel()
         val finished = _conversation.value
         if (worthSummarizing(finished)) scope.launch(Dispatchers.IO) { summarizeSession(finished) }

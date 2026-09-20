@@ -122,6 +122,10 @@ class GeminiLiveClient(
         LiveProtocol.buildRealtimeAudio(pcm16)
     }
 
+    fun sendVideoFrame(jpeg: ByteArray): Boolean = sendWhenReady {
+        LiveProtocol.buildRealtimeVideo(jpeg)
+    }
+
     fun sendText(text: String): Boolean = sendWhenReady {
         LiveProtocol.buildClientText(text)
     }

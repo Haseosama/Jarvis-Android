@@ -89,6 +89,7 @@ class MainActivity : ComponentActivity() {
                         val log by container.engine.activityLog.collectAsState()
                         val conversation by container.engine.conversation.collectAsState()
                         val sessionReady by container.engine.sessionReady.collectAsState()
+                        val videoSource by container.engine.videoSource.collectAsState()
                         val outputLevel by container.engine.outputLevel.collectAsState()
                         val confirm by container.confirmManager.pending.collectAsState()
 
@@ -116,6 +117,9 @@ class MainActivity : ComponentActivity() {
                             onOpenMemory = { navController.navigate("memory") },
                             onOpenChat = { navController.navigate("chat") },
                             outputLevel = outputLevel,
+                            videoSource = videoSource,
+                            onVideoSource = { container.engine.setVideoSource(it) },
+                            onCameraFrame = { container.engine.sendVideoFrame(it) },
                             conversation = conversation,
                             sessionReady = sessionReady,
                             onSendText = { container.engine.sendText(it) },
