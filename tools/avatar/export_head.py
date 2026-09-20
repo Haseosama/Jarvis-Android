@@ -83,17 +83,21 @@ mask = am.build_head()
 Vm = mask["verts"]
 rings = {}
 ring_xy = {}
-FEATURE_DY = {"eye_l": 0.0, "eye_r": 0.0, "brow_l": 0.0, "brow_r": 0.0, "lips_out": -0.05, "lips_in": -0.05}
+# Where the mask's features belong on this scan, measured on it: the face's midline is at x = -0.035 (nose tip, mouth), the eyes are
+# closer together than the mask's (x scaled by 0.85), the closed eyelids meet at y = 0.02 (the mask has 0.08) and the lips at y = -0.49
+# (the mask has -0.55). Placing them by the mask's own coordinates put the eyes and the mouth about 0.06 too high and too low.
+FACE_X0, FACE_SX = -0.035, 0.85
+FEATURE_DY = {"eye_l": -0.062, "eye_r": -0.062, "brow_l": -0.062, "brow_r": -0.062, "lips_out": 0.057, "lips_in": 0.057}
 front_ids = np.flatnonzero(V[:, 2] > 0.25)
 for name, idx in mask["landmarks"].items():
     out = []
     for i in idx:
-        x, y = Vm[i, 0], Vm[i, 1] + FEATURE_DY[name]
+        x, y = FACE_X0 + FACE_SX * Vm[i, 0], Vm[i, 1] + FEATURE_DY[name]
         d2 = (V[front_ids, 0] - x) ** 2 + (V[front_ids, 1] - y) ** 2
         near = front_ids[np.argsort(d2)[:4]]
         out.append(int(near[np.argmax(V[near, 2])]))  # the outermost of the closest
     rings[name] = np.array(out, dtype=np.int32)
-    ring_xy[name] = np.array([[Vm[i, 0], Vm[i, 1] + FEATURE_DY[name]] for i in idx])
+    ring_xy[name] = np.array([[FACE_X0 + FACE_SX * Vm[i, 0], Vm[i, 1] + FEATURE_DY[name]] for i in idx])
 lips_out_c = V[rings["lips_out"]].mean(axis=0)
 lip_centre = lips_out_c
 mouth_y = lips_out_c[1]
@@ -523,27 +527,27 @@ def seam_centre(x):
 
 
 # settle the seam on the scan's own lip crease: the least open (lowest ao) vertex of each column near the ring's centre line
-xs_col = np.linspace(-hwi, hwi, 46)
+xs_col = FACE_X0 + np.linspace(-hwi, hwi, 46)
 ys_col = np.zeros(len(xs_col))
 for k, x in enumerate(xs_col):
     yc = seam_centre(x)
     cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (np.abs(V[:scan_count, 1] - yc) < 0.035) & (V[:scan_count, 2] > 0.3))
     cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (V[:scan_count, 1] > yc - 0.05) & (V[:scan_count, 1] < yc + 0.02) & (V[:scan_count, 2] > 0.3))
-    ys_col[k] = yc + 0.06                             # the mouth line sits in the middle of the coloured lips (the deepest groove lies behind them and would hide the slit)
+    ys_col[k] = -0.488 - 0.55 * (x - FACE_X0) ** 2     # the scan's own mouth line (a thin sheet where the lips meet), curving down at the corners
 ys_col = np.convolve(np.pad(ys_col, 3, mode="edge"), np.ones(7) / 7, mode="valid")
 print("mouth line: mean y", float(ys_col.mean()), "(ring centre", float(np.mean([seam_centre(x) for x in xs_col])), ")")
 def yseam(x):
     return np.interp(x, xs_col, ys_col)
 
 
-mouth_w = lambda x: 1.0 - smoothstep(hwi * 0.9, hwi * 1.35, np.abs(x))
+mouth_w = lambda x: 1.0 - smoothstep(hwi * 0.9, hwi * 1.35, np.abs(x - FACE_X0))
 tol = 0.02
-seam_v = np.flatnonzero((np.abs(V[:scan_count, 0]) < hwi * 0.92) & (np.abs(V[:scan_count, 1] - yseam(V[:scan_count, 0])) < tol) & (V[:scan_count, 2] > 0.3))
+seam_v = np.flatnonzero((np.abs(V[:scan_count, 0] - FACE_X0) < hwi * 0.92) & (np.abs(V[:scan_count, 1] - yseam(V[:scan_count, 0])) < tol) & (V[:scan_count, 2] > 0.3))
 dup = {int(i): len(V) + len(added["V"]) + n for n, i in enumerate(seam_v)}
 F2 = F.copy()
 F0 = F.copy()                                 # the faces before the seam is split: their indices are all the scan's own
 fc = V[F].mean(axis=1)
-below = (fc[:, 1] < yseam(fc[:, 0])) & (np.abs(fc[:, 0]) < hwi * 0.95) & (fc[:, 2] > 0.3)
+below = (fc[:, 1] < yseam(fc[:, 0])) & (np.abs(fc[:, 0] - FACE_X0) < hwi * 0.95) & (fc[:, 2] > 0.3)
 for t in np.flatnonzero(below):
     for c in range(3):
         if int(F2[t, c]) in dup:
@@ -570,16 +574,16 @@ for n_, i in enumerate(seam_dup):
 
 # the cavity (dark) and the teeth
 DARK = 0xFF0B0A10; TEETH = 0xFFECE7DC
-cols = np.linspace(-hwi * 0.86, hwi * 0.86, 12)
+cols = FACE_X0 + np.linspace(-hwi * 0.86, hwi * 0.86, 12)
 U, L, B = [], [], []
 for x in cols:
     ys = float(yseam(x)); zs = surface_z(x, ys); w_ = float(mouth_w(x))
     U.append(add_vertex(np.array([x, ys, zs - 0.004]), np.array([0, 0, 1.0]), 0.0, DARK))
     L.append(add_vertex(np.array([x, ys, zs - 0.004]), np.array([0, 0, 1.0]), 0.92 * w_, DARK))
-    B.append(add_vertex(np.array([x * 0.9, ys - 0.005, zs - 0.15]), np.array([0, 0, 1.0]), 0.45, DARK))
+    B.append(add_vertex(np.array([FACE_X0 + (x - FACE_X0) * 0.9, ys - 0.005, zs - 0.15]), np.array([0, 0, 1.0]), 0.45, DARK))
 for k in range(len(cols) - 1):
     new_faces += [(U[k], U[k + 1], B[k + 1]), (U[k], B[k + 1], B[k]), (L[k], B[k], B[k + 1]), (L[k], B[k + 1], L[k + 1])]
-tc = [k for k, x in enumerate(cols) if abs(x) < 0.78 * hwi]
+tc = [k for k, x in enumerate(cols) if abs(x - FACE_X0) < 0.78 * hwi]
 TU, TUb, TL, TLb = [], [], [], []
 for k in tc:
     x = cols[k]; ys = float(yseam(x)); zs = surface_z(x, ys); w_ = float(mouth_w(x))
@@ -649,8 +653,8 @@ print("eyes: faces removed", int(removed.sum()))
 lo_centre = lo.mean(axis=0)
 # the scan's upper lip is a shelf that reaches well above the mouth line (down to the lower lip's bottom at about -0.66), so the mask
 # is the ring's full height, centred on that span
-lip_c = np.array([0.0, float(np.mean(ys_col)) - 0.003])
-lo_fit = lip_c + (lo - lo_centre) * np.array([0.92, 1.0])   # the ring is taller and wider than the scan's own lips
+lip_c = np.array([lo_centre[0], float(np.mean(ys_col)) - 0.004])
+lo_fit = lip_c + (lo - lo_centre) * np.array([1.0, 0.55])   # the lips span about 0.05 above and 0.055 below the mouth line   # the ring is taller and wider than the scan's own lips
 inside_lip = point_in_poly(V[:, 0], V[:, 1], lo_fit) & front
 d_lip = dist_to_poly(V[:, 0], V[:, 1], lo_fit)
 lip_mask = np.where(inside_lip, 1.0, np.clip(1.0 - d_lip / 0.010, 0.0, 1.0) * front)

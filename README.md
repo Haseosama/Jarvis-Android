@@ -495,6 +495,8 @@ also shown in the settings.
   behind each (sclera, iris, pupil, painted per vertex) that turns towards the gaze, and the skin round them drops and rises as
   the lids close; the mouth is split along the lip line, the lower lip follows the jaw, and a dark cavity with upper teeth sits
   behind the slit. Nothing is drawn over the face any more except the brows; the lips' colour is painted on the lip vertices.
+  Where the eyes and the mouth go was measured on the scan itself (the closed eyelids meet at y = 0.02, the lips at y = -0.49, the
+  face's midline is at x = -0.035); MediaPipe's own coordinates would put them about 0.06 off.
 - **Expression.** Brows follow the phrase, the gaze flicks between points, blinks, idle sway; the face looks away while thinking,
   meets your eyes while listening and lowers its lids while asleep.
 - **Changed from the original.** Structure lines (creases and silhouette) replace the arbitrary third of edges it drew;
