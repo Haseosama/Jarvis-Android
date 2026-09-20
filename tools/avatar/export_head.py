@@ -669,6 +669,111 @@ F = F[~removed]
 group = group[~removed]
 print("eyes: faces removed", int(removed.sum()))
 
+
+# -- the hair: a volume laid on the scalp, in the style of a short wavy cut with a side part -------------------------------------
+# The quiff rises at the front, its fringe sweeps across the left of the forehead (the part is on the right) and ends in a curl; the
+# sides and the back are short. It is a shell of the scan's own faces, clipped exactly along the hairline (so the edge is smooth, not
+# a staircase of triangles), pushed out along the normals, thick where the volume is and thinning to nothing at the hairline.
+# Painted near-black with wave-shaped lighter streaks.
+Vs, Ns = V[:scan_count], N[:scan_count]
+
+
+def hairline_dist(P):
+    hx, hy, hz = P[:, 0] - FACE_X0, P[:, 1], P[:, 2]
+    front_hl = 0.31 + 0.27 * smoothstep(-0.42, 0.42, hx) + 0.10 * smoothstep(-0.40, -0.58, hx)                   # low on the left (the fringe), high on the right (the part)
+    hl = -0.12 + (-0.06 - -0.12) * smoothstep(-0.40, -0.05, hz)             # the nape, then above the ears
+    front_hl = front_hl + (0.22 - front_hl) * smoothstep(0.46, 0.62, np.abs(hx))      # at the temples the hair comes down in front of the ears
+    hl = hl + (front_hl - hl) * smoothstep(0.02, 0.36, hz)
+    d = hy - hl
+    return d
+
+
+dv = hairline_dist(Vs)
+P_all = [v for v in Vs]; N_all = [n_ for n_ in Ns]; d_all = list(dv)
+cut = {}
+
+
+def cut_point(i, o):                                                       # where the edge from an inside vertex i to an outside one o crosses
+    key = (i, o)
+    if key not in cut:
+        t = (d_all[i] - 0.0) / (d_all[i] - d_all[o])
+        pos = P_all[i] + (P_all[o] - P_all[i]) * t
+        nrm = N_all[i] + (N_all[o] - N_all[i]) * t
+        nrm = nrm / max(np.linalg.norm(nrm), 1e-9)
+        P_all.append(pos); N_all.append(nrm); d_all.append(0.0)
+        cut[key] = len(P_all) - 1
+    return cut[key]
+
+
+tris = []
+for a_, b_, c_ in F0[(F0.max(axis=1) < scan_count)]:
+    ins = [d_all[a_] >= 0.0, d_all[b_] >= 0.0, d_all[c_] >= 0.0]
+    n_in = sum(ins)
+    if n_in == 3:
+        tris.append((a_, b_, c_))
+    elif n_in == 1:
+        k = ins.index(True)
+        v = (a_, b_, c_)
+        i0, o1, o2 = v[k], v[(k + 1) % 3], v[(k + 2) % 3]
+        tris.append((i0, cut_point(i0, o1), cut_point(i0, o2)))
+    elif n_in == 2:
+        k = ins.index(False)
+        v = (a_, b_, c_)
+        o0, i1, i2 = v[k], v[(k + 1) % 3], v[(k + 2) % 3]
+        p1, p2 = cut_point(i1, o0), cut_point(i2, o0)
+        tris += [(i1, i2, p2), (i1, p2, p1)]
+Pv = np.array(P_all); Nv = np.array(N_all); dv = np.array(d_all)
+used_v = np.unique(np.array(tris).ravel())
+remap_h = -np.ones(len(Pv), dtype=np.int64)
+remap_h[used_v] = np.arange(len(used_v))
+Hf = remap_h[np.array(tris)]
+Pu, Nu, du = Pv[used_v], Nv[used_v], dv[used_v]
+hx, hy, hz = Pu[:, 0] - FACE_X0, Pu[:, 1], Pu[:, 2]
+wh = smoothstep(0.0, 0.05, du)
+frontness = smoothstep(-0.15, 0.50, hz)
+volume = 0.170 * smoothstep(0.30, 0.85, hy) * frontness                  # the quiff
+curl = 0.070 * np.exp(-(((hx + 0.24) / 0.17) ** 2 + ((hy - 0.40) / 0.09) ** 2 + ((hz - 0.46) / 0.28) ** 2))        # the curl of the fringe
+wave = 0.050 * np.exp(-(((hx - 0.02) / 0.20) ** 2 + ((hy - 0.66) / 0.12) ** 2 + ((hz - 0.34) / 0.30) ** 2))        # a wave on the top
+thick = (0.012 + 0.018 * smoothstep(0.30, 0.62, hy)) + volume + curl + wave        # short at the sides, longer on top
+thick = thick * (1.0 + 0.24 * np.sin(23.0 * hx + 7.0 * hz) * np.sin(19.0 * hy + 5.0 * hx))   # a little unevenness: hair is never smooth
+off = 0.003 + wh * thick
+Hp = Pu + Nu * off[:, None]
+Hp[:, 0] -= wh * frontness * 0.09 * smoothstep(0.35, 0.85, hy)           # the quiff leans to the left with the sweep
+Hp[:, 1] += wh * (curl + wave) * 0.4
+# the ears: a mound of hair over each one. The shell is thickened round the ear and smoothed there, so it covers the ear as a soft
+# mass instead of following its folds.
+ear_w = np.exp(-(((np.abs(hx) - 0.60) / 0.17) ** 2 + ((hy - 0.14) / 0.27) ** 2 + ((hz + 0.12) / 0.30) ** 2))
+Hp[:, 0] += np.sign(hx) * 0.085 * ear_w
+adj_h = [set() for _ in range(len(Hp))]
+for a_, b_, c_ in Hf:
+    adj_h[a_].update((b_, c_)); adj_h[b_].update((a_, c_)); adj_h[c_].update((a_, b_))
+for _ in range(4):
+    smoothed = np.array([Hp[list(adj_h[i])].mean(axis=0) if adj_h[i] else Hp[i] for i in range(len(Hp))])
+    k_ = (0.65 * ear_w)[:, None]
+    Hp = Hp * (1 - k_) + smoothed * k_
+clear = ear_w > 0.15
+Hp[clear, 0] = np.sign(hx[clear]) * np.maximum(np.abs(Hp[clear, 0]), np.abs(Pu[clear, 0]) + 0.05 * np.minimum(1.0, 2.0 * ear_w[clear]))
+Hn = vertex_normals(Hp, Hf)
+# the colour: dark brown with lighter streaks that follow the flow; the alpha byte says how much of it there is over the skin (1 on top
+# and at the front, fading to nothing down the sides and the back: the fade of a short cut)
+flow = 15.0 * (0.55 * hx + 0.85 * Hp[:, 1] + 0.35 * Hp[:, 2]) + 2.6 * np.sin(6.0 * hx + 3.0 * Hp[:, 2])
+streak = (0.5 + 0.5 * np.sin(flow)) ** 3
+grain = 0.5 + 0.5 * np.sin(310.0 * hx + 170.0 * Hp[:, 1]) * np.sin(230.0 * Hp[:, 2] + 90.0 * hx)     # the stubble of the short part
+base = np.array([0x1A, 0x12, 0x0E], dtype=float)
+hair_rgb = np.clip(base[None, :] * (1.0 + 0.9 * streak[:, None] + 0.3 * grain[:, None]), 0, 255).astype(np.int64)
+sideness = 1.0 - smoothstep(0.05, 0.35, hz)
+alpha = (1.0 - sideness) + sideness * smoothstep(-0.16, 0.22, hy) * (0.85 + 0.15 * grain)
+alpha = np.maximum(alpha, np.clip(1.6 * ear_w, 0.0, 1.0))
+alpha_b = np.clip(np.round(255.0 * alpha), 8, 255).astype(np.int64)
+hair_paint = (alpha_b << 24) | (hair_rgb[:, 0] << 16) | (hair_rgb[:, 1] << 8) | hair_rgb[:, 2]
+hair_first = len(V) + len(added["V"])
+for k in range(len(Hp)):
+    added["V"].append(Hp[k]); added["N"].append(Hn[k]); added["jaw"].append(0.0); added["paint"].append(int(hair_paint[k]))
+for tri in Hf:
+    new_faces.append((int(tri[0]) + hair_first, int(tri[1]) + hair_first, int(tri[2]) + hair_first))
+n_hair_faces = len(Hf)
+print("hair: vertices", len(Hp), "faces", n_hair_faces)
+
 # -- the lips' colour mask ---------------------------------------------------------------------------------------------------
 lo_centre = lo.mean(axis=0)
 # the scan's upper lip is a shelf that reaches well above the mouth line (down to the lower lip's bottom at about -0.66), so the mask
@@ -689,6 +794,7 @@ paint = np.concatenate([paint, np.array(added["paint"], dtype=np.int64)])
 lid = np.concatenate([lid, np.zeros(n_new)]); lip_mask = np.concatenate([lip_mask, np.zeros(n_new)])
 F = np.vstack([F, np.array(new_faces, dtype=np.int64)])
 group = np.concatenate([group, np.ones(len(new_faces))])
+group[len(group) - n_hair_faces:] = 2.0      # the hair faces are the last ones added
 
 nh, ns, nc_pts = len(HV), len(S_pts), len(C_pts)
 allV = np.vstack([V, HV, S_pts, C_pts])
@@ -715,7 +821,7 @@ for arr in (V, N):
     out += arr.astype("<f4").tobytes()
 for arr in (jaw, brow, lips, fade):
     out += arr.astype("<f4").tobytes()
-out += np.where(group > 0.5, 1.0, 0.0).astype("<f4").tobytes()
+out += np.where(group > 1.5, 2.0, np.where(group > 0.5, 1.0, 0.0)).astype("<f4").tobytes()
 out += F.astype("<i4").tobytes()
 names = ["eye_l", "eye_r", "brow_l", "brow_r", "lips_out", "lips_in"]
 out += struct.pack("<i", len(names))

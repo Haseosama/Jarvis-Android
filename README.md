@@ -498,6 +498,10 @@ also shown in the settings.
   With a skin, the brows are about 160 hairs each, anchored to the brow's landmark vertices (thick and upright at the inner end, thinner and
   flatter at the outer end); the eyelid rims and the two lip edges are thin lines along the openings, so a shut mouth shows one
   mouth line and an open one two lip edges.
+  With a skin the head also has hair: a shell laid on the scalp (built by `export_head.py`, clipped exactly along a diagonal hairline, a
+  smoothed mound over each ear, faded into the skin at the sides), about 5,600 individual strands anchored to it (long and swept on top,
+  short and dense at the sides), and 22 tapering locks with a highlight for the fringe. The look is that of a short textured cut with a
+  side-swept fringe; a skin is required (the glowing web look is the bare head).
   Where the eyes and the mouth go was measured on the scan itself (the closed eyelids meet at y = 0.02, the lips at y = -0.49, the
   face's midline is at x = -0.035); MediaPipe's own coordinates would put them about 0.06 off.
 - **Expression.** Brows follow the phrase, the gaze flicks between points, blinks, idle sway; the face looks away while thinking,
