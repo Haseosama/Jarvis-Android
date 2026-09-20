@@ -685,7 +685,9 @@ def hairline_dist(P):
     front_hl = front_hl + (0.22 - front_hl) * smoothstep(0.46, 0.62, np.abs(hx))      # at the temples the hair comes down in front of the ears
     hl = hl + (front_hl - hl) * smoothstep(0.02, 0.36, hz)
     d = hy - hl
-    return d
+    # the ears stay bare: the hair keeps clear of an ellipsoid round each one (a smooth distance, so the edge is clipped cleanly)
+    e = ((np.abs(hx) - 0.60) / 0.20) ** 2 + ((hy - 0.14) / 0.30) ** 2 + ((hz + 0.12) / 0.33) ** 2
+    return np.minimum(d, 0.2 * (np.sqrt(e) - 1.0))
 
 
 dv = hairline_dist(Vs)
@@ -742,7 +744,7 @@ Hp[:, 0] -= wh * frontness * 0.09 * smoothstep(0.35, 0.85, hy)           # the q
 Hp[:, 1] += wh * (curl + wave) * 0.4
 # the ears: a mound of hair over each one. The shell is thickened round the ear and smoothed there, so it covers the ear as a soft
 # mass instead of following its folds.
-ear_w = np.exp(-(((np.abs(hx) - 0.60) / 0.17) ** 2 + ((hy - 0.14) / 0.27) ** 2 + ((hz + 0.12) / 0.30) ** 2))
+ear_w = np.zeros(len(Hp))                                    # (no mound over the ears any more: they are left bare)
 Hp[:, 0] += np.sign(hx) * 0.085 * ear_w
 adj_h = [set() for _ in range(len(Hp))]
 for a_, b_, c_ in Hf:
