@@ -26,9 +26,9 @@ private const val MIN_ALPHA = 0.05f
 private const val LUT_N = 192
 private const val BROW_HAIRS = 160
 private const val LID_COLUMNS = 9
-private const val HAIR_STRANDS = 3000
-private const val SIDE_STRANDS = 2600
-private const val HAIR_LOCKS = 22
+private const val HAIR_STRANDS = 4200
+private const val SIDE_STRANDS = 2200
+private const val HAIR_LOCKS = 0
 private const val LOCK_SAMPLES = 9
 
 internal fun argb(a: Int, r: Int, g: Int, b: Int): Int = (a shl 24) or (r shl 16) or (g shl 8) or b
@@ -438,16 +438,17 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val nz = s0 * mesh.normals[3 * a + 2] + u * mesh.normals[3 * b + 2] + w * mesh.normals[3 * c + 2]
             val nl = max(sqrt(nx * nx + ny * ny + nz * nz), 1e-6f)
             // the flow: swept forward and to the left on top, falling on the sides and the back
-            val fringe = pz > 0.26f && py < 0.66f && py > 0.22f     // the front edge: the fringe that falls over the forehead
+            val fringe = pz > 0.36f && py > 0.42f                    // the front of the top: the hair rises and sweeps back from the hairline
             val onTop = pz > 0.10f && py > 0.30f
             val isTop = onTop || fringe
             if (isTop && topN >= HAIR_STRANDS) continue
             if (!isTop && sideN >= SIDE_STRANDS) continue
             val jx = (rnd.nextFloat() - 0.5f) * 0.7f
             val jz = (rnd.nextFloat() - 0.5f) * 0.5f
-            var fx = if (fringe) -0.30f + jx * 0.8f else if (onTop) -0.55f + jx else 0.15f * jx
-            var fy = if (fringe) -0.95f else if (onTop) 0.10f + 0.3f * (rnd.nextFloat() - 0.5f) else -1.0f
-            var fz = if (fringe) 0.35f + jz * 0.6f else if (onTop) 0.70f + jz else -0.10f + jz * 0.3f
+            // combed: from the front it rises and goes back, across the top it runs to the right and back, at the sides it goes back and down
+            var fx = if (fringe) 0.40f + jx * 0.25f else if (onTop) 0.75f + jx * 0.25f else 0.10f * jx
+            var fy = if (fringe) 0.65f else if (onTop) 0.20f + 0.1f * (rnd.nextFloat() - 0.5f) else -0.45f
+            var fz = if (fringe) -0.30f + jz * 0.3f else if (onTop) -0.55f + jz * 0.3f else -0.85f
             // remove the part along the normal: the strand runs along the surface
             val d = (fx * nx + fy * ny + fz * nz) / nl / nl
             fx -= d * nx; fy -= d * ny; fz -= d * nz
@@ -465,9 +466,10 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             if (kotlin.math.abs(det) < 1e-9f) continue
             val al = (r1 * g22 - r2 * g12) / det
             val be = (r2 * g11 - r1 * g12) / det
-            val tone = if (rnd.nextFloat() < 0.06f) 2 else if (rnd.nextFloat() < 0.38f) 1 else 0
+            val band = kotlin.math.sin(px * 75f + py * 34f + pz * 16f) + 0.5f * (rnd.nextFloat() - 0.5f)
+            val tone = if (band > 0.85f) 2 else if (band > 0.05f) 1 else 0
             if (isTop) topN++ else sideN++
-            list += Strand(a, b, c, u, w, al, be, (if (fringe) 0.085f + 0.095f * rnd.nextFloat() else if (onTop) 0.055f + 0.085f * rnd.nextFloat() else 0.040f + 0.040f * rnd.nextFloat()), 0.30f + 0.55f * rnd.nextFloat(), (rnd.nextFloat() - 0.5f) * 1.5f, tone)
+            list += Strand(a, b, c, u, w, al, be, (if (fringe) 0.10f + 0.07f * rnd.nextFloat() else if (onTop) 0.10f + 0.08f * rnd.nextFloat() else 0.05f + 0.04f * rnd.nextFloat()), 0.10f + 0.25f * rnd.nextFloat(), (rnd.nextFloat() - 0.5f) * 0.5f, tone)
         }
         list
     }
@@ -506,9 +508,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             arr[o + 4] = mx; arr[o + 5] = my; arr[o + 6] = ex; arr[o + 7] = ey
             strandCounts[s.tone] = o + 8
         }
-        val colours = intArrayOf(0xFF150E0B.toInt(), 0xFF2A1D16.toInt(), 0xFF5E4F44.toInt())
-        val alphas = floatArrayOf(235f, 215f, 170f)
-        strandPaint.strokeWidth = max(0.9f, strokePx * 0.7f)
+        val colours = intArrayOf(0xFF110B08.toInt(), 0xFF241811.toInt(), 0xFF463629.toInt())
+        val alphas = floatArrayOf(235f, 220f, 175f)
+        strandPaint.strokeWidth = max(0.9f, strokePx * 0.65f)
         for (i in 0 until 3) {
             if (strandCounts[i] == 0) continue
             strandPaint.color = withAlpha(colours[i], alphas[i])

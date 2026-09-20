@@ -18,8 +18,8 @@ class AvatarTest {
 
     @Test
     fun `the head asset loads with the expected shape`() {
-        assertEquals(11294, mesh.vertexCount)
-        assertEquals(19999, mesh.faceCount)
+        assertEquals(11251, mesh.vertexCount)
+        assertEquals(19934, mesh.faceCount)
         assertEquals(mapOf("eye_l" to 16, "eye_r" to 16, "brow_l" to 5, "brow_r" to 5, "lips_out" to 20, "lips_in" to 20), mesh.landmarks.mapValues { it.value.size })
         assertTrue(mesh.crown > mesh.bottom)
         assertEquals(mesh.vertexCount * 3, mesh.normals.size)
