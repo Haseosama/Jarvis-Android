@@ -20,12 +20,6 @@ internal class AvatarController(private val context: Context) {
     /** Set from the settings: when off, nothing is analysed and nothing is drawn. */
     @Volatile var enabled = true
 
-    /** Set from the settings: hair on the head (default) or a bare head. */
-    @Volatile var hair = true
-
-    /** Set from the settings: realistic (default) or holographic, and the skin, hair and eye colours. */
-    @Volatile var look = AvatarLook()
-
     /** Debug builds can force the face's mood (see DebugAvatarReceiver); null means "follow the assistant's state". */
     @Volatile var debugMood: Mood? = null
 

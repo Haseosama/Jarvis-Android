@@ -29,15 +29,6 @@ class DebugAvatarReceiver : BroadcastReceiver() {
                 else -> null
             }
         }
-        intent.getStringExtra("style")?.let { name ->
-            val style = when (name.lowercase()) {
-                "network" -> com.jarvis.android.avatar.AvatarStyle.NETWORK
-                "realistic" -> com.jarvis.android.avatar.AvatarStyle.REALISTIC
-                "holo" -> com.jarvis.android.avatar.AvatarStyle.HOLOGRAPHIC
-                else -> com.jarvis.android.avatar.AvatarStyle.CYBER
-            }
-            controller.look = controller.look.copy(style = style)
-        }
         intent.getStringExtra("speak")?.let { text ->
             controller.onTranscript(text)
             controller.onSpeech(synthesize(text))

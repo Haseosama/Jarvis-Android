@@ -170,11 +170,6 @@ class ConfigStore(private val context: Context) {
     private val KEY_BRIEFING = booleanPreferencesKey("briefing_enabled")
     private val KEY_CHAT_HISTORY = booleanPreferencesKey("chat_history_enabled")
     private val KEY_AVATAR_FACE = booleanPreferencesKey("avatar_face")
-    private val KEY_AVATAR_HAIR = booleanPreferencesKey("avatar_hair")
-    private val KEY_AVATAR_STYLE = stringPreferencesKey("avatar_style")
-    private val KEY_AVATAR_SKIN = intPreferencesKey("avatar_skin")
-    private val KEY_AVATAR_HAIR_COLOR = intPreferencesKey("avatar_hair_color")
-    private val KEY_AVATAR_EYES = intPreferencesKey("avatar_eyes")
     private val KEY_MUTE_WHILE_SPEAKING = booleanPreferencesKey("mute_mic_while_speaking")
     private val KEY_SPEECH_LANGUAGE = stringPreferencesKey("speech_language")
     private val KEY_PROACTIVE = booleanPreferencesKey("proactive_enabled")
@@ -205,12 +200,6 @@ class ConfigStore(private val context: Context) {
     val chatHistoryEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_CHAT_HISTORY] ?: true }
     /** True (default): the HUD shows the holographic face; false: the reactor core. */
     val avatarFace: Flow<Boolean> = context.dataStore.data.map { it[KEY_AVATAR_FACE] ?: true }
-    val avatarHair: Flow<Boolean> = context.dataStore.data.map { it[KEY_AVATAR_HAIR] ?: true }
-    /** "network" (default), "cyber", "realistic" or "holo": how the avatar's head is drawn. */
-    val avatarStyle: Flow<String> = context.dataStore.data.map { it[KEY_AVATAR_STYLE] ?: "network" }
-    val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 1 }
-    val avatarHairColor: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_HAIR_COLOR] ?: 1 }
-    val avatarEyes: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_EYES] ?: 0 }
     val muteMicWhileSpeaking: Flow<Boolean> = context.dataStore.data.map { it[KEY_MUTE_WHILE_SPEAKING] ?: true }
     /** BCP-47 code the voice is pinned to, or empty for automatic (the assistant may switch language). */
     val speechLanguage: Flow<String> = context.dataStore.data.map { it[KEY_SPEECH_LANGUAGE].orEmpty() }
@@ -234,11 +223,6 @@ class ConfigStore(private val context: Context) {
     suspend fun setChatHistoryEnabled(v: Boolean) = context.dataStore.edit { it[KEY_CHAT_HISTORY] = v }
     suspend fun snapshotChatHistoryEnabled() = chatHistoryEnabled.first()
     suspend fun setAvatarFace(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_FACE] = v }
-    suspend fun setAvatarHair(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_HAIR] = v }
-    suspend fun setAvatarStyle(v: String) = context.dataStore.edit { it[KEY_AVATAR_STYLE] = v }
-    suspend fun setAvatarSkin(v: Int) = context.dataStore.edit { it[KEY_AVATAR_SKIN] = v }
-    suspend fun setAvatarHairColor(v: Int) = context.dataStore.edit { it[KEY_AVATAR_HAIR_COLOR] = v }
-    suspend fun setAvatarEyes(v: Int) = context.dataStore.edit { it[KEY_AVATAR_EYES] = v }
     suspend fun setMuteMicWhileSpeaking(v: Boolean) = context.dataStore.edit { it[KEY_MUTE_WHILE_SPEAKING] = v }
     suspend fun setSpeechLanguage(v: String) = context.dataStore.edit { it[KEY_SPEECH_LANGUAGE] = v }
     suspend fun setBriefingEnabled(v: Boolean) = context.dataStore.edit { it[KEY_BRIEFING] = v }

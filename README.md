@@ -473,40 +473,25 @@ starts the answer again. Changes:
 
 The centre of the main screen shows an animated human head instead of the reactor core (Settings > Appearance turns it off).
 It is an Android adaptation of the avatar of [Mark-LIV](https://github.com/FatihMakes/Mark-LIV) by FatihMakes. **That
-work is licensed CC BY-NC 4.0: this avatar, and any app that includes it, may not be used commercially.** The head is a real 3D head scan
-("Infinite, 3D Head Scan" by Lee Perry-Smith, CC BY 3.0; the eyes and lips are placed with MediaPipe's face landmarks, Apache-2.0). Details and credits: `app/src/main/assets/avatar/NOTICE.txt`; the credit is
+work is licensed CC BY-NC 4.0: this avatar, and any app that includes it, may not be used commercially.** The face geometry is
+MediaPipe's canonical face model (Apache-2.0). Details and credits: `app/src/main/assets/avatar/NOTICE.txt`; the credit is
 also shown in the settings.
 
-- **Face.** A real human head scan (ears, nose, lips, jaw and neck included), resampled to about 8,500 vertices, normalised and
-  cut at the neck, then rigged (jaw, brow and lip weights, eye and mouth rings laid on its surface, ambient occlusion, a hair
-  shell with 700 strands and 56 fringe locks, circuit traces) by `tools/avatar/export_head.py` and stored as a 1.3 MB asset
-  (`head_mesh.bin`; the script is not part of the app). About 18,000 triangles, drawn on Android's canvas: no OpenGL, no library.
-  It replaced an earlier reshaped MediaPipe mask after reference photos showed a more natural head shape was wanted.
-- **Smooth shading.** Mark-LIV lit each facet flat; here each vertex is lit from normals rebuilt every frame on the posed
-  geometry (so the lips and jaw relight as they move), and the triangles blend the colours. Structure lines (creases and
-  silhouette) keep the anatomy readable.
-- **Four looks** (Settings > Appearance > Style du visage). *Réseau* (default) is a near-black head made of an even web of fine glowing lines
-  joining about 2,000 bright nodes spread over the scan (closer together on the eyes, nose, lips and ears, brighter at the contour), with two glowing eyes and glowing lips, after a
-  reference image the user supplied. *Cyber* is an android after another reference image the
-  user supplied (glossy blue skin under a translucent violet cranial shell, neon circuit traces, a glowing forehead chip, a glowing
-  outline along the jaw and the edge of the shell, luminous eyes, a mouth that lights up with small bars while it speaks, a ribbed
-  neck, an armoured collar, and a circuit-board backdrop with pulses of light); the face is the scanned head, not a copy of the picture. *Realistic*
-  is a lit, skin-toned head with real eyes, coloured lips, teeth, brows, a shirt and hair (a hair shell plus 700 strands in three
-  tones and 56 fringe locks; skin tone, hair colour and eye colour are settings). *Hologram* is the original blue look.
+- **Face.** Real measured face geometry (468 vertices) with a cranium and a neck built around it, run once through Mark-LIV's
+  generator and stored as a 64 KB asset (`head_mesh.bin`). Lit per facet, drawn on Android's canvas: no OpenGL, no extra library.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.
 - **Expression.** Brows follow the phrase, the gaze flicks between points, blinks, idle sway; the face looks away while thinking,
   meets your eyes while listening and lowers its lids while asleep.
-- **Changed from the original.** Subdivided mesh and smooth shading; hair; structure lines (creases and silhouette) replace the
-  arbitrary third of edges it drew; the lattice lights up as a scan sweeps by; a rim light in the accent colour; lids really close
-  when asleep; a lip-sync clock based on the audio playing; half the frame rate while asleep. Colours follow the interface hue.
+- **Changed from the original.** Structure lines (creases and silhouette) replace the arbitrary third of edges it drew;
+  the lattice lights up as a scan sweeps by; a rim light in the accent colour; lids really close when asleep; a lip-sync clock
+  based on the audio playing; half the frame rate while asleep. Colours follow the interface hue.
 - **Checked:** on the emulator, the head draws in the idle, listening and thinking states and the mouth opens and closes on a
   synthetic voice (debug-only `DEBUG_AVATAR` broadcast feeding the real analysis path); 40 unit tests (mesh loading, text to
   shapes, formant analysis, fusion, clock, animation). **Not checked:** with Gemini's real voice on a phone (timing of the lips
-  against the sound, the value of the 40 ms output-latency guess), frame rate and battery on a real phone with the denser mesh
-  (about 8,500 triangles sorted and drawn each frame, plus up to 17,000 points for strands and circuits), the hair and the circuits seen from the sides and the back while the head turns, the realistic style on a real phone, the drawing
-  on Android 8 and 9 (there the triangles are drawn one by one, slower, and without the colour blending).
+  against the sound, the value of the 40 ms output-latency guess), frame rate and battery on a real phone, the drawing on
+  Android 8 and 9 (there the triangles are drawn one by one, slower).
 
 ### Text chat (REST)
 
