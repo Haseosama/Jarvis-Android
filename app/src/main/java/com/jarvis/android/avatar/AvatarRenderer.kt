@@ -65,6 +65,14 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private val surfacePaint = Paint().apply { isAntiAlias = false; style = Paint.Style.FILL }
     private val trianglePath = android.graphics.Path()
     private val linePaint = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE }
+    private val web = NetworkWeb(mesh)
+    private val wx = FloatArray(web.count)
+    private val wy = FloatArray(web.count)
+    private val wz = FloatArray(web.count)
+    private val webLines = Array(4) { FloatArray(web.edges.size * 2 + 8) }
+    private val webLineCounts = IntArray(4)
+    private val webNodes = Array(3) { FloatArray(web.count * 2 + 4) }
+    private val webNodeCounts = IntArray(3)
     private val lipUp = mesh.landmarks.getValue("lips_in").let { ring -> ring.copyOfRange(10, ring.size) + ring[0] }
 
     /** Draws the head centred on ([cx], [cy]); [r] is its half-height in pixels. Colours are ARGB ints. */
@@ -99,9 +107,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         scope.drawIntoCanvas { canvas ->
             val nc = canvas.nativeCanvas
             drawSurface(nc, visible)
-            drawWire(nc, v, n, amp, primary, bg, strokePx)
+            drawWeb(nc, n, amp, primary, strokePx, avatar.time)
         }
-        drawScanLines(scope, cx, cy, r, primary)
         drawFeatures(scope, avatar, r, primary, accent, bg, amp, strokePx)
     }
 
@@ -109,7 +116,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         val key = (bg.toLong() shl 32) xor primary.toLong()
         if (key == lutKey) return
         lutKey = key
-        for (i in 0 until LUT_N) lut[i] = blend(bg, primary, 255f * (i + 0.5f) / LUT_N)
+        for (i in 0 until LUT_N) lut[i] = blend(bg, primary, 255f * (i + 0.5f) / LUT_N * 0.17f) // a nearly black surface: the web is what shines
     }
 
     /** Lights every camera-facing triangle and returns how many; their colour and depth key are left in the arrays. */
@@ -143,7 +150,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             bright *= 0.88f + 0.24f * amp
             var col = lut[(bright * LUT_N).toInt().coerceIn(0, LUT_N - 1)]
             // Rim light: facets turning away from the viewer catch the accent colour.
-            val rim = (fres * fres * 0.30f).coerceIn(0f, 0.30f)
+            val rim = (fres * fres * 0.14f).coerceIn(0f, 0.14f)
             if (rim > 0.01f) col = mix(col, accent, rim)
             faceColor[t] = col
             val z = (v[3 * a + 2] + v[3 * b + 2] + v[3 * c + 2]) / 3f + mesh.faceGroup[t].let { g -> if (g > 0.5f) 0f else -1000f }
@@ -238,6 +245,62 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         }
     }
 
+    /** The web: fine lines between neighbouring nodes and bright nodes, brighter towards the contour, with a slow twinkle. */
+    private fun drawWeb(nc: Canvas, nrm: FloatArray, amp: Float, primary: Int, strokePx: Float, t: Float) {
+        val w = web
+        val gain = 0.85f + 0.5f * amp
+        for (i in 0 until w.count) {
+            val a = w.triA[i]; val b = w.triB[i]; val c = w.triC[i]
+            val u = w.wu[i]; val q = w.wv[i]; val s = 1f - u - q
+            wx[i] = s * xs[a] + u * xs[b] + q * xs[c]
+            wy[i] = s * ys[a] + u * ys[b] + q * ys[c]
+            wz[i] = s * nrm[3 * a + 2] + u * nrm[3 * b + 2] + q * nrm[3 * c + 2]
+        }
+        webLineCounts.fill(0); webNodeCounts.fill(0)
+        val e = w.edges
+        for (k in 0 until e.size / 2) {
+            val i = e[2 * k]; val j = e[2 * k + 1]
+            val nzi = wz[i]; val nzj = wz[j]
+            if (nzi < 0.05f && nzj < 0.05f) continue
+            val fres = Math.pow((1f - 0.5f * (nzi + nzj)).coerceIn(0f, 1f).toDouble(), 1.2).toFloat()
+            var a = (0.22f + 0.55f * fres) * 0.5f * (w.fade[i] + w.fade[j]) * gain
+            if (nzi < 0.15f || nzj < 0.15f) a *= 0.6f
+            if (a <= MIN_ALPHA) continue
+            val bk = (a * 4f).toInt().coerceIn(0, 3)
+            val arr = webLines[bk]; val o = webLineCounts[bk]
+            arr[o] = wx[i]; arr[o + 1] = wy[i]; arr[o + 2] = wx[j]; arr[o + 3] = wy[j]
+            webLineCounts[bk] = o + 4
+        }
+        linePaint.strokeWidth = max(0.8f, strokePx * 0.6f)
+        for (bk in 0 until 4) {
+            if (webLineCounts[bk] == 0) continue
+            linePaint.color = withAlpha(primary, (bk + 0.5f) / 4f * 0.95f * 255f)
+            nc.drawLines(webLines[bk], 0, webLineCounts[bk], linePaint)
+        }
+        for (i in 0 until w.count) {
+            val nz = wz[i]
+            if (nz < 0f || w.fade[i] < 0.25f) continue
+            val fres = Math.pow((1f - nz).coerceIn(0f, 1f).toDouble(), 1.3).toFloat()
+            val tw = 0.8f + 0.2f * kotlin.math.sin(t * 2.1f + i * 1.7f)
+            val br = (0.45f + 0.7f * fres) * tw * w.fade[i]
+            val hash = ((i * -1640531535) ushr 16) and 0xFF
+            val bk = if (br > 0.85f || hash > 236) 2 else if (br > 0.5f) 1 else 0
+            val arr = webNodes[bk]; val o = webNodeCounts[bk]
+            arr[o] = wx[i]; arr[o + 1] = wy[i]
+            webNodeCounts[bk] = o + 2
+        }
+        val sizes = floatArrayOf(1.8f, 2.8f, 4.4f)
+        val alphas = floatArrayOf(160f, 208f, 255f)
+        for (bk in 0 until 3) {
+            if (webNodeCounts[bk] == 0) continue
+            linePaint.strokeWidth = sizes[bk] * (strokePx / 2.5f).coerceIn(0.8f, 1.6f)
+            linePaint.strokeCap = Paint.Cap.ROUND
+            linePaint.color = if (bk == 2) mix(withAlpha(primary, alphas[bk]), 0xFFFFFFFF.toInt(), 0.55f) else withAlpha(primary, alphas[bk])
+            nc.drawPoints(webNodes[bk], 0, webNodeCounts[bk], linePaint)
+        }
+        linePaint.strokeCap = Paint.Cap.BUTT
+    }
+
     /** Height of the energy sweep, set by the caller each frame. */
     var scanY: Float = 0f
 
@@ -281,7 +344,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 if (k == 0) path.moveTo(xs[i], y) else path.lineTo(xs[i], y)
             }
             path.close()
-            scope.drawPath(path, Color(blend(bg, primary, 22f)))
+            scope.drawPath(path, Color(blend(bg, primary, 6f)))
             scope.drawPath(path, Color(withAlpha(primary, 210f * face)), style = Stroke(width = strokePx * 1.1f))
             if (vis > 0.35f) {
                 val w = maxX - minX
@@ -289,9 +352,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 val gx = (minX + maxX) / 2f + avatar.gaze[0] * w * 0.16f
                 val gy = (minY + maxY) / 2f + avatar.gaze[1] * h * 0.20f
                 val rad = min(h * 0.62f, w * 0.20f)
-                scope.drawOval(Color(withAlpha(accent, (70f + 60f * amp) * face * vis)), Offset(gx - rad, gy - rad * vis), Size(rad * 2f, rad * 2f * vis))
-                val pr = rad * 0.42f
-                scope.drawOval(Color(withAlpha(accent, 245f * face * vis)), Offset(gx - pr, gy - pr * vis), Size(pr * 2f, pr * 2f * vis))
+                scope.drawOval(Color(withAlpha(primary, (60f + 40f * amp) * face * vis)), Offset(gx - rad, gy - rad * vis), Size(rad * 2f, rad * 2f * vis))
+                scope.drawOval(Color(withAlpha(primary, 200f * face * vis)), Offset(gx - rad, gy - rad * vis), Size(rad * 2f, rad * 2f * vis), style = Stroke(width = strokePx * 0.9f))
             }
         }
 

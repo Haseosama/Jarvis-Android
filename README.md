@@ -482,6 +482,11 @@ also shown in the settings.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.
+- **Look.** After reference photos of a glowing point-cloud head, the surface is nearly black and the head is drawn as a web: about
+  2,800 nodes spread evenly over the mesh (closer together round the eyes and mouth, brighter towards the contour, with a slow
+  twinkle) joined to their nearest neighbours by fine lines, in the interface colour. The nodes sit on the mesh's triangles by
+  barycentric weights, so the web follows the jaw and the head pose. The eyes are dark openings with a faint iris. The geometry
+  is still Mark-LIV's (no ears).
 - **Expression.** Brows follow the phrase, the gaze flicks between points, blinks, idle sway; the face looks away while thinking,
   meets your eyes while listening and lowers its lids while asleep.
 - **Changed from the original.** Structure lines (creases and silhouette) replace the arbitrary third of edges it drew;
