@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
@@ -78,6 +79,8 @@ fun HudScreen(
             TopAppBar(
                 title = { Text("JARVIS") },
                 actions = {
+                    val pickFile = rememberFileAttacher { }
+                    IconButton(onClick = pickFile) { Icon(Icons.Filled.AttachFile, contentDescription = "Joindre un fichier") }
                     IconButton(onClick = onOpenChat) { Icon(Icons.Filled.Chat, contentDescription = "Chat texte") }
                     IconButton(onClick = onOpenMemory) { Icon(Icons.Filled.Info, contentDescription = "Mémoire") }
                     IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Menu, contentDescription = "Paramètres") }

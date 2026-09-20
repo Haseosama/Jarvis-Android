@@ -55,6 +55,8 @@ class JarvisContainer(val appContext: Context) {
 
     internal val briefing: com.jarvis.android.memory.BriefingCoordinator by lazy { com.jarvis.android.memory.BriefingCoordinator(this) }
 
+    internal val attachedFiles = com.jarvis.android.files.AttachedFileStore()
+
     /** Text chat over generateContent; independent of the Live session. */
     val restChat: RestChat by lazy { RestChat(this) }
 }

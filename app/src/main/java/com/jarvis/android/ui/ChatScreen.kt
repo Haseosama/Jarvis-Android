@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
@@ -69,6 +70,9 @@ fun ChatScreen(
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val voice = chat.voice
+    val container = (androidx.compose.ui.platform.LocalContext.current.applicationContext as com.jarvis.android.JarvisApp).container
+    val attached by container.attachedFiles.current.collectAsState()
+    val pickFile = rememberFileAttacher { failure -> error = failure }
     val stage by voice.stage.collectAsState()
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) error = voice.startRecording()
@@ -136,6 +140,16 @@ fun ChatScreen(
                 VoiceStage.SPEAKING -> Text("Jarvis parle…", style = MaterialTheme.typography.bodySmall)
                 else -> {}
             }
+            attached?.let { file ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Fichier joint : ${file.name} (${com.jarvis.android.files.humanSize(file.bytes.size.toLong())}). Demandez à Jarvis de l’analyser ; il est envoyé à Gemini à ce moment-là.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = { container.attachedFiles.clear() }) { Icon(Icons.Filled.Close, contentDescription = "Retirer le fichier") }
+                }
+            }
             error?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
@@ -151,6 +165,9 @@ fun ChatScreen(
                     enabled = !sending && stage == VoiceStage.IDLE,
                     modifier = Modifier.weight(1f),
                 )
+                IconButton(onClick = pickFile, enabled = !sending && stage == VoiceStage.IDLE) {
+                    Icon(Icons.Filled.AttachFile, contentDescription = "Joindre un fichier")
+                }
                 Spacer(Modifier.width(4.dp))
                 when (stage) {
                     VoiceStage.RECORDING -> {
