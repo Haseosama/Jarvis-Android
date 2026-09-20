@@ -528,8 +528,10 @@ ys_col = np.zeros(len(xs_col))
 for k, x in enumerate(xs_col):
     yc = seam_centre(x)
     cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (np.abs(V[:scan_count, 1] - yc) < 0.035) & (V[:scan_count, 2] > 0.3))
-    ys_col[k] = yc
+    cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (V[:scan_count, 1] > yc - 0.05) & (V[:scan_count, 1] < yc + 0.02) & (V[:scan_count, 2] > 0.3))
+    ys_col[k] = yc                                     # (the deepest groove lies behind the lips: a slit there would be hidden)
 ys_col = np.convolve(np.pad(ys_col, 3, mode="edge"), np.ones(7) / 7, mode="valid")
+print("mouth line: mean y", float(ys_col.mean()), "(ring centre", float(np.mean([seam_centre(x) for x in xs_col])), ")")
 def yseam(x):
     return np.interp(x, xs_col, ys_col)
 
@@ -594,7 +596,7 @@ IRIS_RINGS = [(0, 0xFF05070A), (6, 0xFF05070A), (12, 0xFF16324F), (18, 0xFF3F7CA
 SEG = 20
 eye_info = []
 removed = np.zeros(len(F), dtype=bool)
-LID_REACH = 0.055
+LID_REACH = 0.075
 for name in ("eye_l", "eye_r"):
     poly = ring_xy[name]
     ctr = poly.mean(axis=0)
@@ -610,11 +612,10 @@ for name in ("eye_l", "eye_r"):
     dist = np.where(inside_v, 0.0, dist)
     reach = front & (dist < LID_REACH)
     f_ = np.where(reach, (1.0 - dist / LID_REACH) ** 2, 0.0)
-    g_ = np.clip((V[:, 1] - ctr[1]) / (0.6 * hh), -1.0, 1.0)
-    lid += np.where(g_ >= 0, 1.15 * hh, 0.85 * hh) * g_ * f_ * ((np.abs(V[:, 0] - ctr[0]) < w_eye * 0.8))
+    lid += (V[:, 1] - ctr[1]) * f_ * (np.abs(V[:, 0] - ctr[0]) < w_eye * 0.95)
     # the eyeball, behind the hole
     rad = 0.5 * w_eye * 1.0
-    zc = surface_z(ctr[0], ctr[1]) - 1.1 * rad
+    zc = surface_z(ctr[0], ctr[1]) - 1.7 * rad         # well behind the lids, so a lid always draws over the eyeball
     centre = np.array([ctr[0], ctr[1], zc])
     first = len(V) + len(added["V"])
     back_c = add_vertex(centre + np.array([0.0, 0.0, -0.1 * rad]), np.array([0, 0, 1.0]), 0.0, 0xFF2B1F1C)
@@ -645,8 +646,8 @@ group = group[~removed]
 print("eyes: faces removed", int(removed.sum()))
 
 # -- the lips' colour mask ---------------------------------------------------------------------------------------------------
-lip_c = np.array([0.0, float(np.mean(ys_col))])
-lo_fit = lip_c + (lo - lip_c) * np.array([0.92, 0.62])   # the ring is taller and wider than the scan's own lips
+lip_c = np.array([0.0, float(np.mean(ys_col)) + 0.02])   # a little above the mouth line: the upper lip is the taller one
+lo_fit = lip_c + (lo - lip_c) * np.array([0.92, 0.78])   # the ring is taller and wider than the scan's own lips
 inside_lip = point_in_poly(V[:, 0], V[:, 1], lo_fit) & front
 d_lip = dist_to_poly(V[:, 0], V[:, 1], lo_fit)
 lip_mask = np.where(inside_lip, 1.0, np.clip(1.0 - d_lip / 0.010, 0.0, 1.0) * front)

@@ -214,8 +214,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         val skinRgb = 0xFF000000.toInt() or SKIN_TONES[skin - 1]
         var c = lit(skinRgb, k)
         if (lipW > 0.02f) {
-            val lipRgb = if (lips > 0) 0xFF000000.toInt() or LIP_TONES[lips - 1] else mix(skinRgb, 0xFFB05060.toInt(), 0.5f)
-            c = mix(c, lit(lipRgb, k), lipW)
+            val lipRgb = if (lips > 0) 0xFF000000.toInt() or LIP_TONES[lips - 1] else mix(skinRgb, 0xFFB04A5A.toInt(), 0.7f)
+            // the lips are lit less unevenly than the skin: the upper one faces the light and would otherwise come out pale
+            c = mix(c, lit(lipRgb, 0.80f + 0.30f * vlam), lipW)
         }
         val fv = (mesh.fade[vi] * mesh.fade[vi]).coerceIn(0f, 1f)
         return mix(bgColor, c, fv)
