@@ -16,10 +16,13 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /** What started a voice session. */
-enum class SessionTrigger(val label: String) {
+enum class SessionTrigger(private val labelFr: String) {
     WAKE_WORD("mot d’activation"),
     APP_BUTTON("bouton de l’appli"),
     UNKNOWN("origine inconnue");
+
+    /** The label in the current interface language. */
+    val label: String get() = com.jarvis.android.i18n.tr(labelFr)
 
     companion object {
         fun fromName(name: String?): SessionTrigger = entries.firstOrNull { it.name == name } ?: UNKNOWN

@@ -1,5 +1,6 @@
 package com.jarvis.android.ui
 
+import com.jarvis.android.i18n.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions

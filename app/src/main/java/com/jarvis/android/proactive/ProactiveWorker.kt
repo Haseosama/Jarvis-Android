@@ -1,5 +1,7 @@
 package com.jarvis.android.proactive
 
+import com.jarvis.android.i18n.tr
+import com.jarvis.android.i18n.trf
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -75,12 +77,12 @@ class ProactiveWorker(context: Context, params: WorkerParameters) : CoroutineWor
 
     private fun notify(alert: ProactiveAlert) {
         val (id, title, text) = when (alert) {
-            is ProactiveAlert.Battery -> Triple(7101, "Batterie faible", "Il reste ${alert.percent} % : pensez à brancher le téléphone.")
-            is ProactiveAlert.Storage -> Triple(7102, "Stockage presque plein", "Il reste environ ${alert.freeMegabytes} Mo d’espace libre.")
-            is ProactiveAlert.Morning -> Triple(7103, "Jarvis : briefing du matin", alert.text)
+            is ProactiveAlert.Battery -> Triple(7101, tr("Batterie faible"), trf("Il reste {0} % : pensez à brancher le téléphone.", alert.percent))
+            is ProactiveAlert.Storage -> Triple(7102, tr("Stockage presque plein"), trf("Il reste environ {0} Mo d’espace libre.", alert.freeMegabytes))
+            is ProactiveAlert.Morning -> Triple(7103, tr("Jarvis : briefing du matin"), alert.text)
         }
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "Vérifications Jarvis", NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, tr("Vérifications Jarvis"), NotificationManager.IMPORTANCE_DEFAULT))
         val open = PendingIntent.getActivity(
             applicationContext, 0, Intent(applicationContext, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

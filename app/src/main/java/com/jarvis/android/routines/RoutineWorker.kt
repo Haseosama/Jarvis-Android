@@ -1,5 +1,6 @@
 package com.jarvis.android.routines
 
+import com.jarvis.android.i18n.tr
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -39,7 +40,7 @@ class RoutineWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 
     private fun notify(routine: Routine, text: String) {
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(ROUTINE_CHANNEL, "Routines Jarvis", NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(ROUTINE_CHANNEL, tr("Routines Jarvis"), NotificationManager.IMPORTANCE_DEFAULT))
         val open = PendingIntent.getActivity(
             applicationContext, 0, Intent(applicationContext, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

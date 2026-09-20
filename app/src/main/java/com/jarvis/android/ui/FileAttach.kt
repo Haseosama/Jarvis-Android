@@ -1,5 +1,6 @@
 package com.jarvis.android.ui
 
+import com.jarvis.android.i18n.*
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns

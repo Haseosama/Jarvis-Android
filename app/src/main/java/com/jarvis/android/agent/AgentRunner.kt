@@ -1,5 +1,7 @@
 package com.jarvis.android.agent
 
+import com.jarvis.android.i18n.tr
+import com.jarvis.android.i18n.trf
 import com.jarvis.android.JarvisContainer
 import com.jarvis.android.actions.ToolRegistry
 import com.jarvis.android.core.buildSystemInstruction
@@ -63,15 +65,15 @@ internal class AgentRunner(private val container: JarvisContainer, private val s
             maxRounds = AGENT_MAX_ROUNDS,
         )
         return try {
-            withTimeout(AGENT_TIMEOUT_MS) { "Tâche terminée : " + session.send("Objectif : $task") }
+            withTimeout(AGENT_TIMEOUT_MS) { tr("Tâche terminée : ") + session.send("Objectif : $task") }
         } catch (e: TimeoutCancellationException) {
-            "Tâche interrompue : trop longue (5 minutes maximum) après $steps action(s)."
+            trf("Tâche interrompue : trop longue (5 minutes maximum) après {0} action(s).", steps)
         } catch (e: CancellationException) {
             throw e
         } catch (e: RestChatException) {
-            "Tâche interrompue : ${e.message}"
+            trf("Tâche interrompue : {0}", e.message)
         } catch (_: Exception) {
-            "Tâche interrompue : erreur inattendue."
+            tr("Tâche interrompue : erreur inattendue.")
         }
     }
 

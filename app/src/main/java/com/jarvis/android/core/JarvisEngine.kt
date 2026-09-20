@@ -1,5 +1,7 @@
 package com.jarvis.android.core
 
+import com.jarvis.android.i18n.tr
+import com.jarvis.android.i18n.trf
 import com.jarvis.android.JarvisContainer
 import com.jarvis.android.actions.ToolRegistry
 import android.Manifest
@@ -189,7 +191,7 @@ class JarvisEngine(
             return
         }
         if (ContextCompat.checkSelfPermission(container.appContext, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            log("Mot d’activation en pause : autorisation du microphone manquante.")
+            log(tr("Mot d’activation en pause : autorisation du microphone manquante."))
             wakeDetector?.stop()
             return
         }
@@ -207,7 +209,7 @@ class JarvisEngine(
         }
         val detector = wakeDetector!!
         if (!detector.isAvailable) {
-            log("Mot d’activation indisponible sur cet appareil.")
+            log(tr("Mot d’activation indisponible sur cet appareil."))
             return
         }
         detector.start()
@@ -254,7 +256,7 @@ class JarvisEngine(
         endOfSession.reset()
         // Let the last words of the goodbye reach the speaker before the audio is cut.
         delay(END_SESSION_GRACE_MS)
-        log("Session terminée à votre demande.")
+        log(tr("Session terminée à votre demande."))
         stop()
         container.releaseVoiceService()
     }
@@ -268,24 +270,24 @@ class JarvisEngine(
      * the camera lifecycle. Returns what to tell the user.
      */
     fun setVideoSource(source: VideoSource): String {
-        if (source != VideoSource.OFF && !_sessionReady.value) return "Aucune session vocale active : démarrez-la d’abord."
+        if (source != VideoSource.OFF && !_sessionReady.value) return tr("Aucune session vocale active : démarrez-la d’abord.")
         videoJob?.cancel()
         videoJob = null
         _videoSource.value = source
         return when (source) {
-            VideoSource.OFF -> "Partage de l’écran et de la caméra arrêté."
+            VideoSource.OFF -> tr("Partage de l’écran et de la caméra arrêté.")
             VideoSource.CAMERA -> {
-                log("Caméra partagée avec la session.")
-                "Caméra activée. Elle n’envoie des images que si l’écran principal de Jarvis est au premier plan."
+                log(tr("Caméra partagée avec la session."))
+                tr("Caméra activée. Elle n’envoie des images que si l’écran principal de Jarvis est au premier plan.")
             }
             VideoSource.SCREEN -> {
                 if (com.jarvis.android.device.JarvisAccessibilityService.instance == null) {
                     _videoSource.value = VideoSource.OFF
-                    return "Le contrôle du téléphone n’est pas activé : impossible de partager l’écran (Paramètres > Accessibilité > Jarvis)."
+                    return tr("Le contrôle du téléphone n’est pas activé : impossible de partager l’écran (Paramètres > Accessibilité > Jarvis).")
                 }
-                log("Écran partagé avec la session.")
+                log(tr("Écran partagé avec la session."))
                 videoJob = scope.launch(Dispatchers.Default) { streamScreen() }
-                "Écran partagé : une image environ toutes les deux secondes, seulement si l’écran change."
+                tr("Écran partagé : une image environ toutes les deux secondes, seulement si l’écran change.")
             }
         }
     }
@@ -297,11 +299,11 @@ class JarvisEngine(
             val service = com.jarvis.android.device.JarvisAccessibilityService.instance
             if (service == null) {
                 withContext(Dispatchers.Main.immediate) { _videoSource.value = VideoSource.OFF }
-                log("Partage d’écran arrêté : le service d’accessibilité s’est déconnecté.")
+                log(tr("Partage d’écran arrêté : le service d’accessibilité s’est déconnecté."))
                 return
             }
             if (service.hasVisiblePasswordField()) {
-                if (!pausedForPassword) log("Partage d’écran en pause : un champ de mot de passe est visible.")
+                if (!pausedForPassword) log(tr("Partage d’écran en pause : un champ de mot de passe est visible."))
                 pausedForPassword = true
             } else {
                 pausedForPassword = false
@@ -350,7 +352,7 @@ class JarvisEngine(
             lastActivityAt = android.os.SystemClock.elapsedRealtime()
             _state.value = JarvisState.THINKING
         } else {
-            log("Message non envoyé. Vérifiez la session puis réessayez.")
+            log(tr("Message non envoyé. Vérifiez la session puis réessayez."))
         }
         return sent
     }
@@ -375,7 +377,7 @@ class JarvisEngine(
         if (sessionJob?.isActive == true) return
         endOfSession.reset()
         container.sessionLog.started(trigger)
-        log("Session lancée par : ${trigger.label}.")
+        log(trf("Session lancée par : {0}.", trigger.label))
         sessionJob?.join()
         _conversation.value = emptyList()
         _sessionReady.value = false
@@ -421,12 +423,12 @@ class JarvisEngine(
         try {
             val apiKey = container.configStore.getApiKey()
             if (apiKey.isNullOrBlank()) {
-                log("Aucune clé API Gemini configurée.")
+                log(tr("Aucune clé API Gemini configurée."))
                 _state.value = JarvisState.ERROR
                 return
             }
             if (container.configStore.wakeWordEnabled.first()) {
-                log("Session démarrée : détection du mot d’activation en pause jusqu’à la mise en veille.")
+                log(tr("Session démarrée : détection du mot d’activation en pause jusqu’à la mise en veille."))
             }
             val model = container.configStore.snapshotModel()
             val voice = container.configStore.snapshotVoice()
@@ -448,7 +450,7 @@ class JarvisEngine(
                 if (tuneDetection && !drop.wasReady && drop.detail.contains("(1007)")) {
                     // The server refused the setup: most likely the voice-detection tuning. Retry once without it.
                     tuneDetection = false
-                    log("Réglage de détection vocale refusé par le serveur : nouvel essai sans.")
+                    log(tr("Réglage de détection vocale refusé par le serveur : nouvel essai sans."))
                     continue
                 }
                 when (
@@ -462,8 +464,8 @@ class JarvisEngine(
                     )
                 ) {
                     ReconnectDecision.GiveUp -> {
-                        log("Session interrompue. Vérifiez la connexion et les autorisations, puis réessayez.")
-                        log("Détail : ${drop.detail}")
+                        log(tr("Session interrompue. Vérifiez la connexion et les autorisations, puis réessayez."))
+                        log(trf("Détail : {0}", drop.detail))
                         _state.value = JarvisState.ERROR
                         return
                     }
@@ -473,8 +475,8 @@ class JarvisEngine(
                         handleToSend = if (decision.useHandle) resumeHandle else null
                         _state.value = JarvisState.CONNECTING
                         log(
-                            if (decision.useHandle) "Connexion perdue (${drop.detail}) : reprise de la session…"
-                            else "Connexion perdue (${drop.detail}) : nouvelle session, le contexte n’a pas pu être conservé."
+                            if (decision.useHandle) trf("Connexion perdue ({0}) : reprise de la session…", drop.detail)
+                            else trf("Connexion perdue ({0}) : nouvelle session, le contexte n’a pas pu être conservé.", drop.detail)
                         )
                         delay(decision.delayMs)
                     }
@@ -484,7 +486,7 @@ class JarvisEngine(
             throw e
         } catch (_: Exception) {
             _state.value = JarvisState.ERROR
-            log("Session interrompue. Vérifiez la connexion et les autorisations, puis réessayez.")
+            log(tr("Session interrompue. Vérifiez la connexion et les autorisations, puis réessayez."))
         } finally {
             withContext(NonCancellable + Dispatchers.Main.immediate) {
                 _sessionReady.value = false
@@ -517,7 +519,7 @@ class JarvisEngine(
                     try {
                         withTimeout(HANDSHAKE_TIMEOUT_MS) { ready.await() }
                     } catch (e: TimeoutCancellationException) {
-                        throw dropped("Délai de connexion dépassé.")
+                        throw dropped(tr("Délai de connexion dépassé."))
                     }
                 }
                 connection.connect(model, instruction, ToolRegistry.declarations(), voice, handle, languageCode, tuneDetection)
@@ -526,9 +528,9 @@ class JarvisEngine(
                         when (event) {
                             is LiveEvent.SetupComplete -> if (!ready.isCompleted) {
                                 if (!audio.startPlayback()) {
-                                    log("Impossible d'acquérir le focus audio.")
+                                    log(tr("Impossible d'acquérir le focus audio."))
                                     _state.value = JarvisState.ERROR
-                                    throw IllegalStateException("Focus audio non acquis.")
+                                    throw IllegalStateException(tr("Focus audio non acquis."))
                                 }
                                 ready.complete(Unit)
                                 handshake.cancel()
@@ -537,8 +539,8 @@ class JarvisEngine(
                                 _state.value = JarvisState.LISTENING
                                 launch { if (container.briefing.consumeTrigger()) announce(BRIEFING_TRIGGER) }
                                 log(
-                                    if (handle != null) "Session reprise. Microphone actif."
-                                    else "Session connectée. Microphone actif."
+                                    if (handle != null) tr("Session reprise. Microphone actif.")
+                                    else tr("Session connectée. Microphone actif.")
                                 )
                                 launch(Dispatchers.IO) {
                                     audio.micFrames().collect { frame ->
@@ -546,7 +548,7 @@ class JarvisEngine(
                                         // Half-duplex on the loudspeaker: while Jarvis talks, send silence so his own
                                         // voice cannot make the server think we interrupted him.
                                         val out = if (muteWhileSpeaking && audio.isPlaybackActive() && audio.playsOnLoudspeaker()) ByteArray(frame.size) else frame
-                                        if (!connection.sendAudio(out)) throw dropped("Envoi audio interrompu.")
+                                        if (!connection.sendAudio(out)) throw dropped(tr("Envoi audio interrompu."))
                                     }
                                 }
                                 launch {
@@ -555,7 +557,7 @@ class JarvisEngine(
                                         if (container.configStore.wakeWordEnabled.first() &&
                                             android.os.SystemClock.elapsedRealtime() - lastActivityAt > AUTO_SLEEP_MS
                                         ) {
-                                            log("Mise en veille après deux minutes sans échange.")
+                                            log(tr("Mise en veille après deux minutes sans échange."))
                                             stop()
                                             break
                                         }
@@ -565,12 +567,12 @@ class JarvisEngine(
                             is LiveEvent.ResumptionUpdate -> {
                                 resumeHandle = event.handle
                             }
-                            is LiveEvent.Error -> throw dropped("Erreur réseau.")
-                            is LiveEvent.Closed -> throw dropped("Session fermée (${event.code}) : ${event.reason.take(160)}", serverClosed = true)
+                            is LiveEvent.Error -> throw dropped(tr("Erreur réseau."))
+                            is LiveEvent.Closed -> throw dropped(trf("Session fermée ({0}) : {1}", event.code, event.reason.take(160)), serverClosed = true)
                             else -> if (ready.isCompleted) handleEvent(event, connection)
                         }
                     }
-                throw dropped("Session terminée.")
+                throw dropped(tr("Session terminée."))
             }
         } finally {
             withContext(NonCancellable + Dispatchers.Main.immediate) {
@@ -600,7 +602,7 @@ class JarvisEngine(
                 _state.value = JarvisState.THINKING
             }
             is LiveEvent.Interrupted -> {
-                log("Interruption détectée : la phrase en cours est coupée.")
+                log(tr("Interruption détectée : la phrase en cours est coupée."))
                 audio.flushPlayback()
                 _conversation.update { finishConversationTurn(it) }
                 _state.value = JarvisState.LISTENING
@@ -618,12 +620,12 @@ class JarvisEngine(
             is LiveEvent.ToolCall -> {
                 _state.value = JarvisState.THINKING
                 for (call in event.calls) {
-                    log("Exécution d’une action.")
+                    log(tr("Exécution d’une action."))
                     val result = withContext(Dispatchers.IO) {
                         ToolRegistry.run(call.name, call.args, container)
                     }
                     currentCoroutineContext().ensureActive()
-                    if (!cl.sendToolResponse(call.id, call.name, result)) throw dropped("Réponse non envoyée.")
+                    if (!cl.sendToolResponse(call.id, call.name, result)) throw dropped(tr("Réponse non envoyée."))
                     endOfSession.toolResponseSent()
                 }
             }
@@ -640,13 +642,13 @@ class JarvisEngine(
     }
 }
 
-internal fun buildLanguageDirective(): String =
+internal fun buildLanguageDirective(defaultLanguage: String = "French (France)"): String =
     "[LANGUAGE]\n" +
-        "The user speaks French (France) by default: start every session in French, in speech and in text. " +
+        "The user speaks $defaultLanguage by default: start every session in ${defaultLanguage.substringBefore(" (")}, in speech and in text. " +
         "The ONLY thing that changes the reply language is an explicit request from the user, in any language, to speak or answer in another language, " +
         "for example English or Tagalog (Filipino). When they ask, switch at once and answer in that language, in speech and in text, " +
         "until they ask for another language or for French again. Speak Tagalog and English naturally, as a native speaker would. " +
         "This rule overrides the LANGUAGE section below and any other language rule in these instructions. " +
         "Ignore the device locale, the system language, connected accessories (Android Auto, Bluetooth, car systems), stored memories and transcription quirks: they never decide the reply language. " +
         "Never switch language on your own because of an accent, a foreign word or background speech. " +
-        "If the language is ever ambiguous, use the one currently in use, or French at the start of a session."
+        "If the language is ever ambiguous, use the one currently in use, or ${defaultLanguage.substringBefore(" (")} at the start of a session."

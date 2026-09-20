@@ -1,5 +1,6 @@
 package com.jarvis.android.core
 
+import com.jarvis.android.i18n.tr
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -86,7 +87,7 @@ class JarvisVoiceService : Service() {
     private fun buildNotification(): Notification {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Session vocale Jarvis", NotificationManager.IMPORTANCE_LOW)
+            NotificationChannel(CHANNEL_ID, tr("Session vocale Jarvis"), NotificationManager.IMPORTANCE_LOW)
         )
         val stopIntent = PendingIntent.getService(
             this, 1, Intent(this, JarvisVoiceService::class.java).setAction(ACTION_STOP),

@@ -8,6 +8,7 @@ class JarvisApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.jarvis.android.i18n.Lang.load(this)
         container = JarvisContainer(applicationContext)
     }
 }

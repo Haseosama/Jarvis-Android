@@ -1,5 +1,6 @@
 package com.jarvis.android.core
 
+import com.jarvis.android.i18n.tr
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -29,7 +30,7 @@ internal class ConfirmNotifier(private val context: Context) {
             return
         }
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Confirmations Jarvis", NotificationManager.IMPORTANCE_HIGH)
+            NotificationChannel(CHANNEL_ID, tr("Confirmations Jarvis"), NotificationManager.IMPORTANCE_HIGH)
         )
         fun action(name: String, code: Int) = PendingIntent.getBroadcast(
             context, code, Intent(context, ConfirmActionReceiver::class.java).setAction(name),
@@ -43,8 +44,8 @@ internal class ConfirmNotifier(private val context: Context) {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setOngoing(true)
-            .addAction(0, "Confirmer", action(ACTION_CONFIRM, 1))
-            .addAction(0, "Annuler", action(ACTION_CANCEL, 2))
+            .addAction(0, tr("Confirmer"), action(ACTION_CONFIRM, 1))
+            .addAction(0, tr("Annuler"), action(ACTION_CANCEL, 2))
             .build()
         try {
             manager.notify(NOTIFICATION_ID, notification)

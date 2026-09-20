@@ -1,4 +1,4 @@
-package com.jarvis.android.ui
+package com.jarvis.android.i18n
 
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -29,10 +29,11 @@ class I18nTest {
     @Test
     fun `every text wrapped in the interface code has an english version`() {
         val call = Regex("\\btrf?\\(\"((?:[^\"\\\\]|\\\\.)*)\"")
-        val missing = File("src/main/java/com/jarvis/android/ui").listFiles { f -> f.extension == "kt" && f.name != "I18n.kt" && f.name != "I18nEnglish.kt" }
-            .orEmpty()
-            .flatMap { f -> call.findAll(f.readText()).map { f.name to it.groupValues[1] }.toList() }
+        val missing = File("src/main/java/com/jarvis/android").walkTopDown()
+            .filter { it.isFile && it.extension == "kt" && it.parentFile.name != "i18n" }
+            .flatMap { f -> call.findAll(f.readText()).map { f.name to it.groupValues[1] } }
             .filter { (_, key) -> key !in ENGLISH }
+            .toList()
         assertTrue("textes sans traduction : $missing", missing.isEmpty())
     }
 

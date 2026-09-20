@@ -1,5 +1,6 @@
 package com.jarvis.android.reminders
 
+import com.jarvis.android.i18n.tr
 import android.Manifest
 import android.app.AlarmManager
 import android.app.NotificationChannel
@@ -170,7 +171,7 @@ internal object ReminderService {
         val status = try {
             val notification = NotificationCompat.Builder(context, ReminderReceiver.CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                .setContentTitle("Rappel Jarvis")
+                .setContentTitle(tr("Rappel Jarvis"))
                 .setContentText(record.text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(record.text))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -198,7 +199,7 @@ internal object ReminderService {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             ?: return "Le service de notification est indisponible."
         manager.createNotificationChannel(NotificationChannel(ReminderReceiver.CHANNEL_ID,
-            "Rappels Jarvis", NotificationManager.IMPORTANCE_HIGH))
+            tr("Rappels Jarvis"), NotificationManager.IMPORTANCE_HIGH))
         val channel = manager.getNotificationChannel(ReminderReceiver.CHANNEL_ID)
             ?: return "Le canal des rappels est indisponible."
         if (channel.importance == NotificationManager.IMPORTANCE_NONE) {

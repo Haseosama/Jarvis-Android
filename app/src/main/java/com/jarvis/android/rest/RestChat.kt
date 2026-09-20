@@ -1,5 +1,7 @@
 package com.jarvis.android.rest
 
+import com.jarvis.android.i18n.tr
+import com.jarvis.android.i18n.trf
 import com.jarvis.android.JarvisContainer
 import com.jarvis.android.actions.ToolRegistry
 import com.jarvis.android.core.ConversationMessage
@@ -93,7 +95,7 @@ class RestChat internal constructor(
         systemInstruction = { buildSystemInstruction(container, textMode = true) },
         toolDeclarations = { ToolRegistry.declarations() },
         runTool = { name, args ->
-            _messages.update { appendConversation(it, ConversationRole.SYSTEM, "Action : $name", complete = true) }
+            _messages.update { appendConversation(it, ConversationRole.SYSTEM, trf("Action : {0}", name), complete = true) }
             ToolRegistry.run(name, args, container)
         },
     )
@@ -142,7 +144,7 @@ class RestChat internal constructor(
             e.message
         } catch (_: Exception) {
             _messages.value = before
-            "Erreur inattendue. Réessayez."
+            tr("Erreur inattendue. Réessayez.")
         } finally {
             _sending.value = false
         }

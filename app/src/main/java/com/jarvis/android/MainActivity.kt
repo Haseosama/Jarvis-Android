@@ -109,7 +109,7 @@ class MainActivity : ComponentActivity() {
         val container = (application as JarvisApp).container
         container.syncVoiceService()
         // Read before the first frame so the interface does not flash in French.
-        com.jarvis.android.ui.Lang.load(this)
+        com.jarvis.android.i18n.Lang.load(this)
         if (savedInstanceState == null) handleLaunchIntent(intent)
         publishShortcut()
 

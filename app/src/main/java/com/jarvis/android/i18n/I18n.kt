@@ -1,4 +1,4 @@
-package com.jarvis.android.ui
+package com.jarvis.android.i18n
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

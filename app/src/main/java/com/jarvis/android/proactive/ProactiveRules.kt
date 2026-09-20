@@ -1,5 +1,6 @@
 package com.jarvis.android.proactive
 
+import com.jarvis.android.i18n.trf
 import com.jarvis.android.memory.BriefingInputs
 import java.time.LocalDateTime
 
@@ -72,8 +73,8 @@ internal fun evaluateProactive(
 /** The text of the morning notification, or null when there is nothing to say. */
 internal fun morningNotificationText(inputs: BriefingInputs): String? {
     val lines = buildList {
-        inputs.lastSession?.let { add("Dernière session (${it.date}) : ${it.summary}") }
-        if (inputs.reminders.isNotEmpty()) add("Rappels du jour : ${inputs.reminders.joinToString(" ; ")}")
+        inputs.lastSession?.let { add(trf("Dernière session ({0}) : {1}", it.date, it.summary)) }
+        if (inputs.reminders.isNotEmpty()) add(trf("Rappels du jour : {0}", inputs.reminders.joinToString(" ; ")))
     }
     return lines.joinToString("\n").ifEmpty { null }
 }

@@ -1,5 +1,7 @@
 package com.jarvis.android.rest
 
+import com.jarvis.android.i18n.tr
+import com.jarvis.android.i18n.trf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
@@ -58,12 +60,12 @@ internal const val ERROR_INVALID_MODEL = "Nom de modèle texte invalide. Corrige
 internal const val ERROR_TOO_MANY_TOOLS = "Trop d’actions enchaînées : la demande a été interrompue."
 
 internal fun httpErrorMessage(code: Int): String = when (code) {
-    400 -> "Requête refusée par Gemini (400). Clé API invalide ou modèle texte incorrect : vérifiez les deux dans les paramètres."
-    401, 403 -> "Clé API refusée ou accès non autorisé ($code). Vérifiez la clé et ses restrictions."
-    404 -> "Modèle introuvable (404). Choisissez un autre modèle texte dans les paramètres."
-    429 -> "Quota ou limite de débit atteint (429). Réessayez dans un instant."
-    in 500..599 -> "Le service Gemini est momentanément indisponible ($code). Réessayez."
-    else -> "Erreur du service Gemini ($code)."
+    400 -> tr("Requête refusée par Gemini (400). Clé API invalide ou modèle texte incorrect : vérifiez les deux dans les paramètres.")
+    401, 403 -> trf("Clé API refusée ou accès non autorisé ({0}). Vérifiez la clé et ses restrictions.", code)
+    404 -> tr("Modèle introuvable (404). Choisissez un autre modèle texte dans les paramètres.")
+    429 -> tr("Quota ou limite de débit atteint (429). Réessayez dans un instant.")
+    in 500..599 -> trf("Le service Gemini est momentanément indisponible ({0}). Réessayez.", code)
+    else -> trf("Erreur du service Gemini ({0}).", code)
 }
 
 /** One function call requested by the model. */

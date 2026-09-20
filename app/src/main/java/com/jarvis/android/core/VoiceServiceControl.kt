@@ -1,5 +1,7 @@
 package com.jarvis.android.core
 
+import com.jarvis.android.i18n.tr
+import com.jarvis.android.i18n.trf
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
@@ -13,26 +15,26 @@ internal fun wantsStandby(wakeEnabled: Boolean, micGranted: Boolean): Boolean = 
 internal fun voiceNotificationText(state: JarvisState, standby: Boolean, video: VideoSource): String {
     val base = when (state) {
         JarvisState.ASLEEP ->
-            if (standby) "En attente du mot d’activation · microphone actif" else "En veille · microphone arrêté"
-        JarvisState.CONNECTING -> "Connexion en cours · microphone arrêté"
-        JarvisState.LISTENING -> "À l’écoute · microphone actif"
-        JarvisState.THINKING -> "Réflexion en cours · microphone actif"
-        JarvisState.SPEAKING -> "Réponse en cours · microphone actif"
-        JarvisState.ERROR -> "Session interrompue · réessayez dans l’application"
+            if (standby) tr("En attente du mot d’activation · microphone actif") else tr("En veille · microphone arrêté")
+        JarvisState.CONNECTING -> tr("Connexion en cours · microphone arrêté")
+        JarvisState.LISTENING -> tr("À l’écoute · microphone actif")
+        JarvisState.THINKING -> tr("Réflexion en cours · microphone actif")
+        JarvisState.SPEAKING -> tr("Réponse en cours · microphone actif")
+        JarvisState.ERROR -> tr("Session interrompue · réessayez dans l’application")
     }
     return when (video) {
-        VideoSource.SCREEN -> "$base · écran partagé"
-        VideoSource.CAMERA -> "$base · caméra partagée"
+        VideoSource.SCREEN -> trf("{0} · écran partagé", base)
+        VideoSource.CAMERA -> trf("{0} · caméra partagée", base)
         VideoSource.OFF -> base
     }
 }
 
 internal fun voiceNotificationTitle(state: JarvisState, standby: Boolean): String =
-    if (state == JarvisState.ASLEEP && standby) "Jarvis · écoute du mot d’activation" else "Jarvis · session vocale"
+    if (state == JarvisState.ASLEEP && standby) tr("Jarvis · écoute du mot d’activation") else tr("Jarvis · session vocale")
 
 /** Label of the notification button: in standby it turns the wake word off instead of ending a session. */
 internal fun voiceNotificationAction(state: JarvisState, standby: Boolean): String =
-    if (state == JarvisState.ASLEEP && standby) "Désactiver l’écoute" else "Arrêter"
+    if (state == JarvisState.ASLEEP && standby) tr("Désactiver l’écoute") else tr("Arrêter")
 
 internal object VoiceServiceControl {
     /**

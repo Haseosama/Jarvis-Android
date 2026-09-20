@@ -1,5 +1,6 @@
 package com.jarvis.android.ui
 
+import com.jarvis.android.i18n.*
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -146,7 +147,7 @@ fun ChatScreen(
                 }
             }
             error?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                Text(tr(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
             if (confirmPending != null) {
                 ConfirmBanner(confirmPending, onConfirm, onCancelConfirm)

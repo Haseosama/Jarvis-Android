@@ -1,5 +1,6 @@
 package com.jarvis.android.ui
 
+import com.jarvis.android.i18n.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode

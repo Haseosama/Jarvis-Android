@@ -1,5 +1,6 @@
 package com.jarvis.android.core
 
+import com.jarvis.android.i18n.tr
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -11,18 +12,18 @@ internal data class AudioDeviceChoice(val key: String, val label: String)
 internal fun deviceKey(type: Int, name: String, address: String): String = "$type|$name|$address"
 
 internal fun deviceTypeLabel(type: Int): String = when (type) {
-    AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Micro du téléphone"
-    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Écouteur du téléphone"
-    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Haut-parleur du téléphone"
-    AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Casque filaire"
-    AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Écouteurs filaires"
-    AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth (appel)"
-    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth (média)"
+    AudioDeviceInfo.TYPE_BUILTIN_MIC -> tr("Micro du téléphone")
+    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> tr("Écouteur du téléphone")
+    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> tr("Haut-parleur du téléphone")
+    AudioDeviceInfo.TYPE_WIRED_HEADSET -> tr("Casque filaire")
+    AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> tr("Écouteurs filaires")
+    AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> tr("Bluetooth (appel)")
+    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> tr("Bluetooth (média)")
     AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_ACCESSORY -> "USB"
     AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_BLE_SPEAKER -> "Bluetooth LE"
-    AudioDeviceInfo.TYPE_HEARING_AID -> "Appareil auditif"
-    AudioDeviceInfo.TYPE_TELEPHONY -> "Téléphonie"
-    else -> "Autre"
+    AudioDeviceInfo.TYPE_HEARING_AID -> tr("Appareil auditif")
+    AudioDeviceInfo.TYPE_TELEPHONY -> tr("Téléphonie")
+    else -> tr("Autre")
 }
 
 /** "Type : nom", or just the type when the name adds nothing. */
