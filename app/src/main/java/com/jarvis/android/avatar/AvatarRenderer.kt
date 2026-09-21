@@ -442,7 +442,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 }
             }
             fibrePaint.strokeWidth = max(0.7f, strokePx * (if (pass == 0) 0.62f else 0.5f))
-            fibrePaint.color = if (pass == 0) withAlpha(0xFF120A06.toInt(), 130f) else withAlpha(light, 38f)
+            fibrePaint.color = if (pass == 0) withAlpha(0xFF120A06.toInt(), 130f) else withAlpha(light, 24f)
             nc.drawLines(fibres, 0, count, fibrePaint)
         }
 
@@ -473,7 +473,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 val secondary = Math.pow(sqrt((1f - d2 * d2).coerceAtLeast(0f)).toDouble(), 12.0).toFloat()
                 val facing = (nx * -0.22f + ny * 0.28f + nz * 0.93f).coerceIn(0f, 1f)   // no sheen where the surface turns away
                 val pw = primary * facing; val sw = secondary * facing * 0.6f
-                if (pw < 0.30f && sw < 0.30f) continue
+                if (pw < 0.50f && sw < 0.50f) continue
                 val li = base + 3 * sIdx; val ri = li + 2
                 val li2 = base + 3 * (sIdx + 1); val ri2 = li2 + 2
                 val ci2 = li2 + 1
@@ -482,14 +482,14 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                     val u = -0.7f + 1.4f * (((hash ushr 8) and 0xFF) / 255f)
                     val x0 = xs[ci] + (xs[ri] - xs[li]) * 0.5f * u; val y0 = ys[ci] + (ys[ri] - ys[li]) * 0.5f * u
                     val x1 = xs[ci2] + (xs[ri2] - xs[li2]) * 0.5f * u; val y1 = ys[ci2] + (ys[ri2] - ys[li2]) * 0.5f * u
-                    if (sw >= 0.30f) {
+                    if (sw >= 0.50f) {
                         fibrePaint.strokeWidth = max(1f, strokePx * 1.5f)
-                        fibrePaint.color = withAlpha(tint, 70f * sw.coerceAtMost(1f))
+                        fibrePaint.color = withAlpha(tint, 40f * sw.coerceAtMost(1f))
                         nc.drawLine(x0, y0, x1, y1, fibrePaint)
                     }
-                    if (pw >= 0.30f) {
+                    if (pw >= 0.50f) {
                         fibrePaint.strokeWidth = max(0.7f, strokePx * 0.6f)
-                        fibrePaint.color = withAlpha(0xFFE8D2B0.toInt(), 120f * pw.coerceAtMost(1f))
+                        fibrePaint.color = withAlpha(0xFFC9A57A.toInt(), 75f * pw.coerceAtMost(1f))
                         nc.drawLine(x0, y0, x1, y1, fibrePaint)
                     }
                 }
