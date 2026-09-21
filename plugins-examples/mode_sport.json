@@ -1,0 +1,28 @@
+{
+  "name": "mode_sport",
+  "description": "Prépare le téléphone pour le sport : règle le volume puis lance la musique. À utiliser pour « mode sport », « je vais courir ».",
+  "parameters": [
+    {
+      "name": "volume",
+      "description": "Volume en pourcentage (0 à 100)",
+      "required": true
+    }
+  ],
+  "type": "routine",
+  "steps": [
+    {
+      "tool": "device_settings",
+      "args": {
+        "action": "set_volume",
+        "value": "{volume}"
+      }
+    },
+    {
+      "tool": "device_settings",
+      "args": {
+        "action": "media",
+        "command": "play"
+      }
+    }
+  ]
+}

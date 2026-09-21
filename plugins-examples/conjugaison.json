@@ -1,0 +1,13 @@
+{
+  "name": "conjugaison",
+  "description": "Ouvre la conjugaison complète d'un verbe (Le Conjugueur). Pour « conjugue le verbe… ».",
+  "parameters": [
+    {
+      "name": "verbe",
+      "description": "Le verbe à l'infinitif, sans espace",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://leconjugueur.lefigaro.fr/conjugaison/verbe/{verbe}.html"
+}

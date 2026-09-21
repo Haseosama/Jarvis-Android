@@ -363,12 +363,19 @@ not real time, files only in the work folder). Something switched off is reporte
   position*); the position is used for that one request and never stored. Android may refuse location to an app that is
   not in front, so it is most reliable with Jarvis open; the tool then says how to fix it or asks for a city. Checked
   on an emulator (position → town → weather, named city unchanged); not on the real phone.
-- **Plugin catalogue.** Settings → *Plugins* lists 29 bundled plugins with an *Installer* button (up to 100 can be installed).
+- **Plugin catalogue.** Settings → *Plugins* lists 48 bundled plugins with an *Installer* button (up to 100 can be installed).
   The first 16: crypto prices, exchange rates, Wikipedia summary, public holidays, Maps search and directions, YouTube, translation, news,
   recipes, calendar event, night, meeting and car routines. Added later (13): the position of the International Space Station, a random
   French Wikipedia article, sunrise and sunset, the phase of the moon, NASA's astronomy picture of the day (its explanation, in English), a
   random quote (zenquotes.io, English), a random dish (themealdb.com, English), on-duty pharmacies near a place, Google Images, sports
   results, cinema showtimes, a morning routine (weather, today's calendar, reminders) and a reading mode (brightness and volume).
+  A third batch (19): the latest earthquake of magnitude 4.5+ (USGS), a real text translation (MyMemory), the phone's public IP, the three cheapest
+  fuel stations of a French town (data.economie.gouv.fr), the UV index, the price of gold, silver, platinum and palladium, dishes with a given
+  ingredient, a random cocktail, a random odd fact, links to flights, hotels, price comparison, books, Stack Overflow, the definition, the
+  conjugation and the synonyms of a word, a sport routine (volume, then music) and a phone check-up routine (battery, storage, notifications).
+  All nine web ones and the two routines were run through the plugin runner on the emulator; two services were tried and dropped because they were
+  down or returned a partial answer (French dictionaries, "on this day"). MyMemory has a daily quota, and the notification step of the check-up
+  needs the notification access granted in Settings.
   Each is checked like an imported file, and the same files are in `plugins-examples/`. Their web services need no key and were called for
   real while writing them; the seven web ones and both routines were also run through the app's own plugin runner on the emulator (the
   brightness step of the reading mode stops at the system-settings permission, as the night routine does). Not tried: the tap on *Installer*

@@ -1,0 +1,13 @@
+{
+  "name": "synonymes",
+  "description": "Ouvre les synonymes d'un mot (CNRTL). Pour « un synonyme de… », « comment dire autrement… ».",
+  "parameters": [
+    {
+      "name": "mot",
+      "description": "Le mot",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.cnrtl.fr/synonymie/{mot}"
+}

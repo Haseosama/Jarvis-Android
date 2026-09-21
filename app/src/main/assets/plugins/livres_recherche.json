@@ -1,0 +1,13 @@
+{
+  "name": "livres_recherche",
+  "description": "Ouvre Google Livres sur un titre, un auteur ou un sujet. Pour « trouve-moi ce livre », « des livres sur… ».",
+  "parameters": [
+    {
+      "name": "titre",
+      "description": "Titre, auteur ou sujet",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.google.com/search?tbm=bks&q={titre}"
+}

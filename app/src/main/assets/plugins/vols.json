@@ -1,0 +1,18 @@
+{
+  "name": "vols",
+  "description": "Ouvre Google Flights sur des vols entre deux villes. Pour « des vols pour Lisbonne », « un billet d'avion Paris New York ».",
+  "parameters": [
+    {
+      "name": "depart",
+      "description": "Ville ou aéroport de départ",
+      "required": true
+    },
+    {
+      "name": "arrivee",
+      "description": "Ville ou aéroport d'arrivée",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.google.com/travel/flights?q=vols+de+{depart}+a+{arrivee}"
+}

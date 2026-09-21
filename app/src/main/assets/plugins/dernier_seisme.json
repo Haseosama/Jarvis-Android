@@ -1,0 +1,8 @@
+{
+  "name": "dernier_seisme",
+  "description": "Donne le dernier séisme de magnitude 4,5 ou plus des dernières 24 heures dans le monde (source : USGS) : magnitude et lieu, en anglais. Pour « y a-t-il eu un tremblement de terre ? ».",
+  "parameters": [],
+  "type": "http",
+  "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson",
+  "result_path": "features.0.properties.title"
+}

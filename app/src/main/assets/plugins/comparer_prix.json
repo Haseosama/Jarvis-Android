@@ -1,0 +1,13 @@
+{
+  "name": "comparer_prix",
+  "description": "Ouvre Google Shopping pour comparer les prix d'un produit. Pour « le meilleur prix pour… », « où acheter… ».",
+  "parameters": [
+    {
+      "name": "produit",
+      "description": "Le produit",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.google.com/search?tbm=shop&q={produit}"
+}

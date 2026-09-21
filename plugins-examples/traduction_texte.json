@@ -1,0 +1,19 @@
+{
+  "name": "traduction_texte",
+  "description": "Traduit un texte et donne directement la traduction (source : MyMemory, sans clé, quota quotidien). Pour « comment dit-on … en anglais », « traduis cette phrase en espagnol ».",
+  "parameters": [
+    {
+      "name": "texte",
+      "description": "Le texte à traduire",
+      "required": true
+    },
+    {
+      "name": "langues",
+      "description": "Langue source puis langue cible séparées par | , par exemple fr|en, fr|es, en|fr, fr|de",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://api.mymemory.translated.net/get?q={texte}&langpair={langues}",
+  "result_path": "responseData.translatedText"
+}

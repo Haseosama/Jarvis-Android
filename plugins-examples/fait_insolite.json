@@ -1,0 +1,8 @@
+{
+  "name": "fait_insolite",
+  "description": "Donne un fait insolite au hasard, en anglais (source : uselessfacts.jsph.pl). Pour « raconte-moi un fait amusant », « le saviez-vous ».",
+  "parameters": [],
+  "type": "http",
+  "url": "https://uselessfacts.jsph.pl/api/v2/facts/random?language=en",
+  "result_path": "text"
+}

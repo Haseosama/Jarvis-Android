@@ -1,0 +1,13 @@
+{
+  "name": "code_recherche",
+  "description": "Ouvre Stack Overflow sur une question de programmation. Pour « comment faire … en Kotlin », « cette erreur ».",
+  "parameters": [
+    {
+      "name": "question",
+      "description": "La question ou le message d'erreur",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://stackoverflow.com/search?q={question}"
+}

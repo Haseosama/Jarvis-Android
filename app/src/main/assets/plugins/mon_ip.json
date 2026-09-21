@@ -1,0 +1,8 @@
+{
+  "name": "mon_ip",
+  "description": "Donne l'adresse IP publique du téléphone (celle que voient les sites web), source : ipify.org. Pour « quelle est mon adresse IP ».",
+  "parameters": [],
+  "type": "http",
+  "url": "https://api.ipify.org?format=json",
+  "result_path": "ip"
+}

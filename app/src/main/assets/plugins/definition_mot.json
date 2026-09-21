@@ -1,0 +1,13 @@
+{
+  "name": "definition_mot",
+  "description": "Ouvre la définition d'un mot dans Google. Pour « que veut dire… », « la définition de… ».",
+  "parameters": [
+    {
+      "name": "mot",
+      "description": "Le mot",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.google.com/search?q=définition+{mot}"
+}

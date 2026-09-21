@@ -1,0 +1,18 @@
+{
+  "name": "bilan_telephone",
+  "description": "Fait le point sur le téléphone : batterie, stockage libre et dernières notifications. À utiliser pour « comment va mon téléphone », « qu'est-ce que j'ai raté ».",
+  "parameters": [],
+  "type": "routine",
+  "steps": [
+    {
+      "tool": "system_monitor",
+      "args": {}
+    },
+    {
+      "tool": "notifications",
+      "args": {
+        "limit": "5"
+      }
+    }
+  ]
+}

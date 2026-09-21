@@ -1,0 +1,14 @@
+{
+  "name": "prix_metaux",
+  "description": "Donne le cours d'un métal précieux en dollars américains l'once troy (source : gold-api.com). Pour « combien vaut l'or », « le cours de l'argent ».",
+  "parameters": [
+    {
+      "name": "metal",
+      "description": "XAU pour l'or, XAG pour l'argent, XPT pour le platine, XPD pour le palladium",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://api.gold-api.com/price/{metal}",
+  "result_path": "price"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "hotels",
+  "description": "Ouvre Google Hôtels sur une ville. Pour « un hôtel à Nantes », « où dormir à Rome ».",
+  "parameters": [
+    {
+      "name": "ville",
+      "description": "Ville",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.google.com/travel/hotels/{ville}"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "indice_uv",
+  "description": "Donne l'indice UV actuel d'une ville (source : wttr.in). 0 à 2 faible, 3 à 5 modéré, 6 à 7 fort, 8 et plus très fort. Sans ville, d'après l'adresse réseau du téléphone. Pour « faut-il mettre de la crème solaire ».",
+  "parameters": [
+    {
+      "name": "ville",
+      "description": "Nom de la ville (facultatif)",
+      "required": false
+    }
+  ],
+  "type": "http",
+  "url": "https://wttr.in/{ville}?format=UV+%25u"
+}
