@@ -14,8 +14,8 @@ import numpy as np
 # How a head is dressed. The defaults are the original face's hair; other faces override some of them (see export_head.py).
 DEFAULT_STYLE = dict(
     front=0.49, m=0.03, left_temple=0.022, temple=-0.03, nape=-0.10, burn_y=-0.10, ears_bare=True,
-    len_top=(0.30, 0.12), len_side=(0.09, 0.04), len_front=0.10,
-    lift=1.0, lift_side_damp=0.6, wave=1.0, wave_side_damp=0.7, width=1.0, kappa=1.15,
+    len_top=(0.24, 0.22), len_side=(0.08, 0.10), len_front=0.10,
+    lift=1.15, lift_side_damp=0.5, wave=1.35, wave_side_damp=0.55, width=1.0, kappa=1.15,
     body=(0x48, 0x31, 0x21), root=(0x20, 0x15, 0x0E), gold=(0x8E, 0x6C, 0x48), cap=(0x36, 0x25, 0x19),
     flow_front=(0.55, 0.60, -0.20), flow_top=(0.75, 0.10, -0.55), flow_side=(0.05, -0.30, -0.95),
     locks=520, edge_locks=330, width_side=0.0, side_boost=0.0,
@@ -139,7 +139,7 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=6):
     Cp, Cn, Cd, Cparent, Cf = clip_shell(P, N, F, d)
     hx, hy, hz = Cp[:, 0] - x0, Cp[:, 1], Cp[:, 2]
     # the cap: a thin layer over the scalp, about the colour of the locks; over the sides it thins into the skin
-    thick = 0.010 + 0.016 * smoothstep(0.20, 0.60, hy)
+    thick = 0.006 + 0.010 * smoothstep(0.20, 0.60, hy)
     cap_p = Cp + Cn * (0.004 + smoothstep(0.0, 0.05, Cd) * thick)[:, None]
     sideness = 1.0 - smoothstep(0.05, 0.35, hz)
     cover = (1.0 - sideness) + sideness * (0.95 + 0.05 * smoothstep(0.0, 0.32, hy))
@@ -158,7 +158,7 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=6):
     ts = np.linspace(0.0, 1.0, samples)
     kappa = st["kappa"]                                        # the scalp curves away: the lock follows it
 
-    def make_locks(n, tri_w, len_mul, width_mul, lift_mul, scatter=0.20):
+    def make_locks(n, tri_w, len_mul, width_mul, lift_mul, scatter=0.55):
         """n locks rooted on the cap triangles in proportion to tri_w. Returns vertices, normals, colours and triangles (local indices)."""
         idx, u, w = sample_triangles(cap_p, Cf, n, rng, tri_w)
         tri = Cf[idx]
@@ -173,6 +173,7 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=6):
         if st["ears_bare"]:
             # a lock rooted near an ear is kept short, so that it does not hang into it
             length = length * (0.35 + 0.65 * smoothstep(1.0, 2.2, ear_distance(root, x0)))
+        length = length * (0.60 + 0.62 * rng.random(n) ** 1.3)                     # uneven lengths: the outline is not a smooth line
         lift = (0.13 + 0.16 * front + 0.04 * rng.random(n)) * (1 - st["lift_side_damp"] * side) * lift_mul * st["lift"]
         wave_amp = (0.10 + 0.03 * rng.random(n)) * (1 - st["wave_side_damp"] * side) * st["wave"]
         wave_freq = 1.35 + 0.15 * rng.random(n)
