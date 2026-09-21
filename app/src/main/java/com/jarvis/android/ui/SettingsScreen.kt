@@ -136,6 +136,7 @@ fun SettingsScreen(
     val inputKey by configStore.audioInputKey.collectAsState(initial = "")
     val outputKey by configStore.audioOutputKey.collectAsState(initial = "")
     val carMode by configStore.carAudioMode.collectAsState(initial = 0)
+    val offlineMode by configStore.offlineMode.collectAsState(initial = 0)
     var inMenuOpen by remember { mutableStateOf(false) }
     var outMenuOpen by remember { mutableStateOf(false) }
     var inputs by remember { mutableStateOf(emptyList<com.jarvis.android.core.AudioDeviceChoice>()) }
@@ -288,6 +289,17 @@ fun SettingsScreen(
             }
             Text(
                 tr("En voiture, le micro est coupé pendant que Jarvis parle (sinon il s’entend dans l’habitacle et se répond), le micro du téléphone est utilisé sans toucher au Bluetooth, et la musique est seulement baissée pendant qu’il parle au lieu d’être arrêtée. « Automatique » détecte Android Auto. Le changement s’applique à la prochaine session."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Text(tr("Mode hors ligne"), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                listOf(0 to "Automatique", 1 to "Toujours", 2 to "Jamais").forEach { (v, label) ->
+                    FilterChip(selected = offlineMode == v, onClick = { scope.launch { configStore.setOfflineMode(v) } }, label = { Text(tr(label)) })
+                }
+            }
+            Text(
+                tr("Sans réseau (ou si Gemini est injoignable), Jarvis écoute et parle avec la reconnaissance et la voix du téléphone, et comprend des commandes simples : ouvrir une application, appeler, volume, luminosité, lampe, musique, minuteur, heure, date, batterie, réglages. Il faut le pack de langue français hors ligne (Services vocaux Google). Dites « aide » pour la liste."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )

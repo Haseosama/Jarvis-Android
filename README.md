@@ -596,6 +596,14 @@ also shown in the settings.
 
 The strands drawn over the hair locks follow what real-time hair rendering does: each lock is a bundle of strands waving together (a shared slow wave, small differences between strands, some stopping short of the tip), and the sheen is lit with the Kajiya-Kay model, two bands per strand as in Marschner's model: a narrow whitish one and a wider, tinted one shifted along the strand. Sheen appears only where the strand's direction suits the light, so it forms streaks rather than a uniform grey. Checked on the emulator only.
 
+### Offline mode
+
+Without a network (or when Gemini cannot be reached), a session no longer fails: Jarvis switches to a local mode that uses the phone's own speech recognition (`SpeechRecognizer`, offline preferred, the on-device recogniser on Android 13+) and voice (`TextToSpeech`, an offline voice when the phone has one). Setting (card "Périphériques audio"): Automatique (default: no validated network, no API key, or Gemini unreachable at the first connection), Toujours, Jamais. The wake word already works offline, so it stays hands-free.
+
+What it understands is a fixed list of French commands, matched by rules (`offline/OfflineIntents.kt`, covered by unit tests) and run through the existing tools, with their own safeguards (the volume still asks for confirmation): open an app, call a contact or draft an SMS (never sent), volume, brightness, flashlight, music (pause, play, next, previous), timer, time, date, battery, settings pages, lock the screen, screenshot, "aide", "au revoir". Time and date are worked out on the phone. Anything else is answered with "Je n'ai pas compris" and a pointer to "aide". It ends after three silences.
+
+**What it is not:** it does not chat or reason: there is no local language model in this version (a model such as Gemma would mean a download of 1 to 3 GB, and is the next step if wanted). It needs the French offline language pack (Google speech services: offline speech recognition) and a French voice; the errors say so when they are missing. The spoken answers are French only. Verified on the emulator (commands through the debug receiver `DEBUG_OFFLINE`, and the automatic switch without network, which stops with the message about the missing language pack, as that emulator has none); **not** verified with real offline speech recognition on a phone.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

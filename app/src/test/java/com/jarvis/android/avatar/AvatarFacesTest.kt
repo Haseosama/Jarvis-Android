@@ -52,7 +52,8 @@ class AvatarFacesTest {
             return near.maxOf { m.verts[3 * it] } - near.minOf { m.verts[3 * it] }
         }
         val widths = meshes.map { jawWidth(it) }
-        assertTrue("Léa's jaw is narrower than the original's, and Marc's wider: $widths", widths[1] < widths[0] && widths[2] > widths[0])
+        // the original was slimmed to about Léa's width (a squarer jaw, though); Marc's is clearly the widest
+        assertTrue("Marc's jaw is the widest, and Léa's is not wider than the original's: $widths", widths[2] > widths[0] + 0.1f && widths[1] <= widths[0] + 0.05f)
     }
 
     @Test fun `each face has its own eyebrow colour and an index outside the list is clamped`() {

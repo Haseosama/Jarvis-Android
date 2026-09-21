@@ -174,6 +174,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_AVATAR_SKIN = intPreferencesKey("avatar_face_skin")
     private val KEY_MESSAGE_AUTO_SEND = booleanPreferencesKey("message_auto_send")
     private val KEY_CAR_AUDIO = intPreferencesKey("car_audio_mode")
+    private val KEY_OFFLINE_MODE = intPreferencesKey("offline_mode")
     private val KEY_AVATAR_MODEL = intPreferencesKey("avatar_face_model")
     private val KEY_AVATAR_LIPS = intPreferencesKey("avatar_lip_colour")
     private val KEY_MUTE_WHILE_SPEAKING = booleanPreferencesKey("mute_mic_while_speaking")
@@ -214,6 +215,8 @@ class ConfigStore(private val context: Context) {
     /** Off by default: when on, "send" said by the user really sends the message (SMS, WhatsApp) to a contact, without a confirmation. */
     /** Car mode (Android Auto): 0 = automatic, 1 = always, 2 = never. */
     val carAudioMode: Flow<Int> = context.dataStore.data.map { it[KEY_CAR_AUDIO] ?: 0 }
+    /** Offline mode: 0 = automatic (when there is no network or Gemini cannot be reached), 1 = always, 2 = never. */
+    val offlineMode: Flow<Int> = context.dataStore.data.map { it[KEY_OFFLINE_MODE] ?: 0 }
     val messageAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_MESSAGE_AUTO_SEND] ?: false }
     val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 1 }
     /** 0 = natural, 1..4 = a lip colour (rose, red, plum, coral). */
@@ -243,6 +246,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setGoogleConnected(v: Boolean) = context.dataStore.edit { it[KEY_GOOGLE] = v }
     suspend fun setAvatarFace(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_FACE] = v }
     suspend fun setAvatarModel(v: Int) = context.dataStore.edit { it[KEY_AVATAR_MODEL] = v }
+    suspend fun setOfflineMode(v: Int) = context.dataStore.edit { it[KEY_OFFLINE_MODE] = v }
     suspend fun setCarAudioMode(v: Int) = context.dataStore.edit { it[KEY_CAR_AUDIO] = v }
     suspend fun setMessageAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_MESSAGE_AUTO_SEND] = v }
     suspend fun setAvatarSkin(v: Int) = context.dataStore.edit { it[KEY_AVATAR_SKIN] = v }

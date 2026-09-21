@@ -2,6 +2,22 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Mode hors ligne (réglé sur toujours)." to "Offline mode (set to always).",
+    "Pas de connexion : mode hors ligne." to "No connection: offline mode.",
+    "Connexion à Gemini impossible ({0}) : mode hors ligne." to "Cannot reach Gemini ({0}): offline mode.",
+    "Hors ligne : {0}." to "Offline: {0}.",
+
+
+    "Synthèse vocale hors ligne indisponible : la voix française du téléphone n’est pas installée." to "Offline speech synthesis unavailable: the phone's French voice is not installed.",
+    "Ce téléphone n’a pas de reconnaissance vocale." to "This phone has no speech recognition.",
+    "L’autorisation du microphone manque." to "The microphone permission is missing.",
+    "La reconnaissance vocale du téléphone est occupée." to "The phone's speech recognition is busy.",
+    "Le français hors ligne n’est pas installé : Réglages du téléphone > Applications > Services vocaux Google > Reconnaissance vocale hors ligne." to "Offline French is not installed: phone Settings > Apps > Google speech services > Offline speech recognition.",
+    "La reconnaissance vocale a besoin du réseau : le pack de langue hors ligne n’est pas installé." to "Speech recognition needs the network: the offline language pack is not installed.",
+    "Mode hors ligne" to "Offline mode",
+    "Toujours" to "Always",
+    "Jamais" to "Never",
+    "Sans réseau (ou si Gemini est injoignable), Jarvis écoute et parle avec la reconnaissance et la voix du téléphone, et comprend des commandes simples : ouvrir une application, appeler, volume, luminosité, lampe, musique, minuteur, heure, date, batterie, réglages. Il faut le pack de langue français hors ligne (Services vocaux Google). Dites « aide » pour la liste." to "Without a network (or if Gemini cannot be reached), Jarvis listens and speaks with the phone's own recognition and voice, and understands simple commands: open an app, call, volume, brightness, flashlight, music, timer, time, date, battery, settings. It needs the offline French language pack (Google speech services). Say \"help\" for the list.",
     "Mode voiture (Android Auto)" to "Car mode (Android Auto)",
     "Activé" to "On",
     "Désactivé" to "Off",

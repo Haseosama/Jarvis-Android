@@ -23,8 +23,10 @@ object OpenAppTool : Tool {
                 if (launchIntent != null) label to launchIntent else null
             }
 
-        val exact = launchable.firstOrNull { it.first.equals(query, ignoreCase = true) }
+        val wanted = com.jarvis.android.offline.normalize(query)
+        val exact = launchable.firstOrNull { it.first.equals(query, ignoreCase = true) || com.jarvis.android.offline.normalize(it.first) == wanted }
         val partial = exact ?: launchable.firstOrNull { it.first.contains(query, ignoreCase = true) }
+            ?: launchable.firstOrNull { com.jarvis.android.offline.normalize(it.first).contains(wanted) }
 
         if (partial == null) return "No app matching '$query' is installed."
         val intent = partial.second.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }

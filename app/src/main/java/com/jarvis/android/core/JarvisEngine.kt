@@ -73,6 +73,12 @@ internal fun finishConversationTurn(messages: List<ConversationMessage>): List<C
     messages.map { if (it.complete) it else it.copy(complete = true) }
 
 internal const val MAX_CONSECUTIVE_DROPS = 3
+
+/** The offline mode setting: 0 = automatic, 1 = always, 2 = never. */
+internal const val OFFLINE_AUTO = 0
+internal const val OFFLINE_ALWAYS = 1
+internal const val OFFLINE_NEVER = 2
+internal const val OFFLINE_MAX_SILENCES = 3
 internal const val HEALTHY_SESSION_MS = 30_000L
 internal const val RECONNECT_BASE_DELAY_MS = 1_000L
 internal const val RECONNECT_MAX_DELAY_MS = 4_000L
@@ -438,6 +444,12 @@ class JarvisEngine(
     private suspend fun runSession() {
         try {
             val apiKey = container.configStore.getApiKey()
+            val offlineMode = container.configStore.offlineMode.first()
+            if (offlineMode != OFFLINE_NEVER && (offlineMode == OFFLINE_ALWAYS || apiKey.isNullOrBlank() || !isOnline())) {
+                log(tr(if (offlineMode == OFFLINE_ALWAYS) "Mode hors ligne (réglé sur toujours)." else "Pas de connexion : mode hors ligne."))
+                runOfflineSession()
+                return
+            }
             if (apiKey.isNullOrBlank()) {
                 log(tr("Aucune clé API Gemini configurée."))
                 _state.value = JarvisState.ERROR
@@ -480,6 +492,11 @@ class JarvisEngine(
                     )
                 ) {
                     ReconnectDecision.GiveUp -> {
+                        if (!drop.wasReady && offlineMode == OFFLINE_AUTO) {
+                            log(trf("Connexion à Gemini impossible ({0}) : mode hors ligne.", drop.detail))
+                            runOfflineSession()
+                            return
+                        }
                         log(tr("Session interrompue. Vérifiez la connexion et les autorisations, puis réessayez."))
                         log(trf("Détail : {0}", drop.detail))
                         _state.value = JarvisState.ERROR
@@ -510,6 +527,98 @@ class JarvisEngine(
                 _conversation.update { finishConversationTurn(it) }
                 if (_state.value != JarvisState.ERROR) _state.value = JarvisState.ASLEEP
             }
+        }
+    }
+
+    private fun isOnline(): Boolean = try {
+        val cm = container.appContext.getSystemService(android.net.ConnectivityManager::class.java)
+        cm?.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+    } catch (_: Exception) {
+        true
+    }
+
+    /**
+     * The session without the network: the phone's own speech recognition and voice, and the commands of [interpret] (see the offline
+     * package). It ends by itself after a few silences, or when asked.
+     */
+    private suspend fun runOfflineSession() {
+        val language = container.configStore.speechLanguage.first().ifBlank { "fr-FR" }
+        val locale = java.util.Locale.forLanguageTag(language)
+        val voice = com.jarvis.android.offline.OfflineVoice(container.appContext)
+        try {
+            _state.value = JarvisState.CONNECTING
+            if (!voice.init(locale)) {
+                log(tr("Synthèse vocale hors ligne indisponible : la voix française du téléphone n’est pas installée."))
+                _state.value = JarvisState.ERROR
+                return
+            }
+            offlineSay(voice, "Mode hors ligne. Je vous écoute.")   // spoken in French, like what it understands
+            var silences = 0
+            while (currentCoroutineContext().isActive) {
+                _state.value = JarvisState.LISTENING
+                when (val heard = voice.listen(locale.toLanguageTag())) {
+                    is com.jarvis.android.offline.Heard.Failed -> {
+                        log(tr(heard.reason))
+                        offlineSay(voice, heard.reason)
+                        _state.value = JarvisState.ERROR
+                        return
+                    }
+                    com.jarvis.android.offline.Heard.Silence -> {
+                        if (++silences >= OFFLINE_MAX_SILENCES) {
+                            offlineSay(voice, "Je me mets en veille.")
+                            return
+                        }
+                    }
+                    is com.jarvis.android.offline.Heard.Text -> {
+                        silences = 0
+                        _conversation.update { appendConversation(it, ConversationRole.USER, heard.text, complete = true) }
+                        _state.value = JarvisState.THINKING
+                        val (reply, end) = offlineReply(heard.text)
+                        _conversation.update { appendConversation(it, ConversationRole.ASSISTANT, reply, complete = true) }
+                        offlineSay(voice, reply)
+                        if (end) return
+                    }
+                }
+            }
+        } finally {
+            withContext(NonCancellable) {
+                voice.shutdown()
+                _outputLevel.value = 0f
+            }
+        }
+    }
+
+    /** What to answer to [text], running the tool it asks for. The second value is true when the session should end. */
+    internal suspend fun offlineReply(text: String): Pair<String, Boolean> {
+        return when (val action = com.jarvis.android.offline.interpret(text)) {
+            is com.jarvis.android.offline.OfflineAction.Say -> action.text to action.end
+            is com.jarvis.android.offline.OfflineAction.ToolCall -> {
+                log(trf("Hors ligne : {0}.", action.name))
+                val args = kotlinx.serialization.json.JsonObject(action.args.mapValues { kotlinx.serialization.json.JsonPrimitive(it.value) })
+                val result = ToolRegistry.run(action.name, args, container)
+                com.jarvis.android.offline.spokenResult(action, result) to false
+            }
+            com.jarvis.android.offline.OfflineAction.Unknown ->
+                "Je n’ai pas compris. Hors ligne, je ne connais que certaines commandes : dites « aide » pour les connaître." to false
+        }
+    }
+
+    /** Speaks [text], with the avatar's mouth moving while it does. */
+    private suspend fun offlineSay(voice: com.jarvis.android.offline.OfflineVoice, text: String) {
+        _state.value = JarvisState.SPEAKING
+        val mouth = scope.launch {
+            var t = 0
+            while (true) {
+                _outputLevel.value = 0.25f + 0.45f * (0.5f + 0.5f * kotlin.math.sin(t * 1.7f)) * (0.6f + 0.4f * kotlin.math.sin(t * 0.37f + 1f))
+                t++
+                delay(90)
+            }
+        }
+        try {
+            voice.speak(text)
+        } finally {
+            mouth.cancel()
+            _outputLevel.value = 0f
         }
     }
 
