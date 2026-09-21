@@ -43,7 +43,7 @@ internal fun blend(bg: Int, col: Int, a: Float): Int {
     return argb(255, ch(16), ch(8), ch(0))
 }
 
-private val SKIN_TONES = intArrayOf(0xF1C9A8, 0xD9A47C, 0xB07A54, 0x7A4E36, 0x3E86C9)   // the fifth is the blue skin of the blue hologram
+private val SKIN_TONES = intArrayOf(0xF1C9A8, 0xD9A47C, 0xB07A54, 0x7A4E36, 0x62B0EE, 0x22509A)   // the fifth and sixth are the two blues of the blue holograms
 private val LIP_TONES = intArrayOf(0xD9707F, 0xC02836, 0x8E3A6B, 0xE8735A)
 
 private fun withAlpha(col: Int, a: Float): Int = (col and 0x00FFFFFF) or (a.coerceIn(0f, 255f).toInt() shl 24)
@@ -261,7 +261,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         }
         if (holo) {
             // a solid skin: a little brighter than the plain looks, a faint cool light at the contour only, and no melting into the background
-            c = mix(lit(c, 1.16f), primaryColor, 0.04f * (1f - vz.coerceIn(0f, 1f)))
+            val edge = Math.pow((1f - vz.coerceIn(0f, 1f)).toDouble(), 2.4).toFloat()          // 0 facing the viewer, 1 at the contour
+            c = mix(lit(c, 1.16f), mix(primaryColor, 0xFFFFFFFF.toInt(), 0.45f), 0.62f * edge)   // a soft bright edge instead of dots
             return mix(bgColor, c, (mesh.fade[vi] * 1.9f).coerceIn(0f, 1f))
         }
         val fv = (mesh.fade[vi] * mesh.fade[vi]).coerceIn(0f, 1f)
@@ -352,7 +353,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
 
     /** The web: fine lines between neighbouring nodes and bright nodes, brighter towards the contour, with a slow twinkle. */
     private fun drawWeb(nc: Canvas, nrm: FloatArray, amp: Float, primary: Int, strokePx: Float, t: Float) {
-        if (skin > 0 && !holo) return // a skin hides the web, unless it is the hologram
+        if (skin > 0) return // a skin hides the web: the hologram looks are solid, with no veil of nodes and lines over the skin
         val w = web
         val gain = (0.85f + 0.5f * amp) * (if (holo) 0.42f else 1f)
         for (i in 0 until w.count) {

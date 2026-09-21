@@ -2,7 +2,8 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
-    "Hologramme bleu" to "Blue hologram",
+    "Hologramme bleu clair" to "Light blue hologram",
+    "Hologramme bleu foncé" to "Dark blue hologram",
     "Les échanges de la session apparaîtront ici. Ils sont conservés sur le téléphone (Paramètres > Historique des sessions)." to "The session's exchanges will appear here. They are kept on the phone (Settings > Session history).",
     "Dernière session" to "Last session",
     "Garder les échanges des sessions vocales (ce qui est dit) : ils s’affichent sur l’écran principal et sont rappelés à Jarvis au début de la session suivante, pour qu’il reprenne le fil. Fichier privé sur le téléphone, non chiffré ; les 30 dernières sessions, 90 jours au plus." to "Keep the exchanges of the voice sessions (what is said): they are shown on the main screen and recalled to Jarvis at the start of the next session, so that it can pick up the thread. Private file on the phone, not encrypted; the last 30 sessions, 90 days at most.",
