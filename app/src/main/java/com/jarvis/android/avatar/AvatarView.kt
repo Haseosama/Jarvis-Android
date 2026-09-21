@@ -64,17 +64,21 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         @Suppress("UNUSED_VARIABLE") val tick = frame // reading it makes the canvas redraw with every animation step
         val r = size.minDimension * 0.36f // head half-height: the head fills about 72 % of the square, the neck fades below it
         if (avatarFace(model).cartoon) {
-            cartoon.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, controller.skin, controller.lips)
+            cartoon.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, if (controller.skin == HOLO_SKIN) 1 else controller.skin, controller.lips)
             return@Canvas
         }
         renderer.scanY = avatar.scan
-        renderer.skin = controller.skin
+        renderer.holo = controller.skin == HOLO_SKIN
+        renderer.skin = if (renderer.holo) 1 else controller.skin
         renderer.lips = controller.lips
-        renderer.browColour = avatarFace(model).browColour
+        renderer.browColour = if (renderer.holo) 0xFF7FE3F5.toInt() else avatarFace(model).browColour
         renderer.fibreOverlay = avatarFace(model).fibres
         renderer.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, accent, bg, stroke)
     }
 }
+
+/** The value of the skin setting for the hologram over the skin (0 is the web alone, 1..4 the tones). */
+internal const val HOLO_SKIN = 5
 
 private const val FRAME_NS = 30_000_000L
 private const val SLEEP_FRAME_NS = 66_000_000L

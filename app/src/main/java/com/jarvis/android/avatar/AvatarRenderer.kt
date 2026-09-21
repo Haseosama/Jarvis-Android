@@ -79,6 +79,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     /** 0 = the glowing web; 1..4 = a skin tone over the face. */
     var skin = 1
 
+    /** The hologram over the skin: a skin tone, tinted by the light of the web, with the web drawn over it, and no hair. */
+    var holo = false
+
     /** Fine strands drawn over the hair (see drawFibres); off for long hair, which hangs in front of the face. */
     var fibreOverlay = true
 
@@ -182,7 +185,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val fres = Math.pow((1f - nz).coerceIn(0f, 2f).toDouble(), 1.7).toFloat()
             val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
             var bright = 0.26f + 0.20f * fres + 0.66f * Math.pow(lam.toDouble(), 1.05).toFloat()
-            if (skin == 0 && mesh.faceGroup[t] > 1.5f) continue // the hair belongs to the skin looks
+            if ((skin == 0 || holo) && mesh.faceGroup[t] > 1.5f) continue // the hair belongs to the skin looks, not to the web or the hologram
             val fadeAvg = (fade[a] + fade[b] + fade[c]) / 3f
             val cutoff = if (skin > 0) 0.15f else 0.4f
             if (fadeAvg < cutoff) continue // the far end of the neck is left out: it would end on a ragged cut
@@ -247,6 +250,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             // the lips are lit less unevenly than the skin: the upper one faces the light and would otherwise come out pale
             c = mix(c, lit(lipRgb, 0.80f + 0.30f * vlam), lipW)
         }
+        if (holo) c = mix(lit(mix(skinRgb, primaryColor, 0.26f), 0.92f * k), primaryColor, 0.05f)   // skin seen through the light of the hologram
         val fv = (mesh.fade[vi] * mesh.fade[vi]).coerceIn(0f, 1f)
         return mix(bgColor, c, fv)
     }
@@ -335,9 +339,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
 
     /** The web: fine lines between neighbouring nodes and bright nodes, brighter towards the contour, with a slow twinkle. */
     private fun drawWeb(nc: Canvas, nrm: FloatArray, amp: Float, primary: Int, strokePx: Float, t: Float) {
-        if (skin > 0) return // a skin hides the web
+        if (skin > 0 && !holo) return // a skin hides the web, unless it is the hologram
         val w = web
-        val gain = (0.85f + 0.5f * amp) * (if (skin > 0) 0.22f else 1f)
+        val gain = (0.85f + 0.5f * amp) * (if (holo) 0.85f else 1f)
         for (i in 0 until w.count) {
             val a = w.triA[i]; val b = w.triB[i]; val c = w.triC[i]
             val u = w.wu[i]; val q = w.wv[i]; val s = 1f - u - q
@@ -374,7 +378,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val br = (0.55f + 0.9f * fres) * tw * w.fade[i] * w.fade[i]
             val hash = ((i * -1640531535) ushr 16) and 0xFF
             val bk = if (br > 0.85f || hash > 236) 2 else if (br > 0.5f) 1 else 0
-            if (skin > 0 && bk < 2) continue
+            if (skin > 0 && !holo && bk < 2) continue
             val arr = webNodes[bk]; val o = webNodeCounts[bk]
             arr[o] = wx[i]; arr[o + 1] = wy[i]
             webNodeCounts[bk] = o + 2
@@ -399,7 +403,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
      * tinted one nearer the root. A bundle is a hair's natural unit, so the locks read as clumps and not as a solid cap.
      */
     private fun drawFibres(nc: Canvas, v: FloatArray, nrm: FloatArray, strokePx: Float, r: Float) {
-        if (skin == 0 || mesh.lockCount == 0) return
+        if (skin == 0 || holo || mesh.lockCount == 0) return
         val rows = mesh.lockRows
         if (rows < 3) return
         val light = mix(browColour, 0xFF6B4E36.toInt(), 0.60f)
@@ -577,8 +581,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
      */
     private fun drawEyes(scope: DrawScope, avatar: HoloAvatar, r: Float, primary: Int, strokePx: Float, face: Float, midX: Float) {
         val open = ((1f - avatar.blink) * avatar.lids.coerceIn(0f, 1f)).coerceIn(0f, 1f)
-        val lash = if (skin > 0) 0xFF1E120E.toInt() else primary
-        val fold = if (skin > 0) 0xFF6B4636.toInt() else primary
+        val lash = if (skin > 0 && !holo) 0xFF1E120E.toInt() else primary
+        val fold = if (skin > 0 && !holo) 0xFF6B4636.toInt() else primary
         scope.drawIntoCanvas { canvas ->
             val nc = canvas.nativeCanvas
             for (e in lidCurves.indices) {
@@ -722,7 +726,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         drawEyes(scope, avatar, r, primary, strokePx, face, midX)
 
         // the two lip edges along the mouth line: one line when the mouth is shut, two when it opens
-        val lipLine = if (skin > 0) 0xFF6E2A38.toInt() else primary
+        val lipLine = if (skin > 0 && !holo) 0xFF6E2A38.toInt() else primary
         for ((chain, alpha) in listOf(mesh.mouthUpper to 200f, mesh.mouthLower to 170f)) {
             val path = Path()
             for ((k, i) in chain.withIndex()) if (k == 0) path.moveTo(xs[i], ys[i]) else path.lineTo(xs[i], ys[i])

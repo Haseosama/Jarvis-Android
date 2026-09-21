@@ -604,6 +604,10 @@ What it understands is a fixed list of French commands, matched by rules (`offli
 
 **What it is not:** it does not chat or reason: there is no local language model in this version (a model such as Gemma would mean a download of 1 to 3 GB, and is the next step if wanted). It needs the French offline language pack (Google speech services: offline speech recognition) and a French voice; the errors say so when they are missing. The spoken answers are French only. Verified on the emulator (commands through the debug receiver `DEBUG_OFFLINE`, and the automatic switch without network, which stops with the message about the missing language pack, as that emulator has none); **not** verified with real offline speech recognition on a phone.
 
+#### Hologram look
+
+The skin setting has, besides the tones and the glowing web alone, an **Hologramme** option: a solid skin (the light tone tinted a little by the web's colour), the fine web of nodes and lines drawn over it, no hair, and the brows and the lip line in the web's colour. The web itself is denser than before (nodes 0.031 apart in head half-heights, computed when a face loads, with a grid for the neighbour search). Checked on the emulator only.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`
