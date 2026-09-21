@@ -88,6 +88,7 @@ class JarvisContainer(val appContext: Context) {
             configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
         }
         appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }
+        appScope.launch { configStore.avatarModel.collect { avatar.model = it } }
         appScope.launch { configStore.avatarSkin.collect { avatar.skin = it } }
         appScope.launch { configStore.avatarLips.collect { avatar.lips = it } }
         com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)

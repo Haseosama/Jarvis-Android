@@ -1,5 +1,7 @@
 package com.jarvis.android.avatar
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import android.content.Context
 import android.os.SystemClock
 import com.jarvis.android.core.JarvisState
@@ -30,8 +32,19 @@ internal class AvatarController(private val context: Context) {
     val timeline = VisemeTimeline()
     private val stream = VisemeStream()
 
-    val mesh: HeadMesh by lazy { HeadMesh.parse(context.assets.open("avatar/head_mesh.bin").use { it.readBytes() }) }
-    val avatar: HoloAvatar by lazy { HoloAvatar(mesh) }
+    /** Which head is shown (index in [AVATAR_FACES]). A Compose state, so the view redraws with the new head when it changes. */
+    var model by androidx.compose.runtime.mutableIntStateOf(0)
+
+    private val loaded = HashMap<Int, Pair<HeadMesh, HoloAvatar>>()
+
+    @Synchronized
+    private fun current(): Pair<HeadMesh, HoloAvatar> = loaded.getOrPut(model.coerceIn(0, AVATAR_FACES.lastIndex)) {
+        val mesh = HeadMesh.parse(context.assets.open(avatarFace(model).asset).use { it.readBytes() })
+        mesh to HoloAvatar(mesh)
+    }
+
+    val mesh: HeadMesh get() = current().first
+    val avatar: HoloAvatar get() = current().second
 
     /** Called with each chunk of the assistant's voice (16-bit PCM, 24 kHz), just before it goes to the speaker. */
     fun onSpeech(pcm16: ByteArray) {

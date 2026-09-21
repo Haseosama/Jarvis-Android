@@ -20,6 +20,7 @@ import json, os, struct, sys
 import numpy as np
 
 MARK_LIV, GLB = sys.argv[1], sys.argv[2]
+FACE_NAME = os.environ.get("JHM_FACE", "classic")     # classic | lea | marc: which head to build (see FACES below)
 sys.path.insert(0, os.path.join(MARK_LIV, "core"))
 import avatar_mesh as am
 
@@ -56,6 +57,20 @@ def vertex_normals(V, F):
         np.add.at(n, F[:, k], fn)
     return n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
 
+
+HAIR_STYLES = {
+    "classic": None,
+    # shoulder-length, wavy, auburn: covers the ears, hangs down the sides and the back
+    "lea": dict(front=0.50, m=0.02, left_temple=0.05, temple=-0.05, nape=-0.55, burn_y=0.12, ears_bare=False,
+                len_top=(0.40, 0.10), len_side=(0.58, 0.16), len_front=0.10, lift=0.7, lift_side_damp=0.85, wave=1.1, wave_side_damp=0.15,
+                width=1.05, width_side=1.1, side_boost=2.6, kappa=0.40, body=(0x5C, 0x2C, 0x1C), root=(0x24, 0x10, 0x09), gold=(0x96, 0x5C, 0x36), cap=(0x40, 0x1E, 0x12),
+                flow_front=(0.55, 0.30, -0.35), flow_top=(0.60, -0.05, -0.75), flow_side=(0.0, -1.0, -0.15), locks=720, edge_locks=200),
+    # short, dark and touched with grey, a higher hairline
+    "marc": dict(front=0.54, m=0.05, left_temple=0.0, temple=0.36, nape=0.05, burn_y=0.02, ears_bare=True,
+                 len_top=(0.13, 0.05), len_side=(0.045, 0.02), len_front=0.05, lift=0.9, wave=0.5, width=0.9, kappa=1.4,
+                 body=(0x33, 0x30, 0x2F), root=(0x15, 0x13, 0x13), gold=(0x86, 0x83, 0x7E), cap=(0x24, 0x22, 0x21),
+                 flow_front=(0.20, 0.45, -0.10), flow_top=(0.30, 0.15, -0.85), flow_side=(0.05, -0.35, -0.90), locks=640, edge_locks=300),
+}
 
 # ---- 1. the scan, normalised: crown +1, chin -1, nose tip at the depth of the mask's, cut at the base of the neck -------------
 V, F = load_glb(GLB)
@@ -674,7 +689,7 @@ print("eyes: faces removed", int(removed.sum()))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import groom
 Fscan = F0[F0.max(axis=1) < scan_count]
-hair = groom.build(V[:scan_count], N[:scan_count], Fscan, FACE_X0)
+hair = groom.build(V[:scan_count], N[:scan_count], Fscan, FACE_X0, style=HAIR_STYLES.get(FACE_NAME))
 
 
 def push(pos, nrm, jaw_w, paint_v, tris):
@@ -727,6 +742,61 @@ allF = np.vstack([F, HF + n_base])
 allGroup = np.concatenate([group, np.full(len(HF), 2.0)])
 strand_base = n_base + nh
 
+# ---- other faces: the same scan, reshaped ------------------------------------------------------------------------------
+# One scan gives one identity. The other faces are that scan bent by a smooth warp of the final geometry (jaw, chin, nose, brows, eyes),
+# applied to every vertex (eyes, lids, teeth and hair included) so that everything stays lined up, with hair and a look of their own.
+def smooth(e0, e1, x):
+    t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
+WARPS = {
+    #        jaw narrowing, nose narrowing, nose depth, cheekbones, chin (+ longer), eye scale, brow ridge, square chin, overall width
+    "lea":  dict(jaw=0.22, nose_w=0.15, nose_z=0.18, cheek=0.030, chin=-0.07, eyes=0.14, brow=0.0, square=0.0, width=0.97),
+    "marc": dict(jaw=-0.11, nose_w=-0.11, nose_z=-0.11, cheek=0.0, chin=0.06, eyes=-0.07, brow=0.045, square=0.07, width=1.03),
+}
+
+
+def make_warp(name, eye_centres):
+    if name == "classic":
+        return lambda P: P
+    k = WARPS[name]
+
+    def warp(P):
+        P = np.array(P, dtype=np.float64)
+        x, y, z = P[:, 0], P[:, 1], P[:, 2]
+        hx = x - FACE_X0
+        front = smooth(-0.15, 0.30, z)                                    # the face, not the back of the head
+        lower = smooth(-0.10, -0.85, y) * front                           # the jaw and the chin
+        chin_w = smooth(-0.75, -1.0, y) * front
+        nose = np.exp(-((hx / 0.17) ** 2 + ((y + 0.22) / 0.24) ** 2)) * np.clip((z - 0.30) / 0.30, 0.0, 1.0)
+        brow_w = np.exp(-((y - 0.16) / 0.09) ** 2) * np.exp(-(hx / 0.40) ** 2) * np.clip(z / 0.30, 0.0, 1.0)
+        cheek_w = np.exp(-(((np.abs(hx) - 0.36) / 0.14) ** 2 + ((y + 0.16) / 0.16) ** 2)) * np.clip(z / 0.30, 0.0, 1.0)
+        nx = hx * k["width"] * (1.0 - k["jaw"] * lower) * (1.0 - k["nose_w"] * nose) * (1.0 + k["square"] * chin_w)
+        nz = z - k["nose_z"] * nose * np.clip(z - 0.30, 0.0, None) / 0.4 + k["cheek"] * cheek_w + k["brow"] * brow_w
+        ny = y + (y + 0.35) * k["chin"] * smooth(-0.35, -0.55, y)
+        nx = nx + FACE_X0
+        # the eyes grow or shrink about their own centres, with everything around them (lids, eyeballs)
+        best = np.zeros(len(P))
+        cx = np.zeros(len(P)); cy = np.zeros(len(P))
+        for c in eye_centres:
+            w = np.exp(-(((x - c[0]) ** 2 + (y - c[1]) ** 2) / 0.17 ** 2))
+            m = w > best
+            best = np.where(m, w, best); cx = np.where(m, c[0], cx); cy = np.where(m, c[1], cy)
+        gain = 1.0 + k["eyes"] * best
+        eyezone = best > 0.02
+        nx = np.where(eyezone, cx + (nx - cx) * gain, nx)
+        ny = np.where(eyezone, cy + (ny - cy) * gain, ny)
+        return np.stack([nx, ny, nz], axis=1)
+
+    return warp
+
+
+warp_head = make_warp(FACE_NAME, [np.array(c) for _, _, c in eye_info])
+V = warp_head(V)
+lip_centre = warp_head(lip_centre[None, :])[0]
+eye_info = [(first, count, warp_head(np.array(c)[None, :])[0]) for first, count, c in eye_info]
+
 # The app's head file (JHM1): the scanned head and neck only, with the rig weights and the landmark rings. The hair, strands,
 # circuits and network nodes computed above belong to the other looks and are not stored; the app spreads its own web over the mesh.
 out = bytearray()
@@ -761,5 +831,5 @@ if os.environ.get("JHM_DEBUG"):
              lips_in=ring_xy["lips_in"], brow_l=ring_xy["brow_l"], brow_r=ring_xy["brow_r"], xs_col=xs_col, ys_col=ys_col,
              eyes=np.array([c for _, _, c in eye_info]))
 dest = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "app", "src", "main", "assets", "avatar")
-open(os.path.join(dest, "head_mesh.bin"), "wb").write(bytes(out))
+open(os.path.join(dest, "head_mesh.bin" if FACE_NAME == "classic" else "head_mesh_%s.bin" % FACE_NAME), "wb").write(bytes(out))
 print("verts", len(V), "faces", len(F), "bytes", len(out))

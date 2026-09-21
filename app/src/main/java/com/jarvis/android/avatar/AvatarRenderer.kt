@@ -78,6 +78,12 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private val hairPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     /** 0 = the glowing web; 1..4 = a skin tone over the face. */
     var skin = 1
+
+    /** Fine strands drawn over the hair (see drawFibres); off for long hair, which hangs in front of the face. */
+    var fibreOverlay = true
+
+    /** The colour of the eyebrows: the hair's. */
+    var browColour = 0xFF34241C.toInt()
     /** 0 = natural lips; 1..4 = rose, red, plum, coral. */
     var lips = 0
     private var bgColor = 0
@@ -137,7 +143,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val nc = canvas.nativeCanvas
             drawSurface(nc, visible)
             drawWeb(nc, n, amp, primary, strokePx, avatar.time)
-            drawFibres(nc, n, strokePx)
+            if (fibreOverlay) drawFibres(nc, n, strokePx)
         }
         drawFeatures(scope, avatar, r, primary, accent, bg, amp, strokePx)
     }
@@ -584,7 +590,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         val roundCap = androidx.compose.ui.graphics.StrokeCap.Round
         val roundJoin = androidx.compose.ui.graphics.StrokeJoin.Round
         val midX = lm.getValue("lips_out").let { ring -> ring.sumOf { xs[it].toDouble() }.toFloat() / ring.size }
-        val hairColour = 0xFF34241C.toInt()
+        val hairColour = browColour
 
         // brows
         for (key in listOf("brow_l", "brow_r")) {

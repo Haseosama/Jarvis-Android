@@ -24,13 +24,14 @@ import com.jarvis.android.core.JarvisState
  */
 @Composable
 internal fun AvatarView(controller: AvatarController, state: JarvisState, outputLevel: Float, modifier: Modifier = Modifier) {
+    val model = controller.model
     val avatar = controller.avatar
-    val renderer = remember(controller) { AvatarRenderer(controller.mesh) }
+    val renderer = remember(controller, model) { AvatarRenderer(controller.mesh) }
     val currentState by rememberUpdatedState(state)
     val currentLevel by rememberUpdatedState(outputLevel)
     var frame by remember { mutableLongStateOf(0L) }
 
-    LaunchedEffect(controller) {
+    LaunchedEffect(controller, model) {
         var last = SystemClock.elapsedRealtimeNanos()
         var lastDraw = 0L
         while (true) {
@@ -64,6 +65,8 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         renderer.scanY = avatar.scan
         renderer.skin = controller.skin
         renderer.lips = controller.lips
+        renderer.browColour = avatarFace(model).browColour
+        renderer.fibreOverlay = avatarFace(model).fibres
         renderer.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, accent, bg, stroke)
     }
 }

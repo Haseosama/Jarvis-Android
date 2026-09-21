@@ -70,6 +70,7 @@ fun SettingsScreen(
     val muteWhileSpeaking by configStore.muteMicWhileSpeaking.collectAsState(initial = true)
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
     val faceOn by configStore.avatarFace.collectAsState(initial = true)
+    val faceModel by configStore.avatarModel.collectAsState(initial = 0)
     val skinTone by configStore.avatarSkin.collectAsState(initial = 1)
     val lipTone by configStore.avatarLips.collectAsState(initial = 0)
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
@@ -335,6 +336,12 @@ fun SettingsScreen(
                 )
                 Switch(checked = faceOn, onCheckedChange = { scope.launch { configStore.setAvatarFace(it) } })
             }
+            Text(tr("Visage"), style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).horizontalScroll(rememberScrollState())) {
+                com.jarvis.android.avatar.AVATAR_FACES.forEachIndexed { v, face ->
+                    FilterChip(selected = faceModel == v, onClick = { scope.launch { configStore.setAvatarModel(v) } }, label = { Text(tr(face.label)) })
+                }
+            }
             Text(tr("Peau"), style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).horizontalScroll(rememberScrollState())) {
                 listOf(0 to "Réseau lumineux", 1 to "Claire", 2 to "Mate", 3 to "Bronzée", 4 to "Foncée").forEach { (v, label) ->
@@ -348,7 +355,7 @@ fun SettingsScreen(
                 }
             }
             Text(
-                tr("Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; tête : scan de Lee Perry-Smith (CC BY 3.0) ; repères du visage : MediaPipe (Apache-2.0)."),
+                tr("Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; tête : scan de Lee Perry-Smith (CC BY 3.0), remodelé pour les visages Léa et Marc ; repères du visage : MediaPipe (Apache-2.0)."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(bottom = 8.dp),
             )

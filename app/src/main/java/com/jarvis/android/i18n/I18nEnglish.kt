@@ -2,6 +2,8 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Visage" to "Face",
+    "Classique" to "Classic",
     "L’accès Google a expiré ou a été retiré (tant que l’écran de consentement est en mode test, Google le limite à environ une semaine) : l’utilisateur doit toucher « Reconnecter Google » dans les réglages de Jarvis." to "Google access has expired or was withdrawn (while the consent screen is in test mode, Google limits it to about a week): the user must tap \"Reconnect Google\" in Jarvis's settings.",
     "Google n’est pas connecté : l’utilisateur doit toucher « Connecter Google » dans les réglages de Jarvis." to "Google is not connected: the user must tap \"Connect Google\" in Jarvis's settings.",
     "Connexion Google en état de marche." to "Google connection is working.",
@@ -145,7 +147,7 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Prune" to "Plum",
     "Corail" to "Coral",
     "Visage holographique au centre de l’écran (sinon le cœur lumineux). Ses lèvres suivent la voix de Jarvis." to "Holographic face in the middle of the screen (otherwise the glowing core). Its lips follow Jarvis's voice.",
-    "Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; tête : scan de Lee Perry-Smith (CC BY 3.0) ; repères du visage : MediaPipe (Apache-2.0)." to "Face adapted from Mark-LIV (FatihMakes, CC BY-NC 4.0 licence: non-commercial use); head: scan by Lee Perry-Smith (CC BY 3.0); face landmarks: MediaPipe (Apache-2.0).",
+    "Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; tête : scan de Lee Perry-Smith (CC BY 3.0), remodelé pour les visages Léa et Marc ; repères du visage : MediaPipe (Apache-2.0)." to "Face adapted from Mark-LIV (FatihMakes, CC BY-NC 4.0 licence: non-commercial use); head: scan by Lee Perry-Smith (CC BY 3.0), reshaped for the faces Léa and Marc; face landmarks: MediaPipe (Apache-2.0).",
     "Notifications" to "Notifications",
     "Lecture des notifications activée ✓ : « qu’est-ce que j’ai manqué ? » résume les dernières notifications. Lecture seule : Jarvis ne peut ni les ouvrir, ni y répondre, ni les supprimer." to "Notification reading on ✓: « what did I miss? » summarises the latest notifications. Read only: Jarvis can neither open, answer nor dismiss them.",
     "Lecture des notifications désactivée : Jarvis ne voit pas vos notifications." to "Notification reading off: Jarvis does not see your notifications.",

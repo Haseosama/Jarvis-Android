@@ -172,6 +172,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_AVATAR_FACE = booleanPreferencesKey("avatar_face")
     private val KEY_GOOGLE = booleanPreferencesKey("google_connected")
     private val KEY_AVATAR_SKIN = intPreferencesKey("avatar_face_skin")
+    private val KEY_AVATAR_MODEL = intPreferencesKey("avatar_face_model")
     private val KEY_AVATAR_LIPS = intPreferencesKey("avatar_lip_colour")
     private val KEY_MUTE_WHILE_SPEAKING = booleanPreferencesKey("mute_mic_while_speaking")
     private val KEY_SPEECH_LANGUAGE = stringPreferencesKey("speech_language")
@@ -206,6 +207,8 @@ class ConfigStore(private val context: Context) {
     val googleConnected: Flow<Boolean> = context.dataStore.data.map { it[KEY_GOOGLE] ?: false }
     val avatarFace: Flow<Boolean> = context.dataStore.data.map { it[KEY_AVATAR_FACE] ?: true }
     /** 0 = the glowing web, 1..4 = a skin of that tone over the face (light by default). */
+    /** Which head: 0 = the original, 1 and 2 = the other faces (see avatar/AvatarFaces.kt). */
+    val avatarModel: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_MODEL] ?: 0 }
     val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 1 }
     /** 0 = natural, 1..4 = a lip colour (rose, red, plum, coral). */
     val avatarLips: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_LIPS] ?: 0 }
@@ -233,6 +236,7 @@ class ConfigStore(private val context: Context) {
     suspend fun snapshotChatHistoryEnabled() = chatHistoryEnabled.first()
     suspend fun setGoogleConnected(v: Boolean) = context.dataStore.edit { it[KEY_GOOGLE] = v }
     suspend fun setAvatarFace(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_FACE] = v }
+    suspend fun setAvatarModel(v: Int) = context.dataStore.edit { it[KEY_AVATAR_MODEL] = v }
     suspend fun setAvatarSkin(v: Int) = context.dataStore.edit { it[KEY_AVATAR_SKIN] = v }
     suspend fun setAvatarLips(v: Int) = context.dataStore.edit { it[KEY_AVATAR_LIPS] = v }
     suspend fun setMuteMicWhileSpeaking(v: Boolean) = context.dataStore.edit { it[KEY_MUTE_WHILE_SPEAKING] = v }

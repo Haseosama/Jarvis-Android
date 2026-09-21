@@ -9,14 +9,13 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.3.0. The voice loop works end to end on a real phone: microphone →
-Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The
-unit-test suite (107 tests, `./gradlew :app:testDebugUnitTest`) passes. This is an
-actively in-progress port; see "Not ported" and "Known gaps" below.
-
-Still unverified on a device: reminders re-armed after a reboot, timers, flight search, and
-the wake word. Reconnection after a real network drop was tested by cutting the phone's Wi-Fi
-(see "Connection drops" below).
+Version 0.5.x (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on GitHub, see "Updating from
+GitHub"). The voice loop works end to end on a real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live
+transcripts. The unit-test suite (about 480 tests, `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was
+checked and what was not; in short, a lot was checked on an emulator (with synthetic voices, or without a Gemini key), and **not yet on a
+real phone with a real voice**: the wake word (built-in and taught), the meeting notes with a real Gemini answer, Gmail and Drive, the update
+on a Xiaomi, reminders re-armed after a reboot, timers, flight search, and the live video. Reconnection after a real network drop was tested by
+cutting the phone's Wi-Fi (see "Connection drops" below).
 
 ## Build variants
 
@@ -45,7 +44,7 @@ release APK comes out unsigned. `keystore/`, `*.keystore` and `*.jks` are git-ig
 | Desktop (Mark-LIII, Python) | Android (this repo, Kotlin) |
 |---|---|
 | `main.py` (`JarvisLive`, `google-genai` Live session) | [`core/JarvisEngine.kt`](app/src/main/java/com/jarvis/android/core/JarvisEngine.kt) + [`core/GeminiLiveClient.kt`](app/src/main/java/com/jarvis/android/core/GeminiLiveClient.kt) |
-| `core/wake_word.py` (openWakeWord, fully offline ONNX) | [`core/WakeWordDetector.kt`](app/src/main/java/com/jarvis/android/core/WakeWordDetector.kt) — Android's on-device `SpeechRecognizer`, restarted in short bursts. **Not equivalent**: openWakeWord never touches the network; `SpeechRecognizer` on most OEM builds briefly does even in "prefer offline" mode. Treat this as a stopgap until a TFLite wake-word model is wired in. |
+| `core/wake_word.py` (openWakeWord, fully offline ONNX) | [`wake/OpenWakeWordDetector.kt`](app/src/main/java/com/jarvis/android/wake/OpenWakeWordDetector.kt) — the same three openWakeWord models, run with TFLite, fully offline (downloaded on demand, see "Offline wake word"), plus [phrases you teach it yourself](app/src/main/java/com/jarvis/android/wake/WakeLearning.kt). Without the models, [`core/WakeWordDetector.kt`](app/src/main/java/com/jarvis/android/core/WakeWordDetector.kt) falls back to Android's `SpeechRecognizer` (approximate, and it may use the network). |
 | `core/confirm.py` (real user confirmation for irreversible actions) | [`core/ConfirmManager.kt`](app/src/main/java/com/jarvis/android/core/ConfirmManager.kt) |
 | `core/undo.py` | [`core/UndoManager.kt`](app/src/main/java/com/jarvis/android/core/UndoManager.kt) |
 | `core/action_loader.py` + `plugins/` (runtime file auto-discovery) | [`actions/ToolRegistry.kt`](app/src/main/java/com/jarvis/android/actions/ToolRegistry.kt) — a compile-time list instead. Android can't safely load and execute arbitrary code dropped onto the device at runtime, so "one file, no core edits" survives as a Kotlin object implementing `Tool`, registered once in `ToolRegistry.ALL`. |
@@ -72,6 +71,22 @@ heard). In the text chat it does nothing. Not yet checked on a real spoken sessi
 
 The HUD also shows the conversation transcript (ephemeral, not stored) and lets you type
 a message into the running voice session.
+
+### Mark-LIII / Mark-LIV actions, one by one
+
+| Original (`actions/`) | Here |
+|---|---|
+| `browser_control`, `web_search`, `weather_report`, `flight_finder`, `youtube_video`, `open_app`, `code_helper`, `send_message`, `system_monitor`, `reminder` | the tools of the same name (`browser_control`, `web_search`, `weather_report`, `flight_search`, `youtube_video`, `open_app`, `code_helper`, `send_message`, `system_monitor`, `reminder`) |
+| `computer_settings` | `device_settings` (volume behind a confirmation, Wi-Fi and brightness panels) |
+| `file_controller`, `file_processor` | `file_manager` (one work folder you grant, with confirmations and undo) and `analyze_file` (attachments) |
+| `screen_processor` | `screen_look`, `vision_stream` (screen or camera shared with the live session), `take_photo` |
+| `proactive`, `background_monitor` | background checks (`proactive/`) and the `watch` tool (prices, a site up or down, battery temperature, free memory) |
+| `dev_agent` | `agent_task` (multi-step agent mode) and `code_helper`; not "create a project and run it on the machine" |
+| `computer_control`, `desktop` | no phone equivalent; the accessibility tools (`screen_read`, `screen_tap`, `screen_type`, `screen_scroll`, `screen_swipe`, `screen_navigate`) drive the phone the way those drive a PC |
+| `game_updater`, `dashboard` | none: not applicable to a phone |
+
+Added here and not in the original: `alarm`, `calendar`, `call_contact`, `notifications`, `routine`, `timer`, `liberty_music`, `meeting_notes`,
+`create_document`, `gmail`, `drive`, `watch`, `end_session`, `undo`, plus the widgets, the avatar, the taught wake word and the in-app update.
 
 ## Not ported — no Android equivalent
 
@@ -161,7 +176,7 @@ while listening.
 ### Phone control (accessibility service)
 
 Jarvis can operate any app like a person would: `screen_read` (numbered list of what is visible),
-`screen_tap` (by number or visible text), `screen_type`, `screen_scroll`, `screen_swipe` (left =
+`screen_tap` (by number or visible text), `screen_type`, `screen_scroll` (reads the screen itself, so it works when the model calls it straight away by voice; it tries every scrollable area that takes the movement, the largest first, and falls back to a finger swipe for web pages and custom views), `screen_swipe` (left =
 next photo or page) and `screen_navigate` (back, home, recents, notifications, quick settings).
 The model works in small steps: `open_app`, read, one action, read again to check. Android only
 allows this through an accessibility service, which **you must switch on yourself**: Settings →
@@ -225,6 +240,13 @@ by the `DUMP` permission so only adb can call it; it is not in the release build
   exchanges ends, Gemini writes a one- or two-sentence summary (kept on the device, three at most). At the
   first session of the day the assistant is asked to give a ~20 s briefing: the last summary and today's
   reminders. Given once a day; the summary is only consumed when the briefing was really requested.
+- **What Jarvis remembers after a session** (`memory/MemoryExtraction.kt`, `rest/RestChat.kt`). Until 0.4.4 it kept only what the model
+  explicitly saved with `remember_fact`. Now, when a session with at least two exchanges ends, one Gemini call reads the conversation and
+  returns a summary and the lasting facts the user gave about themselves (name, city, tastes, projects, people, wishes: at most 8, never a
+  password, a long number or a health detail), which are stored in the memory. The transcript is put aside first and dropped only once the
+  answer is stored, so a failed request or a killed app does not lose it: it is played again at the next start (a week, five conversations at
+  most). The last three summaries are part of the prompt. *Checked:* the parsing, the safeguards and the waiting queue by unit tests, the storage
+  across an app kill on the emulator. *Not checked:* the real Gemini answer (no key on the emulator), so how well the facts are chosen.
 - **Google search** (`rest/Grounding.kt`). `web_search` first asks Gemini with the Google Search tool and
   returns the answer with numbered sources; on any failure it falls back to DuckDuckGo as before.
 - **Audio device picker** (`core/AudioRoute.kt`). Choose the microphone and the output in the settings
@@ -490,8 +512,16 @@ It is an Android adaptation of the avatar of [Mark-LIV](https://github.com/Fatih
 work is licensed CC BY-NC 4.0: this avatar, and any app that includes it, may not be used commercially.** The head is a 3D head scan by Lee Perry-Smith (CC BY 3.0) and the face landmarks are MediaPipe's (Apache-2.0). Details and credits: `app/src/main/assets/avatar/NOTICE.txt`; the credit is
 also shown in the settings.
 
-- **Face.** Real measured face geometry (468 vertices) with a cranium and a neck built around it, run once through Mark-LIV's
-  generator and stored as a 64 KB asset (`head_mesh.bin`). Lit per facet, drawn on Android's canvas: no OpenGL, no extra library.
+- **Face.** A real 3D head scan (about 26,000 vertices once the eyes, the mouth and the hair are built), stored as an asset (`head_mesh.bin`, 1.9 MB)
+  by `tools/avatar/export_head.py`. Drawn on Android's canvas: no OpenGL, no extra library.
+- **Three faces** (Settings > Appearance > Visage). *Classique* is the original. *Léa* and *Marc* are **the same scan reshaped**, not other
+  people scanned: `export_head.py` bends the finished geometry with a smooth warp (a narrower jaw, a smaller nose, bigger eyes and higher cheekbones
+  for Léa; a wider square jaw, a heavier brow ridge, a bigger nose and smaller eyes for Marc), on every vertex so the eyes, the lids, the teeth and the
+  lips stay lined up, and gives each its own hair (`groom.py` styles: Léa's is dark auburn, wavy and shoulder length, Marc's short, dark and touched
+  with grey) and matching eyebrows. `JHM_FACE=lea python export_head.py …` rebuilds one (`head_mesh_lea.bin`, `head_mesh_marc.bin`). *Checked:* the three
+  draw and switch on the emulator, the original is byte for byte what it was, unit tests on the rig, the placement of the eyes and mouth, and the
+  differences between the faces. *Not checked:* the frame rate on a real phone (Léa has about a quarter more triangles than the original), and Léa's hair is
+  stylised and a little angular.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.
@@ -645,6 +675,10 @@ from the old encrypted preferences), because it works on the app's real files.
 
 ## Known gaps / next steps
 
-- The wake word and the video streaming have not been checked with a real voice or a real Live session.
+- Not yet checked on a real phone with a real voice: the built-in wake word, a phrase you taught (what the emulator could show is in "Teach a
+  wake word on the phone"), the meeting notes with a real Gemini answer, Gmail and Drive, the update flow on a Xiaomi (its own installer and
+  security scan), the live video, and what Jarvis keeps after a session with a real answer.
+- "Rules to keep" (« toujours répondre en français ») are not a feature of their own; the automatic memory keeps some of them as preferences.
+- Camera-based sport tracking (push-up counter, posture) was left out: heavy on the battery.
 - Desktop-only features (mouse/keyboard automation, game updaters, the remote dashboard) have no Android
   equivalent and are not planned.
