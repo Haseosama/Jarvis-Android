@@ -2,6 +2,7 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Dessin animé" to "Cartoon",
     "Le mode avion est activé : le SMS n’est pas parti." to "Airplane mode is on: the SMS was not sent.",
     "Pas de réseau mobile : le SMS n’est pas parti." to "No mobile network: the SMS was not sent.",
     "Le SMS est invalide : il n’est pas parti." to "The SMS is invalid: it was not sent.",

@@ -557,6 +557,14 @@ also shown in the settings.
   is a real human head scan ("Infinite, 3D Head Scan" by Lee Perry-Smith, CC BY 3.0) with ears, nose, lips, jaw and neck, rigged
   for the jaw, brows and lips by `tools/avatar/export_head.py` and stored in `head_mesh.bin`; the eyes and lips are placed with
   MediaPipe's face landmarks. The animation and lip-sync are Mark-LIV's.
+- **A cartoon character** (Settings > Appearance > Visage > *Dessin animé*, `avatar/CartoonAvatar.kt`). A fourth choice that is not a mesh: a soft 3D-cartoon
+  man (round face, curly dark hair, round glasses, beard, a broad smile, a hoodie), drawn on the canvas with paths and gradients, in the style of the
+  reference picture the user gave (a character, not a real person). It runs on the same animation as the scanned heads (`HoloAvatar`): the mouth opens and
+  spreads with the voice (lip-sync), the eyes blink and follow the gaze, the brows lift with the phrase, the lids lower when asleep, the head sways and the
+  features slide over it as it turns, the shoulders breathe. The skin tone and the lip colour of the settings apply; the hair and the beard are fixed.
+  *Checked* on the emulator: the drawing, the mouth moving from a small smile to wide open with the tongue over a synthetic voice, the lids for the sleeping
+  state, and unit tests on the pose it reads and its colours. *Not checked:* the frame rate on a real phone, and it is one character: there is no editor for
+  the hair, the glasses or the beard (they are in the code, `hairFront`, `drawGlasses`, `drawBeard`).
 - **Skin and lips.** Settings > Appearance > Peau: a skin tone (light by default; medium, tanned, dark) or the glowing web over the
   head, shaded per vertex, with dark brows and eyes with a white and an iris; Lèvres: natural (the skin tone pushed towards
   red, or the theme colour on the web), rose, red, plum or coral. Each lip is filled on its own, with a gloss line on the lower one.

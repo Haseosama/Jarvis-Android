@@ -7,13 +7,16 @@ import org.junit.Test
 import java.io.File
 
 class AvatarFacesTest {
+    /** The faces made of a mesh; the cartoon one is drawn and only borrows a file to build its animation. */
+    private val faces = AVATAR_FACES.filter { !it.cartoon }
+
     private val meshes: List<HeadMesh> by lazy {
-        AVATAR_FACES.map { HeadMesh.parse(File("src/main/assets/" + it.asset).readBytes()) }
+        faces.map { HeadMesh.parse(File("src/main/assets/" + it.asset).readBytes()) }
     }
 
     @Test fun `every face is a complete head with the same rig`() {
         for ((i, mesh) in meshes.withIndex()) {
-            val name = AVATAR_FACES[i].label
+            val name = faces[i].label
             assertEquals(name, mapOf("eye_l" to 16, "eye_r" to 16, "brow_l" to 5, "brow_r" to 5, "lips_out" to 20, "lips_in" to 20), mesh.landmarks.mapValues { it.value.size })
             assertEquals(name, 2, mesh.eyeCount.size)
             assertTrue(name, mesh.crown > mesh.bottom)
@@ -25,7 +28,7 @@ class AvatarFacesTest {
 
     @Test fun `the eyes and the mouth stay where a face has them`() {
         for ((i, mesh) in meshes.withIndex()) {
-            val name = AVATAR_FACES[i].label
+            val name = faces[i].label
             for (e in 0..1) {
                 val (x, y, z) = Triple(mesh.eyeCentre[3 * e], mesh.eyeCentre[3 * e + 1], mesh.eyeCentre[3 * e + 2])
                 assertTrue("$name eye $e y=$y", y in -0.2f..0.25f)
@@ -37,10 +40,10 @@ class AvatarFacesTest {
     }
 
     @Test fun `the faces are different heads`() {
-        assertEquals(AVATAR_FACES.size, meshes.map { it.vertexCount }.toSet().size)
+        assertEquals(faces.size, meshes.map { it.vertexCount }.toSet().size)
         // the nose sticks out by a different amount, the jaw is not the same width
         val noseTip = meshes.map { m -> (0 until m.vertexCount).maxOf { m.verts[3 * it + 2] } }
-        assertEquals(AVATAR_FACES.size, noseTip.map { "%.3f".format(it) }.toSet().size)
+        assertEquals(faces.size, noseTip.map { "%.3f".format(it) }.toSet().size)
         fun jawWidth(m: HeadMesh): Float {
             // the skin only: the hair of a long style hangs across this height
             val skin = HashSet<Int>()
@@ -61,6 +64,6 @@ class AvatarFacesTest {
 
     @Test fun `no face is heavier than a quarter more than the original`() {
         val base = meshes[0].faceCount
-        for ((i, mesh) in meshes.withIndex()) assertTrue("${AVATAR_FACES[i].label}: ${mesh.faceCount} faces against $base", mesh.faceCount <= base * 1.25)
+        for ((i, mesh) in meshes.withIndex()) assertTrue("${faces[i].label}: ${mesh.faceCount} faces against $base", mesh.faceCount <= base * 1.25)
     }
 }
