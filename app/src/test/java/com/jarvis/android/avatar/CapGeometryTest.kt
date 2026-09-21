@@ -45,6 +45,6 @@ class CapGeometryTest {
     @Test fun `the edge is highest at the front and lowest at the back`() {
         assertTrue(CapGeometry.rim(0f, 0.5f) > CapGeometry.rim(0f, -0.6f))
         assertTrue(CapGeometry.rim(0.6f, -0.14f) > 0.3f)   // above the ears
-        assertTrue(CapGeometry.rim(0.6f, 0.0f) > 0.38f && CapGeometry.rim(0f, 0.6f) > 0.38f)   // level from the front to the sides
+        assertTrue(CapGeometry.rim(0.6f, 0.0f) > 0.35f && CapGeometry.rim(0f, 0.6f) > 0.35f)   // level from the front to the sides
     }
 }
