@@ -2,6 +2,11 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Touchez pour ouvrir le PDF, ou partagez-le." to "Tap to open the PDF, or share it.",
+    "Touchez pour ouvrir le fichier, ou partagez-le." to "Tap to open the file, or share it.",
+    "Ouvrir avec" to "Open with",
+    "Texte" to "Text",
+    "Export impossible : {0}" to "Export failed: {0}",
     "Visage" to "Face",
     "Classique" to "Classic",
     "L’accès Google a expiré ou a été retiré (tant que l’écran de consentement est en mode test, Google le limite à environ une semaine) : l’utilisateur doit toucher « Reconnecter Google » dans les réglages de Jarvis." to "Google access has expired or was withdrawn (while the consent screen is in test mode, Google limits it to about a week): the user must tap \"Reconnect Google\" in Jarvis's settings.",

@@ -41,14 +41,23 @@ internal object DocumentStore {
         else -> "text/plain"
     }
 
+    /**
+     * The type to open or share a file with. Markdown is plain readable text, and "text/markdown" has no application on most phones (the
+     * file then simply does not open), so it goes out as "text/plain".
+     */
+    fun viewMimeFor(extension: String): String = if (extension.equals("md", ignoreCase = true)) "text/plain" else mimeFor(extension)
+
     /** A notification with buttons to open and to share [file]: starting an activity straight from a background service is not allowed. */
     fun notifyReady(context: Context, file: File, title: String, text: String, id: Int) {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, tr("Documents Jarvis"), NotificationManager.IMPORTANCE_DEFAULT))
         val uri = uriFor(context, file)
-        val mime = mimeFor(file.extension)
+        val mime = viewMimeFor(file.extension)
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        val viewIntent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        // With no application for this type, a plain intent does nothing, silently: the chooser at least says so and offers the sharing.
+        val view = if (context.packageManager.resolveActivity(viewIntent, 0) != null) viewIntent
+        else Intent.createChooser(viewIntent, tr("Ouvrir avec")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         val send = Intent.createChooser(
             Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri).putExtra(Intent.EXTRA_SUBJECT, file.nameWithoutExtension)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),

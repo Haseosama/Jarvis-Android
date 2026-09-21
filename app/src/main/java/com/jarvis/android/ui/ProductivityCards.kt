@@ -41,6 +41,8 @@ import com.jarvis.android.google.GoogleException
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
 import com.jarvis.android.meetings.MeetingRecorderService
+import com.jarvis.android.meetings.NoteFormat
+import com.jarvis.android.meetings.exportNote
 import com.jarvis.android.meetings.listNotes
 import com.jarvis.android.memory.ConfigStore
 import com.jarvis.android.update.AppUpdater
@@ -104,7 +106,17 @@ internal fun MeetingNotesCard() {
         for (note in notes.take(5)) {
             Text(note.title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { DocumentStore.notifyReady(context, note.file, trf("Notes : {0}", note.title), tr("Touchez pour les ouvrir, ou partagez-les."), 7405) }) { Text(tr("Ouvrir ou partager")) }
+                for ((format, label) in listOf(NoteFormat.PDF to "PDF", NoteFormat.DOCX to "Word", NoteFormat.TXT to "Texte")) {
+                    OutlinedButton(onClick = {
+                        message = try {
+                            val out = exportNote(context, note.file, format)
+                            DocumentStore.notifyReady(context, out, trf("Notes : {0}", note.title), tr("Touchez pour ouvrir le fichier, ou partagez-le."), 7405)
+                            null
+                        } catch (e: Exception) {
+                            trf("Export impossible : {0}", e.message ?: e.javaClass.simpleName)
+                        }
+                    }) { Text(if (format == NoteFormat.TXT) tr(label) else label) }
+                }
                 OutlinedButton(onClick = { note.file.delete(); tick++ }) { Text(tr("Supprimer")) }
             }
         }

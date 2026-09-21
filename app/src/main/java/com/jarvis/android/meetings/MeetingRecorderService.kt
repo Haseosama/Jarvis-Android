@@ -183,7 +183,9 @@ class MeetingRecorderService : Service() {
             val file = File(dir, noteFileName(LocalDateTime.now(), title))
             file.writeText(markdown)
             audio.delete()
-            DocumentStore.notifyReady(this, file, trf("Notes prêtes : {0}", title), tr("Touchez pour les ouvrir, ou partagez-les."), NOTIFICATION_ID + 1)
+            // the notification opens and shares a PDF: the Markdown file has no viewer on most phones
+            val pdf = try { exportNote(this, file, NoteFormat.PDF) } catch (_: Exception) { file }
+            DocumentStore.notifyReady(this, pdf, trf("Notes prêtes : {0}", title), tr("Touchez pour ouvrir le PDF, ou partagez-le."), NOTIFICATION_ID + 1)
         } catch (e: RestChatException) {
             fail(audio, e.message ?: "")
         } catch (e: java.io.IOException) {

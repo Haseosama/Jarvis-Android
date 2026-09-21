@@ -609,8 +609,11 @@ Google account or a Gemini key is said below.
 
 - **Meeting notes** (`meeting_notes`, Settings > Meeting notes). Records a meeting or a voice note (AAC, 32 kbit/s, an hour at most, as a microphone
   foreground service with a notification whose buttons finish or drop the recording), then sends the audio to Gemini, which writes a summary, key
-  points, decisions, actions and a transcript in Markdown. The notes are kept in the app (excluded from backups), announced by a notification with
-  Open and Share buttons; the audio is deleted once the notes are saved and kept if they could not be written ("Retry" in the notification and in the
+  points, decisions, actions and a transcript in Markdown. The notes are kept in the app (excluded from backups) as Markdown, but handed over as a
+  **PDF** (notification with Open and Share buttons; in the settings card also Word and plain text, written in Documents/Jarvis): the `.md` file
+  itself did not open on phones, because almost none has an application for `text/markdown` (checked on the emulator: "No activity found", against a
+  PDF viewer for `application/pdf`). Markdown documents from `create_document` now open as plain text for the same reason, and a file with no
+  application at all gets Android's "open with" chooser instead of doing nothing; the audio is deleted once the notes are saved and kept if they could not be written ("Retry" in the notification and in the
   settings). The microphone serves one use at a time, so starting from a voice session closes the session first (after a short spoken
   announcement) and the recorder starts the moment the microphone is free, while the voice service still allows a background start; if Android
   refuses anyway, a notification starts it with one tap. The wake word stops listening while a meeting is recorded. The button in the settings

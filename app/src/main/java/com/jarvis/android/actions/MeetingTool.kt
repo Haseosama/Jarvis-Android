@@ -8,6 +8,8 @@ import com.jarvis.android.docs.DocumentStore
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
 import com.jarvis.android.meetings.MeetingRecorderService
+import com.jarvis.android.meetings.NoteFormat
+import com.jarvis.android.meetings.exportNote
 import com.jarvis.android.meetings.findNote
 import com.jarvis.android.meetings.listNotes
 import kotlinx.serialization.json.JsonObject
@@ -71,8 +73,9 @@ object MeetingTool : Tool {
                 when (action) {
                     "read" -> "Notes « ${note.title} » :\n" + note.file.readText().take(MAX_NOTE_CHARS_READ)
                     "share" -> {
-                        DocumentStore.notifyReady(context, note.file, trf("Notes : {0}", note.title), tr("Touchez pour les ouvrir, ou partagez-les."), 7405)
-                        "Une notification permet d’ouvrir ou de partager les notes « ${note.title} »."
+                        val pdf = try { exportNote(context, note.file, NoteFormat.PDF) } catch (_: Exception) { note.file }
+                        DocumentStore.notifyReady(context, pdf, trf("Notes : {0}", note.title), tr("Touchez pour ouvrir le PDF, ou partagez-le."), 7405)
+                        "Une notification permet d’ouvrir ou de partager les notes « ${note.title} » en PDF."
                     }
                     else -> { note.file.delete(); "Notes « ${note.title} » supprimées." }
                 }
