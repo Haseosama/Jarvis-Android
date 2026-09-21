@@ -142,7 +142,7 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=6):
     thick = 0.010 + 0.016 * smoothstep(0.20, 0.60, hy)
     cap_p = Cp + Cn * (0.004 + smoothstep(0.0, 0.05, Cd) * thick)[:, None]
     sideness = 1.0 - smoothstep(0.05, 0.35, hz)
-    cover = (1.0 - sideness) + sideness * (0.75 + 0.25 * smoothstep(0.0, 0.32, hy))
+    cover = (1.0 - sideness) + sideness * (0.95 + 0.05 * smoothstep(0.0, 0.32, hy))
     cover = np.maximum(cover, smoothstep(0.34, 0.50, np.abs(hx)) * smoothstep(0.05, 0.22, hy))   # the sideburns are full
     cap_rgb = np.tile(np.array(st["cap"], dtype=float), (len(Cp), 1))
     cover = cover * (0.30 + 0.70 * smoothstep(0.0, 0.035, Cd))                       # the edge of the cap melts into the skin
@@ -220,7 +220,7 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=6):
     w_main = (tri_min > 0.035).astype(float) * (0.6 + 1.2 * smoothstep(0.30, 0.60, tri_c[:, 1]) * smoothstep(0.0, 0.40, tri_c[:, 2]))
     w_main = w_main * (1.0 + st["side_boost"] * (1.0 - smoothstep(0.10, 0.45, tri_c[:, 1])))                     # long hair: more locks at the sides and the back
     if st["ears_bare"]:
-        near_ear = smoothstep(1.0, 1.8, ear_distance(tri_c, x0))                 # no lock is rooted close to an ear
+        near_ear = smoothstep(1.0, 1.4, ear_distance(tri_c, x0))                 # no lock is rooted close to an ear
         w_main = w_main * near_ear
     mv, mn, mc, mf = make_locks(locks, w_main, 1.0, 1.0, 1.0)
     # the edge locks: short ones rooted exactly on the hairline, rising over the strip of cap above it, so the edge is made of hair
