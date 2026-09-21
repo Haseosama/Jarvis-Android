@@ -1,0 +1,7 @@
+{
+  "name": "station_spatiale",
+  "description": "Donne la position actuelle de la Station spatiale internationale : latitude, longitude, altitude en km, vitesse en km/h, et si elle est éclairée par le soleil ou dans l'ombre (source : wheretheiss.at). Pour « où est l'ISS ? ».",
+  "parameters": [],
+  "type": "http",
+  "url": "https://api.wheretheiss.at/v1/satellites/25544"
+}

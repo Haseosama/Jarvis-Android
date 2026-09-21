@@ -1,0 +1,13 @@
+{
+  "name": "cinema_seances",
+  "description": "Ouvre les séances de cinéma d'une ville dans Google. Pour « qu'est-ce qui passe au cinéma », « des séances ce soir ».",
+  "parameters": [
+    {
+      "name": "ville",
+      "description": "Ville",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.google.com/search?q=séances+cinéma+{ville}"
+}

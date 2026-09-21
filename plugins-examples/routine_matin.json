@@ -1,0 +1,33 @@
+{
+  "name": "routine_matin",
+  "description": "Prépare la journée : météo de la ville, événements du jour de l'agenda et rappels à venir. À utiliser pour « ma routine du matin », « prépare ma journée ».",
+  "parameters": [
+    {
+      "name": "ville",
+      "description": "Ville pour la météo (« ici » pour la position du téléphone)",
+      "required": true
+    }
+  ],
+  "type": "routine",
+  "steps": [
+    {
+      "tool": "weather_report",
+      "args": {
+        "city": "{ville}"
+      }
+    },
+    {
+      "tool": "calendar",
+      "args": {
+        "action": "list",
+        "days": "1"
+      }
+    },
+    {
+      "tool": "reminder",
+      "args": {
+        "mode": "list"
+      }
+    }
+  ]
+}

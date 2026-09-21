@@ -1,0 +1,13 @@
+{
+  "name": "resultats_sport",
+  "description": "Ouvre les résultats sportifs récents d'une équipe ou d'un joueur dans Google. Pour « quel est le score de… », « qui a gagné hier ».",
+  "parameters": [
+    {
+      "name": "equipe",
+      "description": "Équipe, joueur ou compétition",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.google.com/search?q=score+{equipe}"
+}

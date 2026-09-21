@@ -358,10 +358,16 @@ not real time, files only in the work folder). Something switched off is reporte
   position*); the position is used for that one request and never stored. Android may refuse location to an app that is
   not in front, so it is most reliable with Jarvis open; the tool then says how to fix it or asks for a city. Checked
   on an emulator (position → town → weather, named city unchanged); not on the real phone.
-- **Plugin catalogue.** Settings → *Plugins* lists 11 bundled plugins with an *Installer* button (crypto prices, exchange
-  rates, Wikipedia summary, public holidays, Maps search and directions, YouTube, translation, news, recipes, night and
-  meeting routines). Each is checked like an imported file, and the same files are in `plugins-examples/`.
-  Their web services (CoinGecko, Frankfurter, Wikipedia, Nager.Date) need no key and were called for real while writing them.
+- **Plugin catalogue.** Settings → *Plugins* lists 29 bundled plugins with an *Installer* button (only 20 can be installed at a time).
+  The first 16: crypto prices, exchange rates, Wikipedia summary, public holidays, Maps search and directions, YouTube, translation, news,
+  recipes, calendar event, night, meeting and car routines. Added later (13): the position of the International Space Station, a random
+  French Wikipedia article, sunrise and sunset, the phase of the moon, NASA's astronomy picture of the day (its explanation, in English), a
+  random quote (zenquotes.io, English), a random dish (themealdb.com, English), on-duty pharmacies near a place, Google Images, sports
+  results, cinema showtimes, a morning routine (weather, today's calendar, reminders) and a reading mode (brightness and volume).
+  Each is checked like an imported file, and the same files are in `plugins-examples/`. Their web services need no key and were called for
+  real while writing them; the seven web ones and both routines were also run through the app's own plugin runner on the emulator (the
+  brightness step of the reading mode stops at the system-settings permission, as the night routine does). Not tried: the tap on *Installer*
+  for the new ones on a phone, and the links opening in Google Maps and the browser on a real phone.
 - **Interface.** A hue-driven theme with tinted dark surfaces and a gradient background on every screen; a glowing arc
   reactor with rings that turn while the assistant is active and a core that swells with its voice; a state pill;
   chat bubbles (you on the right, Jarvis on the left); a rounded message bar with a send button; and a Settings page made of

@@ -1,0 +1,13 @@
+{
+  "name": "images_recherche",
+  "description": "Ouvre Google Images sur une recherche. Pour « montre-moi des photos de… », « à quoi ressemble… ».",
+  "parameters": [
+    {
+      "name": "recherche",
+      "description": "Ce qu'il faut chercher en images",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.google.com/search?tbm=isch&q={recherche}"
+}

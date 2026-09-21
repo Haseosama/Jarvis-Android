@@ -1,0 +1,13 @@
+{
+  "name": "lever_coucher_soleil",
+  "description": "Donne l'heure de lever et de coucher du soleil aujourd'hui, heure locale de la ville (source : wttr.in). Sans ville, le service se base sur l'adresse réseau du téléphone. Pour « à quelle heure se couche le soleil ».",
+  "parameters": [
+    {
+      "name": "ville",
+      "description": "Nom de la ville (facultatif)",
+      "required": false
+    }
+  ],
+  "type": "http",
+  "url": "https://wttr.in/{ville}?format=Lever+%25S,+coucher+%25s"
+}

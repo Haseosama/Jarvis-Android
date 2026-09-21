@@ -1,0 +1,13 @@
+{
+  "name": "pharmacie_garde",
+  "description": "Ouvre Google Maps sur les pharmacies de garde près d'un lieu. Pour « une pharmacie de garde », « pharmacie ouverte cette nuit ».",
+  "parameters": [
+    {
+      "name": "lieu",
+      "description": "Ville ou quartier (facultatif : sinon autour de la position)",
+      "required": false
+    }
+  ],
+  "type": "open",
+  "url": "https://www.google.com/maps/search/pharmacie+de+garde+{lieu}"
+}

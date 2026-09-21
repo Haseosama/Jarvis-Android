@@ -1,0 +1,8 @@
+{
+  "name": "wikipedia_hasard",
+  "description": "Lit le résumé d'un article de Wikipédia en français tiré au hasard. Pour « apprends-moi quelque chose », « raconte-moi un truc au hasard ».",
+  "parameters": [],
+  "type": "http",
+  "url": "https://fr.wikipedia.org/api/rest_v1/page/random/summary",
+  "result_path": "extract"
+}

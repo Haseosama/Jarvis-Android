@@ -1,0 +1,13 @@
+{
+  "name": "phase_lune",
+  "description": "Donne la phase de la lune aujourd'hui (un emoji) et le jour du cycle lunaire, de 0 à 29 (source : wttr.in). Pour « quelle est la phase de la lune ».",
+  "parameters": [
+    {
+      "name": "ville",
+      "description": "Nom de la ville (facultatif, la phase est la même partout)",
+      "required": false
+    }
+  ],
+  "type": "http",
+  "url": "https://wttr.in/{ville}?format=%25m+jour+%25M+du+cycle"
+}

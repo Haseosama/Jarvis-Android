@@ -1,0 +1,7 @@
+{
+  "name": "citation",
+  "description": "Donne une citation au hasard avec son auteur, en anglais (source : zenquotes.io). Pour « une citation », « motive-moi ».",
+  "parameters": [],
+  "type": "http",
+  "url": "https://zenquotes.io/api/random"
+}

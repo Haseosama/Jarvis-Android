@@ -1,0 +1,7 @@
+{
+  "name": "idee_repas",
+  "description": "Propose un plat au hasard : nom, catégorie, pays d'origine et début de la recette, en anglais (source : themealdb.com). Pour « qu'est-ce que je mange ce soir ? ».",
+  "parameters": [],
+  "type": "http",
+  "url": "https://www.themealdb.com/api/json/v1/1/random.php"
+}

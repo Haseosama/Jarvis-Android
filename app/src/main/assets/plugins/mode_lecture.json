@@ -1,0 +1,33 @@
+{
+  "name": "mode_lecture",
+  "description": "Prépare le téléphone pour lire : règle la luminosité puis le volume. À utiliser pour « mode lecture », « je vais lire ».",
+  "parameters": [
+    {
+      "name": "luminosite",
+      "description": "Luminosité en pourcentage (0 à 100)",
+      "required": true
+    },
+    {
+      "name": "volume",
+      "description": "Volume en pourcentage (0 à 100)",
+      "required": true
+    }
+  ],
+  "type": "routine",
+  "steps": [
+    {
+      "tool": "device_settings",
+      "args": {
+        "action": "set_brightness",
+        "value": "{luminosite}"
+      }
+    },
+    {
+      "tool": "device_settings",
+      "args": {
+        "action": "set_volume",
+        "value": "{volume}"
+      }
+    }
+  ]
+}
