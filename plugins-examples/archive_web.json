@@ -1,0 +1,14 @@
+{
+  "name": "archive_web",
+  "description": "Donne le lien vers la copie la plus proche d'un site dans la Wayback Machine d'Internet Archive. Pour « à quoi ressemblait ce site avant », « ce site a disparu ».",
+  "parameters": [
+    {
+      "name": "adresse",
+      "description": "Adresse du site, par exemple example.com",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://archive.org/wayback/available?url={adresse}",
+  "result_path": "archived_snapshots.closest.url"
+}

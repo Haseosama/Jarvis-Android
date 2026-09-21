@@ -1,0 +1,13 @@
+{
+  "name": "service_public",
+  "description": "Ouvre la recherche de service-public.fr sur une démarche ou un droit (carte d'identité, permis, carte grise, allocations…). Pour « comment faire ma carte d'identité ».",
+  "parameters": [
+    {
+      "name": "sujet",
+      "description": "La démarche ou le sujet",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.service-public.fr/particuliers/recherche?keyword={sujet}"
+}

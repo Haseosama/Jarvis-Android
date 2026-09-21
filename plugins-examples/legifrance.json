@@ -1,0 +1,13 @@
+{
+  "name": "legifrance",
+  "description": "Ouvre la recherche de Légifrance sur un texte de loi ou un sujet juridique. Pour « que dit la loi sur… ».",
+  "parameters": [
+    {
+      "name": "recherche",
+      "description": "Le sujet ou l'article",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.legifrance.gouv.fr/search/all?tab_selection=all&searchField=ALL&query={recherche}"
+}

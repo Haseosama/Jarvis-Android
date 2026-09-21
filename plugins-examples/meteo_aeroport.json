@@ -1,0 +1,13 @@
+{
+  "name": "meteo_aeroport",
+  "description": "Donne le dernier bulletin météo d'un aéroport au format METAR (source : aviationweather.gov) : à décoder et à expliquer (vent, visibilité, température, pression). Pour « le temps à l'aéroport de… », « la météo de Roissy ».",
+  "parameters": [
+    {
+      "name": "icao",
+      "description": "Code OACI de l'aéroport à 4 lettres : LFPG Paris-CDG, LFPO Orly, LFML Marseille, LFLL Lyon, LFBO Toulouse, LFMN Nice, EGLL Londres, KJFK New York",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://aviationweather.gov/api/data/metar?ids={icao}&format=raw"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "commune_france",
+  "description": "Donne les informations d'une commune française : code INSEE, codes postaux, population et département (source : geo.api.gouv.fr). Pour « combien d'habitants à… », « dans quel département est… ».",
+  "parameters": [
+    {
+      "name": "ville",
+      "description": "Nom de la commune",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://geo.api.gouv.fr/communes?nom={ville}&fields=nom,code,codesPostaux,population,departement&limit=1"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "classement_f1",
+  "description": "Donne le classement actuel du championnat de Formule 1 des pilotes : les 3 premiers avec points et victoires (source : Jolpica, successeur d'Ergast). Pour « qui mène en F1 ».",
+  "parameters": [],
+  "type": "http",
+  "url": "https://api.jolpi.ca/ergast/f1/current/driverStandings.json?limit=3"
+}

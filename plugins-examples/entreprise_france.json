@@ -1,0 +1,13 @@
+{
+  "name": "entreprise_france",
+  "description": "Retrouve une entreprise française par son nom : raison sociale, numéro SIREN, adresse du siège, activité (source : recherche-entreprises.api.gouv.fr). Donne la meilleure correspondance du nom : mieux vaut le nom complet. Pour « c'est quoi cette société », « le SIREN de… ».",
+  "parameters": [
+    {
+      "name": "nom",
+      "description": "Nom complet de l'entreprise",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://recherche-entreprises.api.gouv.fr/search?q={nom}&per_page=1"
+}

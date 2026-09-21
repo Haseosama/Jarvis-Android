@@ -1,0 +1,18 @@
+{
+  "name": "indicateur_pays",
+  "description": "Donne un indicateur statistique d'un pays, avec l'année de la donnée (source : Banque mondiale). Pour « combien d'habitants en… », « le PIB de… », « l'espérance de vie au… ».",
+  "parameters": [
+    {
+      "name": "pays",
+      "description": "Code pays à 2 lettres en minuscules : fr, de, us, jp, br, in, ma, sn…",
+      "required": true
+    },
+    {
+      "name": "indicateur",
+      "description": "SP.POP.TOTL population, NY.GDP.MKTP.CD PIB en dollars, SP.DYN.LE00.IN espérance de vie, SL.UEM.TOTL.ZS chômage en %, EN.ATM.CO2E.PC CO2 par habitant",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://api.worldbank.org/v2/country/{pays}/indicator/{indicateur}?format=json&per_page=1&mrnev=1"
+}

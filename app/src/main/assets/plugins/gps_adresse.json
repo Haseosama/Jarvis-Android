@@ -1,0 +1,14 @@
+{
+  "name": "gps_adresse",
+  "description": "Donne les coordonnées GPS d'une adresse postale ou d'une commune en France : longitude puis latitude (source : adresse.data.gouv.fr). Les monuments ne sont pas toujours reconnus : donner une adresse. Pour « quelles sont les coordonnées de… ».",
+  "parameters": [
+    {
+      "name": "recherche",
+      "description": "Adresse postale ou commune",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://api-adresse.data.gouv.fr/search/?q={recherche}&limit=1",
+  "result_path": "features.0.geometry.coordinates"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "vacances_scolaires",
+  "description": "Donne les 2 prochaines périodes de vacances scolaires d'une zone (A, B ou C), avec dates de début et de fin en UTC : en France, ajouter 1 h (hiver) ou 2 h (été) donne minuit local (source : data.education.gouv.fr). Pour « quand sont les prochaines vacances ».",
+  "parameters": [
+    {
+      "name": "zone",
+      "description": "Zone A, Zone B ou Zone C (écrire exactement ainsi)",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records?where=zones%3D%22{zone}%22%20AND%20end_date%3E%3Dnow()&order_by=start_date&limit=2&select=description,start_date,end_date"
+}

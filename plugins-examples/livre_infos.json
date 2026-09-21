@@ -1,0 +1,13 @@
+{
+  "name": "livre_infos",
+  "description": "Cherche un livre et donne jusqu'à 3 résultats avec auteur et année de première publication (source : Open Library). Pour « qui a écrit… », « en quelle année est sorti… ».",
+  "parameters": [
+    {
+      "name": "titre",
+      "description": "Titre ou mots du titre",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://openlibrary.org/search.json?q={titre}&limit=3&fields=title,author_name,first_publish_year"
+}

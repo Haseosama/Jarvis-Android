@@ -1,0 +1,14 @@
+{
+  "name": "code_postal_ville",
+  "description": "Donne le code postal d'une commune française (source : adresse.data.gouv.fr). Les grandes villes ont plusieurs codes : donne alors le principal. Pour « quel est le code postal de… ».",
+  "parameters": [
+    {
+      "name": "ville",
+      "description": "Nom de la commune",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://api-adresse.data.gouv.fr/search/?q={ville}&type=municipality&limit=1",
+  "result_path": "features.0.properties.postcode"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "adresse_france",
+  "description": "Retrouve une adresse postale en France avec son code postal et sa ville (source : Base Adresse Nationale, adresse.data.gouv.fr). Base d'adresses : les monuments et les commerces ne sont pas toujours reconnus, donner un numéro et une rue. Pour « c'est quel code postal au 10 rue de… ».",
+  "parameters": [
+    {
+      "name": "recherche",
+      "description": "Adresse, par exemple 10 rue de la paix Paris",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://api-adresse.data.gouv.fr/search/?q={recherche}&limit=1",
+  "result_path": "features.0.properties.label"
+}

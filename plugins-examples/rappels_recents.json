@@ -1,0 +1,7 @@
+{
+  "name": "rappels_recents",
+  "description": "Donne les 4 derniers rappels de produits de consommation en France : catégorie, marque, motif et date (source : RappelConso, data.economie.gouv.fr). Pour « y a-t-il des rappels de produits », « un produit dangereux ».",
+  "parameters": [],
+  "type": "http",
+  "url": "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/rappelconso-v2-gtin-espaces/records?limit=4&order_by=date_publication%20desc&select=categorie_produit,marque_produit,motif_rappel,date_publication"
+}

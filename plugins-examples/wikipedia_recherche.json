@@ -1,0 +1,13 @@
+{
+  "name": "wikipedia_recherche",
+  "description": "Cherche des articles de Wikipédia en français sur un sujet et donne les titres et les liens (source : Wikipédia). Pour « trouve un article sur… ».",
+  "parameters": [
+    {
+      "name": "sujet",
+      "description": "Le sujet",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://fr.wikipedia.org/w/api.php?action=opensearch&search={sujet}&limit=5&format=json"
+}

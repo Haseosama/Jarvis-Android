@@ -1,0 +1,13 @@
+{
+  "name": "infos_ville_monde",
+  "description": "Donne les informations d'une ville du monde : pays, latitude, longitude, altitude, fuseau horaire et population (source : Open-Meteo). Pour « où est… », « quel fuseau horaire à… », « combien d'habitants à… ».",
+  "parameters": [
+    {
+      "name": "ville",
+      "description": "Nom de la ville",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://geocoding-api.open-meteo.com/v1/search?name={ville}&count=1&language=fr"
+}

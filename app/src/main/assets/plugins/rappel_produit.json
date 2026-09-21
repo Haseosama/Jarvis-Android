@@ -1,0 +1,13 @@
+{
+  "name": "rappel_produit",
+  "description": "Cherche si un produit ou une marque a fait l'objet d'un rappel en France (source : RappelConso) : marque, motif, date. Pour « est-ce que le fromage X est rappelé ».",
+  "parameters": [
+    {
+      "name": "terme",
+      "description": "Nom du produit ou de la marque",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/rappelconso-v2-gtin-espaces/records?where=%22{terme}%22&limit=3&order_by=date_publication%20desc&select=marque_produit,motif_rappel,date_publication"
+}
