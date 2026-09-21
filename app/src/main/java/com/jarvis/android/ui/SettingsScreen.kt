@@ -794,6 +794,33 @@ fun SettingsScreen(
                     modifier = Modifier.padding(top = 8.dp),
                 ) { Text(tr("Effacer l’historique")) }
             }
+            val keepTranscripts by configStore.keepSessionTranscripts.collectAsState(initial = true)
+            var keptCount by remember { mutableStateOf(0) }
+            androidx.compose.runtime.LaunchedEffect(keepTranscripts) {
+                keptCount = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    (context0.applicationContext as com.jarvis.android.JarvisApp).container.sessionTranscripts.list().size
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text(
+                    tr("Garder les échanges des sessions vocales (ce qui est dit) : ils s’affichent sur l’écran principal et sont rappelés à Jarvis au début de la session suivante, pour qu’il reprenne le fil. Fichier privé sur le téléphone, non chiffré ; les 30 dernières sessions, 90 jours au plus."),
+                    style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
+                )
+                Switch(checked = keepTranscripts, onCheckedChange = { scope.launch { configStore.setKeepSessionTranscripts(it) } })
+            }
+            Text(trf("{0} session(s) conservée(s).", keptCount), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+            OutlinedButton(
+                onClick = {
+                    scope.launch {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            (context0.applicationContext as com.jarvis.android.JarvisApp).container.sessionTranscripts.clear()
+                        }
+                        keptCount = 0
+                    }
+                },
+                enabled = keptCount > 0,
+                modifier = Modifier.padding(top = 4.dp),
+            ) { Text(tr("Effacer les échanges conservés")) }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
                 Text(
                     tr("Garder le chat texte entre deux ouvertures de l’appli (fichier privé sur le téléphone, non chiffré). « Nouvelle conversation » l’efface."),

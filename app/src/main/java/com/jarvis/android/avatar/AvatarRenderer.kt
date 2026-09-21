@@ -578,7 +578,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         linePaint.strokeCap = Paint.Cap.BUTT
     }
 
-    private val padBuf = FloatArray(4_000)
+    private val padBuf = FloatArray(12_000)
 
     private fun smooth01(e0: Float, e1: Float, x: Float): Float {
         val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f)

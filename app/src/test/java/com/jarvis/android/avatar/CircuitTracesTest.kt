@@ -10,7 +10,7 @@ class CircuitTracesTest {
 
     @Test fun `there are tracks, all well formed`() {
         val c = CircuitTraces(mesh)
-        assertTrue("tracks: ${c.trackCount}", c.trackCount in 20..500)
+        assertTrue("tracks: ${c.trackCount}", c.trackCount in 40..1500)
         assertTrue(c.count > 100)
         assertEquals(c.count, c.wu.size); assertEquals(c.count, c.fade.size)
         for (i in 0 until c.count) {

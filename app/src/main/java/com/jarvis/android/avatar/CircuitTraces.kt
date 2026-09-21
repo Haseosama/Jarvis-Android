@@ -94,7 +94,7 @@ internal class CircuitTraces(mesh: HeadMesh) {
         }
 
         // the tracks: walks on a lattice, each step one lattice unit along one of eight directions
-        val pitch = 0.05f
+        val pitch = 0.042f
         val dirs = arrayOf(intArrayOf(1, 0), intArrayOf(1, 1), intArrayOf(0, 1), intArrayOf(-1, 1), intArrayOf(-1, 0), intArrayOf(-1, -1), intArrayOf(0, -1), intArrayOf(1, -1))
         val rnd = Random(2026)
         val taken = HashSet<Long>()
@@ -110,11 +110,11 @@ internal class CircuitTraces(mesh: HeadMesh) {
             return true
         }
 
-        for (attempt in 0 until 900) {
-            val sx = rnd.nextInt(-17, 18); val sy = rnd.nextInt(-19, 17)
+        for (attempt in 0 until 3200) {
+            val sx = rnd.nextInt(-21, 22); val sy = rnd.nextInt(-23, 20)
             if (!free(sx, sy) || !locate(sx * pitch, sy * pitch)) continue
             var dir = rnd.nextInt(8)
-            val target = rnd.nextInt(7, 24)
+            val target = rnd.nextInt(8, 30)
             val cells = ArrayList<IntArray>()
             cells += intArrayOf(sx, sy)
             var cx = sx; var cy = sy

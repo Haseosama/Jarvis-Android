@@ -175,6 +175,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_MESSAGE_AUTO_SEND = booleanPreferencesKey("message_auto_send")
     private val KEY_CAR_AUDIO = intPreferencesKey("car_audio_mode")
     private val KEY_OFFLINE_MODE = intPreferencesKey("offline_mode")
+    private val KEY_KEEP_TRANSCRIPTS = booleanPreferencesKey("keep_session_transcripts")
     private val KEY_AVATAR_MODEL = intPreferencesKey("avatar_face_model")
     private val KEY_AVATAR_LIPS = intPreferencesKey("avatar_lip_colour")
     private val KEY_AVATAR_CAP = intPreferencesKey("avatar_cap")
@@ -218,6 +219,8 @@ class ConfigStore(private val context: Context) {
     val carAudioMode: Flow<Int> = context.dataStore.data.map { it[KEY_CAR_AUDIO] ?: 0 }
     /** Offline mode: 0 = automatic (when there is no network or Gemini cannot be reached), 1 = always, 2 = never. */
     val offlineMode: Flow<Int> = context.dataStore.data.map { it[KEY_OFFLINE_MODE] ?: 0 }
+    /** Keeps what was said in the voice sessions (shown on the main screen, and recalled to the model at the next session). On by default. */
+    val keepSessionTranscripts: Flow<Boolean> = context.dataStore.data.map { it[KEY_KEEP_TRANSCRIPTS] ?: true }
     val messageAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_MESSAGE_AUTO_SEND] ?: false }
     val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 5 }   // the hologram over the skin, unless the user chose another look
     /** 0 = natural, 1..4 = a lip colour (rose, red, plum, coral). */
@@ -249,6 +252,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setGoogleConnected(v: Boolean) = context.dataStore.edit { it[KEY_GOOGLE] = v }
     suspend fun setAvatarFace(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_FACE] = v }
     suspend fun setAvatarModel(v: Int) = context.dataStore.edit { it[KEY_AVATAR_MODEL] = v }
+    suspend fun setKeepSessionTranscripts(v: Boolean) = context.dataStore.edit { it[KEY_KEEP_TRANSCRIPTS] = v }
     suspend fun setOfflineMode(v: Int) = context.dataStore.edit { it[KEY_OFFLINE_MODE] = v }
     suspend fun setCarAudioMode(v: Int) = context.dataStore.edit { it[KEY_CAR_AUDIO] = v }
     suspend fun setMessageAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_MESSAGE_AUTO_SEND] = v }

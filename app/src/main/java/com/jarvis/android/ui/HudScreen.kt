@@ -94,6 +94,9 @@ internal fun HudScreen(
     sessionReady: Boolean = false,
     onSendText: suspend (String) -> Boolean = { false },
     avatar: com.jarvis.android.avatar.AvatarController? = null,
+    /** The last kept session, shown while no session is running, with its date. */
+    previousSession: List<ConversationMessage> = emptyList(),
+    previousLabel: String = "",
 ) {
     var draft by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
@@ -200,11 +203,17 @@ internal fun HudScreen(
                     if (conversation.isEmpty()) {
                         item {
                             Text(
-                                tr("Les échanges de la session apparaîtront ici. Ils ne sont pas conservés."),
+                                tr(if (previousSession.isEmpty()) "Les échanges de la session apparaîtront ici. Ils sont conservés sur le téléphone (Paramètres > Historique des sessions)." else "Dernière session"),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = 12.dp),
                             )
+                        }
+                        if (previousSession.isNotEmpty()) {
+                            item {
+                                Text(previousLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
+                            }
+                            items(previousSession) { message -> MessageBubble(message, modifier = Modifier.graphicsLayer { alpha = 0.62f }) }
                         }
                     }
                     items(conversation) { message -> MessageBubble(message) }

@@ -2,6 +2,11 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Les échanges de la session apparaîtront ici. Ils sont conservés sur le téléphone (Paramètres > Historique des sessions)." to "The session's exchanges will appear here. They are kept on the phone (Settings > Session history).",
+    "Dernière session" to "Last session",
+    "Garder les échanges des sessions vocales (ce qui est dit) : ils s’affichent sur l’écran principal et sont rappelés à Jarvis au début de la session suivante, pour qu’il reprenne le fil. Fichier privé sur le téléphone, non chiffré ; les 30 dernières sessions, 90 jours au plus." to "Keep the exchanges of the voice sessions (what is said): they are shown on the main screen and recalled to Jarvis at the start of the next session, so that it can pick up the thread. Private file on the phone, not encrypted; the last 30 sessions, 90 days at most.",
+    "{0} session(s) conservée(s)." to "{0} session(s) kept.",
+    "Effacer les échanges conservés" to "Erase the kept exchanges",
     "Gris-vert emblème" to "Grey-green, emblem",
     "Casquette" to "Cap",
     "Aucune" to "None",
@@ -456,7 +461,6 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Les 30 dernières sessions vocales, avec ce qui les a lancées (mot d’activation ou bouton de l’appli). Gardé sur l’appareil seulement." to "The last 30 voice sessions, with what started them (wake word or the app button). Kept on the device only.",
     "Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et tout ce qui touche aux réglages système demandent votre confirmation dans une notification. " to "Sensitive actions (send, pay, delete, install, allow) and anything touching system settings ask for your confirmation in a notification. ",
     "Les phrases proposées sont celles fournies par openWakeWord (téléchargées à la demande, environ 200 Ko chacune). Une autre phrase, comme « Debout Jarvis », demande un modèle entraîné exprès : entraînez-le avec le carnet « automatic_model_training » d’openWakeWord (github.com/dscripka/openWakeWord), puis importez le fichier .tflite avec « Mon modèle ». Je n’ai pas pu entraîner ni tester un tel modèle ici. Actuellement : {0}." to "The phrases offered are those supplied by openWakeWord (downloaded on demand, about 200 KB each). Another phrase, such as « Debout Jarvis », needs a purpose-trained model: train it with openWakeWord's « automatic_model_training » notebook (github.com/dscripka/openWakeWord), then import the .tflite file with « My model ». I could not train or test such a model here. Currently: {0}.",
-    "Les échanges de la session apparaîtront ici. Ils ne sont pas conservés." to "The session's exchanges will appear here. They are not kept.",
     "Liste des modèles indisponible (HTTP {0}). Vérifiez la clé et réessayez plus tard." to "Model list unavailable (HTTP {0}). Check the key and try again later.",
     "Liste des modèles indisponible : connexion impossible ou délai dépassé." to "Model list unavailable: connection impossible or timed out.",
     "Liste des modèles indisponible : réponse inexploitable ou clé inaccessible." to "Model list unavailable: unusable response or key not accessible.",

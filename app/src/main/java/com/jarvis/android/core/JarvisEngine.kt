@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -157,6 +158,8 @@ class JarvisEngine(
     private var client: GeminiLiveClient? = null
     private var sessionJob: Job? = null
     private var lastActivityAt = 0L
+    /** The time the running session started: the name under which its exchanges are kept. */
+    @Volatile private var sessionId = 0L
     private val endOfSession = EndOfSession()
     /** Runs once, when a requested end of session is done and the microphone is free (see [requestEndSession]). */
     @Volatile private var afterSession: (() -> Unit)? = null
@@ -179,6 +182,16 @@ class JarvisEngine(
             // The first value is the initial state at start-up: it says nothing about a session that a
             // killed process left unfinished, which correctly stays "en cours ou interrompue".
             state.drop(1).collect { if (it == JarvisState.ASLEEP || it == JarvisState.ERROR) container.sessionLog.ended() }
+        }
+        // What is said is kept as the session goes (a short while after each message), so a killed process loses little.
+        @OptIn(kotlinx.coroutines.FlowPreview::class)
+        scope.launch {
+            _conversation.debounce(1_200).collect { messages ->
+                val id = sessionId
+                if (id != 0L && messages.isNotEmpty() && container.configStore.keepSessionTranscripts.first()) {
+                    withContext(Dispatchers.IO) { container.sessionTranscripts.upsert(id, messages) }
+                }
+            }
         }
         scope.launch {
             container.configStore.wakeSensitivity.collect { wakeThreshold = com.jarvis.android.wake.wakeThresholdFor(it) }
@@ -399,6 +412,7 @@ class JarvisEngine(
         if (sessionJob?.isActive == true) return
         endOfSession.reset()
         container.sessionLog.started(trigger)
+        sessionId = System.currentTimeMillis()
         log(trf("Session lancée par : {0}.", trigger.label))
         sessionJob?.join()
         _conversation.value = emptyList()
@@ -417,6 +431,11 @@ class JarvisEngine(
         _videoSource.value = VideoSource.OFF
         container.agent.cancel()
         val finished = _conversation.value
+        val endedId = sessionId
+        if (endedId != 0L && finished.isNotEmpty() && container.configStore.keepSessionTranscripts.first()) {
+            withContext(Dispatchers.IO) { container.sessionTranscripts.upsert(endedId, finished) }
+        }
+        sessionId = 0L
         if (worthSummarizing(finished)) scope.launch(Dispatchers.IO) { summarizeSession(finished) }
         _sessionReady.value = false
         pendingAnnouncements.clear()

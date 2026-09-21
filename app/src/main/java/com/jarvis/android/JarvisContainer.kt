@@ -95,6 +95,9 @@ class JarvisContainer(val appContext: Context) {
 
     internal val sessionLog = com.jarvis.android.core.SessionLog(java.io.File(appContext.noBackupFilesDir, "session_log.json"))
 
+    /** What was said in the voice sessions, kept on the phone (see SessionTranscripts.kt). */
+    internal val sessionTranscripts = com.jarvis.android.memory.SessionTranscripts(java.io.File(appContext.filesDir, "session_transcripts.json"))
+
     internal val wakeModel = com.jarvis.android.wake.WakeModelManager(appContext, http)
 
     internal val agent: com.jarvis.android.agent.AgentRunner by lazy { com.jarvis.android.agent.AgentRunner(this, appScope) }

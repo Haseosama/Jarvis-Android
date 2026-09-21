@@ -2,6 +2,7 @@ package com.jarvis.android
 
 import android.Manifest
 import android.content.Intent
+import kotlinx.coroutines.flow.first
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -155,8 +156,16 @@ class MainActivity : ComponentActivity() {
                         val outputLevel by container.engine.outputLevel.collectAsState()
                         val confirm by container.confirmManager.pending.collectAsState()
                         val faceOn by container.configStore.avatarFace.collectAsState(initial = true)
+                        // the last kept session, read again whenever a session begins or ends
+                        val previous by androidx.compose.runtime.produceState<com.jarvis.android.memory.SavedSession?>(null, state, conversation.isEmpty()) {
+                            value = if (conversation.isEmpty() && container.configStore.keepSessionTranscripts.first()) {
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { container.sessionTranscripts.latest() }
+                            } else null
+                        }
 
                         HudScreen(
+                            previousSession = previous?.let { com.jarvis.android.memory.toMessages(it) } ?: emptyList(),
+                            previousLabel = previous?.let { java.text.SimpleDateFormat("d MMM yyyy, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it.id)) } ?: "",
                             avatar = if (faceOn) container.avatar else null,
                             state = state,
                             activityLog = log,

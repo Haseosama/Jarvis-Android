@@ -17,6 +17,7 @@ internal suspend fun buildSystemInstruction(container: JarvisContainer, textMode
     val assistantName = container.configStore.snapshotAssistantName()
     val userName = container.configStore.snapshotUserName()
     val memoryBlock = container.memoryManager.formatForPrompt()
+    val recentExchanges = if (container.configStore.keepSessionTranscripts.first()) container.sessionTranscripts.promptBlock() else ""
     val base = readPromptAsset(container, "system_prompt.txt")
 
     val now = SimpleDateFormat("EEEE, MMMM d, yyyy — hh:mm a", Locale.getDefault()).format(Date())
@@ -29,7 +30,7 @@ internal suspend fun buildSystemInstruction(container: JarvisContainer, textMode
     val modeCtx = if (textMode) TEXT_MODE_DIRECTIVE else ""
     val selfCtx = buildSelfKnowledge(collectSelfKnowledge(container, assistantName))
     val briefingCtx = if (textMode) "" else container.briefing.prepare()
-    return listOf(buildLanguageDirective(if (com.jarvis.android.i18n.Lang.isEnglish) "English" else "French (France)"), modeCtx, timeCtx, identityCtx, selfCtx, memoryBlock, briefingCtx, base)
+    return listOf(buildLanguageDirective(if (com.jarvis.android.i18n.Lang.isEnglish) "English" else "French (France)"), modeCtx, timeCtx, identityCtx, selfCtx, memoryBlock, recentExchanges, briefingCtx, base)
         .filter { it.isNotBlank() }
         .joinToString("\n")
 }
