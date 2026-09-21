@@ -82,6 +82,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     /** The hologram over the skin: a skin tone, tinted by the light of the web, with the web drawn over it, and no hair. */
     var holo = false
 
+    /** With the hologram look, the hair: a dark mass under fibres of light (see FiberHair.kt). */
+    var holoHair = false
+
     /** Fine strands drawn over the hair (see drawFibres); off for long hair, which hangs in front of the face. */
     var fibreOverlay = true
 
@@ -147,6 +150,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             drawSurface(nc, visible)
             drawWeb(nc, n, amp, primary, strokePx, avatar.time)
             if (holo) drawCircuits(nc, n, amp, primary, bg, strokePx, avatar.time)
+            if (holoHair) fibres3.draw(nc, xs, ys, n, primary, 0xFFFFB640.toInt(), avatar.time, strokePx, linePaint)
             if (fibreOverlay) drawFibres(nc, v, n, strokePx, r)
         }
         drawFeatures(scope, avatar, r, primary, accent, bg, amp, strokePx)
@@ -186,7 +190,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val fres = Math.pow((1f - nz).coerceIn(0f, 2f).toDouble(), 1.7).toFloat()
             val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
             var bright = 0.26f + 0.20f * fres + 0.66f * Math.pow(lam.toDouble(), 1.05).toFloat()
-            if ((skin == 0 || holo) && mesh.faceGroup[t] > 1.5f) continue // the hair belongs to the skin looks, not to the web or the hologram
+            if ((skin == 0 || (holo && !holoHair)) && mesh.faceGroup[t] > 1.5f) continue // the hair belongs to the skin looks, not to the web or the hologram
             val fadeAvg = (fade[a] + fade[b] + fade[c]) / 3f
             val cutoff = if (skin > 0) 0.15f else 0.4f
             if (fadeAvg < cutoff) continue // the far end of the neck is left out: it would end on a ragged cut
@@ -230,7 +234,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             // a sheen where the surface faces the light: the half vector of the key light
             val spec = Math.pow((vx * -0.22f + vy * 0.28f + vz * 0.93f).coerceIn(0f, 1f).toDouble(), 12.0).toFloat()
             val sheen = (spec * 50f).toInt()
-            val hair = argb(255, (((hairLit shr 16) and 0xFF) + sheen).coerceAtMost(255), (((hairLit shr 8) and 0xFF) + sheen).coerceAtMost(255), ((hairLit and 0xFF) + (sheen * 0.9f).toInt()).coerceAtMost(255))
+            var hair = argb(255, (((hairLit shr 16) and 0xFF) + sheen).coerceAtMost(255), (((hairLit shr 8) and 0xFF) + sheen).coerceAtMost(255), ((hairLit and 0xFF) + (sheen * 0.9f).toInt()).coerceAtMost(255))
+            if (holoHair) hair = lit(0xFF0D1B2B.toInt(), 0.55f + 0.9f * vlam)
             if (cover > 0.995f) return hair
             val skinRgb = 0xFF000000.toInt() or SKIN_TONES[skin - 1]
             val ks = (0.30f + 0.85f * vlam + 0.10f * vz.coerceIn(0f, 1f)).coerceIn(0.15f, 1.15f) * (0.94f + 0.12f * amp)
@@ -503,6 +508,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     }
 
     private val circuits by lazy { CircuitTraces(mesh) }
+    private val fibres3 by lazy { FiberHair(mesh) }
     private var cx = FloatArray(0); private var cy = FloatArray(0); private var cz = FloatArray(0)
     private val circuitLines = Array(3) { FloatArray(0) }
     private val circuitLineCounts = IntArray(3)
