@@ -21,6 +21,7 @@ import kotlin.math.sqrt
 
 /** Camera distance in head-half-heights: far enough that the nose does not balloon, near enough to keep some depth. */
 private const val CAM_D = 4.6f
+private val CAP_COLOURS = intArrayOf(0, 0xFF1C1E24.toInt(), 0xFF23508F.toInt(), 0xFFB3282F.toInt(), 0xFFE9E9EE.toInt(), 0xFF3F5B3B.toInt())
 private const val BUCKETS = 4
 private const val MIN_ALPHA = 0.05f
 private const val LUT_N = 192
@@ -150,7 +151,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             drawSurface(nc, visible)
             drawWeb(nc, n, amp, primary, strokePx, avatar.time)
             if (holo) drawCircuits(nc, n, amp, primary, bg, strokePx, avatar.time)
-            if (holoHair) fibres3.draw(nc, xs, ys, n, primary, 0xFFFFB640.toInt(), avatar.time, strokePx, linePaint)
+            if (holoHair) fibres3.draw(nc, xs, ys, n, primary, 0xFFFFB640.toInt(), avatar.time, strokePx, linePaint, if (cap > 0) capGeo.hiddenLock else null)
+            if (cap > 0) drawCap(nc, v, n, cx, cy, r, strokePx)
             if (fibreOverlay) drawFibres(nc, v, n, strokePx, r)
         }
         drawFeatures(scope, avatar, r, primary, accent, bg, amp, strokePx)
@@ -190,6 +192,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val fres = Math.pow((1f - nz).coerceIn(0f, 2f).toDouble(), 1.7).toFloat()
             val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
             var bright = 0.26f + 0.20f * fres + 0.66f * Math.pow(lam.toDouble(), 1.05).toFloat()
+            if (cap > 0 && capGeo.hiddenFace[t]) continue
             if ((skin == 0 || (holo && !holoHair)) && mesh.faceGroup[t] > 1.5f) continue // the hair belongs to the skin looks, not to the web or the hologram
             val fadeAvg = (fade[a] + fade[b] + fade[c]) / 3f
             val cutoff = if (skin > 0) 0.15f else 0.4f
@@ -423,6 +426,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             for (l in 0 until locks) {
                 val base = mesh.lockFirst + l * 3 * rows
                 if (nrm[3 * (base + 1) + 2] < 0.10f) continue           // the root faces away
+                if (cap > 0 && capGeo.hiddenLock[l]) continue
                 val lockHash = (l * -1640531535)
                 val lockFreq = 1.2f + 1.6f * ((lockHash ushr 8) and 0xFF) / 255f
                 val lockPhase = ((lockHash ushr 16) and 0xFF) / 255f * 6.2832f
@@ -462,6 +466,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         for (l in 0 until locks) {
             val base = mesh.lockFirst + l * 3 * rows
             if (nrm[3 * (base + 1) + 2] < 0.10f) continue
+            if (cap > 0 && capGeo.hiddenLock[l]) continue
             val lockHash = (l * -1640531535)
             val strands = 1 + ((lockHash ushr 8) and 1)
             for (sIdx in 1 until rows - 1) {
@@ -578,6 +583,159 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private fun smooth01(e0: Float, e1: Float, x: Float): Float {
         val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f)
         return t * t * (3f - 2f * t)
+    }
+
+    // ── the cap ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+    /** 0 = no cap, 1..5 = black, blue, red, white, khaki. */
+    var cap = 0
+
+    private val capGeo by lazy { CapGeometry(mesh) }
+    private var capX = FloatArray(0); private var capY = FloatArray(0); private var capP = FloatArray(0)
+    private var capNz = FloatArray(0); private var capCol = IntArray(0)
+    private var capTriPos = FloatArray(0); private var capTriCol = IntArray(0)
+    private val capPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
+    private val capLine = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
+    private val capPath = android.graphics.Path()
+    private val capSeams: IntArray by lazy {
+        // six seams: the rim points closest to six directions seen from above
+        val g = capGeo
+        val v = mesh.verts
+        val out = IntArray(6) { -1 }
+        for (k in 0 until 6) {
+            val target = k * Math.PI / 3.0
+            var best = -1; var bestD = 1e9
+            for (j in g.verts.indices) {
+                if (g.lift[j] <= CapGeometry.BAND - 0.035f) continue
+                val i = g.verts[j]
+                val ang = Math.atan2((v[3 * i] - g.midX).toDouble(), (v[3 * i + 2] + 0.10f).toDouble())
+                var d = Math.abs(ang - target); if (d > Math.PI) d = 2 * Math.PI - d
+                if (d < bestD) { bestD = d; best = j }
+            }
+            out[k] = best
+        }
+        out
+    }
+
+    private fun capShade(base: Int, k: Float): Int {
+        val kk = k.coerceIn(0f, 1.4f)
+        return argb(255, (((base shr 16) and 0xFF) * kk).toInt().coerceIn(0, 255), (((base shr 8) and 0xFF) * kk).toInt().coerceIn(0, 255), ((base and 0xFF) * kk).toInt().coerceIn(0, 255))
+    }
+
+    /**
+     * The cap, built from the posed head: the dome (the skin of the top of the head pushed out along the normals, only what faces the
+     * viewer: it is convex, so no sorting is needed), then the visor, the seams and the button.
+     */
+    private fun drawCap(nc: Canvas, v: FloatArray, nrm: FloatArray, cx: Float, cy: Float, r: Float, strokePx: Float) {
+        val g = capGeo
+        val base = CAP_COLOURS[cap.coerceIn(1, CAP_COLOURS.lastIndex)]
+        val n = g.verts.size
+        if (n == 0) return
+        if (capX.size != n) {
+            capX = FloatArray(n); capY = FloatArray(n); capP = FloatArray(3 * n); capNz = FloatArray(n); capCol = IntArray(n)
+            capTriPos = FloatArray(g.tris.size * 2); capTriCol = IntArray(g.tris.size)
+        }
+        for (j in 0 until n) {
+            val i = g.verts[j]
+            val px = v[3 * i] + nrm[3 * i] * CapGeometry.OFFSET
+            val py = v[3 * i + 1] + nrm[3 * i + 1] * CapGeometry.OFFSET + g.lift[j]
+            val pz = v[3 * i + 2] + nrm[3 * i + 2] * CapGeometry.OFFSET
+            capP[3 * j] = px; capP[3 * j + 1] = py; capP[3 * j + 2] = pz
+            val w = max(CAM_D - pz, 0.35f); val k = CAM_D / w * r
+            capX[j] = cx + px * k; capY[j] = cy - py * k
+            val nx = nrm[3 * i]; val ny = nrm[3 * i + 1]; val nz = nrm[3 * i + 2]
+            capNz[j] = nz
+            val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
+            capCol[j] = capShade(base, 0.30f + 0.90f * lam + 0.08f * (1f - nz.coerceIn(0f, 1f)))
+        }
+        var tcount = 0
+        var p = 0; var c = 0
+        for (t in 0 until g.tris.size / 3) {
+            val a = g.tris[3 * t]; val b = g.tris[3 * t + 1]; val d = g.tris[3 * t + 2]
+            if ((capNz[a] + capNz[b] + capNz[d]) / 3f < -0.02f) continue
+            capTriPos[p++] = capX[a]; capTriPos[p++] = capY[a]; capTriCol[c++] = capCol[a]
+            capTriPos[p++] = capX[b]; capTriPos[p++] = capY[b]; capTriCol[c++] = capCol[b]
+            capTriPos[p++] = capX[d]; capTriPos[p++] = capY[d]; capTriCol[c++] = capCol[d]
+            tcount++
+        }
+        if (tcount > 0) fillTriangles(nc, capTriPos, capTriCol, tcount, capPaint)
+
+        // the seams (quadratic curves from the button to the edge) and the button
+        val top = g.top
+        capLine.style = Paint.Style.STROKE
+        capLine.strokeWidth = max(1f, strokePx * 0.7f)
+        capLine.color = withAlpha(capShade(base, 0.45f), 150f)
+        for (e in capSeams) {
+            if (e < 0 || capNz[e] < 0.40f) continue
+            val mx = 0.5f * (capP[3 * top] + capP[3 * e]); val my = 0.5f * (capP[3 * top + 1] + capP[3 * e + 1]); val mz = 0.5f * (capP[3 * top + 2] + capP[3 * e + 2])
+            val i = g.verts[e]
+            val qx = mx + nrm[3 * i] * 0.10f; val qy = my + nrm[3 * i + 1] * 0.10f; val qz = mz + nrm[3 * i + 2] * 0.10f
+            val w = max(CAM_D - qz, 0.35f); val k = CAM_D / w * r
+            capPath.reset()
+            capPath.moveTo(capX[top], capY[top])
+            capPath.quadTo(cx + qx * k, cy - qy * k, capX[e], capY[e])
+            nc.drawPath(capPath, capLine)
+        }
+        if (capNz[top] > 0.05f) {
+            capPaint.color = capShade(base, 0.55f)
+            nc.drawCircle(capX[top], capY[top], max(2f, r * 0.028f), capPaint)
+        }
+
+        // the visor: from the front edge, forward and a little down, longest in the middle
+        val vs = g.visor
+        if (vs.size >= 2) {
+            val m = vs.size
+            val qx = FloatArray(m); val qy = FloatArray(m); val q3 = FloatArray(3 * m)
+            for (s in 0 until m) {
+                val j = vs[s]
+                val i = g.verts[j]
+                val u = (g.visorX[s] / CapGeometry.VISOR_HALF_WIDTH).coerceIn(-1f, 1f)
+                val len = CapGeometry.VISOR * Math.pow((1f - u * u).coerceAtLeast(0f).toDouble(), 0.7).toFloat()
+                var dx = nrm[3 * i] * 0.5f; var dy = -0.32f; var dz = max(nrm[3 * i + 2], 0.35f)
+                val dl = kotlin.math.sqrt(dx * dx + dy * dy + dz * dz)
+                dx /= dl; dy /= dl; dz /= dl
+                val x = capP[3 * j] + dx * len; val y = capP[3 * j + 1] + dy * len; val z = capP[3 * j + 2] + dz * len
+                q3[3 * s] = x; q3[3 * s + 1] = y; q3[3 * s + 2] = z
+                val w = max(CAM_D - z, 0.35f); val k = CAM_D / w * r
+                qx[s] = cx + x * k; qy[s] = cy - y * k
+            }
+            for (s in 0 until m - 1) {
+                val ja = vs[s]; val jb = vs[s + 1]
+                // the quad's normal for the light
+                val ax = capP[3 * jb] - capP[3 * ja]; val ay = capP[3 * jb + 1] - capP[3 * ja + 1]; val az = capP[3 * jb + 2] - capP[3 * ja + 2]
+                val bx = q3[3 * s] - capP[3 * ja]; val by = q3[3 * s + 1] - capP[3 * ja + 1]; val bz = q3[3 * s + 2] - capP[3 * ja + 2]
+                var nx = ay * bz - az * by; var ny = az * bx - ax * bz; var nz = ax * by - ay * bx
+                val nl = max(kotlin.math.sqrt(nx * nx + ny * ny + nz * nz), 1e-6f)
+                nx /= nl; ny /= nl; nz /= nl
+                if (ny < 0f) { nx = -nx; ny = -ny; nz = -nz }
+                val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
+                capPaint.color = capShade(base, 0.55f + 0.75f * lam)
+                capPath.reset()
+                capPath.moveTo(capX[ja], capY[ja]); capPath.lineTo(capX[jb], capY[jb]); capPath.lineTo(qx[s + 1], qy[s + 1]); capPath.lineTo(qx[s], qy[s]); capPath.close()
+                nc.drawPath(capPath, capPaint)
+            }
+            // the edge of the visor
+            capLine.strokeWidth = max(1.2f, strokePx * 0.9f)
+            capLine.color = capShade(base, 0.35f)
+            capPath.reset()
+            capPath.moveTo(qx[0], qy[0])
+            for (s in 1 until m) capPath.lineTo(qx[s], qy[s])
+            nc.drawPath(capPath, capLine)
+        }
+    }
+
+    private fun fillTriangles(nc: Canvas, pos: FloatArray, col: IntArray, count: Int, paint: Paint) {
+        if (Build.VERSION.SDK_INT >= 29) {
+            nc.drawVertices(Canvas.VertexMode.TRIANGLES, count * 6, pos, 0, null, 0, col, 0, null, 0, 0, paint)
+        } else {
+            var q = 0
+            for (k in 0 until count) {
+                trianglePath.reset()
+                trianglePath.moveTo(pos[q], pos[q + 1]); trianglePath.lineTo(pos[q + 2], pos[q + 3]); trianglePath.lineTo(pos[q + 4], pos[q + 5]); trianglePath.close()
+                paint.color = col[3 * k]
+                nc.drawPath(trianglePath, paint)
+                q += 6
+            }
+        }
     }
 
     /** Height of the energy sweep, set by the caller each frame. */

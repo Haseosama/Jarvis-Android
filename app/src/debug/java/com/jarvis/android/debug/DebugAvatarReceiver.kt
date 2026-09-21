@@ -22,6 +22,7 @@ class DebugAvatarReceiver : BroadcastReceiver() {
         val controller = (context.applicationContext as JarvisApp).container.avatar
         intent.getStringExtra("model")?.toIntOrNull()?.let { controller.model = it }
         intent.getStringExtra("skin")?.toIntOrNull()?.let { controller.skin = it }
+        intent.getStringExtra("cap")?.toIntOrNull()?.let { controller.cap = it }
         intent.getStringExtra("mood")?.let { name ->
             controller.debugMood = when (name.lowercase()) {
                 "idle" -> Mood.IDLE

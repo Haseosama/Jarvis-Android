@@ -47,12 +47,13 @@ internal class FiberHair(private val mesh: HeadMesh) {
         }
     }
 
-    fun draw(nc: Canvas, xs: FloatArray, ys: FloatArray, nrm: FloatArray, primary: Int, gold: Int, t: Float, strokePx: Float, paint: Paint) {
+    fun draw(nc: Canvas, xs: FloatArray, ys: FloatArray, nrm: FloatArray, primary: Int, gold: Int, t: Float, strokePx: Float, paint: Paint, hidden: BooleanArray? = null) {
         if (rows < 3 || locks == 0) return
         counts.fill(0); hotCount = 0; sparkCount = 0
         for (l in 0 until locks) {
             val base = mesh.lockFirst + l * 3 * rows
             if (nrm[3 * (base + 1) + 2] < 0.10f) continue           // the root faces away
+            if (hidden != null && hidden[l]) continue                 // under a cap
             for (f in 0 until PER_LOCK) {
                 val i = l * PER_LOCK + f
                 val u = across[i]

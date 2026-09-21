@@ -73,6 +73,7 @@ fun SettingsScreen(
     val faceModel by configStore.avatarModel.collectAsState(initial = 0)
     val skinTone by configStore.avatarSkin.collectAsState(initial = 1)
     val lipTone by configStore.avatarLips.collectAsState(initial = 0)
+    val capTone by configStore.avatarCap.collectAsState(initial = 0)
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
     var langMenuOpen by remember { mutableStateOf(false) }
     val workFolder by configStore.workFolder.collectAsState(initial = "")
@@ -370,6 +371,12 @@ fun SettingsScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).horizontalScroll(rememberScrollState())) {
                 listOf(0 to "Réseau lumineux", 5 to "Hologramme", 6 to "Hologramme + cheveux", 1 to "Claire", 2 to "Mate", 3 to "Bronzée", 4 to "Foncée").forEach { (v, label) ->
                     FilterChip(selected = skinTone == v, onClick = { scope.launch { configStore.setAvatarSkin(v) } }, label = { Text(tr(label)) })
+                }
+            }
+            Text(tr("Casquette"), style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp).horizontalScroll(rememberScrollState())) {
+                listOf(0 to "Aucune", 1 to "Noire", 2 to "Bleue", 3 to "Rouge", 4 to "Blanche", 5 to "Kaki").forEach { (v, label) ->
+                    FilterChip(selected = capTone == v, onClick = { scope.launch { configStore.setAvatarCap(v) } }, label = { Text(tr(label)) })
                 }
             }
             Text(tr("Lèvres"), style = MaterialTheme.typography.labelLarge)

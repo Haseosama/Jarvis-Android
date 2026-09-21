@@ -99,6 +99,7 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch { configStore.messageAutoSend.collect { messageAutoSend = it } }
         appScope.launch { configStore.avatarSkin.collect { avatar.skin = it } }
         appScope.launch { configStore.avatarLips.collect { avatar.lips = it } }
+        appScope.launch { configStore.avatarCap.collect { avatar.cap = it } }
         com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)
         com.jarvis.android.watch.WatchScheduler.sync(appContext)
         appScope.launch { configStore.audioInputKey.collect { com.jarvis.android.core.AudioRoute.inputKey = it } }

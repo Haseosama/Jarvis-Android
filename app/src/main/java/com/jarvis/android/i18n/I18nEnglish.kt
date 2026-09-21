@@ -2,6 +2,12 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Casquette" to "Cap",
+    "Aucune" to "None",
+    "Noire" to "Black",
+    "Bleue" to "Blue",
+    "Blanche" to "White",
+    "Kaki" to "Khaki",
     "Hologramme + cheveux" to "Hologram + hair",
     "Hologramme" to "Hologram",
     "Mode hors ligne (réglé sur toujours)." to "Offline mode (set to always).",
