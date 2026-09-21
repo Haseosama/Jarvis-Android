@@ -259,7 +259,11 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             // the lips are lit less unevenly than the skin: the upper one faces the light and would otherwise come out pale
             c = mix(c, lit(lipRgb, 0.80f + 0.30f * vlam), lipW)
         }
-        if (holo) c = mix(c, primaryColor, 0.05f + 0.10f * (1f - vz.coerceIn(0f, 1f)))   // a real skin tone, with a faint cool light at the contour
+        if (holo) {
+            // a solid skin: a little brighter than the plain looks, a faint cool light at the contour only, and no melting into the background
+            c = mix(lit(c, 1.16f), primaryColor, 0.04f * (1f - vz.coerceIn(0f, 1f)))
+            return mix(bgColor, c, (mesh.fade[vi] * 1.9f).coerceIn(0f, 1f))
+        }
         val fv = (mesh.fade[vi] * mesh.fade[vi]).coerceIn(0f, 1f)
         return mix(bgColor, c, fv)
     }
@@ -388,6 +392,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val hash = ((i * -1640531535) ushr 16) and 0xFF
             val bk = if (br > 0.85f || hash > 236) 2 else if (br > 0.5f) 1 else 0
             if (skin > 0 && !holo && bk < 2) continue
+            if (holo && bk < 1) continue          // on a solid skin only the brighter nodes, at the contour, not a dotted veil over the face
             val arr = webNodes[bk]; val o = webNodeCounts[bk]
             arr[o] = wx[i]; arr[o + 1] = wy[i]
             webNodeCounts[bk] = o + 2
