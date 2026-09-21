@@ -172,6 +172,8 @@ internal class AppUpdater(private val context: Context, private val http: OkHttp
         UpdateInstall.status.value = null
         return try {
             val installer = context.packageManager.packageInstaller
+            // a window that was cancelled leaves its session open: drop the old ones
+            for (old in installer.mySessions) try { installer.abandonSession(old.sessionId) } catch (_: Exception) { }
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                 setAppPackageName(context.packageName)
                 if (Build.VERSION.SDK_INT >= 31) setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)

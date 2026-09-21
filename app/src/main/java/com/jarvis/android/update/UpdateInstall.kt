@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 internal const val ACTION_UPDATE_INSTALL = "com.jarvis.android.UPDATE_INSTALL"
 private const val CONFIRM_CHANNEL = "jarvis_update"
 private const val CONFIRM_NOTIFICATION = 7500
+private const val CONFIRM_TIMEOUT_MS = 3 * 60 * 1000L
 
 /** What the installer last said about the update, for the settings card. */
 internal object UpdateInstall {
@@ -47,6 +48,8 @@ class UpdateInstallReceiver : BroadcastReceiver() {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         val detail = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
         Log.i("AppUpdate", "install status=$status detail=$detail")
+        // an older session dropped by a new attempt reports itself: it says nothing about the new one
+        if (status == PackageInstaller.STATUS_FAILURE_ABORTED && detail.orEmpty().contains("abandoned", ignoreCase = true)) return
         when (status) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 val confirm = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java) else intent.getParcelableExtra(Intent.EXTRA_INTENT)
@@ -87,6 +90,7 @@ class UpdateInstallReceiver : BroadcastReceiver() {
                     .setContentText(tr("Touchez ici pour confirmer l’installation."))
                     .setContentIntent(open)
                     .setAutoCancel(true)
+                    .setTimeoutAfter(CONFIRM_TIMEOUT_MS)   // Android says nothing when the window is cancelled
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .build(),
             )
