@@ -59,7 +59,7 @@ internal class NetworkWeb(mesh: HeadMesh) {
         val grid = HashMap<Long, MutableList<Int>>()
         fun cell(x: Float) = Math.floor((x / r0).toDouble()).toInt()
         fun key(i: Int, j: Int, k: Int) = ((i + 512).toLong() shl 40) or ((j + 512).toLong() shl 20) or (k + 512).toLong()
-        val tries = 70_000
+        val tries = 220_000
         for (n in 0 until tries) {
             val target = rnd.nextDouble() * total
             var lo = 0; var hi = nF - 1
@@ -104,21 +104,28 @@ internal class NetworkWeb(mesh: HeadMesh) {
         wu = FloatArray(n) { wa[it] }; wv = FloatArray(n) { wb[it] }
         fade = FloatArray(n) { fd[it] }
 
-        // each node is joined to its nearest neighbours (at most 5, and not too far)
+        // each node is joined to its nearest neighbours (at most 5, and not too far); a grid of the size of the reach keeps the search local
         val pairs = HashSet<Long>()
         val nearIdx = IntArray(5); val nearD = FloatArray(5)
+        val limit = 2.1f * r0
+        fun gcell(x: Float) = Math.floor((x / limit).toDouble()).toInt()
+        val reach = HashMap<Long, MutableList<Int>>()
+        for (i in 0 until n) reach.getOrPut(key(gcell(px[i]), gcell(py[i]), gcell(pz[i]))) { ArrayList() } += i
         for (i in 0 until n) {
             nearIdx.fill(-1); nearD.fill(Float.MAX_VALUE)
-            for (j in 0 until n) {
-                if (j == i) continue
-                val dx = px[i] - px[j]; val dy = py[i] - py[j]; val dz = pz[i] - pz[j]
-                val d = dx * dx + dy * dy + dz * dz
-                if (d >= nearD[4]) continue
-                var p = 4
-                while (p > 0 && nearD[p - 1] > d) { nearD[p] = nearD[p - 1]; nearIdx[p] = nearIdx[p - 1]; p-- }
-                nearD[p] = d; nearIdx[p] = j
+            val ci = gcell(px[i]); val cj = gcell(py[i]); val ck = gcell(pz[i])
+            for (a in -1..1) for (b in -1..1) for (c in -1..1) {
+                val list = reach[key(ci + a, cj + b, ck + c)] ?: continue
+                for (j in list) {
+                    if (j == i) continue
+                    val dx = px[i] - px[j]; val dy = py[i] - py[j]; val dz = pz[i] - pz[j]
+                    val d = dx * dx + dy * dy + dz * dz
+                    if (d >= nearD[4]) continue
+                    var p = 4
+                    while (p > 0 && nearD[p - 1] > d) { nearD[p] = nearD[p - 1]; nearIdx[p] = nearIdx[p - 1]; p-- }
+                    nearD[p] = d; nearIdx[p] = j
+                }
             }
-            val limit = 2.1f * r0
             for (k in 0 until 5) {
                 val j = nearIdx[k]
                 if (j < 0 || nearD[k] > limit * limit) continue
@@ -131,6 +138,6 @@ internal class NetworkWeb(mesh: HeadMesh) {
 
     companion object {
         /** Minimum distance between two nodes, in head-half-heights. */
-        const val R0 = 0.05f
+        const val R0 = 0.031f
     }
 }

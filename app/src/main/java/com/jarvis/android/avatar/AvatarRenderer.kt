@@ -152,7 +152,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         val key = (bg.toLong() shl 32) xor primary.toLong()
         if (key == lutKey) return
         lutKey = key
-        for (i in 0 until LUT_N) lut[i] = blend(bg, primary, 255f * (i + 0.5f) / LUT_N * 0.17f) // a nearly black surface: the web is what shines
+        for (i in 0 until LUT_N) lut[i] = blend(bg, primary, 255f * (i + 0.5f) / LUT_N * 0.36f) // a dark blue glowing volume: the web still is what shines
     }
 
     /** Lights every camera-facing triangle and returns how many; their colour and depth key are left in the arrays. */
@@ -379,7 +379,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             arr[o] = wx[i]; arr[o + 1] = wy[i]
             webNodeCounts[bk] = o + 2
         }
-        val sizes = floatArrayOf(1.8f, 2.8f, 4.4f)
+        val sizes = floatArrayOf(1.3f, 2.1f, 3.4f)
         val alphas = floatArrayOf(160f, 208f, 255f)
         for (bk in 0 until 3) {
             if (webNodeCounts[bk] == 0) continue

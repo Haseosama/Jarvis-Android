@@ -12,7 +12,7 @@ import kotlin.random.Random
 
 /**
  * Debug builds only (protected by the DUMP permission, so only adb can send it): drives the avatar without a live session.
- *   adb shell am broadcast -a com.jarvis.android.DEBUG_AVATAR -p <package> --es mood listening   (--es model 0|1|2 picks the face)
+ *   adb shell am broadcast -a com.jarvis.android.DEBUG_AVATAR -p <package> --es mood listening   (--es model 0|1|2 picks the face, --es skin 0..4 the skin: 0 is the glowing web)
  *   adb shell am broadcast -a com.jarvis.android.DEBUG_AVATAR -p <package> --es speak "Bonjour, je suis Jarvis"
  * `speak` builds a synthetic voice from the text (one vowel-like tone per sound) and feeds it, with the text, through
  * the same path as the assistant's real voice: formant analysis, transcript fusion, playback clock.
@@ -21,6 +21,7 @@ class DebugAvatarReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val controller = (context.applicationContext as JarvisApp).container.avatar
         intent.getStringExtra("model")?.toIntOrNull()?.let { controller.model = it }
+        intent.getStringExtra("skin")?.toIntOrNull()?.let { controller.skin = it }
         intent.getStringExtra("mood")?.let { name ->
             controller.debugMood = when (name.lowercase()) {
                 "idle" -> Mood.IDLE
