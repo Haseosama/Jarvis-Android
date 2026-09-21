@@ -592,6 +592,10 @@ also shown in the settings.
   against the sound, the value of the 40 ms output-latency guess), frame rate and battery on a real phone, the drawing on
   Android 8 and 9 (there the triangles are drawn one by one, slower).
 
+#### Hair shading (Classique face)
+
+The strands drawn over the hair locks follow what real-time hair rendering does: each lock is a bundle of strands waving together (a shared slow wave, small differences between strands, some stopping short of the tip), and the sheen is lit with the Kajiya-Kay model, two bands per strand as in Marschner's model: a narrow whitish one and a wider, tinted one shifted along the strand. Sheen appears only where the strand's direction suits the light, so it forms streaks rather than a uniform grey. Checked on the emulator only.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

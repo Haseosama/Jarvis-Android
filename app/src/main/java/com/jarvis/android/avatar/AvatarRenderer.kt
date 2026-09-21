@@ -26,8 +26,8 @@ private const val MIN_ALPHA = 0.05f
 private const val LUT_N = 192
 private const val BROW_HAIRS = 160
 private const val LID_COLUMNS = 9
-private const val HAIR_FIBRE_LOCKS = 400
-private const val FIBRES_PER_LOCK = 3
+private const val HAIR_FIBRE_LOCKS = 600
+private const val FIBRES_PER_LOCK = 8
 
 internal fun argb(a: Int, r: Int, g: Int, b: Int): Int = (a shl 24) or (r shl 16) or (g shl 8) or b
 
@@ -88,7 +88,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     var lips = 0
     private var bgColor = 0
     private val web = NetworkWeb(mesh)
-    private val fibres = FloatArray(HAIR_FIBRE_LOCKS * FIBRES_PER_LOCK * 4 * 8)
+    private val fibres = FloatArray(HAIR_FIBRE_LOCKS * FIBRES_PER_LOCK * 4 * 16)
     private val fibrePaint = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     private val wx = FloatArray(web.count)
     private val wy = FloatArray(web.count)
@@ -143,7 +143,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val nc = canvas.nativeCanvas
             drawSurface(nc, visible)
             drawWeb(nc, n, amp, primary, strokePx, avatar.time)
-            if (fibreOverlay) drawFibres(nc, n, strokePx)
+            if (fibreOverlay) drawFibres(nc, v, n, strokePx, r)
         }
         drawFeatures(scope, avatar, r, primary, accent, bg, amp, strokePx)
     }
@@ -393,36 +393,107 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
 
 
     /**
-     * Fine hairs along the locks: a few thin lines per lock, running between the same points of consecutive rows (a fraction of the way
-     * from the middle towards a side), alternately dark and light. They give each lock a fibre texture and follow it as it moves.
+     * Fine hairs along the locks, lit like real hair (Kajiya-Kay): each lock carries a bundle of strands that wave together (a slow, shared
+     * wave with a small difference from one strand to the next), some stopping short of the tip. The strands are dark and light, and where
+     * the strand's direction is right for the light there are two bands of sheen, as on real hair: a narrow, whitish one, and a wider,
+     * tinted one nearer the root. A bundle is a hair's natural unit, so the locks read as clumps and not as a solid cap.
      */
-    private fun drawFibres(nc: Canvas, nrm: FloatArray, strokePx: Float) {
+    private fun drawFibres(nc: Canvas, v: FloatArray, nrm: FloatArray, strokePx: Float, r: Float) {
         if (skin == 0 || mesh.lockCount == 0) return
         val rows = mesh.lockRows
-        val offsets = floatArrayOf(-0.65f, 0.05f, 0.62f)
+        if (rows < 3) return
+        val light = mix(browColour, 0xFFFFE2B0.toInt(), 0.30f)
+        val tint = mix(browColour, 0xFFFFE2B0.toInt(), 0.55f)
+        val perLock = FIBRES_PER_LOCK
+        val locks = min(mesh.lockCount, HAIR_FIBRE_LOCKS)
+        val cap = fibres.size - 4 * rows
+
         for (pass in 0 until 2) {
             var count = 0
-            for (l in 0 until min(mesh.lockCount, HAIR_FIBRE_LOCKS)) {
+            for (l in 0 until locks) {
                 val base = mesh.lockFirst + l * 3 * rows
                 if (nrm[3 * (base + 1) + 2] < 0.10f) continue           // the root faces away
-                for (f in 0 until FIBRES_PER_LOCK) {
+                val lockHash = (l * -1640531535)
+                val lockFreq = 1.2f + 1.6f * ((lockHash ushr 8) and 0xFF) / 255f
+                val lockPhase = ((lockHash ushr 16) and 0xFF) / 255f * 6.2832f
+                for (f in 0 until perLock) {
                     if ((f + l) % 2 != pass) continue
-                    val u = offsets[f]
+                    val hash = ((l * 31 + f * 1039) * -1640531535)
+                    val u = -0.9f + 1.8f * (f + 0.5f + 0.35f * (((hash ushr 8) and 0xFF) / 255f - 0.5f)) / perLock
+                    val wave = 0.10f + 0.10f * ((hash ushr 16) and 0xFF) / 255f
+                    val stop = rows - (if (((hash ushr 24) and 3) == 0) 2 else 0)      // some strands are shorter
                     var px = 0f; var py = 0f
-                    for (s in 0 until rows) {
-                        val li = base + 3 * s; val ci = li + 1; val ri = li + 2
-                        val x = xs[ci] + (if (u < 0f) xs[ci] - xs[li] else xs[ri] - xs[ci]) * u
-                        val y = ys[ci] + (if (u < 0f) ys[ci] - ys[li] else ys[ri] - ys[ci]) * u
-                        if (s > 0) {
+                    for (sIdx in 0 until stop) {
+                        val li = base + 3 * sIdx; val ci = li + 1; val ri = li + 2
+                        val half = 0.5f * sqrt((xs[ri] - xs[li]) * (xs[ri] - xs[li]) + (ys[ri] - ys[li]) * (ys[ri] - ys[li]))
+                        var x = xs[ci] + (xs[ri] - xs[li]) * 0.5f * u
+                        var y = ys[ci] + (ys[ri] - ys[li]) * 0.5f * u
+                        // the shared wave, its size following the lock's width
+                        val t = sIdx / (rows - 1f)
+                        val shift = half * wave * kotlin.math.sin(t * lockFreq * 6.2832f + lockPhase + f * 0.35f)
+                        val nx = ys[ri] - ys[li]; val ny = xs[li] - xs[ri]
+                        val nl = sqrt(nx * nx + ny * ny).coerceAtLeast(1e-4f)
+                        x += nx / nl * shift; y += ny / nl * shift
+                        if (sIdx > 0 && count < cap) {
                             fibres[count++] = px; fibres[count++] = py; fibres[count++] = x; fibres[count++] = y
                         }
                         px = x; py = y
                     }
                 }
             }
-            fibrePaint.strokeWidth = max(0.7f, strokePx * 0.55f)
-            fibrePaint.color = if (pass == 0) withAlpha(0xFF160D08.toInt(), 120f) else withAlpha(0xFF9A7A58.toInt(), 80f)
+            fibrePaint.strokeWidth = max(0.7f, strokePx * (if (pass == 0) 0.62f else 0.5f))
+            fibrePaint.color = if (pass == 0) withAlpha(0xFF120A06.toInt(), 130f) else withAlpha(light, 38f)
             nc.drawLines(fibres, 0, count, fibrePaint)
+        }
+
+        // The sheen: Kajiya-Kay, sin(angle between the strand and the half vector) to a power. The primary band is narrow and shifted
+        // towards the tip, the secondary one wide and shifted the other way (it is the light that went through the hair).
+        val hx = -0.22f; val hy = 0.28f; val hz = 0.93f
+        for (l in 0 until locks) {
+            val base = mesh.lockFirst + l * 3 * rows
+            if (nrm[3 * (base + 1) + 2] < 0.10f) continue
+            val lockHash = (l * -1640531535)
+            val strands = 1 + ((lockHash ushr 8) and 1)
+            for (sIdx in 1 until rows - 1) {
+                val ci = base + 3 * sIdx + 1
+                val ip = base + 3 * (sIdx - 1) + 1; val inx = base + 3 * (sIdx + 1) + 1
+                var tx = v[3 * inx] - v[3 * ip]; var ty = v[3 * inx + 1] - v[3 * ip + 1]; var tz = v[3 * inx + 2] - v[3 * ip + 2]
+                val tl = sqrt(tx * tx + ty * ty + tz * tz).coerceAtLeast(1e-6f)
+                tx /= tl; ty /= tl; tz /= tl
+                var nx = nrm[3 * ci]; var ny = nrm[3 * ci + 1]; var nz = nrm[3 * ci + 2]
+                val nl = sqrt(nx * nx + ny * ny + nz * nz).coerceAtLeast(1e-6f)
+                nx /= nl; ny /= nl; nz /= nl
+                if (nz < 0.05f) continue
+                // the strand's direction tilted along the surface normal, which moves the band along the strand
+                val th = tx * hx + ty * hy + tz * hz
+                val nh = nx * hx + ny * hy + nz * hz
+                val d1 = th + 0.10f * nh
+                val d2 = th - 0.18f * nh
+                val primary = Math.pow(sqrt((1f - d1 * d1).coerceAtLeast(0f)).toDouble(), 110.0).toFloat()
+                val secondary = Math.pow(sqrt((1f - d2 * d2).coerceAtLeast(0f)).toDouble(), 12.0).toFloat()
+                val facing = (nx * -0.22f + ny * 0.28f + nz * 0.93f).coerceIn(0f, 1f)   // no sheen where the surface turns away
+                val pw = primary * facing; val sw = secondary * facing * 0.6f
+                if (pw < 0.30f && sw < 0.30f) continue
+                val li = base + 3 * sIdx; val ri = li + 2
+                val li2 = base + 3 * (sIdx + 1); val ri2 = li2 + 2
+                val ci2 = li2 + 1
+                for (k in 0 until strands) {
+                    val hash = ((l * 31 + k * 977 + sIdx) * -1640531535)
+                    val u = -0.7f + 1.4f * (((hash ushr 8) and 0xFF) / 255f)
+                    val x0 = xs[ci] + (xs[ri] - xs[li]) * 0.5f * u; val y0 = ys[ci] + (ys[ri] - ys[li]) * 0.5f * u
+                    val x1 = xs[ci2] + (xs[ri2] - xs[li2]) * 0.5f * u; val y1 = ys[ci2] + (ys[ri2] - ys[li2]) * 0.5f * u
+                    if (sw >= 0.30f) {
+                        fibrePaint.strokeWidth = max(1f, strokePx * 1.5f)
+                        fibrePaint.color = withAlpha(tint, 70f * sw.coerceAtMost(1f))
+                        nc.drawLine(x0, y0, x1, y1, fibrePaint)
+                    }
+                    if (pw >= 0.30f) {
+                        fibrePaint.strokeWidth = max(0.7f, strokePx * 0.6f)
+                        fibrePaint.color = withAlpha(0xFFE8D2B0.toInt(), 120f * pw.coerceAtMost(1f))
+                        nc.drawLine(x0, y0, x1, y1, fibrePaint)
+                    }
+                }
+            }
         }
     }
 
