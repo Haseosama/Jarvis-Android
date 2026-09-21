@@ -44,6 +44,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
                 val now = SystemClock.elapsedRealtimeNanos()
                 val dt = (now - last) / 1e9f
                 last = now
+                avatar.yawOverride = controller.debugYaw; avatar.pitchOverride = controller.debugPitch
                 val sample = controller.timeline.sample(now)
                 avatar.step(
                     dt, currentLevel, sample.speaking, controller.debugMood ?: moodFor(currentState),

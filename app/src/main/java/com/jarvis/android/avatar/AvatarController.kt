@@ -30,6 +30,8 @@ internal class AvatarController(private val context: Context) {
 
     /** Debug builds can force the face's mood (see DebugAvatarReceiver); null means "follow the assistant's state". */
     @Volatile var debugMood: Mood? = null
+    @Volatile var debugYaw: Float? = null
+    @Volatile var debugPitch: Float? = null
 
     val timeline = VisemeTimeline()
     private val stream = VisemeStream()

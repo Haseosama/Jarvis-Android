@@ -32,18 +32,19 @@ class CapGeometryTest {
         assertTrue(g.visor.first() < middle && g.visor.last() >= middle - 1)   // it spans the front
     }
 
-    @Test fun `the hair under the cap is hidden, the hair below it is not`() {
+    @Test fun `no hair is drawn with a cap, and the skin is always drawn`() {
         val g = CapGeometry(mesh)
-        val hiddenHair = (0 until mesh.faceCount).count { mesh.faceGroup[it] > 1.5f && g.hiddenFace[it] }
-        val shownHair = (0 until mesh.faceCount).count { mesh.faceGroup[it] > 1.5f && !g.hiddenFace[it] }
-        assertTrue("hidden $hiddenHair, shown $shownHair", hiddenHair > 500 && shownHair > 500)
-        assertTrue((0 until mesh.faceCount).none { mesh.faceGroup[it] <= 1.5f && g.hiddenFace[it] })   // the skin is never hidden
+        val hair = (0 until mesh.faceCount).filter { mesh.faceGroup[it] > 1.5f }
+        assertTrue(hair.size > 1000)
+        assertTrue(hair.all { g.hiddenFace[it] })
+        assertTrue((0 until mesh.faceCount).none { mesh.faceGroup[it] <= 1.5f && g.hiddenFace[it] })
         assertEquals(mesh.lockCount, g.hiddenLock.size)
-        assertTrue(g.hiddenLock.any { it } && g.hiddenLock.any { !it })
+        assertTrue(g.hiddenLock.all { it })
     }
 
     @Test fun `the edge is highest at the front and lowest at the back`() {
         assertTrue(CapGeometry.rim(0f, 0.5f) > CapGeometry.rim(0f, -0.6f))
         assertTrue(CapGeometry.rim(0.6f, -0.14f) > 0.3f)   // above the ears
+        assertTrue(CapGeometry.rim(0.6f, 0.0f) > 0.38f && CapGeometry.rim(0f, 0.6f) > 0.38f)   // level from the front to the sides
     }
 }

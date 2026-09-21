@@ -33,6 +33,8 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
     var time = 0f; private set
     private var sway = 0f
     var yaw = 0f; private set
+    @Volatile var yawOverride: Float? = null
+    @Volatile var pitchOverride: Float? = null
     var pitch = 0f; private set
     var mouth = 0f; private set
     var glow = 0f; private set
@@ -120,6 +122,8 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         emph += (mouth - emph) * rate(dt, if (mouth > emph) 0.055f else 0.32f)
         pitch -= emph * 0.028f
         yaw += 0.018f * sin(t * 1.7f) * emph
+        yawOverride?.let { yaw = it }       // for looking at the head from a chosen side (debug builds set it)
+        pitchOverride?.let { pitch = it }
 
         // The loudness envelope is lazier than the mouth: brows follow the phrase, not each syllable.
         val env = if (live) amp else 0f

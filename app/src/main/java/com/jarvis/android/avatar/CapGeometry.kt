@@ -31,14 +31,14 @@ internal class CapGeometry(mesh: HeadMesh) {
     /** The columns of the edge, from the left of the visor to its right (front of the cap, seen from the head). */
     val visor: IntArray
 
-    /** For each triangle of the mesh: hidden under the cap (hair only). For each lock of the hair: the same. */
+    /** With a cap on, the hair is not drawn: every triangle of the hair, and every lock, is hidden. */
     val hiddenFace: BooleanArray
     val hiddenLock: BooleanArray
     val midX: Float
 
     companion object {
         const val RINGS = 14
-        const val COLUMNS = 64
+        const val COLUMNS = 96
 
         /** How far the dome stands from the head's skin. */
         const val OFFSET = 0.055f
@@ -47,11 +47,15 @@ internal class CapGeometry(mesh: HeadMesh) {
         const val VISOR = 0.52f
         const val VISOR_SPAN = 0.95f
 
-        /** Height of the edge of the cap over the point (side, depth) of the rest pose. */
+        /**
+         * Height of the edge of the cap over the point (side, depth) of the rest pose: level from the front to behind the ears (a little
+         * higher at the sides, above the ears), then sloping down towards the back, as a cap sits.
+         */
         fun rim(side: Float, z: Float): Float {
-            val t = ((-z - 0.02f) / 0.53f).coerceIn(0f, 1f)
-            val sides = (abs(side) / 0.7f).coerceIn(0f, 1f)
-            return 0.395f + 0.03f * sides - 0.32f * (t * t * (3f - 2f * t)) + 0.04f * (1f - t) * (1f - sides)
+            val a = abs(atan2(side, z + 0.10f))                          // the angle from the front, 0 to pi
+            val back = ((a - 1.75f) / (Math.PI.toFloat() - 1.75f)).coerceIn(0f, 1f)
+            val sides = ((a - 0.4f) / 1.2f).coerceIn(0f, 1f)
+            return 0.395f + 0.03f * sides * (1f - back) - 0.22f * (back * back * (3f - 2f * back))
         }
     }
 
@@ -147,7 +151,11 @@ internal class CapGeometry(mesh: HeadMesh) {
             edgeEl[c] = found
         }
         // a little smoothing round the head, so the edge is a curve and not a staircase
-        val edgeSmooth = FloatArray(COLUMNS) { c -> (edgeEl[(c + COLUMNS - 1) % COLUMNS] + 2f * edgeEl[c] + edgeEl[(c + 1) % COLUMNS]) / 4f }
+        var edgeSmooth = edgeEl
+        for (pass in 0 until 6) {
+            val prev = edgeSmooth
+            edgeSmooth = FloatArray(COLUMNS) { c -> (prev[(c + COLUMNS - 2) % COLUMNS] + 4f * prev[(c + COLUMNS - 1) % COLUMNS] + 6f * prev[c] + 4f * prev[(c + 1) % COLUMNS] + prev[(c + 2) % COLUMNS]) / 16f }
+        }
 
         // the points of the grid, tied to the skin
         val n = RINGS * COLUMNS + 1
@@ -208,19 +216,8 @@ internal class CapGeometry(mesh: HeadMesh) {
         }
         visor = vis.toIntArray()
 
-        // the hair under the cap is not drawn
-        hiddenFace = BooleanArray(nF)
-        for (t in 0 until nF) {
-            if (mesh.faceGroup[t] <= 1.5f) continue
-            val a = f[3 * t]; val b = f[3 * t + 1]; val c = f[3 * t + 2]
-            val y = (v[3 * a + 1] + v[3 * b + 1] + v[3 * c + 1]) / 3f
-            val z = (v[3 * a + 2] + v[3 * b + 2] + v[3 * c + 2]) / 3f
-            val x = (v[3 * a] + v[3 * b] + v[3 * c]) / 3f - midX
-            hiddenFace[t] = y > rim(x, z) - 0.02f
-        }
-        hiddenLock = BooleanArray(mesh.lockCount) { l ->
-            val root = mesh.lockFirst + l * 3 * mesh.lockRows + 1
-            v[3 * root + 1] > rim(v[3 * root] - midX, v[3 * root + 2]) - 0.02f
-        }
+        // with a cap on, no hair is drawn at all (locks and the layer of hair alike): it is cleaner than hair cut off by the cap
+        hiddenFace = BooleanArray(nF) { mesh.faceGroup[it] > 1.5f }
+        hiddenLock = BooleanArray(mesh.lockCount) { true }
     }
 }

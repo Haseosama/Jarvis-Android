@@ -592,6 +592,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private val capGeo by lazy { CapGeometry(mesh) }
     private var capX = FloatArray(0); private var capY = FloatArray(0); private var capP = FloatArray(0); private var capN = FloatArray(0)
     private var capCol = IntArray(0)
+    private var capSmooth = FloatArray(0)
     private var capTriPos = FloatArray(0); private var capTriCol = IntArray(0)
     private val capPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
     private val capLine = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
@@ -632,6 +633,30 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             capX[q] = cx + px * k; capY[q] = cy - py * k
             val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
             capCol[q] = capShade(base, 0.30f + 0.90f * lam + 0.10f * (1f - nz.coerceIn(0f, 1f)))
+        }
+        // the two rings at the edge are smoothed round the head (the skin under them is not smooth: the edge would ripple)
+        if (capSmooth.size != 6 * g.columns) capSmooth = FloatArray(6 * g.columns)
+        for (ring in 0..1) {
+            for (col in 0 until g.columns) {
+                var sx = 0f; var sy = 0f; var sz = 0f
+                for (d in -3..3) {
+                    val wgt = (4 - abs(d)).toFloat()
+                    val q = ring * g.columns + ((col + d) % g.columns + g.columns) % g.columns
+                    sx += wgt * capP[3 * q]; sy += wgt * capP[3 * q + 1]; sz += wgt * capP[3 * q + 2]
+                }
+                val o = 3 * (ring * g.columns + col) - 0
+                val i0 = 3 * (col + ring * 0)
+                capSmooth[3 * col + (if (ring == 0) 0 else 3 * g.columns)] = sx / 16f
+                capSmooth[3 * col + 1 + (if (ring == 0) 0 else 3 * g.columns)] = sy / 16f
+                capSmooth[3 * col + 2 + (if (ring == 0) 0 else 3 * g.columns)] = sz / 16f
+            }
+        }
+        for (ring in 0..1) for (col in 0 until g.columns) {
+            val q = ring * g.columns + col
+            val o = 3 * col + (if (ring == 0) 0 else 3 * g.columns)
+            capP[3 * q] = capSmooth[o]; capP[3 * q + 1] = capSmooth[o + 1]; capP[3 * q + 2] = capSmooth[o + 2]
+            val w = max(CAM_D - capP[3 * q + 2], 0.35f); val k = CAM_D / w * r
+            capX[q] = cx + capP[3 * q] * k; capY[q] = cy - capP[3 * q + 1] * k
         }
         var tcount = 0; var p = 0; var c = 0
         for (t in 0 until g.tris.size / 3) {
