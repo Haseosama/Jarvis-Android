@@ -13,7 +13,7 @@ import numpy as np
 
 # How a head is dressed. The defaults are the original face's hair; other faces override some of them (see export_head.py).
 DEFAULT_STYLE = dict(
-    front=0.49, m=0.03, left_temple=0.022, temple=0.05, nape=-0.05, burn_y=-0.10, ears_bare=True,
+    front=0.49, m=0.03, left_temple=0.022, temple=-0.03, nape=-0.10, burn_y=-0.10, ears_bare=True,
     len_top=(0.30, 0.12), len_side=(0.09, 0.04), len_front=0.10,
     lift=1.0, lift_side_damp=0.6, wave=1.0, wave_side_damp=0.7, width=1.0, kappa=1.15,
     body=(0x48, 0x31, 0x21), root=(0x20, 0x15, 0x0E), gold=(0x8E, 0x6C, 0x48), cap=(0x36, 0x25, 0x19),
@@ -105,7 +105,7 @@ def hair_field(P, x0, st=DEFAULT_STYLE):
     hl = st["nape"] + (st["temple"] - st["nape"]) * smoothstep(-0.40, -0.05, hz)                       # the nape, then above the ears
     hl = hl + (front - hl) * smoothstep(0.02, 0.36, hz)
     d = hy - hl
-    ear = ((np.abs(hx) - 0.64) / 0.15) ** 2 + ((hy - 0.02) / 0.15) ** 2 + ((hz + 0.14) / 0.19) ** 2
+    ear = ((np.abs(hx) - 0.65) / 0.13) ** 2 + ((hy - 0.0) / 0.12) ** 2 + ((hz + 0.14) / 0.16) ** 2
     return np.minimum(d, 0.2 * (np.sqrt(ear) - 1.0)) if st["ears_bare"] else d
 
 
