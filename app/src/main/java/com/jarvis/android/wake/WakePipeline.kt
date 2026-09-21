@@ -41,6 +41,10 @@ internal class WakePipeline(
     private val frames = ArrayDeque<FloatArray>()
     private val embeddings = ArrayDeque<FloatArray>()
 
+    /** The embedding computed by the last [process] call, or null while the models are still warming up. */
+    var latestEmbedding: FloatArray? = null
+        private set
+
     /** Feeds exactly [WAKE_CHUNK] samples and returns the current wake score (0 while warming up). */
     fun process(chunk: ShortArray): Float {
         require(chunk.size == WAKE_CHUNK) { "Un pas fait $WAKE_CHUNK échantillons." }
@@ -49,10 +53,13 @@ internal class WakePipeline(
         for (i in chunk.indices) input[WAKE_CONTEXT + i] = chunk[i].toFloat()
         context = input.copyOfRange(input.size - WAKE_CONTEXT, input.size)
 
+        latestEmbedding = null
         frames.addAll(melspec(input))
         while (frames.size > MEL_WINDOW + 16) frames.removeFirst()
         if (frames.size >= MEL_WINDOW) {
-            embeddings.addLast(embed(frames.toList().takeLast(MEL_WINDOW)))
+            val fresh = embed(frames.toList().takeLast(MEL_WINDOW))
+            latestEmbedding = fresh
+            embeddings.addLast(fresh)
             while (embeddings.size > EMBEDDING_WINDOW) embeddings.removeFirst()
         }
         return if (embeddings.size >= EMBEDDING_WINDOW) classify(embeddings.toList()) else 0f
@@ -62,6 +69,7 @@ internal class WakePipeline(
         context = FloatArray(WAKE_CONTEXT)
         frames.clear()
         embeddings.clear()
+        latestEmbedding = null
     }
 }
 

@@ -451,6 +451,10 @@ fun SettingsScreen(
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
             }
+            WakeLearnCard(onChanged = {
+                wakeSelected = wakeManager.selected()
+                (context0.applicationContext as com.jarvis.android.JarvisApp).container.engine.refreshWakeDetection()
+            })
             SettingsCard(tr("Position (météo)"), Icons.Filled.LocationOn, initiallyExpanded = false) {
             var locationGranted by remember { mutableStateOf(com.jarvis.android.weather.hasLocationPermission(context0)) }
             val askLocation = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->

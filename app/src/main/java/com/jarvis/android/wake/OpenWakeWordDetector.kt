@@ -16,12 +16,14 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /** The three TFLite models of openWakeWord, wrapped as the functions [WakePipeline] needs. */
-internal class OpenWakeWordModels(dir: File, classifier: String = WAKE_FILE_CLASSIFIER) : AutoCloseable {
+internal class OpenWakeWordModels(dir: File, classifier: String = WAKE_FILE_CLASSIFIER, learnedDir: File = File(dir.parentFile, WAKE_LEARNED_DIR)) : AutoCloseable {
     // XNNPACK cannot prepare the spectrogram model, whose input length is set at run time.
     private val options get() = Interpreter.Options().setUseXNNPACK(false).setNumThreads(1)
     private val mel = Interpreter(load(File(dir, WAKE_FILE_MEL), patchLength = WAKE_CONTEXT + WAKE_CHUNK), options)
     private val emb = Interpreter(load(File(dir, WAKE_FILE_EMBEDDING)), options)
-    private val cls = Interpreter(load(File(dir, classifier)), options)
+    /** Set when [classifier] names a word the user taught (see WakeLearning.kt); the built-in classifier is then not loaded. */
+    val learned: LearnedWord? = if (classifier.startsWith(WAKE_LEARNED_PREFIX)) LearnedWord.fromBytes(File(learnedDir, classifier).readBytes()) else null
+    private val cls = if (classifier.startsWith(WAKE_LEARNED_PREFIX)) null else Interpreter(load(File(dir, classifier)), options)
 
     private fun load(file: File, patchLength: Int? = null): ByteBuffer {
         val bytes = file.readBytes().let { if (patchLength != null) withInputLength(it, patchLength) else it }
@@ -58,7 +60,8 @@ internal class OpenWakeWordModels(dir: File, classifier: String = WAKE_FILE_CLAS
     fun classify(embeddings: List<FloatArray>): Float {
         val flat = FloatArray(EMBEDDING_WINDOW * EMBEDDING_SIZE)
         embeddings.forEachIndexed { i, row -> row.copyInto(flat, i * EMBEDDING_SIZE) }
-        return run(cls, floats(flat)).firstOrNull() ?: 0f
+        learned?.let { return it.score(flat) }
+        return run(cls!!, floats(flat)).firstOrNull() ?: 0f
     }
 
     fun pipeline() = WakePipeline(::melspectrogram, ::embedding, ::classify)
@@ -66,7 +69,7 @@ internal class OpenWakeWordModels(dir: File, classifier: String = WAKE_FILE_CLAS
     override fun close() {
         mel.close()
         emb.close()
-        cls.close()
+        cls?.close()
     }
 }
 
@@ -114,6 +117,7 @@ internal class OpenWakeWordDetector(
             models = OpenWakeWordModels(modelDir, classifier)
             val pipeline = models.pipeline()
             val decision = WakeDecision()
+            val learned = models.learned
             val min = AudioRecord.getMinBufferSize(16_000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             record = AudioRecord.Builder()
                 .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
@@ -150,7 +154,8 @@ internal class OpenWakeWordDetector(
                     silenceReported = true
                     problem("Mot d’activation : le micro ne renvoie que du silence (bloqué par Android ou par une autre application).")
                 }
-                if (decision.accept(pipeline.process(chunk), threshold())) {
+                val limit = if (learned != null) adjustLearnedThreshold(learned.threshold, threshold()) else threshold()
+                if (decision.accept(pipeline.process(chunk), limit)) {
                     running = false
                     main.post { onDetect() }
                 }

@@ -20,6 +20,8 @@ internal const val WAKE_MODEL_BASE = "https://github.com/dscripka/openWakeWord/r
 internal const val WAKE_FILE_MAX_BYTES = 5_000_000L
 
 internal const val WAKE_FILE_CUSTOM = "custom_wake.tflite"
+internal const val WAKE_LEARNED_DIR = "wake-learned"
+internal const val WAKE_LEARNED_PREFIX = "learned_"
 internal const val WAKE_FILE_SELECTED = ".selected"
 
 /** A ready-made openWakeWord phrase the user can pick (same release as the Jarvis model). */
@@ -49,22 +51,52 @@ internal fun looksLikeTflite(bytes: ByteArray): Boolean =
 internal class WakeModelManager(private val context: Context, private val http: OkHttpClient) {
     val dir: File get() = File(context.filesDir, WAKE_MODEL_DIR)
 
+    /** Words the user taught: kept apart from the downloaded models, which "Supprimer les modèles" empties. */
+    val learnedDir: File get() = File(context.filesDir, WAKE_LEARNED_DIR)
+
+    private fun fileFor(name: String): File = if (name.startsWith(WAKE_LEARNED_PREFIX)) File(learnedDir, name) else File(dir, name)
+
+    /** The words taught so far: file name and label. */
+    fun learnedWords(): List<Pair<String, String>> =
+        learnedDir.listFiles { f -> f.name.startsWith(WAKE_LEARNED_PREFIX) && f.extension == "bin" }.orEmpty().sortedBy { it.name }
+            .mapNotNull { f -> try { LearnedWord.labelOf(f.readBytes())?.let { f.name to it } } catch (_: java.io.IOException) { null } }
+
+    /** Keeps a taught word and selects it. Returns its file name. */
+    fun saveLearned(word: LearnedWord): String {
+        learnedDir.mkdirs()
+        val name = WAKE_LEARNED_PREFIX + System.currentTimeMillis() + ".bin"
+        File(learnedDir, name).writeBytes(word.toBytes())
+        select(name)
+        return name
+    }
+
+    fun deleteLearned(name: String) {
+        if (name.startsWith(WAKE_LEARNED_PREFIX)) File(learnedDir, name).delete()
+    }
+
     /** File name of the classifier in use: a preset, or [WAKE_FILE_CUSTOM]. Defaults to "Hey Jarvis". */
     fun selected(): String {
         val name = try { File(dir, WAKE_FILE_SELECTED).readText().trim() } catch (_: Exception) { "" }
-        return if (name.isNotEmpty() && File(dir, name).exists()) name else WAKE_FILE_CLASSIFIER
+        return if (name.isNotEmpty() && fileFor(name).exists()) name else WAKE_FILE_CLASSIFIER
     }
 
     fun select(name: String) {
-        if (File(dir, name).exists()) File(dir, WAKE_FILE_SELECTED).writeText(name)
+        if (fileFor(name).exists()) {
+            dir.mkdirs()
+            File(dir, WAKE_FILE_SELECTED).writeText(name)
+        }
     }
 
     fun label(name: String): String =
-        if (name == WAKE_FILE_CUSTOM) "modèle personnalisé" else WAKE_PRESETS.firstOrNull { it.file == name }?.label ?: name
+        when {
+            name == WAKE_FILE_CUSTOM -> "modèle personnalisé"
+            name.startsWith(WAKE_LEARNED_PREFIX) -> try { LearnedWord.labelOf(File(learnedDir, name).readBytes())?.let { "« $it » (appris)" } ?: name } catch (_: java.io.IOException) { name }
+            else -> WAKE_PRESETS.firstOrNull { it.file == name }?.label ?: name
+        }
 
     fun installed(): Boolean =
         File(dir, WAKE_MODEL_MARKER).exists() && File(dir, WAKE_FILE_MEL).exists() &&
-            File(dir, WAKE_FILE_EMBEDDING).exists() && File(dir, selected()).exists()
+            File(dir, WAKE_FILE_EMBEDDING).exists() && fileFor(selected()).exists()
 
     /** Downloads one preset classifier next to the shared models, then selects it. Null on success. */
     suspend fun downloadPreset(preset: WakePreset): String? = withContext(Dispatchers.IO) {

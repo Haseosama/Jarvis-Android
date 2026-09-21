@@ -178,7 +178,10 @@ class JarvisEngine(
             container.configStore.wakeSensitivity.collect { wakeThreshold = com.jarvis.android.wake.wakeThresholdFor(it) }
         }
         scope.launch {
-            combine(container.configStore.wakeWordEnabled, state, com.jarvis.android.meetings.MeetingRecorderService.recordingFlow) { enabled, s, recording -> Triple(enabled && !recording, s, recording) }
+            combine(
+                container.configStore.wakeWordEnabled, state,
+                com.jarvis.android.meetings.MeetingRecorderService.recordingFlow, com.jarvis.android.wake.WakeTeaching.active,
+            ) { enabled, s, recording, teaching -> Triple(enabled && !recording && !teaching, s, recording) }
                 .collect { (enabled, s, _) -> updateWakeDetection(enabled, s) }
         }
     }

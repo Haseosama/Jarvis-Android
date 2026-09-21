@@ -368,9 +368,23 @@ starts the answer again. Changes:
 - **Wake phrase.** openWakeWord models are trained for one phrase each, so the text cannot simply be edited.
   Settings > Wake word offers the ready-made phrases of the openWakeWord release (« Hey Jarvis », « Alexa »,
   « Hey Mycroft », « Hey Rhasspy », downloaded on demand) and **Mon modèle**, which imports a `.tflite` classifier
-  you trained yourself (for example « Debout Jarvis », with openWakeWord's `automatic_model_training` notebook).
-  Not done here: training a « Debout Jarvis » model, and testing an imported model. Only the file header and size
-  are checked on import.
+  you trained yourself with openWakeWord's `automatic_model_training` notebook. Only the file header and size
+  are checked on import. For a phrase of your own without a computer, see the next item.
+- **Teach a wake word on the phone** (Settings > *Apprendre mon mot d'activation*, `wake/WakeLearning.kt`). openWakeWord trains a
+  classifier per phrase on thousands of synthetic voices (PyTorch, a computer), which cannot run on a phone. What the phone does instead
+  reuses openWakeWord's speech embedding (the same TFLite models as the detector) and compares what it hears with **your own repetitions**:
+  you say the phrase six times, then speak normally for twelve seconds; each repetition gives a few templates (the 16 embeddings that
+  end with the word), the mean of your ordinary speech is subtracted, and the detector fires when the last 1.3 s are close enough
+  (cosine similarity) to a template, twice in a row. The threshold comes from the repetitions (how well each one matches the others) and from
+  your ordinary speech (how close it gets), and follows the *Sensibilité* setting. A live test runs before saving; taught words are kept in
+  their own folder (removing the models does not delete them), and can be chosen or deleted. Nothing leaves the phone.
+  *What I measured* (real openWakeWord models, in the app on the emulator, with Windows text-to-speech voices; a plain classifier head trained on
+  the same recordings was tried first, in a Python prototype, and rejected: 71 of 80 phrases fired): with « Debout Jarvis » taught from five recordings of one voice, the
+  same voice at other speeds was recognised 4 times out of 4, a different voice was not (0.5 against a threshold of 0.72, which is intended: it
+  is a personal detector), and 1 of 40 unseen sentences fired, « Jarvis débranche la prise », which contains the word. In a Python prototype
+  with the same models (ONNX, not the app), white noise of σ 600 on 16-bit samples lowered the same-voice scores only from about 0.9 to 0.8. *Not tested:* a human voice and a real microphone (the emulator's is silent), so how
+  many false alarms you get in daily life is for you to find; the flow itself ran on the emulator up to its "not heard" message.
+  Choose a phrase of three syllables or more; very short words cannot be told apart from ordinary speech.
 - **Home screen.** A "Parler à Jarvis" widget and a long-press launcher shortcut open the app and start a session.
   Checked on the emulator: the widget receiver is registered and the shortcut is published; the tap itself was not tried.
 - **Routines.** "Chaque matin à 7 h, donne-moi la météo": the `routine` tool stores a daily task (optional weekdays).
