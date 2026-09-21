@@ -146,6 +146,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val nc = canvas.nativeCanvas
             drawSurface(nc, visible)
             drawWeb(nc, n, amp, primary, strokePx, avatar.time)
+            if (holo) drawCircuits(nc, n, amp, primary, bg, strokePx, avatar.time)
             if (fibreOverlay) drawFibres(nc, v, n, strokePx, r)
         }
         drawFeatures(scope, avatar, r, primary, accent, bg, amp, strokePx)
@@ -250,7 +251,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             // the lips are lit less unevenly than the skin: the upper one faces the light and would otherwise come out pale
             c = mix(c, lit(lipRgb, 0.80f + 0.30f * vlam), lipW)
         }
-        if (holo) c = mix(lit(mix(skinRgb, primaryColor, 0.26f), 0.92f * k), primaryColor, 0.05f)   // skin seen through the light of the hologram
+        if (holo) c = mix(c, primaryColor, 0.05f + 0.10f * (1f - vz.coerceIn(0f, 1f)))   // a real skin tone, with a faint cool light at the contour
         val fv = (mesh.fade[vi] * mesh.fade[vi]).coerceIn(0f, 1f)
         return mix(bgColor, c, fv)
     }
@@ -341,7 +342,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private fun drawWeb(nc: Canvas, nrm: FloatArray, amp: Float, primary: Int, strokePx: Float, t: Float) {
         if (skin > 0 && !holo) return // a skin hides the web, unless it is the hologram
         val w = web
-        val gain = (0.85f + 0.5f * amp) * (if (holo) 0.85f else 1f)
+        val gain = (0.85f + 0.5f * amp) * (if (holo) 0.42f else 1f)
         for (i in 0 until w.count) {
             val a = w.triA[i]; val b = w.triB[i]; val c = w.triC[i]
             val u = w.wu[i]; val q = w.wv[i]; val s = 1f - u - q
@@ -499,6 +500,78 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 }
             }
         }
+    }
+
+    private val circuits by lazy { CircuitTraces(mesh) }
+    private var cx = FloatArray(0); private var cy = FloatArray(0); private var cz = FloatArray(0)
+    private val circuitLines = Array(3) { FloatArray(0) }
+    private val circuitLineCounts = IntArray(3)
+
+    /**
+     * The circuit tracks of the hologram look: thin lines that follow the relief, round pads at their ends, and a pulse of light that
+     * runs along each track. Only where the surface faces the viewer, fading towards the contour.
+     */
+    private fun drawCircuits(nc: Canvas, nrm: FloatArray, amp: Float, primary: Int, bg: Int, strokePx: Float, t: Float) {
+        val c = circuits
+        if (c.count == 0) return
+        if (cx.size != c.count) {
+            cx = FloatArray(c.count); cy = FloatArray(c.count); cz = FloatArray(c.count)
+            for (b in 0 until 3) circuitLines[b] = FloatArray(c.segments.size * 2)
+        }
+        for (i in 0 until c.count) {
+            val a = c.triA[i]; val b = c.triB[i]; val d = c.triC[i]
+            val u = c.wu[i]; val q = c.wv[i]; val w = 1f - u - q
+            cx[i] = w * xs[a] + u * xs[b] + q * xs[d]
+            cy[i] = w * ys[a] + u * ys[b] + q * ys[d]
+            cz[i] = w * nrm[3 * a + 2] + u * nrm[3 * b + 2] + q * nrm[3 * d + 2]
+        }
+        circuitLineCounts.fill(0)
+        val gain = 0.8f + 0.4f * amp
+        for (k in 0 until c.segments.size / 2) {
+            val i = c.segments[2 * k]; val j = c.segments[2 * k + 1]
+            val face = smooth01(0.10f, 0.45f, min(cz[i], cz[j]))
+            if (face <= 0f) continue
+            // the pulse: a bright spot that runs along its track, the tracks out of step with each other
+            val phase = (t * 0.32f + c.segTrack[k] * 0.137f) % 1.25f
+            val d = (c.segAlong[k] - phase) / 0.07f
+            val a = (0.42f + 0.58f * kotlin.math.exp(-d * d)) * face * (c.fade[i] + c.fade[j]) * 0.5f * gain
+            val bk = if (a > 0.75f) 2 else if (a > 0.45f) 1 else 0
+            val arr = circuitLines[bk]; val o = circuitLineCounts[bk]
+            arr[o] = cx[i]; arr[o + 1] = cy[i]; arr[o + 2] = cx[j]; arr[o + 3] = cy[j]
+            circuitLineCounts[bk] = o + 4
+        }
+        val gold = 0xFFFFB640.toInt()                        // the gold of the circuit in the logo
+        val hot = mix(gold, 0xFFFFFFFF.toInt(), 0.6f)
+        linePaint.strokeCap = Paint.Cap.ROUND
+        for (bk in 0 until 3) {
+            if (circuitLineCounts[bk] == 0) continue
+            linePaint.strokeWidth = max(1.3f, strokePx * (0.75f + 0.3f * bk))
+            linePaint.color = withAlpha(if (bk == 2) hot else gold, floatArrayOf(150f, 215f, 255f)[bk])
+            nc.drawLines(circuitLines[bk], 0, circuitLineCounts[bk], linePaint)
+        }
+        // the pads: a ring, dark inside
+        var m = 0
+        for (p in c.pads) {
+            if (smooth01(0.10f, 0.45f, cz[p]) <= 0f) continue
+            if (m + 2 > padBuf.size) break
+            padBuf[m++] = cx[p]; padBuf[m++] = cy[p]
+        }
+        if (m > 0) {
+            linePaint.strokeWidth = max(3.6f, strokePx * 2.4f)
+            linePaint.color = withAlpha(gold, 245f)
+            nc.drawPoints(padBuf, 0, m, linePaint)
+            linePaint.strokeWidth = max(1.6f, strokePx * 1.0f)
+            linePaint.color = withAlpha(bg, 255f)
+            nc.drawPoints(padBuf, 0, m, linePaint)
+        }
+        linePaint.strokeCap = Paint.Cap.BUTT
+    }
+
+    private val padBuf = FloatArray(4_000)
+
+    private fun smooth01(e0: Float, e1: Float, x: Float): Float {
+        val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f)
+        return t * t * (3f - 2f * t)
     }
 
     /** Height of the energy sweep, set by the caller each frame. */

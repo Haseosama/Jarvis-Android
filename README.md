@@ -606,7 +606,7 @@ What it understands is a fixed list of French commands, matched by rules (`offli
 
 #### Hologram look
 
-The skin setting has, besides the tones and the glowing web alone, an **Hologramme** option: a solid skin (the light tone tinted a little by the web's colour), the fine web of nodes and lines drawn over it, no hair, and the brows and the lip line in the web's colour. The web itself is denser than before (nodes 0.031 apart in head half-heights, computed when a face loads, with a grid for the neighbour search). Checked on the emulator only.
+The skin setting has, besides the tones and the glowing web alone, an **Hologramme** option: a solid skin (the light tone tinted a little by the web's colour), the fine web of nodes and lines drawn over it, no hair, and the brows and the lip line in the web's colour. The web itself is denser than before (nodes 0.031 apart in head half-heights, computed when a face loads, with a grid for the neighbour search). Gold **circuit tracks** are laid on the face in this look (`avatar/CircuitTraces.kt`): paths on a lattice that turn by 45 or 90 degrees and end in round pads, anchored on the mesh like the web's nodes so they follow the relief and the movement, keeping away from the eyes and the mouth, with a pulse of light running along each track. Checked on the emulator only.
 
 ### Text chat (REST)
 

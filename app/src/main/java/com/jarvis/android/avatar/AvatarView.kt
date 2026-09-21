@@ -69,7 +69,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         }
         renderer.scanY = avatar.scan
         renderer.holo = controller.skin == HOLO_SKIN
-        renderer.skin = if (renderer.holo) 1 else controller.skin
+        renderer.skin = if (renderer.holo) 2 else controller.skin   // the hologram wears the matt tone
         renderer.lips = controller.lips
         renderer.browColour = if (renderer.holo) 0xFF7FE3F5.toInt() else avatarFace(model).browColour
         renderer.fibreOverlay = avatarFace(model).fibres
