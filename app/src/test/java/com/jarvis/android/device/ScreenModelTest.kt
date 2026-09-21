@@ -109,4 +109,12 @@ class ScreenModelTest {
         assertEquals("down", parseDirection("DOWN"))
         assertNull(parseDirection("diagonale"))
     }
+
+    @Test
+    fun `scrolling down is a finger going up`() {
+        assertEquals("up", swipeForScroll("down"))
+        assertEquals("down", swipeForScroll("up"))
+        assertEquals("right", swipeForScroll("left"))
+        assertEquals("left", swipeForScroll("right"))
+    }
 }

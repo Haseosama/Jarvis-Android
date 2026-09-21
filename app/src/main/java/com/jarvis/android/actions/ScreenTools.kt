@@ -170,7 +170,9 @@ object ScreenTypeTool : Tool {
 
 object ScreenScrollTool : Tool {
     override val name = "screen_scroll"
-    override val description = "Faire défiler une liste ou une page de l’écran actuel (haut, bas, gauche, droite)."
+    override val description =
+        "Faire défiler une liste ou une page de l’écran actuel : 'down' pour voir la suite plus bas, 'up' pour revenir en haut, 'left' et 'right' pour les listes horizontales. " +
+            "Peut être appelé directement, sans lire l’écran avant ; la première zone défilable qui accepte le mouvement est utilisée, sinon un glissement du doigt."
     override val parameters = objectSchema(required = listOf("direction")) {
         string("direction", "'up', 'down', 'left' ou 'right'.")
         integer("index", "Numéro de la zone défilable ; vide pour la première.")

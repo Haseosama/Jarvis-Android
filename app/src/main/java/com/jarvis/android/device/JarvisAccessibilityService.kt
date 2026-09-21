@@ -182,21 +182,32 @@ class JarvisAccessibilityService : AccessibilityService() {
         else ActionResult.Failed("Le champ a refusé le texte.")
     }
 
-    internal fun scroll(direction: String, index: Int?): ActionResult {
-        val node = (if (index != null) nodeAt(index) else last?.nodes?.firstOrNull { it.isScrollable && it.refresh() })
-            ?: return ActionResult.Failed("Rien à faire défiler sur cet écran.")
+    /**
+     * Scrolls the content in [direction] ("down" shows what is below). The screen is read again first: by voice the model calls this without
+     * having read the screen, and an old snapshot (or none) used to answer "nothing to scroll". Every scrollable area that supports the
+     * movement is tried, the largest first (a carousel must not hide the page); when none takes it (web pages, games, custom views), the
+     * same movement is made with a finger swipe.
+     */
+    internal suspend fun scroll(direction: String, index: Int?): ActionResult {
         val action = when (direction) {
             "up" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP
             "down" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN
             "left" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_LEFT
             else -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_RIGHT
         }
-        var target: AccessibilityNodeInfo? = node
-        while (target != null) {
-            if (target.isScrollable && target.performAction(action.id)) return ActionResult.Done
-            target = target.parent
+        if (index != null) {
+            var target: AccessibilityNodeInfo? = nodeAt(index) ?: return STALE
+            while (target != null) {
+                if (target.isScrollable && target.performAction(action.id)) return ActionResult.Done
+                target = target.parent
+            }
+            return ActionResult.Failed("Défilement impossible dans cette direction.")
         }
-        return ActionResult.Failed("Défilement impossible dans cette direction.")
+        val candidates = readScreen()?.nodes.orEmpty()
+            .filter { it.isScrollable && it.actionList.any { a -> a.id == action.id } }
+            .sortedByDescending { node -> Rect().also { node.getBoundsInScreen(it) }.let { it.width().toLong() * it.height() } }
+        for (node in candidates) if (node.performAction(action.id)) return ActionResult.Done
+        return swipe(swipeForScroll(direction))
     }
 
     /** The finger moves in [direction]: "left" pulls the content to the left (next page or photo). */

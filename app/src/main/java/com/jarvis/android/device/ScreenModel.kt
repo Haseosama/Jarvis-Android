@@ -118,3 +118,11 @@ internal fun parseDirection(value: String): String? =
         "right", "droite" -> "right"
         else -> null
     }
+
+/** The finger movement that scrolls the content in [direction]: to see what is below, the finger goes up. */
+internal fun swipeForScroll(direction: String): String = when (direction) {
+    "up" -> "down"
+    "down" -> "up"
+    "left" -> "right"
+    else -> "left"
+}
