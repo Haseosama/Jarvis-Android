@@ -22,8 +22,8 @@ internal class AvatarController(private val context: Context) {
     /** Set from the settings: when off, nothing is analysed and nothing is drawn. */
     @Volatile var enabled = true
 
-    /** How the head is dressed: 0 = the glowing web, 1..4 = a skin tone; lip colour 0 = natural, 1..4 = rose, red, plum, coral. */
-    @Volatile var skin = 1
+    /** How the head is dressed: 0 = the glowing web, 1..4 = a skin tone, 5 = the hologram over the skin (the default), 6 = the same with hair of optical fibres; lip colour 0 = natural, 1..4 = rose, red, plum, coral. */
+    @Volatile var skin = 5
     @Volatile var lips = 0
     /** 0 = no cap, 1..5 = black, blue, red, white, khaki. */
     @Volatile var cap = 0

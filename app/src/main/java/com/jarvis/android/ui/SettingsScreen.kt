@@ -71,7 +71,7 @@ fun SettingsScreen(
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
     val faceOn by configStore.avatarFace.collectAsState(initial = true)
     val faceModel by configStore.avatarModel.collectAsState(initial = 0)
-    val skinTone by configStore.avatarSkin.collectAsState(initial = 1)
+    val skinTone by configStore.avatarSkin.collectAsState(initial = 5)
     val lipTone by configStore.avatarLips.collectAsState(initial = 0)
     val capTone by configStore.avatarCap.collectAsState(initial = 0)
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")

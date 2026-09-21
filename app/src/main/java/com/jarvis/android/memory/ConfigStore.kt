@@ -219,7 +219,7 @@ class ConfigStore(private val context: Context) {
     /** Offline mode: 0 = automatic (when there is no network or Gemini cannot be reached), 1 = always, 2 = never. */
     val offlineMode: Flow<Int> = context.dataStore.data.map { it[KEY_OFFLINE_MODE] ?: 0 }
     val messageAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_MESSAGE_AUTO_SEND] ?: false }
-    val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 1 }
+    val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 5 }   // the hologram over the skin, unless the user chose another look
     /** 0 = natural, 1..4 = a lip colour (rose, red, plum, coral). */
     val avatarLips: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_LIPS] ?: 0 }
     /** The cap on the avatar: 0 = none, 1..5 = black, blue, red, white, khaki. */
