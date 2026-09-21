@@ -30,7 +30,7 @@ private const val CONFIRM_TIMEOUT_MS = 60_000L
 private const val SETTLE_MS = 700L
 
 /** The connected service, or the reason the tools cannot act. */
-private suspend fun serviceOrReason(ctx: JarvisContainer): Pair<JarvisAccessibilityService?, String?> {
+internal suspend fun serviceOrReason(ctx: JarvisContainer): Pair<JarvisAccessibilityService?, String?> {
     if (!ctx.configStore.deviceControlEnabled.first()) return null to ERROR_CONTROL_OFF
     var service = JarvisAccessibilityService.instance
     if (service == null && com.jarvis.android.device.AccessibilityKeeper.ensureEnabled(ctx.appContext)) {
@@ -130,7 +130,7 @@ object ScreenTapTool : Tool {
                 }
             }
             val element = service.elementAt(index) ?: return@withContext "Élément [$index] introuvable. Relisez l’écran."
-            confirmationReason(snapshot.packageName, element)?.let { why ->
+            confirmationReason(snapshot.packageName, element, ctx.messageAutoSend)?.let { why ->
                 val approved = try {
                     withTimeout(CONFIRM_TIMEOUT_MS) {
                         ctx.confirmManager.request(

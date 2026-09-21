@@ -76,5 +76,6 @@ internal suspend fun collectSelfKnowledge(container: JarvisContainer, assistantN
         keyCount = store.keySlotsFilled().count { it },
         briefingEnabled = store.briefingEnabled.first(),
         proactiveEnabled = store.proactiveEnabled.first(),
+        messageAutoSend = store.messageAutoSend.first(),
     )
 }

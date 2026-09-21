@@ -95,7 +95,7 @@ object ContactTool : Tool {
         }
     }
 
-    private fun readContacts(context: Context): List<ContactRow> {
+    internal fun readContacts(context: Context): List<ContactRow> {
         val rows = mutableListOf<ContactRow>()
         val projection = arrayOf(
             ContactsContract.CommonDataKinds.Phone.CONTACT_ID,

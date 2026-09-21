@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Mail
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -287,5 +289,63 @@ internal fun UpdateCard() {
         available?.notes?.takeIf { it.isNotBlank() }?.let {
             Text(it.take(600), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
         }
+    }
+}
+
+
+/** Sending messages on the user's word: off by default, with what it changes said plainly, and what was sent in their name. */
+@Composable
+internal fun MessageSendCard(configStore: ConfigStore) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val container = remember { (context.applicationContext as JarvisApp).container }
+    val on by configStore.messageAutoSend.collectAsState(initial = false)
+    var tick by remember { mutableIntStateOf(0) }
+    var smsGranted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) }
+    val askSms = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { smsGranted = it }
+    LaunchedEffect(Unit) {
+        while (true) {
+            tick++
+            smsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+            delay(3_000)
+        }
+    }
+    val history = remember(tick) { container.sentMessages.recent(5) }
+    SettingsCard(tr("Envoi de messages"), Icons.Filled.Send, initiallyExpanded = false) {
+        Row(
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        ) {
+            Text(tr("Envoyer les messages sans confirmation quand je dis « envoie »"), modifier = Modifier.weight(1f))
+            Switch(checked = on, onCheckedChange = { value ->
+                scope.launch { configStore.setMessageAutoSend(value) }
+                if (value && !smsGranted) askSms.launch(Manifest.permission.SEND_SMS)
+            })
+        }
+        Text(
+            tr("Désactivé, Jarvis ne fait que préparer un brouillon. Activé, quand vous dites clairement d’envoyer, il envoie vraiment le message à un contact de votre téléphone : par SMS, ou par WhatsApp (il ouvre la conversation et appuie sur Envoyer, ce qui demande le contrôle du téléphone). Il n’écrit qu’à vos contacts, 5 messages au plus toutes les 10 minutes, chaque envoi est annoncé par une notification et noté ci-dessous. Un texte lu dans un mail, une page ou une notification ne doit jamais déclencher un envoi, mais un envoi parti ne se rattrape pas : n’activez que si vous l’acceptez."),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        if (on) {
+            Text(
+                if (smsGranted) tr("Autorisation d’envoyer des SMS : accordée ✓") else tr("Autorisation d’envoyer des SMS : non accordée (les SMS passeront par l’application de SMS, avec le contrôle du téléphone)."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            if (!smsGranted) OutlinedButton(onClick = { askSms.launch(Manifest.permission.SEND_SMS) }, modifier = Modifier.padding(top = 4.dp)) { Text(tr("Autoriser l’envoi de SMS")) }
+        }
+        Text(tr("Derniers messages envoyés par Jarvis"), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 10.dp))
+        if (history.isEmpty()) Text(tr("Aucun pour l’instant."), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+        val format = remember { java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT) }
+        for (m in history) {
+            Text(
+                "${format.format(java.util.Date(m.time))} · ${m.to} (${m.via}) : ${m.text.take(120)}",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        if (history.isNotEmpty()) OutlinedButton(onClick = { container.sentMessages.clear(); tick++ }, modifier = Modifier.padding(top = 6.dp)) { Text(tr("Effacer l’historique")) }
     }
 }

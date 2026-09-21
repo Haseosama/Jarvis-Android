@@ -35,16 +35,13 @@ class DebugToolReceiver : BroadcastReceiver() {
         } catch (_: Exception) {
             JsonObject(simple)
         }
-        val pending = goAsync()
         val container = (context.applicationContext as JarvisApp).container
+        // The broadcast is released at once: kept open until the tool ends, it holds back the other broadcasts to this app, and a tool that
+        // waits for one (the report of a sent SMS) would wait for nothing. The app is alive in the foreground while it is tested.
         CoroutineScope(Dispatchers.Default).launch {
-            try {
-                val result = ToolRegistry.run(tool, args, container)
-                result.chunked(900).forEachIndexed { i, part -> Log.i("DebugTool", "$tool#$i $part") }
-                Log.i("DebugTool", "$tool END")
-            } finally {
-                pending.finish()
-            }
+            val result = ToolRegistry.run(tool, args, container)
+            result.chunked(900).forEachIndexed { i, part -> Log.i("DebugTool", "$tool#$i $part") }
+            Log.i("DebugTool", "$tool END")
         }
     }
 }

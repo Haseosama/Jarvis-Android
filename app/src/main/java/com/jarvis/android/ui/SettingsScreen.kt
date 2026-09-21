@@ -702,6 +702,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
             }
+            MessageSendCard(configStore)
             MeetingNotesCard()
             WatchesCard()
             GoogleCard(configStore)

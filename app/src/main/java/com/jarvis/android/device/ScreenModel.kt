@@ -90,6 +90,21 @@ internal fun isSensitiveLabel(label: String): Boolean {
     }
 }
 
+/** Messaging apps where, with automatic sending switched on, the button that sends a message needs no confirmation. */
+internal val MESSAGING_PACKAGES = setOf(
+    "com.whatsapp", "com.whatsapp.w4b", "org.telegram.messenger", "org.thoughtcrime.securesms", "com.facebook.orca",
+    "com.google.android.apps.messaging", "com.samsung.android.messaging", "com.android.mms",
+)
+
+private val NOT_A_MESSAGE = listOf("argent", "money", "payment", "paiement", "payer", "pay ", "cash", "virement", "transfer")
+
+/** True for the button that sends a typed message ("Envoyer", "Send", "Send SMS"), and not for one that sends money. */
+internal fun isSendLabel(label: String): Boolean {
+    val text = normalizeLabel(label)
+    if (NOT_A_MESSAGE.any { it in "$text " }) return false
+    return text == "envoyer" || text == "send" || text.startsWith("envoyer ") || text.startsWith("send ")
+}
+
 /** Screens where a wrong tap changes security, permissions or installs: every tap needs approval. */
 internal val ALWAYS_CONFIRM_PACKAGES = setOf(
     // The confirmation notification lives here: the assistant must never be able to answer it itself.
@@ -103,8 +118,10 @@ internal val ALWAYS_CONFIRM_PACKAGES = setOf(
 )
 
 /** Why a tap needs the user's approval, or null when it can go ahead. */
-internal fun confirmationReason(packageName: String, element: ScreenElement): String? = when {
+internal fun confirmationReason(packageName: String, element: ScreenElement, allowMessageSend: Boolean = false): String? = when {
     packageName in ALWAYS_CONFIRM_PACKAGES -> "écran sensible ($packageName)"
+    // the user switched on automatic sending: the send button of a messaging app is not asked about (nothing else is waived)
+    allowMessageSend && packageName in MESSAGING_PACKAGES && isSendLabel(element.label) -> null
     isSensitiveLabel(element.label) -> "action sensible"
     else -> null
 }

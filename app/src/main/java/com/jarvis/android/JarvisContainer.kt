@@ -46,6 +46,13 @@ class JarvisContainer(val appContext: Context) {
     @Volatile var wakeEnabled: Boolean = false
         private set
 
+    /** Mirror of the setting for sending messages on the user's word, read by the tools that must not suspend to look it up. */
+    @Volatile var messageAutoSend: Boolean = false
+
+    internal val sentMessages: com.jarvis.android.messaging.SentMessages by lazy {
+        com.jarvis.android.messaging.SentMessages(java.io.File(appContext.noBackupFilesDir, "sent_messages.json"))
+    }
+
     fun micGranted(): Boolean =
         appContext.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
@@ -89,6 +96,7 @@ class JarvisContainer(val appContext: Context) {
         }
         appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }
         appScope.launch { configStore.avatarModel.collect { avatar.model = it } }
+        appScope.launch { configStore.messageAutoSend.collect { messageAutoSend = it } }
         appScope.launch { configStore.avatarSkin.collect { avatar.skin = it } }
         appScope.launch { configStore.avatarLips.collect { avatar.lips = it } }
         com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)

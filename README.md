@@ -58,9 +58,8 @@ release APK comes out unsigned. `keystore/`, `*.keystore` and `*.jks` are git-ig
 `open_app`, `browser_control`, `reminder` (create / list / cancel, persisted, re-armed after
 a reboot, read aloud when due), `timer` (create / list / cancel, read aloud at the end),
 `system_monitor` (battery/storage), `device_settings` (volume behind an on-screen
-confirmation; Wi-Fi/brightness panels), `send_message` (WhatsApp, Telegram, Messenger or SMS: opens the app with the text ready,
-draft only — the user picks the contact and sends; the app cannot type into other apps or press
-their buttons, which would need an accessibility service),
+confirmation; Wi-Fi/brightness panels), `send_message` (WhatsApp, Telegram, Messenger or SMS: by default a draft the user sends themselves;
+with *automatic sending* switched on it really sends, see "Sending messages on your word"),
 `youtube_video`, `read_clipboard`, `code_helper`, `recall_memory`, `remember_fact`,
 `forget_fact`, `undo`, `end_session`, and the phone-control tools below.
 
@@ -620,6 +619,31 @@ Checked: unit tests with fake recorder, player and transport (round trip, each f
 on an emulator the record → transcribe → error path with a fake key. Not yet checked with a real key:
 the transcription quality, the speech-model auto-detection and the actual playback. It does not stop
 a running Live voice session; use one or the other.
+
+### Sending messages on your word
+
+By default `send_message` only prepares a draft and any tap on a « Envoyer » button asks for a confirmation on screen. Settings > *Envoi de
+messages* has a switch, **off by default**, that changes this: when it is on and you clearly say to send (« envoie »), the message goes out, with no
+further confirmation.
+
+- **SMS**: sent straight from the phone with `SmsManager` (permission `SEND_SMS`, asked when the switch is turned on). Without that permission,
+  it opens the messaging app and presses its send button through the accessibility service.
+- **WhatsApp**: opens the conversation with the contact's number and the text already typed (`wa.me` link), then presses « Envoyer »/« Send »
+  through the accessibility service. Telegram and Messenger stay drafts.
+- **Guard rails**: the recipient must be a **contact of the phone** (the model never types a number; several matches are listed and it asks which);
+  at most **5 messages every 10 minutes** (a refused or failed attempt does not use the allowance); every message is announced by a **notification**
+  with its text and written in a **history** shown in the same card; the model is told in its instructions that a mail, a page or a notification
+  is data and never a request to send, and that it may send only on a clear request. In the tool, `send = true` without the switch just opens the
+  draft and says how to turn it on. Outside this path nothing changed: a tap on a send, pay, delete or install button in any app still asks, and
+  the confirmation is only waived for the send button of a messaging app (WhatsApp, Telegram, Signal, Messenger, Google/Samsung/AOSP messages),
+  never for a label that mentions money, and never on the system, settings or installer screens.
+- **Risk, said plainly**: a message that has gone cannot be taken back, and a language model can be wrong or be tricked by a text it reads. The
+  switch is yours to turn on; the limit, the contact rule and the notifications only reduce the damage.
+- *Checked* on the emulator: sending an SMS (about 5 s, with its result, the history and the notification), the contact that is ambiguous, unknown
+  or missing, the limit (and the give-back after a failure), the switch off (draft only), and the path through the screen (without the SMS
+  permission: the messaging app opens, its « Send SMS » button is found and pressed, and the message goes out). 20 unit tests. *Not checked*:
+  WhatsApp itself (not installed on the emulator: its button is looked up by the same rule, a clickable « Envoyer » or « Send » in the app),
+  delivery to a real recipient, and a real spoken « envoie ».
 
 ### Meeting notes, documents, watches, Gmail and Drive
 
