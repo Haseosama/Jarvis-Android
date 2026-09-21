@@ -78,37 +78,6 @@ class JarvisContainer(val appContext: Context) {
         }
     }
 
-    init {
-        appScope.launch {
-            configStore.wakeWordEnabled.collect {
-                wakeEnabled = it
-                syncVoiceService()
-            }
-        }
-        com.jarvis.android.device.AccessibilityKeeper.ensureEnabled(appContext)
-        // What was said in a session that ended before its summary could be stored is stored now.
-        appScope.launch(Dispatchers.IO) {
-            kotlinx.coroutines.delay(8_000)   // the container is fully built by then
-            com.jarvis.android.rest.retryPendingTranscripts(this@JarvisContainer)
-        }
-        appScope.launch {
-            configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
-        }
-        appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }
-        appScope.launch { configStore.avatarModel.collect { avatar.model = it } }
-        appScope.launch { configStore.messageAutoSend.collect { messageAutoSend = it } }
-        appScope.launch { configStore.avatarSkin.collect { avatar.skin = it } }
-        appScope.launch { configStore.avatarLips.collect { avatar.lips = it } }
-        appScope.launch { configStore.avatarCap.collect { avatar.cap = it } }
-        com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)
-        com.jarvis.android.watch.WatchScheduler.sync(appContext)
-        appScope.launch { configStore.audioInputKey.collect { com.jarvis.android.core.AudioRoute.inputKey = it } }
-        appScope.launch { configStore.audioOutputKey.collect { com.jarvis.android.core.AudioRoute.outputKey = it } }
-        appScope.launch { configStore.carAudioMode.collect { com.jarvis.android.core.CarAudio.setting = it } }
-        val notifier = com.jarvis.android.core.ConfirmNotifier(appContext)
-        appScope.launch { confirmManager.pending.collect { notifier.show(it) } }
-    }
-
     /** One engine per process, shared by the foreground service and the UI. */
     val engine: JarvisEngine by lazy { JarvisEngine(this, appScope) }
 
@@ -132,4 +101,40 @@ class JarvisContainer(val appContext: Context) {
 
     /** Text chat over generateContent; independent of the Live session. */
     val restChat: RestChat by lazy { RestChat(this) }
+
+    /**
+     * Last of the class on purpose: these collectors start at once, on other threads, and touch the engine, the avatar and the others,
+     * which have to be built first (a cold start with no stored settings used to crash on them).
+     */
+    init {
+        appScope.launch {
+            configStore.wakeWordEnabled.collect {
+                wakeEnabled = it
+                syncVoiceService()
+            }
+        }
+        com.jarvis.android.device.AccessibilityKeeper.ensureEnabled(appContext)
+        // What was said in a session that ended before its summary could be stored is stored now.
+        appScope.launch(Dispatchers.IO) {
+            kotlinx.coroutines.delay(8_000)   // the container is fully built by then
+            com.jarvis.android.rest.retryPendingTranscripts(this@JarvisContainer)
+        }
+        appScope.launch {
+            configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
+        }
+        appScope.launch { configStore.messageAutoSend.collect { messageAutoSend = it } }
+        appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }
+        appScope.launch { configStore.avatarModel.collect { avatar.model = it } }
+        appScope.launch { configStore.avatarSkin.collect { avatar.skin = it } }
+        appScope.launch { configStore.avatarLips.collect { avatar.lips = it } }
+        appScope.launch { configStore.avatarCap.collect { avatar.cap = it } }
+        com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)
+        com.jarvis.android.watch.WatchScheduler.sync(appContext)
+        appScope.launch { configStore.audioInputKey.collect { com.jarvis.android.core.AudioRoute.inputKey = it } }
+        appScope.launch { configStore.audioOutputKey.collect { com.jarvis.android.core.AudioRoute.outputKey = it } }
+        appScope.launch { configStore.carAudioMode.collect { com.jarvis.android.core.CarAudio.setting = it } }
+        val notifier = com.jarvis.android.core.ConfirmNotifier(appContext)
+        appScope.launch { confirmManager.pending.collect { notifier.show(it) } }
+    }
+
 }

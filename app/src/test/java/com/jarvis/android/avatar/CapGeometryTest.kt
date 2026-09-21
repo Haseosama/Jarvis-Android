@@ -8,18 +8,28 @@ import java.io.File
 class CapGeometryTest {
     private val mesh: HeadMesh by lazy { HeadMesh.parse(File("src/main/assets/avatar/head_mesh.bin").readBytes()) }
 
-    @Test fun `the dome and the visor are well formed`() {
+    @Test fun `the dome is a whole grid with every ring, every column and the top`() {
         val g = CapGeometry(mesh)
-        assertTrue("dome points: ${g.verts.size}", g.verts.size > 300)
-        assertTrue(g.tris.size / 3 > 500)
-        assertEquals(g.verts.size, g.lift.size)
-        assertTrue(g.tris.all { it in g.verts.indices })
-        assertTrue(g.top in g.verts.indices)
-        assertTrue("visor points: ${g.visor.size}", g.visor.size >= 6)
-        assertTrue(g.visor.all { it in g.verts.indices })
-        // from left to right
-        for (k in 1 until g.visorX.size) assertTrue(g.visorX[k] >= g.visorX[k - 1])
-        assertTrue(g.lift.all { it in 0f..(CapGeometry.BAND + 0.001f) })
+        val n = g.rings * g.columns + 1
+        assertEquals(n, g.top + 1)
+        assertEquals(3 * n, g.bind.size); assertEquals(3 * n, g.weight.size); assertEquals(n, g.stand.size)
+        assertTrue(g.bind.all { it in 0 until mesh.vertexCount })
+        for (q in 0 until n) {
+            val w = g.weight[3 * q] + g.weight[3 * q + 1] + g.weight[3 * q + 2]
+            assertTrue("weights of $q add up to $w", w in 0.999f..1.001f)
+            assertTrue(g.stand[q] in 0.02f..0.20f)
+        }
+        // two triangles per quad between rings, and a fan at the top: no hole in the grid
+        assertEquals(3 * (2 * (g.rings - 1) * g.columns + g.columns), g.tris.size)
+        assertTrue(g.tris.all { it in 0 until n })
+    }
+
+    @Test fun `the visor is a run of neighbouring columns at the front`() {
+        val g = CapGeometry(mesh)
+        assertTrue("visor columns: ${g.visor.size}", g.visor.size in 6..(g.columns / 2))
+        for (k in 1 until g.visor.size) assertEquals(g.visor[k - 1] + 1, g.visor[k])
+        val middle = g.columns / 2
+        assertTrue(g.visor.first() < middle && g.visor.last() >= middle - 1)   // it spans the front
     }
 
     @Test fun `the hair under the cap is hidden, the hair below it is not`() {
