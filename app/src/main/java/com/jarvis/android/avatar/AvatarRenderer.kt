@@ -596,6 +596,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private val capPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
     private val capLine = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
     private val capPath = android.graphics.Path()
+    private val capDash = android.graphics.DashPathEffect(floatArrayOf(5f, 4f), 0f)
 
     private fun capShade(base: Int, k: Float): Int {
         val kk = k.coerceIn(0f, 1.4f)
@@ -660,60 +661,128 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             if (pen && capN[3 * g.top + 2] > 0.02f) capPath.lineTo(capX[g.top], capY[g.top])
             nc.drawPath(capPath, capLine)
         }
-        // the edge of the cap: a darker line all round (the part facing the viewer)
-        capLine.strokeWidth = max(1.3f, strokePx * 1.0f)
-        capLine.color = capShade(base, 0.38f)
-        capPath.reset()
-        var pen = false
-        for (col in 0..cols) {
-            val q = col % cols
-            if (capN[3 * q + 2] < 0.0f) { pen = false; continue }
-            if (!pen) { capPath.moveTo(capX[q], capY[q]); pen = true } else capPath.lineTo(capX[q], capY[q])
+        // the band round the edge (the thickness of the cap, and its sweatband): a strip under the edge, darker, all the way round
+        val bandDown = 0.05f
+        val bx = FloatArray(cols); val by = FloatArray(cols)
+        for (col in 0 until cols) {
+            val px = capP[3 * col] + capN[3 * col] * 0.008f
+            val py = capP[3 * col + 1] - bandDown + capN[3 * col + 1] * 0.008f
+            val pz = capP[3 * col + 2] + capN[3 * col + 2] * 0.008f
+            val w = max(CAM_D - pz, 0.35f); val k = CAM_D / w * r
+            bx[col] = cx + px * k; by[col] = cy - py * k
         }
-        nc.drawPath(capPath, capLine)
+        for (col in 0 until cols) {
+            val c2 = (col + 1) % cols
+            if (capN[3 * col + 2] < -0.02f && capN[3 * c2 + 2] < -0.02f) continue
+            val lam = (capN[3 * col] * -0.55f + capN[3 * col + 1] * 0.10f + capN[3 * col + 2] * 0.52f).coerceIn(0f, 1f)
+            capPaint.color = capShade(base, 0.40f + 0.50f * lam)
+            capPath.reset()
+            capPath.moveTo(capX[col], capY[col]); capPath.lineTo(capX[c2], capY[c2]); capPath.lineTo(bx[c2], by[c2]); capPath.lineTo(bx[col], by[col]); capPath.close()
+            nc.drawPath(capPath, capPaint)
+        }
+        // the edge of the cap and the lower edge of the band: two darker lines
+        capLine.strokeWidth = max(1.2f, strokePx * 0.9f)
+        capLine.color = capShade(base, 0.30f)
+        for (pass in 0 until 2) {
+            capPath.reset()
+            var pen = false
+            for (col in 0..cols) {
+                val q = col % cols
+                if (capN[3 * q + 2] < 0.0f) { pen = false; continue }
+                val x = if (pass == 0) capX[q] else bx[q]; val y = if (pass == 0) capY[q] else by[q]
+                if (!pen) { capPath.moveTo(x, y); pen = true } else capPath.lineTo(x, y)
+            }
+            nc.drawPath(capPath, capLine)
+        }
+        // the button, with a small highlight
         if (capN[3 * g.top + 2] > 0.05f) {
-            capPaint.color = capShade(base, 0.58f)
+            capPaint.color = capShade(base, 0.55f)
             nc.drawCircle(capX[g.top], capY[g.top], max(2f, r * 0.030f), capPaint)
-            capPaint.color = capShade(base, 1.05f)
+            capPaint.color = capShade(base, 1.10f)
             nc.drawCircle(capX[g.top] - r * 0.004f, capY[g.top] - r * 0.005f, max(1f, r * 0.012f), capPaint)
         }
 
-        // the visor: from the front of the edge, forward and down, longest in the middle
+        // the visor: from the front of the edge, forward and down, longest in the middle, curved (it droops more at its sides)
         val vs = g.visor
         val m = vs.size
         if (m >= 3) {
-            val qx = FloatArray(m); val qy = FloatArray(m); val q3 = FloatArray(3 * m)
-            for (s in 0 until m) {
-                val col = vs[s]
+            val qx = FloatArray(m); val qy = FloatArray(m); val q3 = FloatArray(3 * m)      // the outer edge
+            val tx = FloatArray(m); val ty = FloatArray(m)                                   // its lower edge (the thickness)
+            val s1x = FloatArray(m); val s1y = FloatArray(m); val s2x = FloatArray(m); val s2y = FloatArray(m)   // two rows of stitching
+            val shx = FloatArray(m); val shy = FloatArray(m)                                 // the shadow on the forehead
+            fun project(x: Float, y: Float, z: Float, ox: FloatArray, oy: FloatArray, i: Int) {
+                val w = max(CAM_D - z, 0.35f); val k = CAM_D / w * r
+                ox[i] = cx + x * k; oy[i] = cy - y * k
+            }
+            for (i in 0 until m) {
+                val col = vs[i]
                 val a = (col + 0.5f) / cols * 2f * Math.PI.toFloat() - Math.PI.toFloat()
-                val len = CapGeometry.VISOR * Math.pow(max(cos(a * (Math.PI.toFloat() / 2f) / CapGeometry.VISOR_SPAN), 0f).toDouble(), 0.8).toFloat()
-                var dx = capN[3 * col] * 0.5f; var dy = -0.32f; var dz = max(capN[3 * col + 2], 0.35f)
+                val t = (abs(a) / CapGeometry.VISOR_SPAN).coerceIn(0f, 1f)
+                val len = CapGeometry.VISOR * Math.pow(max(cos(t * (Math.PI.toFloat() / 2f)), 0f).toDouble(), 0.9).toFloat()
+                var dx = capN[3 * col] * 0.5f + kotlin.math.sin(a) * 0.10f
+                var dy = -(0.30f + 0.50f * t * t)
+                var dz = max(capN[3 * col + 2], 0.35f)
                 val dl = kotlin.math.sqrt(dx * dx + dy * dy + dz * dz)
                 dx /= dl; dy /= dl; dz /= dl
-                val x = capP[3 * col] + dx * len; val y = capP[3 * col + 1] + dy * len; val z = capP[3 * col + 2] + dz * len
-                q3[3 * s] = x; q3[3 * s + 1] = y; q3[3 * s + 2] = z
-                val w = max(CAM_D - z, 0.35f); val k = CAM_D / w * r
-                qx[s] = cx + x * k; qy[s] = cy - y * k
+                val x0 = capP[3 * col]; val y0 = capP[3 * col + 1] - bandDown * 0.3f; val z0 = capP[3 * col + 2]
+                val x = x0 + dx * len; val y = y0 + dy * len; val z = z0 + dz * len
+                q3[3 * i] = x; q3[3 * i + 1] = y; q3[3 * i + 2] = z
+                project(x, y, z, qx, qy, i)
+                project(x, y - 0.020f, z, tx, ty, i)
+                project(x0 + dx * len * 0.82f, y0 + dy * len * 0.82f, z0 + dz * len * 0.82f, s1x, s1y, i)
+                project(x0 + dx * len * 0.90f, y0 + dy * len * 0.90f, z0 + dz * len * 0.90f, s2x, s2y, i)
+                // the shadow it throws on the forehead: below the base of the visor, as long as the visor is
+                project(x0, y0 - 0.02f - 0.13f * (len / CapGeometry.VISOR), z0, shx, shy, i)
             }
-            for (s in 0 until m - 1) {
-                val ja = vs[s]; val jb = vs[s + 1]
+            // the shadow first: a soft dark band under the visor (over the face)
+            capPaint.color = withAlpha(0xFF000000.toInt(), 70f)
+            for (i in 0 until m - 1) {
+                val ja = vs[i]; val jb = vs[i + 1]
+                capPath.reset()
+                capPath.moveTo(bx[ja], by[ja]); capPath.lineTo(bx[jb], by[jb]); capPath.lineTo(shx[i + 1], shy[i + 1]); capPath.lineTo(shx[i], shy[i]); capPath.close()
+                nc.drawPath(capPath, capPaint)
+            }
+            // the top of the visor
+            for (i in 0 until m - 1) {
+                val ja = vs[i]; val jb = vs[i + 1]
                 val ax = capP[3 * jb] - capP[3 * ja]; val ay = capP[3 * jb + 1] - capP[3 * ja + 1]; val az = capP[3 * jb + 2] - capP[3 * ja + 2]
-                val bx = q3[3 * s] - capP[3 * ja]; val by = q3[3 * s + 1] - capP[3 * ja + 1]; val bz = q3[3 * s + 2] - capP[3 * ja + 2]
-                var nx = ay * bz - az * by; var ny = az * bx - ax * bz; var nz = ax * by - ay * bx
+                val bx2 = q3[3 * i] - capP[3 * ja]; val by2 = q3[3 * i + 1] - capP[3 * ja + 1]; val bz2 = q3[3 * i + 2] - capP[3 * ja + 2]
+                var nx = ay * bz2 - az * by2; var ny = az * bx2 - ax * bz2; var nz = ax * by2 - ay * bx2
                 val nl = max(kotlin.math.sqrt(nx * nx + ny * ny + nz * nz), 1e-6f)
                 nx /= nl; ny /= nl; nz /= nl
                 if (ny < 0f) { nx = -nx; ny = -ny; nz = -nz }
                 val lam = (nx * -0.55f + ny * 0.50f + nz * 0.52f).coerceIn(0f, 1f)
-                capPaint.color = capShade(base, 0.55f + 0.75f * lam)
+                // a little lighter towards the outer edge, as the visor is lit from above
+                capPaint.color = capShade(base, 0.60f + 0.75f * lam)
                 capPath.reset()
-                capPath.moveTo(capX[ja], capY[ja]); capPath.lineTo(capX[jb], capY[jb]); capPath.lineTo(qx[s + 1], qy[s + 1]); capPath.lineTo(qx[s], qy[s]); capPath.close()
+                capPath.moveTo(capX[ja], capY[ja]); capPath.lineTo(capX[jb], capY[jb]); capPath.lineTo(qx[i + 1], qy[i + 1]); capPath.lineTo(qx[i], qy[i]); capPath.close()
                 nc.drawPath(capPath, capPaint)
             }
+            // the thickness: a strip under the outer edge
+            capPaint.color = capShade(base, 0.32f)
+            for (i in 0 until m - 1) {
+                capPath.reset()
+                capPath.moveTo(qx[i], qy[i]); capPath.lineTo(qx[i + 1], qy[i + 1]); capPath.lineTo(tx[i + 1], ty[i + 1]); capPath.lineTo(tx[i], ty[i]); capPath.close()
+                nc.drawPath(capPath, capPaint)
+            }
+            // the stitching: two dashed rows near the outer edge
+            capLine.strokeWidth = max(0.8f, strokePx * 0.55f)
+            capLine.color = withAlpha(capShade(base, 0.42f), 200f)
+            capLine.pathEffect = capDash
+            for (row in 0 until 2) {
+                val xs2 = if (row == 0) s1x else s2x; val ys2 = if (row == 0) s1y else s2y
+                capPath.reset()
+                capPath.moveTo(xs2[0], ys2[0])
+                for (i in 1 until m) capPath.lineTo(xs2[i], ys2[i])
+                nc.drawPath(capPath, capLine)
+            }
+            capLine.pathEffect = null
+            // the outer edge
             capLine.strokeWidth = max(1.2f, strokePx * 0.9f)
-            capLine.color = capShade(base, 0.34f)
+            capLine.color = capShade(base, 0.28f)
             capPath.reset()
             capPath.moveTo(qx[0], qy[0])
-            for (s in 1 until m) capPath.lineTo(qx[s], qy[s])
+            for (i in 1 until m) capPath.lineTo(qx[i], qy[i])
             nc.drawPath(capPath, capLine)
         }
     }

@@ -44,7 +44,7 @@ internal class CapGeometry(mesh: HeadMesh) {
         const val OFFSET = 0.055f
 
         /** Longest reach of the visor, in head half-heights, and the angle (from the front) it spreads over. */
-        const val VISOR = 0.38f
+        const val VISOR = 0.46f
         const val VISOR_SPAN = 0.95f
 
         /** Height of the edge of the cap over the point (side, depth) of the rest pose. */
