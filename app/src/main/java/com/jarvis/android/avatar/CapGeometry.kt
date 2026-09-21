@@ -44,7 +44,7 @@ internal class CapGeometry(mesh: HeadMesh) {
         const val OFFSET = 0.055f
 
         /** Longest reach of the visor, in head half-heights, and the angle (from the front) it spreads over. */
-        const val VISOR = 0.52f
+        const val VISOR = 0.62f
         const val VISOR_SPAN = 0.95f
 
         /**
@@ -55,7 +55,7 @@ internal class CapGeometry(mesh: HeadMesh) {
             val a = abs(atan2(side, z + 0.10f))                          // the angle from the front, 0 to pi
             val back = ((a - 1.75f) / (Math.PI.toFloat() - 1.75f)).coerceIn(0f, 1f)
             val sides = ((a - 0.4f) / 1.2f).coerceIn(0f, 1f)
-            return 0.36f + 0.03f * sides * (1f - back) - 0.20f * (back * back * (3f - 2f * back))
+            return 0.34f + 0.03f * sides * (1f - back) - 0.20f * (back * back * (3f - 2f * back))
         }
     }
 

@@ -747,7 +747,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 val t = (abs(a) / CapGeometry.VISOR_SPAN).coerceIn(0f, 1f)
                 val len = CapGeometry.VISOR * Math.pow(max(cos(t * (Math.PI.toFloat() / 2f)), 0f).toDouble(), 0.9).toFloat()
                 var dx = capN[3 * col] * 0.5f + kotlin.math.sin(a) * 0.10f
-                var dy = -(0.27f + 0.55f * t * t)
+                var dy = -(0.33f + 0.55f * t * t)
                 var dz = max(capN[3 * col + 2], 0.35f)
                 val dl = kotlin.math.sqrt(dx * dx + dy * dy + dz * dz)
                 dx /= dl; dy /= dl; dz /= dl
@@ -1040,8 +1040,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         val midX = lm.getValue("lips_out").let { ring -> ring.sumOf { xs[it].toDouble() }.toFloat() / ring.size }
         val hairColour = browColour
 
-        // brows
+        // brows (under a cap they are behind the visor, so they are not drawn)
         for (key in listOf("brow_l", "brow_r")) {
+            if (cap > 0) continue
             val idx = lm.getValue(key)
             val n = idx.size
             val inner0 = kotlin.math.abs(xs[idx[0]] - midX) < kotlin.math.abs(xs[idx[n - 1]] - midX)
