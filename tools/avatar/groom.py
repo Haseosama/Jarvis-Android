@@ -13,7 +13,7 @@ import numpy as np
 
 # How a head is dressed. The defaults are the original face's hair; other faces override some of them (see export_head.py).
 DEFAULT_STYLE = dict(
-    front=0.49, m=0.03, left_temple=0.022, temple=0.30, nape=-0.05, burn_y=-0.10, ears_bare=True,
+    front=0.49, m=0.03, left_temple=0.022, temple=0.10, nape=-0.05, burn_y=-0.10, ears_bare=True,
     len_top=(0.30, 0.12), len_side=(0.09, 0.04), len_front=0.10,
     lift=1.0, lift_side_damp=0.6, wave=1.0, wave_side_damp=0.7, width=1.0, kappa=1.15,
     body=(0x48, 0x31, 0x21), root=(0x20, 0x15, 0x0E), gold=(0x8E, 0x6C, 0x48), cap=(0x36, 0x25, 0x19),
@@ -136,7 +136,7 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=6):
     thick = 0.010 + 0.016 * smoothstep(0.20, 0.60, hy)
     cap_p = Cp + Cn * (0.004 + smoothstep(0.0, 0.05, Cd) * thick)[:, None]
     sideness = 1.0 - smoothstep(0.05, 0.35, hz)
-    cover = (1.0 - sideness) + sideness * (0.40 + 0.60 * smoothstep(0.0, 0.32, hy))
+    cover = (1.0 - sideness) + sideness * (0.75 + 0.25 * smoothstep(0.0, 0.32, hy))
     cover = np.maximum(cover, smoothstep(0.34, 0.50, np.abs(hx)) * smoothstep(0.05, 0.22, hy))   # the sideburns are full
     cap_rgb = np.tile(np.array(st["cap"], dtype=float), (len(Cp), 1))
     cover = cover * (0.30 + 0.70 * smoothstep(0.0, 0.035, Cd))                       # the edge of the cap melts into the skin
