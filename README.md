@@ -338,7 +338,12 @@ a plugin only describes one of three declarative actions, and the file is checke
 - `"type": "routine"`: up to 10 `steps` of `{ "tool", "args" }` that call **built-in tools only** (not other plugins,
   not `agent_task` or `end_session`), with `{parameter}` filled in. Sensitive taps still ask for confirmation.
 
-Limits: 20 plugins, 5 parameters each, 20 000 characters per file, a name that is not a built-in tool's.
+Limits: 100 plugins, 5 parameters each, 20 000 characters per file, a name that is not a built-in tool's.
+**Many plugins.** Every installed plugin is usable, but only the first 25 (by file name) are declared to the model as tools of their own: a long list
+of tool declarations weighs on every session, and one the service refuses would break the whole session, and Gemini's documentation gives no
+figure to rely on. From the 26th, a single tool, `plugin_run` (a name and a JSON object of parameters), reaches the others, and its description
+lists them with their parameters. *Checked:* the split, the reserved name, the parsing of the arguments and the dispatch by unit tests; *not
+checked:* how reliably Gemini picks a plugin from that list in a real session.
 Examples are in `plugins-examples/`. Checked with unit tests (29 cases, including the refusals) and on an emulator with
 the real network: a weather call, a Maps link and a two-step routine ran, a missing parameter was reported and a
 plugin aimed at a private address was not loaded. Not exercised: importing through the file picker on a phone.
@@ -358,7 +363,7 @@ not real time, files only in the work folder). Something switched off is reporte
   position*); the position is used for that one request and never stored. Android may refuse location to an app that is
   not in front, so it is most reliable with Jarvis open; the tool then says how to fix it or asks for a city. Checked
   on an emulator (position → town → weather, named city unchanged); not on the real phone.
-- **Plugin catalogue.** Settings → *Plugins* lists 29 bundled plugins with an *Installer* button (only 20 can be installed at a time).
+- **Plugin catalogue.** Settings → *Plugins* lists 29 bundled plugins with an *Installer* button (up to 100 can be installed).
   The first 16: crypto prices, exchange rates, Wikipedia summary, public holidays, Maps search and directions, YouTube, translation, news,
   recipes, calendar event, night, meeting and car routines. Added later (13): the position of the International Space Station, a random
   French Wikipedia article, sunrise and sunset, the phase of the moon, NASA's astronomy picture of the day (its explanation, in English), a

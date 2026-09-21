@@ -12,7 +12,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.URLEncoder
 
-internal const val MAX_PLUGINS = 20
+/** How many plugins can be installed (a sanity limit: the files are tiny). */
+internal const val MAX_PLUGINS = 100
 internal const val MAX_PLUGIN_BYTES = 20_000
 internal const val MAX_PARAMS = 5
 internal const val MAX_STEPS = 10

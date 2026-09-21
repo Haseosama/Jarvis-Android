@@ -18,6 +18,9 @@ import kotlinx.serialization.json.put
  * screen capture), and `dashboard/` (a *remote* control surface makes no
  * sense when the assistant already lives on your phone).
  */
+/** How many plugins are declared to the model as tools of their own; the others go through `plugin_run` (see PluginRunTool). */
+internal const val MAX_DECLARED_PLUGINS = 25
+
 object ToolRegistry {
     val ALL: List<Tool> = listOf(
         WebSearchTool,
@@ -74,11 +77,17 @@ object ToolRegistry {
 
     internal fun pluginTools(): List<Tool> = plugins
 
-    internal fun builtInNames(): Set<String> = byName.keys
+    /** The plugins declared to the model one by one, and the ones reached through `plugin_run`. */
+    internal fun declaredPlugins(): List<Tool> = plugins.take(MAX_DECLARED_PLUGINS)
+    internal fun extraPlugins(): List<Tool> = plugins.drop(MAX_DECLARED_PLUGINS)
+
+    /** The names a plugin cannot take: the built-in tools and `plugin_run`. */
+    internal fun builtInNames(): Set<String> = byName.keys + com.jarvis.android.plugins.PluginRunTool.name
 
     fun get(name: String): Tool? = byName[name] ?: plugins.firstOrNull { it.name == name }
+        ?: com.jarvis.android.plugins.PluginRunTool.takeIf { name == it.name && plugins.size > MAX_DECLARED_PLUGINS }
 
-    fun declarations(): List<JsonObject> = (ALL + plugins).map { tool ->
+    fun declarations(): List<JsonObject> = (ALL + declaredPlugins() + listOfNotNull(com.jarvis.android.plugins.PluginRunTool.takeIf { plugins.size > MAX_DECLARED_PLUGINS })).map { tool ->
         buildJsonObject {
             put("name", tool.name)
             put("description", tool.description)

@@ -32,6 +32,10 @@ internal class PluginTool(private val spec: PluginSpec) : Tool {
         if (required.isNotEmpty()) putJsonArray("required") { required.forEach { add(JsonPrimitive(it)) } }
     }
 
+    /** One line for the list handed to the assistant: `name(param*, other) : what it does`, a `*` marking a required parameter. */
+    fun signature(): String =
+        "$name(" + spec.params.joinToString(", ") { it.name + if (it.required) "*" else "" } + ") : " + spec.description.replace('\n', ' ').take(110)
+
     val summary: String
         get() = when (val a = spec.action) {
             is PluginAction.Http -> "appel web ${a.method} vers " + (Regex("^https://([^/?#]+)").find(a.url)?.groupValues?.get(1) ?: "?")
