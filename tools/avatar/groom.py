@@ -105,8 +105,14 @@ def hair_field(P, x0, st=DEFAULT_STYLE):
     hl = st["nape"] + (st["temple"] - st["nape"]) * smoothstep(-0.40, -0.05, hz)                       # the nape, then above the ears
     hl = hl + (front - hl) * smoothstep(0.02, 0.36, hz)
     d = hy - hl
-    ear = ((np.abs(hx) - 0.65) / 0.13) ** 2 + ((hy - 0.0) / 0.12) ** 2 + ((hz + 0.14) / 0.16) ** 2
-    return np.minimum(d, 0.2 * (np.sqrt(ear) - 1.0)) if st["ears_bare"] else d
+    ear = ear_distance(P, x0)
+    return np.minimum(d, 0.2 * (ear - 1.0)) if st["ears_bare"] else d
+
+
+def ear_distance(P, x0):
+    """1.0 on the edge of the region kept bare around each ear, smaller inside it, larger away from it."""
+    hx, hy, hz = P[:, 0] - x0, P[:, 1], P[:, 2]
+    return np.sqrt(((np.abs(hx) - 0.72) / 0.12) ** 2 + ((hy - 0.09) / 0.26) ** 2 + ((hz + 0.14) / 0.24) ** 2)
 
 
 def flow_direction(p, n, x0, rng, scatter=0.20, st=DEFAULT_STYLE):
@@ -164,6 +170,9 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=6):
         front = smoothstep(0.10, 0.45, rz) * smoothstep(0.30, 0.55, ry)
         side = 1.0 - smoothstep(0.10, 0.45, ry)
         length = ((st["len_top"][0] + st["len_top"][1] * rng.random(n)) * (1 - side) + (st["len_side"][0] + st["len_side"][1] * rng.random(n)) * side + st["len_front"] * front) * len_mul
+        if st["ears_bare"]:
+            # a lock rooted near an ear is kept short, so that it does not hang into it
+            length = length * (0.35 + 0.65 * smoothstep(1.0, 2.2, ear_distance(root, x0)))
         lift = (0.13 + 0.16 * front + 0.04 * rng.random(n)) * (1 - st["lift_side_damp"] * side) * lift_mul * st["lift"]
         wave_amp = (0.10 + 0.03 * rng.random(n)) * (1 - st["wave_side_damp"] * side) * st["wave"]
         wave_freq = 1.35 + 0.15 * rng.random(n)
@@ -210,9 +219,14 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=6):
     # the main locks: rooted a little above the hairline, more of them at the front and on top
     w_main = (tri_min > 0.035).astype(float) * (0.6 + 1.2 * smoothstep(0.30, 0.60, tri_c[:, 1]) * smoothstep(0.0, 0.40, tri_c[:, 2]))
     w_main = w_main * (1.0 + st["side_boost"] * (1.0 - smoothstep(0.10, 0.45, tri_c[:, 1])))                     # long hair: more locks at the sides and the back
+    if st["ears_bare"]:
+        near_ear = smoothstep(1.0, 1.8, ear_distance(tri_c, x0))                 # no lock is rooted close to an ear
+        w_main = w_main * near_ear
     mv, mn, mc, mf = make_locks(locks, w_main, 1.0, 1.0, 1.0)
     # the edge locks: short ones rooted exactly on the hairline, rising over the strip of cap above it, so the edge is made of hair
     w_edge = ((tri_max > 0.0) & (tri_min < 0.03)).astype(float) * smoothstep(0.0, 0.25, tri_c[:, 2])
+    if st["ears_bare"]:
+        w_edge = w_edge * near_ear
     ev, en, ec, ef = make_locks(edge_locks, w_edge, 0.55, 0.70, 0.60, scatter=0.80)
     lock_p = np.vstack([mv, ev]); lock_n = np.vstack([mn, en])
     lock_paint = argb(np.full(len(lock_p), 254.0), np.vstack([mc, ec]))
