@@ -20,6 +20,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -42,6 +44,7 @@ import com.jarvis.android.memory.ConfigStore
 import com.jarvis.android.update.AppUpdater
 import com.jarvis.android.update.ReleaseInfo
 import com.jarvis.android.update.UpdateCheck
+import com.jarvis.android.update.UpdateInstall
 import com.jarvis.android.watch.Watch
 import com.jarvis.android.watch.WatchScheduler
 import com.jarvis.android.watch.title
@@ -167,8 +170,32 @@ internal fun UpdateCard() {
     val updater = remember { AppUpdater(context, (context.applicationContext as JarvisApp).container.http) }
     var message by remember { mutableStateOf<String?>(null) }
     var available by remember { mutableStateOf<ReleaseInfo?>(null) }
+    var downloaded by remember { mutableStateOf<java.io.File?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var waitingPermission by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf<Float?>(null) }
+    val installerSays by UpdateInstall.status.collectAsState()
+
+    fun startInstall(apk: java.io.File) {
+        val problem = updater.install(apk)
+        if (problem == null) {
+            message = tr("Installation lancée : Android demande la confirmation.")
+        } else {
+            message = problem
+            if (!updater.canInstall()) {
+                waitingPermission = true
+                updater.openInstallPermission()
+            }
+        }
+    }
+    // Back from the settings page where the install permission is given: go on with the file already downloaded.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        val apk = downloaded
+        if (apk != null && waitingPermission && !busy && updater.canInstall() && apk.exists()) {
+            waitingPermission = false
+            startInstall(apk)
+        }
+    }
     SettingsCard(tr("Mise à jour"), Icons.Filled.SystemUpdate, initiallyExpanded = false) {
         Text(
             trf("Version installée : {0}", updater.installedVersion()),
@@ -184,9 +211,10 @@ internal fun UpdateCard() {
             OutlinedButton(enabled = !busy, onClick = {
                 busy = true
                 message = tr("Recherche en cours…")
+                UpdateInstall.status.value = null
                 scope.launch {
                     when (val result = updater.check()) {
-                        is UpdateCheck.Available -> { available = result.release; message = trf("Version {0} disponible.", result.release.version) }
+                        is UpdateCheck.Available -> { available = result.release; downloaded = null; message = trf("Version {0} disponible.", result.release.version) }
                         UpdateCheck.UpToDate -> { available = null; message = tr("Jarvis est à jour.") }
                         is UpdateCheck.Failed -> { available = null; message = result.reason }
                     }
@@ -194,26 +222,37 @@ internal fun UpdateCard() {
                 }
             }) { Text(tr("Rechercher une mise à jour")) }
             available?.let { release ->
-                OutlinedButton(enabled = !busy, onClick = {
-                    busy = true
-                    progress = 0f
-                    message = tr("Téléchargement en cours…")
-                    scope.launch {
-                        updater.download(release) { progress = it }.fold(
-                            onSuccess = { apk ->
-                                message = if (updater.install(apk)) tr("Confirmez l’installation dans la fenêtre d’Android.")
-                                else tr("Autorisez d’abord Jarvis à installer des applications, puis touchez de nouveau le bouton.")
-                            },
-                            onFailure = { message = it.message },
-                        )
-                        progress = null
-                        busy = false
-                    }
-                }) { Text(tr("Télécharger et installer")) }
+                if (downloaded == null) {
+                    OutlinedButton(enabled = !busy, onClick = {
+                        busy = true
+                        progress = 0f
+                        message = tr("Téléchargement en cours…")
+                        UpdateInstall.status.value = null
+                        scope.launch {
+                            updater.download(release) { progress = it }.fold(
+                                onSuccess = { apk -> downloaded = apk; startInstall(apk) },
+                                onFailure = { message = it.message },
+                            )
+                            progress = null
+                            busy = false
+                        }
+                    }) { Text(tr("Télécharger et installer")) }
+                }
+            }
+            downloaded?.let { apk ->
+                OutlinedButton(enabled = !busy, onClick = { startInstall(apk) }) { Text(tr("Installer")) }
             }
         }
         progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) }
         message?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp)) }
+        installerSays?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp)) }
+        if (downloaded != null) {
+            Text(
+                tr("Le téléphone peut ajouter ses propres étapes : Google Play Protect propose « Analyser » ou, sous « Plus de détails », « Installer sans analyser » ; d’autres marques ont leur analyse de sécurité. Choisissez de continuer pour que l’installation se fasse."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
         available?.notes?.takeIf { it.isNotBlank() }?.let {
             Text(it.take(600), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
         }

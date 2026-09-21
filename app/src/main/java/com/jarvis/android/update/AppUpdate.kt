@@ -1,11 +1,14 @@
 package com.jarvis.android.update
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInstaller
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
-import androidx.core.content.FileProvider
+import android.util.Log
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
 import kotlinx.coroutines.Dispatchers
@@ -149,19 +152,49 @@ internal class AppUpdater(private val context: Context, private val http: OkHttp
         }
     }
 
-    /** Opens Android's installer on [apk]. False when the user must first allow installs from Jarvis (the settings page for that opens). */
-    fun install(apk: File): Boolean {
-        if (!context.packageManager.canRequestPackageInstalls()) {
-            context.startActivity(
-                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
-            return false
-        }
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", apk)
+    /** True when Android lets Jarvis install apps (the "install unknown apps" switch of its settings page). */
+    fun canInstall(): Boolean = context.packageManager.canRequestPackageInstalls()
+
+    /** Opens the settings page where the user allows Jarvis to install apps. */
+    fun openInstallPermission() {
         context.startActivity(
-            Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
-        return true
+    }
+
+    /**
+     * Hands [apk] to Android's package installer through a session, which reports what happens (see [UpdateInstallReceiver]) instead of
+     * failing silently as a "view this file" intent can on some phones. The system then asks the user to confirm. Null when the session
+     * was committed, otherwise what went wrong.
+     */
+    fun install(apk: File): String? {
+        if (!canInstall()) return tr("Autorisez d’abord Jarvis à installer des applications, puis touchez « Installer ».")
+        UpdateInstall.status.value = null
+        return try {
+            val installer = context.packageManager.packageInstaller
+            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setAppPackageName(context.packageName)
+                if (Build.VERSION.SDK_INT >= 31) setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+            }
+            val id = installer.createSession(params)
+            installer.openSession(id).use { session ->
+                apk.inputStream().use { input ->
+                    session.openWrite("update.apk", 0, apk.length()).use { out ->
+                        input.copyTo(out)
+                        session.fsync(out)
+                    }
+                }
+                // The system adds the status to this intent, so it must be mutable (and explicit).
+                val callback = PendingIntent.getBroadcast(
+                    context, id, Intent(context, UpdateInstallReceiver::class.java).setAction(ACTION_UPDATE_INSTALL),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+                )
+                session.commit(callback.intentSender)
+            }
+            null
+        } catch (e: Exception) {
+            Log.w("AppUpdate", "install session failed", e)
+            trf("Impossible de lancer l’installation : {0}", e.message ?: e.javaClass.simpleName)
+        }
     }
 }

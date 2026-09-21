@@ -2,6 +2,23 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Confirmez l’installation dans la fenêtre d’Android (ou dans la notification, si la fenêtre ne s’ouvre pas)." to "Confirm the installation in Android's window (or in the notification, if the window does not open).",
+    "Mise à jour de Jarvis" to "Jarvis update",
+    "Mise à jour prête à installer" to "Update ready to install",
+    "Touchez ici pour confirmer l’installation." to "Tap here to confirm the installation.",
+    "Le téléphone peut ajouter ses propres étapes : Google Play Protect propose « Analyser » ou, sous « Plus de détails », « Installer sans analyser » ; d’autres marques ont leur analyse de sécurité. Choisissez de continuer pour que l’installation se fasse." to "The phone may add steps of its own: Google Play Protect offers \"Scan app\" or, under \"More details\", \"Install without scanning\"; other brands have their own security scan. Choose to go on for the installation to happen.",
+    "Android refuse cette mise à jour : l’APK n’est pas signé avec la même clé que l’application installée (ou c’est une version plus ancienne). Il faut alors désinstaller puis installer la nouvelle version, ce qui efface les réglages." to "Android refuses this update: the APK is not signed with the same key as the installed app (or it is an older version). You would have to uninstall and then install the new version, which erases the settings.",
+    "Pas assez de place sur le téléphone pour installer la mise à jour." to "Not enough space on the phone to install the update.",
+    "Android a bloqué l’installation (une protection du téléphone ou l’autorisation « installer des applications » de Jarvis)." to "Android blocked the installation (a protection of the phone, or Jarvis's \"install apps\" permission).",
+    "Installation annulée." to "Installation cancelled.",
+    "Le fichier téléchargé est invalide pour Android." to "Android considers the downloaded file invalid.",
+    "Android signale un conflit avec l’application installée." to "Android reports a conflict with the installed app.",
+    "L’installation a échoué ({0})." to "The installation failed ({0}).",
+    "Android n’a pas pu afficher la fenêtre de confirmation : touchez de nouveau « Installer » avec Jarvis au premier plan." to "Android could not show the confirmation window: tap \"Install\" again with Jarvis in front.",
+    "Mise à jour installée." to "Update installed.",
+    "Autorisez d’abord Jarvis à installer des applications, puis touchez « Installer »." to "First allow Jarvis to install apps, then tap \"Install\".",
+    "Impossible de lancer l’installation : {0}" to "Could not start the installation: {0}",
+    "Installation lancée : Android demande la confirmation." to "Installation started: Android asks for confirmation.",
     "Téléchargez d’abord les modèles openWakeWord (carte « Mot d’activation »)." to "First download the openWakeWord models (\"Wake word\" card).",
     "Fermez la session vocale avant d’apprendre un mot : le micro ne sert qu’à un usage à la fois." to "Close the voice session before teaching a word: the microphone serves one use at a time.",
     "Un enregistrement de réunion est en cours." to "A meeting is being recorded.",

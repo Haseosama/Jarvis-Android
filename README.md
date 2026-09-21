@@ -604,8 +604,14 @@ Google account or a Gemini key is said below.
 ### Updating from GitHub
 
 Settings > Update asks the GitHub releases of this repository for the latest version, compares it with the installed one, downloads the APK
-(size and package name are checked) and hands it to Android's installer, which asks for confirmation; settings and memory are kept. The first time,
-Android asks to allow installs from Jarvis. An update only installs over the same app signed with the same key, so a debug build (`.dev`,
+(size and package name are checked) and installs it through Android's `PackageInstaller` (a session, so a refusal comes back with its reason
+instead of nothing happening, which a plain "open this file" intent can do on some phones). Android then asks for confirmation; settings and
+memory are kept. The first time, Android asks to allow installs from Jarvis (the file stays downloaded: come back and it goes on). A
+notification offers the confirmation too, in case the window cannot open from the background. The phone may add steps of its own, for
+example Google Play Protect's "App scan recommended" (choose *Scan app*, or *More details* > *Install without scanning*).
+*Checked* on the emulator: an APK with a higher version code installed over the app (0.5.1 became 0.5.2), the refusal without the permission,
+the confirmation window and the notification, and Cancel. *Not checked:* a Xiaomi phone (its own installer and security scan), and the
+whole path from a real GitHub release. An update only installs over the same app signed with the same key, so a debug build (`.dev`,
 debug key) needs the debug APK and the release build the release APK; the app picks the asset whose name says `debug` or `dev` for a debug build.
 
 The version is bumped with every change (`versionCode` and `versionName` in `app/build.gradle.kts`). To publish a version once it is built:

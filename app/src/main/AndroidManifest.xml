@@ -132,6 +132,10 @@
             android:foregroundServiceType="microphone"
             android:exported="false" />
 
+        <receiver
+            android:name=".update.UpdateInstallReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
