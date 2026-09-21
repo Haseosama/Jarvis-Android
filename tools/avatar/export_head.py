@@ -752,7 +752,7 @@ def smooth(e0, e1, x):
 
 WARPS = {
     # the original face, slimmed a little: a narrower jaw and cheeks, a finer nose, a slightly longer chin
-    "classic": dict(jaw=0.20, nose_w=0.14, nose_z=0.04, cheek=0.0, chin=-0.05, eyes=0.0, brow=0.0, square=0.16, width=0.95),
+    "classic": dict(jaw=0.18, nose_w=0.10, nose_z=0.03, cheek=0.0, chin=0.04, eyes=0.0, brow=0.0, square=0.16, width=0.985),
     #        jaw narrowing, nose narrowing, nose depth, cheekbones, chin (+ longer), eye scale, brow ridge, square chin, overall width
     "lea":  dict(jaw=0.22, nose_w=0.15, nose_z=0.18, cheek=0.030, chin=-0.07, eyes=0.14, brow=0.0, square=0.0, width=0.97),
     "marc": dict(jaw=-0.11, nose_w=-0.11, nose_z=-0.11, cheek=0.0, chin=0.06, eyes=-0.07, brow=0.045, square=0.07, width=1.03),
