@@ -2,6 +2,7 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Gris-vert emblème" to "Grey-green, emblem",
     "Casquette" to "Cap",
     "Aucune" to "None",
     "Noire" to "Black",

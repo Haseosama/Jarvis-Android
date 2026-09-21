@@ -375,7 +375,7 @@ fun SettingsScreen(
             }
             Text(tr("Casquette"), style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp).horizontalScroll(rememberScrollState())) {
-                listOf(0 to "Aucune", 1 to "Noire", 2 to "Bleue", 3 to "Rouge", 4 to "Blanche", 5 to "Kaki").forEach { (v, label) ->
+                listOf(0 to "Aucune", 1 to "Noire", 2 to "Bleue", 3 to "Rouge", 4 to "Blanche", 5 to "Kaki", 6 to "Gris-vert emblème").forEach { (v, label) ->
                     FilterChip(selected = capTone == v, onClick = { scope.launch { configStore.setAvatarCap(v) } }, label = { Text(tr(label)) })
                 }
             }

@@ -222,7 +222,7 @@ class ConfigStore(private val context: Context) {
     val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 5 }   // the hologram over the skin, unless the user chose another look
     /** 0 = natural, 1..4 = a lip colour (rose, red, plum, coral). */
     val avatarLips: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_LIPS] ?: 0 }
-    /** The cap on the avatar: 0 = none, 1..5 = black, blue, red, white, khaki. */
+    /** The cap on the avatar: 0 = none, 1..5 = black, blue, red, white, khaki, 6 = grey-green with an emblem. */
     val avatarCap: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_CAP] ?: 0 }
     val muteMicWhileSpeaking: Flow<Boolean> = context.dataStore.data.map { it[KEY_MUTE_WHILE_SPEAKING] ?: true }
     /** BCP-47 code the voice is pinned to, or empty for automatic (the assistant may switch language). */

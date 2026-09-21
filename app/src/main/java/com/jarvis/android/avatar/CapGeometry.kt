@@ -44,13 +44,14 @@ internal class CapGeometry(mesh: HeadMesh) {
         const val OFFSET = 0.055f
 
         /** Longest reach of the visor, in head half-heights, and the angle (from the front) it spreads over. */
-        const val VISOR = 0.46f
+        const val VISOR = 0.52f
         const val VISOR_SPAN = 0.95f
 
         /** Height of the edge of the cap over the point (side, depth) of the rest pose. */
         fun rim(side: Float, z: Float): Float {
             val t = ((-z - 0.02f) / 0.53f).coerceIn(0f, 1f)
-            return 0.40f - 0.32f * (t * t * (3f - 2f * t)) + 0.05f * (1f - t) * (1f - (abs(side) / 0.7f).coerceIn(0f, 1f))
+            val sides = (abs(side) / 0.7f).coerceIn(0f, 1f)
+            return 0.395f + 0.03f * sides - 0.32f * (t * t * (3f - 2f * t)) + 0.04f * (1f - t) * (1f - sides)
         }
     }
 

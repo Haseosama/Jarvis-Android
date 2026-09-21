@@ -21,7 +21,7 @@ import kotlin.math.sqrt
 
 /** Camera distance in head-half-heights: far enough that the nose does not balloon, near enough to keep some depth. */
 private const val CAM_D = 4.6f
-private val CAP_COLOURS = intArrayOf(0, 0xFF1C1E24.toInt(), 0xFF23508F.toInt(), 0xFFB3282F.toInt(), 0xFFE9E9EE.toInt(), 0xFF3F5B3B.toInt())
+private val CAP_COLOURS = intArrayOf(0, 0xFF1C1E24.toInt(), 0xFF23508F.toInt(), 0xFFB3282F.toInt(), 0xFFE9E9EE.toInt(), 0xFF3F5B3B.toInt(), 0xFF3B4744.toInt())
 private const val BUCKETS = 4
 private const val MIN_ALPHA = 0.05f
 private const val LUT_N = 192
@@ -586,7 +586,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     }
 
     // ── the cap ──────────────────────────────────────────────────────────────────────────────────────────────────────────
-    /** 0 = no cap, 1..5 = black, blue, red, white, khaki. */
+    /** 0 = no cap, 1..5 = black, blue, red, white, khaki, 6 = grey-green with an embroidered emblem. */
     var cap = 0
 
     private val capGeo by lazy { CapGeometry(mesh) }
@@ -661,6 +661,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             if (pen && capN[3 * g.top + 2] > 0.02f) capPath.lineTo(capX[g.top], capY[g.top])
             nc.drawPath(capPath, capLine)
         }
+        if (cap == 6) drawEmblem(nc, base, strokePx)
+
         // the band round the edge (the thickness of the cap, and its sweatband): a strip under the edge, darker, all the way round
         val bandDown = 0.05f
         val bx = FloatArray(cols); val by = FloatArray(cols)
@@ -720,7 +722,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 val t = (abs(a) / CapGeometry.VISOR_SPAN).coerceIn(0f, 1f)
                 val len = CapGeometry.VISOR * Math.pow(max(cos(t * (Math.PI.toFloat() / 2f)), 0f).toDouble(), 0.9).toFloat()
                 var dx = capN[3 * col] * 0.5f + kotlin.math.sin(a) * 0.10f
-                var dy = -(0.30f + 0.50f * t * t)
+                var dy = -(0.33f + 0.55f * t * t)
                 var dz = max(capN[3 * col + 2], 0.35f)
                 val dl = kotlin.math.sqrt(dx * dx + dy * dy + dz * dz)
                 dx /= dl; dy /= dl; dz /= dl
@@ -732,10 +734,10 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 project(x0 + dx * len * 0.82f, y0 + dy * len * 0.82f, z0 + dz * len * 0.82f, s1x, s1y, i)
                 project(x0 + dx * len * 0.90f, y0 + dy * len * 0.90f, z0 + dz * len * 0.90f, s2x, s2y, i)
                 // the shadow it throws on the forehead: below the base of the visor, as long as the visor is
-                project(x0, y0 - 0.02f - 0.13f * (len / CapGeometry.VISOR), z0, shx, shy, i)
+                project(x0, y0 - 0.02f - 0.21f * (len / CapGeometry.VISOR), z0, shx, shy, i)
             }
             // the shadow first: a soft dark band under the visor (over the face)
-            capPaint.color = withAlpha(0xFF000000.toInt(), 70f)
+            capPaint.color = withAlpha(0xFF000000.toInt(), if (cap == 6) 105f else 70f)
             for (i in 0 until m - 1) {
                 val ja = vs[i]; val jb = vs[i + 1]
                 capPath.reset()
@@ -783,6 +785,51 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             capPath.reset()
             capPath.moveTo(qx[0], qy[0])
             for (i in 1 until m) capPath.lineTo(qx[i], qy[i])
+            nc.drawPath(capPath, capLine)
+        }
+    }
+
+    /** A point of the dome at a fractional ring and column (the columns wrap round), in pixels. */
+    private fun domeAt(ring: Float, col: Float, out: FloatArray): Boolean {
+        val g = capGeo
+        val cols = g.columns
+        val r0 = ring.toInt().coerceIn(0, g.rings - 2); val fr = (ring - r0).coerceIn(0f, 1f)
+        var c0 = Math.floor(col.toDouble()).toInt(); val fc = col - c0
+        c0 = ((c0 % cols) + cols) % cols
+        val c1 = (c0 + 1) % cols
+        fun q(r: Int, c: Int) = r * cols + c
+        val a = q(r0, c0); val b = q(r0, c1); val c = q(r0 + 1, c0); val d = q(r0 + 1, c1)
+        out[0] = (capX[a] * (1 - fc) + capX[b] * fc) * (1 - fr) + (capX[c] * (1 - fc) + capX[d] * fc) * fr
+        out[1] = (capY[a] * (1 - fc) + capY[b] * fc) * (1 - fr) + (capY[c] * (1 - fc) + capY[d] * fc) * fr
+        val nz = (capN[3 * a + 2] + capN[3 * b + 2] + capN[3 * c + 2] + capN[3 * d + 2]) / 4f
+        return nz > 0.15f
+    }
+
+    /**
+     * The emblem embroidered on the front panel: an angular W with a bar over it and a small chevron, in stitching a little lighter than the
+     * cloth. Its points are given on the dome by (ring, column), so it bends with the dome and turns with the head.
+     */
+    private fun drawEmblem(nc: Canvas, base: Int, strokePx: Float) {
+        val front = capGeo.columns / 2f - 0.5f          // the middle of the front
+        val strokes = arrayOf(
+            floatArrayOf(-1f, 0.9f, -0.5f, -0.85f, 0f, 0.45f, 0.5f, -0.85f, 1f, 0.9f),          // the W
+            floatArrayOf(-0.72f, 0.9f, -0.42f, -0.30f, 0f, 0.62f, 0.42f, -0.30f, 0.72f, 0.9f),  // and its inner line
+            floatArrayOf(-0.20f, 0.90f, 0f, 0.20f, 0.20f, 0.90f),                                // the chevron
+        )
+        val p = FloatArray(2)
+        val ringCentre = 6.3f; val ringSpan = 3.0f; val colSpan = 5.4f
+        capLine.style = Paint.Style.STROKE
+        capLine.strokeWidth = max(1.3f, strokePx * 1.05f)
+        capLine.color = withAlpha(capShade(base, 1.55f), 215f)
+        for (st in strokes) {
+            capPath.reset()
+            var pen = false
+            var k = 0
+            while (k < st.size) {
+                val ok = domeAt(ringCentre + st[k + 1] * ringSpan, front + st[k] * colSpan, p)
+                if (!ok) { pen = false } else if (!pen) { capPath.moveTo(p[0], p[1]); pen = true } else capPath.lineTo(p[0], p[1])
+                k += 2
+            }
             nc.drawPath(capPath, capLine)
         }
     }
