@@ -402,8 +402,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         if (skin == 0 || mesh.lockCount == 0) return
         val rows = mesh.lockRows
         if (rows < 3) return
-        val light = mix(browColour, 0xFFFFE2B0.toInt(), 0.30f)
-        val tint = mix(browColour, 0xFFFFE2B0.toInt(), 0.55f)
+        val light = mix(browColour, 0xFF6B4E36.toInt(), 0.60f)
+        val tint = mix(browColour, 0xFF6B4E36.toInt(), 0.70f)
         val perLock = FIBRES_PER_LOCK
         val locks = min(mesh.lockCount, HAIR_FIBRE_LOCKS)
         val cap = fibres.size - 4 * rows
@@ -489,7 +489,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                     }
                     if (pw >= 0.50f) {
                         fibrePaint.strokeWidth = max(0.7f, strokePx * 0.6f)
-                        fibrePaint.color = withAlpha(0xFFC9A57A.toInt(), 75f * pw.coerceAtMost(1f))
+                        fibrePaint.color = withAlpha(0xFF86653F.toInt(), 80f * pw.coerceAtMost(1f))
                         nc.drawLine(x0, y0, x1, y1, fibrePaint)
                     }
                 }

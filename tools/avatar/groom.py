@@ -112,7 +112,7 @@ def hair_field(P, x0, st=DEFAULT_STYLE):
 def ear_distance(P, x0):
     """1.0 on the edge of the region kept bare around each ear, smaller inside it, larger away from it."""
     hx, hy, hz = P[:, 0] - x0, P[:, 1], P[:, 2]
-    return np.sqrt(((np.abs(hx) - 0.72) / 0.12) ** 2 + ((hy - 0.09) / 0.26) ** 2 + ((hz + 0.14) / 0.24) ** 2)
+    return np.sqrt(((np.abs(hx) - 0.72) / 0.11) ** 2 + ((hy - 0.07) / 0.22) ** 2 + ((hz + 0.14) / 0.22) ** 2)
 
 
 def flow_direction(p, n, x0, rng, scatter=0.20, st=DEFAULT_STYLE):
@@ -145,7 +145,7 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=6):
     cover = (1.0 - sideness) + sideness * (0.95 + 0.05 * smoothstep(0.0, 0.32, hy))
     cover = np.maximum(cover, smoothstep(0.34, 0.50, np.abs(hx)) * smoothstep(0.05, 0.22, hy))   # the sideburns are full
     cap_rgb = np.tile(np.array(st["cap"], dtype=float), (len(Cp), 1))
-    cover = cover * (0.30 + 0.70 * smoothstep(0.0, 0.035, Cd))                       # the edge of the cap melts into the skin
+    cover = cover * (0.62 + 0.38 * smoothstep(0.0, 0.035, Cd))                       # the edge of the cap melts into the skin
     cap_paint = argb(254.0 * cover, cap_rgb)
     cap_normals = Cn
     tri_min = np.array([Cd[f].min() for f in Cf])
