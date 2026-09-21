@@ -594,6 +594,10 @@ Google account or a Gemini key is said below.
   Sign-in uses Google's Authorization API (Play services), so Jarvis never sees a password, with the narrowest scopes: `gmail.readonly`,
   `gmail.compose`, `drive.readonly`, `drive.file`. Mail and file contents reach the model as data, marked so that instructions inside them are not followed.
   *Not tried:* everything that needs a signed-in Google account (the emulator has none); the tools answer "Google is not connected" without one.
+  **Each build needs its own OAuth client:** the debug build (`com.jarvis.android.dev`, debug key) and the release build (`com.jarvis.android`,
+  release key) are different apps for Google. The release key's SHA-1 is shown in Settings > Google (for the release published here it is
+  `78:B0:7C:86:A6:C8:48:4E:14:3D:A2:F3:4F:EB:A2:8F:0C:09:35:32`); register it with the package `com.jarvis.android`. "Check the connection" in the same
+  card says which of the two problems it is (unregistered app, or expired access).
   To connect: in a Google Cloud project, enable the Gmail API and the Google Drive API; configure the OAuth consent screen (External, in testing, with
   your Google account as a test user, and the four scopes above); create an OAuth client ID of type **Android** with the app's package name
   (`com.jarvis.android`, or `com.jarvis.android.dev` for the debug build) and the SHA-1 of the key that signs the APK

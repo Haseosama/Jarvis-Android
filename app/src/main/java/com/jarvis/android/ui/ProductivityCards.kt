@@ -35,7 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.docs.DocumentStore
+import com.jarvis.android.google.GoogleAuth
 import com.jarvis.android.google.GoogleConnectActivity
+import com.jarvis.android.google.GoogleException
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
 import com.jarvis.android.meetings.MeetingRecorderService
@@ -135,6 +137,8 @@ internal fun GoogleCard(configStore: ConfigStore) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val connected by configStore.googleConnected.collectAsState(initial = false)
+    var checking by remember { mutableStateOf(false) }
+    var checkResult by remember { mutableStateOf<String?>(null) }
     SettingsCard(tr("Google (Gmail, Drive)"), Icons.Filled.Mail, initiallyExpanded = false) {
         Text(
             if (connected) tr("Compte Google connecté : Jarvis peut lire vos mails et vos fichiers Drive, et préparer des brouillons. Il n’envoie jamais rien tout seul.")
@@ -146,8 +150,23 @@ internal fun GoogleCard(configStore: ConfigStore) {
             OutlinedButton(onClick = { context.startActivity(Intent(context, GoogleConnectActivity::class.java)) }) {
                 Text(if (connected) tr("Reconnecter Google") else tr("Connecter Google"))
             }
+            OutlinedButton(enabled = !checking, onClick = {
+                checking = true
+                checkResult = tr("Vérification en cours…")
+                scope.launch {
+                    GoogleAuth.accessToken(context).fold(
+                        onSuccess = { checkResult = tr("Connexion Google en état de marche."); configStore.setGoogleConnected(true) },
+                        onFailure = { e ->
+                            checkResult = e.message
+                            if ((e as? GoogleException)?.needsReconnect == true) configStore.setGoogleConnected(false)
+                        },
+                    )
+                    checking = false
+                }
+            }) { Text(tr("Vérifier la connexion")) }
             if (connected) OutlinedButton(onClick = { scope.launch { configStore.setGoogleConnected(false) } }) { Text(tr("Oublier")) }
         }
+        checkResult?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp)) }
         val sha1 = remember { com.jarvis.android.google.AppIdentity.sha1(context) }
         Text(
             trf("Nom de paquet : {0}", context.packageName) + "\n" + trf("Empreinte SHA-1 : {0}", sha1 ?: "?"),

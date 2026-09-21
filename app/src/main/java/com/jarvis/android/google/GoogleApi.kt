@@ -38,7 +38,7 @@ internal class GoogleApi(private val context: Context, private val http: OkHttpC
                     val detail = runCatching { json.parseToJsonElement(response.body?.string().orEmpty()).jsonObject["error"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull }.getOrNull()
                     throw GoogleException(
                         when (response.code) {
-                            401 -> GoogleAuth.NOT_CONNECTED
+                            401 -> throw GoogleException(GoogleAuth.EXPIRED, needsReconnect = true)
                             403 -> "Google refuse l’accès (${detail ?: "autorisation manquante"}) : l’API Gmail ou Drive doit être activée dans Google Cloud, et l’autorisation accordée."
                             404 -> "Introuvable."
                             429 -> "Trop de requêtes : réessayez dans un moment."

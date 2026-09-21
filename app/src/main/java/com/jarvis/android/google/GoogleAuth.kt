@@ -6,6 +6,7 @@ import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.Scope
+import com.jarvis.android.i18n.tr
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -41,16 +42,19 @@ internal object GoogleAuth {
         val token = result.accessToken
         when {
             token != null -> Result.success(token)
-            result.hasResolution() -> Result.failure(GoogleException(NOT_CONNECTED))
-            else -> Result.failure(GoogleException(NOT_CONNECTED))
+            // Google wants the consent again: the grant was withdrawn, or it expired (about a week in test mode)
+            result.hasResolution() -> Result.failure(GoogleException(EXPIRED, needsReconnect = true))
+            else -> Result.failure(GoogleException(NOT_CONNECTED, needsReconnect = true))
         }
     } catch (e: ApiException) {
-        Result.failure(GoogleException(explain(e)))
+        Result.failure(GoogleException(explain(e, context)))
     } catch (e: Exception) {
         Result.failure(GoogleException(e.message ?: NOT_CONNECTED))
     }
 
-    const val NOT_CONNECTED = "Google n’est pas connecté : l’utilisateur doit toucher « Connecter Google » dans les réglages de Jarvis."
+    val EXPIRED: String get() = tr("L’accès Google a expiré ou a été retiré (tant que l’écran de consentement est en mode test, Google le limite à environ une semaine) : l’utilisateur doit toucher « Reconnecter Google » dans les réglages de Jarvis.")
+
+    val NOT_CONNECTED: String get() = tr("Google n’est pas connecté : l’utilisateur doit toucher « Connecter Google » dans les réglages de Jarvis.")
 
     /** What an [ApiException] usually means here, in plain words. */
     fun explain(e: ApiException, context: Context? = null): String {
@@ -65,4 +69,5 @@ internal object GoogleAuth {
     }
 }
 
-internal class GoogleException(message: String) : Exception(message)
+/** [needsReconnect]: the connection is gone (not a network or quota problem), so the settings should say "not connected". */
+internal class GoogleException(message: String, val needsReconnect: Boolean = false) : Exception(message)

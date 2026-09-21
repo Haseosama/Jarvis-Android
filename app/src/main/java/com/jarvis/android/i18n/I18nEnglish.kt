@@ -2,6 +2,10 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "L’accès Google a expiré ou a été retiré (tant que l’écran de consentement est en mode test, Google le limite à environ une semaine) : l’utilisateur doit toucher « Reconnecter Google » dans les réglages de Jarvis." to "Google access has expired or was withdrawn (while the consent screen is in test mode, Google limits it to about a week): the user must tap \"Reconnect Google\" in Jarvis's settings.",
+    "Google n’est pas connecté : l’utilisateur doit toucher « Connecter Google » dans les réglages de Jarvis." to "Google is not connected: the user must tap \"Connect Google\" in Jarvis's settings.",
+    "Connexion Google en état de marche." to "Google connection is working.",
+    "Vérifier la connexion" to "Check the connection",
     "Confirmez l’installation dans la fenêtre d’Android (ou dans la notification, si la fenêtre ne s’ouvre pas)." to "Confirm the installation in Android's window (or in the notification, if the window does not open).",
     "Mise à jour de Jarvis" to "Jarvis update",
     "Mise à jour prête à installer" to "Update ready to install",

@@ -60,6 +60,7 @@ object GmailTool : Tool {
                 else -> "Action inconnue : $action."
             }
         } catch (e: GoogleException) {
+            if (e.needsReconnect) ctx.configStore.setGoogleConnected(false)
             e.message ?: "Erreur Google."
         } catch (e: IllegalArgumentException) {
             e.message ?: "Paramètre invalide."
@@ -119,6 +120,7 @@ object DriveTool : Tool {
                 else -> "Action inconnue : $action."
             }
         } catch (e: GoogleException) {
+            if (e.needsReconnect) ctx.configStore.setGoogleConnected(false)
             e.message ?: "Erreur Google."
         } catch (e: RestChatException) {
             "Analyse impossible : ${e.message}"
