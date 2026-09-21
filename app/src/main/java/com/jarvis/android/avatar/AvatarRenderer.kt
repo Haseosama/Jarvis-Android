@@ -43,7 +43,7 @@ internal fun blend(bg: Int, col: Int, a: Float): Int {
     return argb(255, ch(16), ch(8), ch(0))
 }
 
-private val SKIN_TONES = intArrayOf(0xF1C9A8, 0xD9A47C, 0xB07A54, 0x7A4E36)
+private val SKIN_TONES = intArrayOf(0xF1C9A8, 0xD9A47C, 0xB07A54, 0x7A4E36, 0x3E86C9)   // the fifth is the blue skin of the blue hologram
 private val LIP_TONES = intArrayOf(0xD9707F, 0xC02836, 0x8E3A6B, 0xE8735A)
 
 private fun withAlpha(col: Int, a: Float): Int = (col and 0x00FFFFFF) or (a.coerceIn(0f, 255f).toInt() shl 24)
