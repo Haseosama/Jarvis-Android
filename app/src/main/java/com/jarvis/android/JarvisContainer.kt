@@ -103,6 +103,7 @@ class JarvisContainer(val appContext: Context) {
         com.jarvis.android.watch.WatchScheduler.sync(appContext)
         appScope.launch { configStore.audioInputKey.collect { com.jarvis.android.core.AudioRoute.inputKey = it } }
         appScope.launch { configStore.audioOutputKey.collect { com.jarvis.android.core.AudioRoute.outputKey = it } }
+        appScope.launch { configStore.carAudioMode.collect { com.jarvis.android.core.CarAudio.setting = it } }
         val notifier = com.jarvis.android.core.ConfirmNotifier(appContext)
         appScope.launch { confirmManager.pending.collect { notifier.show(it) } }
     }

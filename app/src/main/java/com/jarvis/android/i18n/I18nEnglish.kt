@@ -2,6 +2,11 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Mode voiture (Android Auto)" to "Car mode (Android Auto)",
+    "Activé" to "On",
+    "Désactivé" to "Off",
+    "En voiture, le micro est coupé pendant que Jarvis parle (sinon il s’entend dans l’habitacle et se répond), le micro du téléphone est utilisé sans toucher au Bluetooth, et la musique est seulement baissée pendant qu’il parle au lieu d’être arrêtée. « Automatique » détecte Android Auto. Le changement s’applique à la prochaine session." to "In a car, the microphone is muted while Jarvis speaks (otherwise it hears itself in the cabin and answers itself), the phone's own microphone is used without touching Bluetooth, and the music is only lowered while it speaks instead of being stopped. \"Automatic\" detects Android Auto. The change applies to the next session.",
+    "Mode voiture : micro coupé pendant que Jarvis parle, focus audio léger, micro du téléphone." to "Car mode: microphone muted while Jarvis speaks, light audio focus, the phone's microphone.",
     "Dessin animé" to "Cartoon",
     "Le mode avion est activé : le SMS n’est pas parti." to "Airplane mode is on: the SMS was not sent.",
     "Pas de réseau mobile : le SMS n’est pas parti." to "No mobile network: the SMS was not sent.",

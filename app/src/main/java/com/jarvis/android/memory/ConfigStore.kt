@@ -173,6 +173,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_GOOGLE = booleanPreferencesKey("google_connected")
     private val KEY_AVATAR_SKIN = intPreferencesKey("avatar_face_skin")
     private val KEY_MESSAGE_AUTO_SEND = booleanPreferencesKey("message_auto_send")
+    private val KEY_CAR_AUDIO = intPreferencesKey("car_audio_mode")
     private val KEY_AVATAR_MODEL = intPreferencesKey("avatar_face_model")
     private val KEY_AVATAR_LIPS = intPreferencesKey("avatar_lip_colour")
     private val KEY_MUTE_WHILE_SPEAKING = booleanPreferencesKey("mute_mic_while_speaking")
@@ -211,6 +212,8 @@ class ConfigStore(private val context: Context) {
     /** Which head: 0 = the original, 1 and 2 = the other faces (see avatar/AvatarFaces.kt). */
     val avatarModel: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_MODEL] ?: 0 }
     /** Off by default: when on, "send" said by the user really sends the message (SMS, WhatsApp) to a contact, without a confirmation. */
+    /** Car mode (Android Auto): 0 = automatic, 1 = always, 2 = never. */
+    val carAudioMode: Flow<Int> = context.dataStore.data.map { it[KEY_CAR_AUDIO] ?: 0 }
     val messageAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_MESSAGE_AUTO_SEND] ?: false }
     val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 1 }
     /** 0 = natural, 1..4 = a lip colour (rose, red, plum, coral). */
@@ -240,6 +243,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setGoogleConnected(v: Boolean) = context.dataStore.edit { it[KEY_GOOGLE] = v }
     suspend fun setAvatarFace(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_FACE] = v }
     suspend fun setAvatarModel(v: Int) = context.dataStore.edit { it[KEY_AVATAR_MODEL] = v }
+    suspend fun setCarAudioMode(v: Int) = context.dataStore.edit { it[KEY_CAR_AUDIO] = v }
     suspend fun setMessageAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_MESSAGE_AUTO_SEND] = v }
     suspend fun setAvatarSkin(v: Int) = context.dataStore.edit { it[KEY_AVATAR_SKIN] = v }
     suspend fun setAvatarLips(v: Int) = context.dataStore.edit { it[KEY_AVATAR_LIPS] = v }

@@ -696,6 +696,16 @@ Google account or a Gemini key is said below.
   treats Gmail scopes as restricted: an unverified app in testing mode is limited to its test users, and the access may need to be renewed about every
   week.
 
+### Android Auto / car mode
+
+In a car the speakers are reached through Bluetooth or USB, which Jarvis used to treat like a headset: the microphone stayed open while it spoke, it heard itself and kept answering itself, and the audio focus held for the whole session stopped the car's music for good. The **car mode** (settings, card "Périphériques audio": Automatique / Activé / Désactivé) changes three things:
+
+- the microphone is muted while Jarvis speaks, with a longer tail (1.1 s) for the cabin's echo and the Bluetooth delay;
+- the phone's own microphone is used (`VOICE_RECOGNITION`), which does not switch the Bluetooth link to a call;
+- the audio focus is a light one (`AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`), taken only while Jarvis speaks and released 1.5 s after, so the music is lowered and comes back by itself.
+
+"Automatique" detects the phone's car mode (`UiModeManager`) or an Android Auto projection (the `androidx.car.app.connection` provider). Unit tests cover the decisions (`CarAudioTest`); it has been exercised on the emulator with `adb shell cmd uimode car yes`, but **not in a real car**. If it still misbehaves, the activity log line "Focus audio refusé" / "Mode voiture" tells what was detected.
+
 ### Updating from GitHub
 
 Settings > Update asks the GitHub releases of this repository for the latest version, compares it with the installed one, downloads the APK

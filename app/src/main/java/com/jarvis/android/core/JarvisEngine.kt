@@ -543,6 +543,7 @@ class JarvisEngine(
                         currentCoroutineContext().ensureActive()
                         when (event) {
                             is LiveEvent.SetupComplete -> if (!ready.isCompleted) {
+                                if (audio.carMode()) log(tr("Mode voiture : micro coupé pendant que Jarvis parle, focus audio léger, micro du téléphone."))
                                 if (!audio.startPlayback()) {
                                     log(trf("Focus audio refusé par Android ({0}) : la lecture continue sans, mais Android peut couper le son.", audio.focusDiagnostic()))
                                 }

@@ -26,6 +26,25 @@ class AudioEngine(private val context: Context) {
     private var focusRequest: AudioFocusRequest? = null
     @Volatile private var inSetup = false
 
+    /** In a car the focus is taken only while the assistant speaks, and lightly (see CarAudio.kt). */
+    @Volatile private var carFocus = false
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var carCache = false
+    private var carCacheAt = -10_000L
+
+    /** Whether the car mode applies now (asked again at most every three seconds: Android Auto can connect in the middle of a session). */
+    fun carMode(): Boolean {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - carCacheAt > 3_000L) {
+            carCache = CarAudio.active(context)
+            carCacheAt = now
+        }
+        return carCache
+    }
+
+    private fun builtInMic(): android.media.AudioDeviceInfo? =
+        audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS).firstOrNull { it.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_MIC }
+
     /** Result code of the last audio focus request (0 refused, 1 granted, 2 delayed), for the activity log. */
     @Volatile var lastFocusResult = -1
         private set
@@ -38,7 +57,7 @@ class AudioEngine(private val context: Context) {
             AudioManager.MODE_IN_CALL, AudioManager.MODE_IN_COMMUNICATION, AudioManager.MODE_CALL_SCREENING -> "appel"
             else -> audioManager.mode.toString()
         }
-        return "code $lastFocusResult, mode audio $mode, autre son en cours : ${if (audioManager.isMusicActive) "oui" else "non"}"
+        return "code $lastFocusResult, mode audio $mode, autre son en cours : ${if (audioManager.isMusicActive) "oui" else "non"}, voiture : ${CarAudio.describe(context)}"
     }
 
     private val focusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
@@ -69,8 +88,10 @@ class AudioEngine(private val context: Context) {
             AudioFormat.ENCODING_PCM_16BIT,
         )
         check(minBuf > 0) { "Format du microphone indisponible." }
+        val car = carMode()
+        // In a car, VOICE_COMMUNICATION can make the phone switch the Bluetooth link to a call, which cuts the car's sound.
         val rec = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            if (car) MediaRecorder.AudioSource.VOICE_RECOGNITION else MediaRecorder.AudioSource.VOICE_COMMUNICATION,
             LiveProtocol.SEND_SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT,
@@ -96,7 +117,7 @@ class AudioEngine(private val context: Context) {
                 }
             } catch (_: Exception) {
             }
-            AudioRoute.input(context)?.let { rec.preferredDevice = it }
+            (AudioRoute.input(context) ?: if (car) builtInMic() else null)?.let { rec.preferredDevice = it }
             rec.startRecording()
             check(rec.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "Capture impossible." }
             capturing.set(true)
@@ -137,22 +158,10 @@ class AudioEngine(private val context: Context) {
 
     fun startPlayback(): Boolean = synchronized(playbackLock) {
         if (track != null) return@synchronized true
-        inSetup = true
-        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANT)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build()
-            )
-            .setOnAudioFocusChangeListener(focusListener)
-            .setAcceptsDelayedFocusGain(true)
-            .build()
-        val result = audioManager.requestAudioFocus(request)
-        lastFocusResult = result
-        val focusGranted = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED || result == AudioManager.AUDIOFOCUS_REQUEST_DELAYED
-        if (focusGranted) focusRequest = request
-        inSetup = false
+        val car = carMode()
+        carFocus = car
+        // Elsewhere the session holds the focus; in a car it is taken while Jarvis speaks (ensureCarFocus), so the car's music comes back.
+        val focusGranted = if (car) true else requestFocus(AudioManager.AUDIOFOCUS_GAIN)
         // A refused focus (another app holds it, some Samsung phones) is not fatal: the voice can still play, so go on.
         val minBuf = AudioTrack.getMinBufferSize(
             LiveProtocol.RECEIVE_SAMPLE_RATE,
@@ -193,7 +202,43 @@ class AudioEngine(private val context: Context) {
         focusGranted
     }
 
+    /** Asks for the audio focus with [gain]; true when it is granted (or will be). */
+    private fun requestFocus(gain: Int): Boolean {
+        inSetup = true
+        val request = AudioFocusRequest.Builder(gain)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
+            .setOnAudioFocusChangeListener(focusListener)
+            .setAcceptsDelayedFocusGain(true)
+            .build()
+        val result = audioManager.requestAudioFocus(request)
+        lastFocusResult = result
+        val granted = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED || result == AudioManager.AUDIOFOCUS_REQUEST_DELAYED
+        if (granted) focusRequest = request
+        inSetup = false
+        return granted
+    }
+
+    /** In a car: takes a light focus for the next sound, and lets it go a moment after the last one. */
+    private fun ensureCarFocus() {
+        val needed = synchronized(playbackLock) { focusRequest == null }
+        if (needed) requestFocus(focusGainFor(true))
+        handler.removeCallbacks(releaseCheck)
+        handler.postDelayed(releaseCheck, 500L)
+    }
+
+    private val releaseCheck = object : Runnable {
+        override fun run() {
+            if (android.os.SystemClock.elapsedRealtime() < playingUntil + CAR_FOCUS_TAIL_MS) handler.postDelayed(this, 500L) else abandonAudioFocus()
+        }
+    }
+
     fun abandonAudioFocus() {
+        handler.removeCallbacks(releaseCheck)
         if (inSetup) return
         focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
         focusRequest = null
@@ -203,29 +248,20 @@ class AudioEngine(private val context: Context) {
     @Volatile private var playingUntil = 0L
 
     /** True while the assistant's voice is audible, with a short tail for the room's echo. */
-    fun isPlaybackActive(): Boolean = android.os.SystemClock.elapsedRealtime() < playingUntil + ECHO_TAIL_MS
+    fun isPlaybackActive(): Boolean = android.os.SystemClock.elapsedRealtime() < playingUntil + echoTailMs(carMode())
 
-    /** True when the assistant's voice comes out of the phone's loudspeaker (no headset, Bluetooth or USB audio). */
+    /**
+     * True when the assistant's voice can reach the microphone: the phone's loudspeaker, or anything in a car, whose speakers are in the room.
+     * The microphone is then muted while it speaks (a headset, Bluetooth audio or USB audio out of the car keeps it open, so it can be interrupted).
+     */
     fun playsOnLoudspeaker(): Boolean {
         val outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-        val chosen = AudioRoute.output(context)
-        if (chosen != null) return chosen.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-        return outputs.none { isPrivateOutput(it.type) }
-    }
-
-    private fun isPrivateOutput(type: Int) = when (type) {
-        android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET,
-        android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-        android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
-        android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-        android.media.AudioDeviceInfo.TYPE_USB_HEADSET,
-        android.media.AudioDeviceInfo.TYPE_BLE_HEADSET,
-        android.media.AudioDeviceInfo.TYPE_HEARING_AID -> true
-        else -> false
+        return voiceReachesMicrophone(outputs.map { it.type }, AudioRoute.output(context)?.type, carMode())
     }
 
     suspend fun playChunk(pcm16: ByteArray) {
         val player = synchronized(playbackLock) { track } ?: return
+        if (carFocus) ensureCarFocus()
         val now = android.os.SystemClock.elapsedRealtime()
         val chunkMs = pcm16.size * 1000L / (2 * LiveProtocol.RECEIVE_SAMPLE_RATE)
         playingUntil = maxOf(playingUntil, now) + chunkMs
@@ -268,7 +304,4 @@ class AudioEngine(private val context: Context) {
         track?.playState == AudioTrack.PLAYSTATE_PLAYING
     }
 
-    private companion object {
-        const val ECHO_TAIL_MS = 350L
-    }
 }

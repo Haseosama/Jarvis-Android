@@ -135,6 +135,7 @@ fun SettingsScreen(
     var voiceMenuOpen by remember { mutableStateOf(false) }
     val inputKey by configStore.audioInputKey.collectAsState(initial = "")
     val outputKey by configStore.audioOutputKey.collectAsState(initial = "")
+    val carMode by configStore.carAudioMode.collectAsState(initial = 0)
     var inMenuOpen by remember { mutableStateOf(false) }
     var outMenuOpen by remember { mutableStateOf(false) }
     var inputs by remember { mutableStateOf(emptyList<com.jarvis.android.core.AudioDeviceChoice>()) }
@@ -276,6 +277,17 @@ fun SettingsScreen(
             SettingsCard(tr("Périphériques audio"), Icons.Filled.Headset, initiallyExpanded = false) {
             Text(
                 tr("Automatique laisse Android choisir. Un périphérique choisi mais débranché est ignoré : Jarvis revient alors au téléphone. Le changement s’applique à la prochaine session ou au prochain enregistrement."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Text(tr("Mode voiture (Android Auto)"), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                listOf(0 to "Automatique", 1 to "Activé", 2 to "Désactivé").forEach { (v, label) ->
+                    FilterChip(selected = carMode == v, onClick = { scope.launch { configStore.setCarAudioMode(v) } }, label = { Text(tr(label)) })
+                }
+            }
+            Text(
+                tr("En voiture, le micro est coupé pendant que Jarvis parle (sinon il s’entend dans l’habitacle et se répond), le micro du téléphone est utilisé sans toucher au Bluetooth, et la musique est seulement baissée pendant qu’il parle au lieu d’être arrêtée. « Automatique » détecte Android Auto. Le changement s’applique à la prochaine session."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
