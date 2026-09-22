@@ -29,6 +29,9 @@ internal class CircuitTraces(mesh: HeadMesh) {
 
     /** Points that end a track: they get a round pad. */
     val pads: IntArray
+
+    /** For each track: 0 or 1. On the blue skin the tracks of kind 1 are deep blue, in the other looks all are gold. */
+    val trackKind: IntArray
     val trackCount: Int
     val count: Int get() = triA.size
 
@@ -94,7 +97,7 @@ internal class CircuitTraces(mesh: HeadMesh) {
         }
 
         // the tracks: walks on a lattice, each step one lattice unit along one of eight directions
-        val pitch = 0.042f
+        val pitch = 0.036f
         val dirs = arrayOf(intArrayOf(1, 0), intArrayOf(1, 1), intArrayOf(0, 1), intArrayOf(-1, 1), intArrayOf(-1, 0), intArrayOf(-1, -1), intArrayOf(0, -1), intArrayOf(1, -1))
         val rnd = Random(2026)
         val taken = HashSet<Long>()
@@ -102,6 +105,7 @@ internal class CircuitTraces(mesh: HeadMesh) {
         val sA = ArrayList<Int>(); val sB = ArrayList<Int>(); val sTrack = ArrayList<Int>(); val sAlong = ArrayList<Float>()
         val padList = ArrayList<Int>()
         var tracks = 0
+        val kinds = ArrayList<Int>()
 
         fun free(ix: Int, iy: Int): Boolean {
             if (taken.contains(key(ix, iy))) return false
@@ -110,11 +114,11 @@ internal class CircuitTraces(mesh: HeadMesh) {
             return true
         }
 
-        for (attempt in 0 until 3200) {
-            val sx = rnd.nextInt(-21, 22); val sy = rnd.nextInt(-23, 20)
+        for (attempt in 0 until 6000) {
+            val sx = rnd.nextInt(-25, 26); val sy = rnd.nextInt(-27, 24)
             if (!free(sx, sy) || !locate(sx * pitch, sy * pitch)) continue
             var dir = rnd.nextInt(8)
-            val target = rnd.nextInt(8, 30)
+            val target = rnd.nextInt(9, 34)
             val cells = ArrayList<IntArray>()
             cells += intArrayOf(sx, sy)
             var cx = sx; var cy = sy
@@ -138,6 +142,7 @@ internal class CircuitTraces(mesh: HeadMesh) {
                 sA += first + k; sB += first + k + 1; sTrack += tracks; sAlong += k / (n - 1f)
             }
             padList += first; padList += first + n - 1
+            kinds += if (rnd.nextFloat() < 0.40f) 1 else 0
             tracks++
         }
 
@@ -152,6 +157,7 @@ internal class CircuitTraces(mesh: HeadMesh) {
         segTrack = IntArray(sTrack.size) { sTrack[it] }
         segAlong = FloatArray(sAlong.size) { sAlong[it] }
         pads = padList.toIntArray()
+        trackKind = kinds.toIntArray()
         trackCount = tracks
     }
 }

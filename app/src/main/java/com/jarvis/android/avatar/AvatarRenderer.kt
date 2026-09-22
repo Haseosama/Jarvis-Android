@@ -43,7 +43,8 @@ internal fun blend(bg: Int, col: Int, a: Float): Int {
     return argb(255, ch(16), ch(8), ch(0))
 }
 
-private val SKIN_TONES = intArrayOf(0xF1C9A8, 0xD9A47C, 0xB07A54, 0x7A4E36, 0x62B0EE, 0x22509A)   // the fifth and sixth are the two blues of the blue holograms
+private val SKIN_TONES = intArrayOf(0xF1C9A8, 0xD9A47C, 0xB07A54, 0x7A4E36, 0x69B4F0)   // the fifth is the light blue of the blue hologram
+private const val DEEP_BLUE = 0xFF0C2160.toInt()
 private val LIP_TONES = intArrayOf(0xD9707F, 0xC02836, 0x8E3A6B, 0xE8735A)
 
 private fun withAlpha(col: Int, a: Float): Int = (col and 0x00FFFFFF) or (a.coerceIn(0f, 255f).toInt() shl 24)
@@ -85,6 +86,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
 
     /** With the hologram look, the hair: a dark mass under fibres of light (see FiberHair.kt). */
     var holoHair = false
+
+    /** The blue skin: a light blue with deep blue accents (edge, hollows, some of the circuits) and more gold circuits. */
+    var blueMix = false
 
     /** Fine strands drawn over the hair (see drawFibres); off for long hair, which hangs in front of the face. */
     var fibreOverlay = true
@@ -262,7 +266,13 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         if (holo) {
             // a solid skin: a little brighter than the plain looks, a faint cool light at the contour only, and no melting into the background
             val edge = Math.pow((1f - vz.coerceIn(0f, 1f)).toDouble(), 2.4).toFloat()          // 0 facing the viewer, 1 at the contour
-            c = mix(lit(c, 1.16f), mix(primaryColor, 0xFFFFFFFF.toInt(), 0.45f), 0.62f * edge)   // a soft bright edge instead of dots
+            c = if (blueMix) {
+                // light blue, deeper in the hollows (away from the light) and with a deep blue edge all round
+                val hollow = mix(lit(c, 1.16f), DEEP_BLUE, 0.55f * (1f - vlam))
+                mix(hollow, DEEP_BLUE, 0.80f * edge)
+            } else {
+                mix(lit(c, 1.16f), mix(primaryColor, 0xFFFFFFFF.toInt(), 0.45f), 0.62f * edge)   // a soft bright edge instead of dots
+            }
             return mix(bgColor, c, (mesh.fade[vi] * 1.9f).coerceIn(0f, 1f))
         }
         val fv = (mesh.fade[vi] * mesh.fade[vi]).coerceIn(0f, 1f)
@@ -521,8 +531,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private val circuits by lazy { CircuitTraces(mesh) }
     private val fibres3 by lazy { FiberHair(mesh) }
     private var cx = FloatArray(0); private var cy = FloatArray(0); private var cz = FloatArray(0)
-    private val circuitLines = Array(3) { FloatArray(0) }
-    private val circuitLineCounts = IntArray(3)
+    private val circuitLines = Array(6) { FloatArray(0) }
+    private val circuitLineCounts = IntArray(6)
 
     /**
      * The circuit tracks of the hologram look: thin lines that follow the relief, round pads at their ends, and a pulse of light that
@@ -533,7 +543,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         if (c.count == 0) return
         if (cx.size != c.count) {
             cx = FloatArray(c.count); cy = FloatArray(c.count); cz = FloatArray(c.count)
-            for (b in 0 until 3) circuitLines[b] = FloatArray(c.segments.size * 2)
+            for (b in 0 until 6) circuitLines[b] = FloatArray(c.segments.size * 2)
         }
         for (i in 0 until c.count) {
             val a = c.triA[i]; val b = c.triB[i]; val d = c.triC[i]
@@ -552,34 +562,52 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val phase = (t * 0.32f + c.segTrack[k] * 0.137f) % 1.25f
             val d = (c.segAlong[k] - phase) / 0.07f
             val a = (0.42f + 0.58f * kotlin.math.exp(-d * d)) * face * (c.fade[i] + c.fade[j]) * 0.5f * gain
-            val bk = if (a > 0.75f) 2 else if (a > 0.45f) 1 else 0
+            val level = if (a > 0.75f) 2 else if (a > 0.45f) 1 else 0
+            val kind = if (blueMix) c.trackKind[c.segTrack[k]] else 0                  // on the blue skin, some tracks are deep blue
+            val bk = kind * 3 + level
             val arr = circuitLines[bk]; val o = circuitLineCounts[bk]
             arr[o] = cx[i]; arr[o + 1] = cy[i]; arr[o + 2] = cx[j]; arr[o + 3] = cy[j]
             circuitLineCounts[bk] = o + 4
         }
         val gold = 0xFFFFB640.toInt()                        // the gold of the circuit in the logo
-        val hot = mix(gold, 0xFFFFFFFF.toInt(), 0.6f)
+        val goldHot = mix(gold, 0xFFFFFFFF.toInt(), 0.6f)
+        val blueHot = 0xFF8FC1FF.toInt()
         linePaint.strokeCap = Paint.Cap.ROUND
-        for (bk in 0 until 3) {
+        // the gold ones glow: a wide, faint halo under them
+        for (level in 0 until 3) {
+            val bk = level
             if (circuitLineCounts[bk] == 0) continue
-            linePaint.strokeWidth = max(1.3f, strokePx * (0.75f + 0.3f * bk))
-            linePaint.color = withAlpha(if (bk == 2) hot else gold, floatArrayOf(150f, 215f, 255f)[bk])
+            linePaint.strokeWidth = max(3.4f, strokePx * (2.6f + 0.9f * level))
+            linePaint.color = withAlpha(gold, floatArrayOf(34f, 52f, 78f)[level])
             nc.drawLines(circuitLines[bk], 0, circuitLineCounts[bk], linePaint)
         }
-        // the pads: a ring, dark inside
-        var m = 0
-        for (p in c.pads) {
-            if (smooth01(0.10f, 0.45f, cz[p]) <= 0f) continue
-            if (m + 2 > padBuf.size) break
-            padBuf[m++] = cx[p]; padBuf[m++] = cy[p]
+        for (bk in 0 until 6) {
+            if (circuitLineCounts[bk] == 0) continue
+            val kind = bk / 3; val level = bk % 3
+            linePaint.strokeWidth = max(1.3f, strokePx * (0.75f + 0.3f * level))
+            val base = if (kind == 1) DEEP_BLUE else gold
+            val hot = if (kind == 1) blueHot else goldHot
+            linePaint.color = withAlpha(if (level == 2) hot else base, floatArrayOf(190f, 235f, 255f)[level])
+            nc.drawLines(circuitLines[bk], 0, circuitLineCounts[bk], linePaint)
         }
-        if (m > 0) {
-            linePaint.strokeWidth = max(3.6f, strokePx * 2.4f)
-            linePaint.color = withAlpha(gold, 245f)
-            nc.drawPoints(padBuf, 0, m, linePaint)
-            linePaint.strokeWidth = max(1.6f, strokePx * 1.0f)
-            linePaint.color = withAlpha(bg, 255f)
-            nc.drawPoints(padBuf, 0, m, linePaint)
+        // the pads: a ring, dark inside (deep blue rings on the deep blue tracks)
+        for (kind in 0 until 2) {
+            var m = 0
+            for (idx in c.pads.indices) {
+                val p = c.pads[idx]
+                if ((if (blueMix) c.trackKind[idx / 2] else 0) != kind) continue
+                if (smooth01(0.10f, 0.45f, cz[p]) <= 0f) continue
+                if (m + 2 > padBuf.size) break
+                padBuf[m++] = cx[p]; padBuf[m++] = cy[p]
+            }
+            if (m > 0) {
+                linePaint.strokeWidth = max(3.6f, strokePx * 2.4f)
+                linePaint.color = withAlpha(if (kind == 1) DEEP_BLUE else gold, 245f)
+                nc.drawPoints(padBuf, 0, m, linePaint)
+                linePaint.strokeWidth = max(1.6f, strokePx * 1.0f)
+                linePaint.color = withAlpha(if (kind == 1) 0xFFBFDCFF.toInt() else bg, 255f)
+                nc.drawPoints(padBuf, 0, m, linePaint)
+            }
         }
         linePaint.strokeCap = Paint.Cap.BUTT
     }

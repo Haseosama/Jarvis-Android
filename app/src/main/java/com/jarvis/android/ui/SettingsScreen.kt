@@ -369,7 +369,7 @@ fun SettingsScreen(
             }
             Text(tr("Peau"), style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).horizontalScroll(rememberScrollState())) {
-                listOf(0 to "Réseau lumineux", 5 to "Hologramme", 6 to "Hologramme + cheveux", 7 to "Hologramme bleu clair", 8 to "Hologramme bleu foncé", 1 to "Claire", 2 to "Mate", 3 to "Bronzée", 4 to "Foncée").forEach { (v, label) ->
+                listOf(0 to "Réseau lumineux", 5 to "Hologramme", 6 to "Hologramme + cheveux", 7 to "Hologramme bleu", 1 to "Claire", 2 to "Mate", 3 to "Bronzée", 4 to "Foncée").forEach { (v, label) ->
                     FilterChip(selected = skinTone == v, onClick = { scope.launch { configStore.setAvatarSkin(v) } }, label = { Text(tr(label)) })
                 }
             }

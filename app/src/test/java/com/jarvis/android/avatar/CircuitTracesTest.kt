@@ -10,7 +10,7 @@ class CircuitTracesTest {
 
     @Test fun `there are tracks, all well formed`() {
         val c = CircuitTraces(mesh)
-        assertTrue("tracks: ${c.trackCount}", c.trackCount in 40..1500)
+        assertTrue("tracks: ${c.trackCount}", c.trackCount in 60..4000)
         assertTrue(c.count > 100)
         assertEquals(c.count, c.wu.size); assertEquals(c.count, c.fade.size)
         for (i in 0 until c.count) {
@@ -22,6 +22,8 @@ class CircuitTracesTest {
         assertTrue(c.segTrack.all { it in 0 until c.trackCount })
         assertTrue(c.segAlong.all { it in 0f..1f })
         assertEquals(2 * c.trackCount, c.pads.size)
+        assertEquals(c.trackCount, c.trackKind.size)
+        assertTrue(c.trackKind.all { it == 0 || it == 1 } && c.trackKind.any { it == 1 } && c.trackKind.any { it == 0 })
     }
 
     @Test fun `the same tracks every time, and none on the hair, the eyes or the mouth`() {

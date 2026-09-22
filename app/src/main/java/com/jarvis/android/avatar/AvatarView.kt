@@ -72,9 +72,9 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         renderer.holo = controller.skin >= HOLO_SKIN
         renderer.holoHair = controller.skin == HOLO_HAIR_SKIN
         // the hologram wears the matt tone, or the blue skin of the blue hologram
+        renderer.blueMix = controller.skin == BLUE_HOLO_SKIN || controller.skin == DARK_BLUE_HOLO_SKIN
         renderer.skin = when {
-            controller.skin == BLUE_HOLO_SKIN -> 5
-            controller.skin == DARK_BLUE_HOLO_SKIN -> 6
+            renderer.blueMix -> 5
             renderer.holo -> 2
             else -> controller.skin
         }
@@ -92,10 +92,10 @@ internal const val HOLO_SKIN = 5
 /** The hologram look with the hair of optical fibres. */
 internal const val HOLO_HAIR_SKIN = 6
 
-/** The hologram with a light blue skin (a solid blue, lit like a skin, with the circuits over it). */
+/** The hologram with the blue skin: light blue with deep blue accents, and more gold circuits. */
 internal const val BLUE_HOLO_SKIN = 7
 
-/** The same in a deep blue. */
+/** Kept for settings saved by a test build: it looks the same as [BLUE_HOLO_SKIN]. */
 internal const val DARK_BLUE_HOLO_SKIN = 8
 
 private const val FRAME_NS = 30_000_000L
