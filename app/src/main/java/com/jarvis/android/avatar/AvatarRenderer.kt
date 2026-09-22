@@ -44,7 +44,7 @@ internal fun blend(bg: Int, col: Int, a: Float): Int {
 }
 
 private val SKIN_TONES = intArrayOf(0xF1C9A8, 0xD9A47C, 0xB07A54, 0x7A4E36, 0x69B4F0)   // the fifth is the light blue of the blue hologram
-private const val DEEP_BLUE = 0xFF0C2160.toInt()
+internal const val DEEP_BLUE = 0xFF0C2160.toInt()   // the hologram's ink: brows, lashes, lid crease and lip line, for contrast against the warm or blue skin
 private val LIP_TONES = intArrayOf(0xD9707F, 0xC02836, 0x8E3A6B, 0xE8735A)
 
 private fun withAlpha(col: Int, a: Float): Int = (col and 0x00FFFFFF) or (a.coerceIn(0f, 255f).toInt() shl 24)
@@ -1000,8 +1000,11 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
      */
     private fun drawEyes(scope: DrawScope, avatar: HoloAvatar, r: Float, primary: Int, strokePx: Float, face: Float, midX: Float) {
         val open = ((1f - avatar.blink) * avatar.lids.coerceIn(0f, 1f)).coerceIn(0f, 1f)
-        val lash = if (skin > 0 && !holo) 0xFF1E120E.toInt() else primary
-        val fold = if (skin > 0 && !holo) 0xFF6B4636.toInt() else primary
+        // The hologram's own ink (dark, not the theme colour) keeps the lids and lashes readable against a bright skin;
+        // the web look (skin 0) keeps the theme colour, since there is no skin for ink to stand out against.
+        val lash = if (holo) DEEP_BLUE else if (skin > 0) 0xFF1E120E.toInt() else primary
+        val fold = if (holo) DEEP_BLUE else if (skin > 0) 0xFF6B4636.toInt() else primary
+        val foldAlpha = if (holo) 130f else 70f
         scope.drawIntoCanvas { canvas ->
             val nc = canvas.nativeCanvas
             for (e in lidCurves.indices) {
@@ -1012,7 +1015,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 val ux = curveX.copyOf(n); val uy = curveY.copyOf(n)
                 // index 0 is made the inner end: the one nearer the face's middle
                 if (kotlin.math.abs(ux[0] - midX) > kotlin.math.abs(ux[n - 1] - midX)) { ux.reverse(); uy.reverse() }
-                hairPaint.color = withAlpha(fold, 70f * face * (0.4f + 0.6f * open)); hairPaint.strokeWidth = strokePx * 1.4f
+                hairPaint.color = withAlpha(fold, foldAlpha * face * (0.4f + 0.6f * open)); hairPaint.strokeWidth = strokePx * 1.4f
                 for (i in 0 until n - 1) nc.drawLine(ux[i], uy[i] - r * 0.016f, ux[i + 1], uy[i + 1] - r * 0.016f, hairPaint)
                 hairPaint.color = withAlpha(lash, 235f * face)
                 for (i in 0 until n - 1) {
@@ -1146,7 +1149,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         drawEyes(scope, avatar, r, primary, strokePx, face, midX)
 
         // the two lip edges along the mouth line: one line when the mouth is shut, two when it opens
-        val lipLine = if (skin > 0 && !holo) 0xFF6E2A38.toInt() else primary
+        val lipLine = if (holo) DEEP_BLUE else if (skin > 0) 0xFF6E2A38.toInt() else primary
         for ((chain, alpha) in listOf(mesh.mouthUpper to 200f, mesh.mouthLower to 170f)) {
             val path = Path()
             for ((k, i) in chain.withIndex()) if (k == 0) path.moveTo(xs[i], ys[i]) else path.lineTo(xs[i], ys[i])

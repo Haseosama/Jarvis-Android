@@ -645,6 +645,15 @@ sheen (skin is not matte — a soft, narrow highlight where the surface faces th
 touch of warmth added where the light lands most (like blood under thin skin), instead of a single flat tint. Checked on the emulator on a
 light and a dark tone. The cartoon face and the hologram looks were not touched here.
 
+#### Hologram expressions
+
+Moods and expressions (blink, brow lift and position, gaze, mouth shape) were already fully driven by the shared animation (`HoloAvatar.kt`), the
+same as the plain skins — but on the hologram they were drawn in a pale cyan or in the app's own theme colour, which read poorly against the
+skin and the gold circuits: a lowered brow or a closed eye was there in the geometry but hard to see at a glance. Brows, lashes, the eyelid
+crease and the lip line now use the hologram's own dark ink (`DEEP_BLUE`, the same tone as the blue skin's contour) instead, which reads clearly
+against every hologram skin and against the gold circuits regardless of the interface's theme colour. Checked on the emulator across the four
+moods and while speaking.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`
