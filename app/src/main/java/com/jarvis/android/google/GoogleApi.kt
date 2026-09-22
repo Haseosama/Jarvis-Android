@@ -81,6 +81,13 @@ internal class GoogleApi(private val context: Context, private val http: OkHttpC
         return call(request) { json.parseToJsonElement(it.body?.string().orEmpty()).jsonObject["id"]?.jsonPrimitive?.contentOrNull.orEmpty() }
     }
 
+    /** Really sends the mail — only called by GmailTool when the user has switched "Envoyer les mails sans confirmation" on and just asked for it. */
+    suspend fun mailSend(to: String, subject: String, body: String): String {
+        val payload = buildJsonObject { put("raw", buildRawMessage(to, subject, body)) }
+        val request = Request.Builder().url("$GMAIL/messages/send").post(payload.toString().toRequestBody("application/json".toMediaType()))
+        return call(request) { json.parseToJsonElement(it.body?.string().orEmpty()).jsonObject["id"]?.jsonPrimitive?.contentOrNull.orEmpty() }
+    }
+
     // ── Drive ────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
     data class DriveFile(val id: String, val name: String, val mime: String, val modified: String, val size: Long)

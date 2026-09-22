@@ -181,6 +181,8 @@ class ConfigStore(private val context: Context) {
     private val KEY_GOOGLE = booleanPreferencesKey("google_connected")
     private val KEY_AVATAR_SKIN = intPreferencesKey("avatar_face_skin")
     private val KEY_MESSAGE_AUTO_SEND = booleanPreferencesKey("message_auto_send")
+    private val KEY_GMAIL_AUTO_SEND = booleanPreferencesKey("gmail_auto_send")
+    private val KEY_CALENDAR_AUTO_CREATE = booleanPreferencesKey("calendar_auto_create")
     private val KEY_CAR_AUDIO = intPreferencesKey("car_audio_mode")
     private val KEY_OFFLINE_MODE = intPreferencesKey("offline_mode")
     private val KEY_KEEP_TRANSCRIPTS = booleanPreferencesKey("keep_session_transcripts")
@@ -237,6 +239,10 @@ class ConfigStore(private val context: Context) {
     /** Whether the offline mode may use the local model, once one is installed, for what is not a fixed command. On by default. */
     val localAiEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_LOCAL_AI] ?: true }
     val messageAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_MESSAGE_AUTO_SEND] ?: false }
+    /** Off by default: when on, and the user has just asked clearly, gmail's send action really sends the mail instead of only drafting it. */
+    val gmailAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_GMAIL_AUTO_SEND] ?: false }
+    /** Off by default: when on, and the user has just asked clearly, calendar's add action really creates the event instead of only opening the form. */
+    val calendarAutoCreate: Flow<Boolean> = context.dataStore.data.map { it[KEY_CALENDAR_AUTO_CREATE] ?: false }
     /**
      * Off by default: when on, volume changes, file writes/deletes/organising and any other on-screen action Jarvis would
      * normally ask about go ahead without a confirmation banner. Screens that touch system security, permissions or
@@ -280,6 +286,8 @@ class ConfigStore(private val context: Context) {
     suspend fun setOfflineMode(v: Int) = context.dataStore.edit { it[KEY_OFFLINE_MODE] = v }
     suspend fun setCarAudioMode(v: Int) = context.dataStore.edit { it[KEY_CAR_AUDIO] = v }
     suspend fun setMessageAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_MESSAGE_AUTO_SEND] = v }
+    suspend fun setGmailAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_GMAIL_AUTO_SEND] = v }
+    suspend fun setCalendarAutoCreate(v: Boolean) = context.dataStore.edit { it[KEY_CALENDAR_AUTO_CREATE] = v }
     suspend fun setSkipConfirmations(v: Boolean) = context.dataStore.edit { it[KEY_SKIP_CONFIRMATIONS] = v }
     suspend fun setAvatarSkin(v: Int) = context.dataStore.edit { it[KEY_AVATAR_SKIN] = v }
     suspend fun setAvatarLips(v: Int) = context.dataStore.edit { it[KEY_AVATAR_LIPS] = v }

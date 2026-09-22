@@ -676,6 +676,27 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
+            var calendarWriteGranted by remember { mutableStateOf(com.jarvis.android.calendar.hasCalendarWritePermission(context0)) }
+            val askCalendarWrite = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+                calendarWriteGranted = granted
+            }
+            val calendarAutoCreate by configStore.calendarAutoCreate.collectAsState(initial = false)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            ) {
+                Text(tr("Créer les événements sans confirmation quand je dis « ajoute-le »"), modifier = Modifier.weight(1f))
+                Switch(checked = calendarAutoCreate, onCheckedChange = { value ->
+                    scope.launch { configStore.setCalendarAutoCreate(value) }
+                    if (value && !calendarWriteGranted) askCalendarWrite.launch(android.Manifest.permission.WRITE_CALENDAR)
+                })
+            }
+            Text(
+                tr("Toujours désactivé par défaut. Une fois activé et une fois l’agenda modifiable autorisé, l’événement est ajouté directement à votre agenda principal (celui dont vous êtes le propriétaire) au lieu d’ouvrir le formulaire à valider vous-même."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
             }
             SettingsCard(tr("Accès rapide"), Icons.Filled.Bolt, initiallyExpanded = false) {
             var quickMessage by remember { mutableStateOf<String?>(null) }

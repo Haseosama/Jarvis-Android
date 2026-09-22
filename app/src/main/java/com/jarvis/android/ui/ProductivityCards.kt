@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -151,13 +152,27 @@ internal fun GoogleCard(configStore: ConfigStore) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val connected by configStore.googleConnected.collectAsState(initial = false)
+    val gmailAutoSend by configStore.gmailAutoSend.collectAsState(initial = false)
     var checking by remember { mutableStateOf(false) }
     var checkResult by remember { mutableStateOf<String?>(null) }
     SettingsCard(tr("Google (Gmail, Drive)"), Icons.Filled.Mail, initiallyExpanded = false) {
         Text(
-            if (connected) tr("Compte Google connecté : Jarvis peut lire vos mails et vos fichiers Drive, et préparer des brouillons. Il n’envoie jamais rien tout seul.")
-            else tr("Non connecté. Une fois connecté, Jarvis peut lire vos mails, préparer des brouillons Gmail (sans jamais les envoyer) et lire ou ajouter des fichiers dans Drive."),
+            if (connected) tr("Compte Google connecté : Jarvis peut lire vos mails et vos fichiers Drive, et préparer des brouillons Gmail. Par défaut il n’envoie rien tout seul (réglage ci-dessous pour changer ça).")
+            else tr("Non connecté. Une fois connecté, Jarvis peut lire vos mails, préparer des brouillons Gmail et lire ou ajouter des fichiers dans Drive."),
             style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        ) {
+            Text(tr("Envoyer les mails sans confirmation quand je dis « envoie »"), modifier = Modifier.weight(1f))
+            Switch(checked = gmailAutoSend, onCheckedChange = { scope.launch { configStore.setGmailAutoSend(it) } })
+        }
+        Text(
+            tr("Toujours désactivé par défaut. Une fois activé, un mail que vous demandez clairement d’envoyer part pour de vrai au lieu de rester un brouillon. Si le compte a été connecté avant l’ajout de ce réglage, reconnectez-le une fois (« Reconnecter Google » ci-dessous) pour que Google vous demande cette permission supplémentaire."),
+            style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 4.dp),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {

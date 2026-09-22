@@ -16,13 +16,16 @@ import kotlin.coroutines.resumeWithException
  * by Android, Jarvis never sees a password. It needs an OAuth client of type "Android" for this app (package name and signing
  * certificate) in a Google Cloud project, and the user added as a test user while the consent screen is in test mode.
  *
- * The scopes are the narrowest that do the job: read mail, create drafts (nothing is ever sent), read Drive, and add files
- * that Jarvis itself created to Drive.
+ * The scopes are the narrowest that do the job: read mail, create drafts, read Drive, and add files that Jarvis
+ * itself created to Drive. `gmail.send` is requested too so a mail can really be sent, but that only ever happens
+ * when the user has separately switched "Envoyer les mails sans confirmation" on in Settings — see GmailTool; the
+ * scope alone grants no more than the draft scopes did without that setting.
  */
 internal object GoogleAuth {
     val SCOPES = listOf(
         "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/gmail.send",
         "https://www.googleapis.com/auth/drive.readonly",
         "https://www.googleapis.com/auth/drive.file",
     )

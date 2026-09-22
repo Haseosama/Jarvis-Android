@@ -63,7 +63,10 @@ too — see "Lists" under "Offline mode"), `system_monitor` (battery/storage), `
 with *automatic sending* switched on it really sends, see "Sending messages on your word"),
 `youtube_video`, `read_clipboard`, `code_helper`, `recall_memory`, `remember_fact`,
 `forget_fact`, `undo`, `end_session`, `smart_home` (lights, switches, covers, thermostats… through
-the user's own Home Assistant server, see "Maison connectée"), and the phone-control tools below.
+the user's own Home Assistant server, see "Maison connectée"), `translate` (translates a piece of
+text into a named language without switching the language of the conversation itself), `spotify_search`
+(opens Spotify's own search for a title, artist or playlist; the user picks and plays it — see below),
+and the phone-control tools below.
 
 `end_session` lets you close the voice session by voice ("arrête la session"): the model says
 goodbye, and once that turn is complete the session and the foreground service are stopped (a
@@ -373,6 +376,20 @@ building the right service call and body, formatting a status line) with literal
 to connect to. The code follows Home Assistant's documented REST API closely (`/api/states`,
 `/api/services/{domain}/{service}`, Bearer token authentication), but a first real run at home is the
 only way to be sure a specific server's devices behave exactly as expected.
+
+### Spotify search, and why it stops there
+
+`spotify_search` opens Spotify's own search for a title, an artist or a playlist (the `spotify:search:`
+app link, falling back to `open.spotify.com/search/` in a browser if Spotify is not installed) — the
+user picks and presses play, the same "open results, the user chooses" shape as `youtube_video`. Deliberately
+not a Spotify Web API integration: real hands-free playback control (start a specific track on a chosen
+device without the user touching anything) needs the user to first register their own app in Spotify's
+developer dashboard and complete Spotify's own OAuth flow — the same dead end Google Home would have been
+for the smart home (see above), asked of the user before a single line of the resulting code could even be
+tried. Play/pause/next/previous already work for whatever is currently playing, Spotify included, through
+`device_settings`' media keys, which this tool does not duplicate. Checked: unit tests for the two link
+builders (the query is percent-encoded, a blank or over-long one is refused). Not checked: opening a real
+Spotify app or a browser on a device.
 
 ### Plugins and self-knowledge
 
@@ -870,21 +887,33 @@ Google account or a Gemini key is said below.
   when it is back), the battery temperature or the free memory, about every 15 minutes with WorkManager, and alerts once per crossing (with a small
   margin so a value at the threshold does not ring every check). Battery and storage alerts already existed in "Background checks". *Checked:* a live
   price and a site check on the emulator.
-- **Gmail and Drive** (`gmail`, `drive`, Settings > Google). Reads unread or searched mail, reads a message, and prepares **drafts** (nothing is ever
-  sent); searches and reads Drive files (Docs and Sheets exported as text, PDF and images analysed by Gemini), and uploads documents Jarvis wrote.
+- **Gmail and Drive** (`gmail`, `drive`, Settings > Google). Reads unread or searched mail, reads a message, and prepares **drafts** by default;
+  searches and reads Drive files (Docs and Sheets exported as text, PDF and images analysed by Gemini), and uploads documents Jarvis wrote.
   Sign-in uses Google's Authorization API (Play services), so Jarvis never sees a password, with the narrowest scopes: `gmail.readonly`,
-  `gmail.compose`, `drive.readonly`, `drive.file`. Mail and file contents reach the model as data, marked so that instructions inside them are not followed.
-  *Not tried:* everything that needs a signed-in Google account (the emulator has none); the tools answer "Google is not connected" without one.
+  `gmail.compose`, `gmail.send`, `drive.readonly`, `drive.file`. Mail and file contents reach the model as data, marked so that instructions inside them are not followed.
+  **Real sending** (Settings > Google, *"Envoyer les mails sans confirmation"*, off by default — same shape as `send_message`, see "Sending messages
+  on your word"): once on, `gmail` with `send = true` posts to `messages/send` instead of `drafts` the moment the user has just clearly asked for
+  it, no further confirmation. An account connected before this setting existed only has the older, narrower scopes; reconnecting once ("Reconnecter
+  Google") re-consents with `gmail.send` added, which Google's Authorization API asks for incrementally rather than replacing the whole grant.
+  *Not tried:* everything that needs a signed-in Google account (the emulator has none); the tools answer "Google is not connected" without one, and
+  real sending specifically could not be tried at all here.
   **Each build needs its own OAuth client:** the debug build (`com.jarvis.android.dev`, debug key) and the release build (`com.jarvis.android`,
   release key) are different apps for Google. The release key's SHA-1 is shown in Settings > Google (for the release published here it is
   `78:B0:7C:86:A6:C8:48:4E:14:3D:A2:F3:4F:EB:A2:8F:0C:09:35:32`); register it with the package `com.jarvis.android`. "Check the connection" in the same
   card says which of the two problems it is (unregistered app, or expired access).
   To connect: in a Google Cloud project, enable the Gmail API and the Google Drive API; configure the OAuth consent screen (External, in testing, with
-  your Google account as a test user, and the four scopes above); create an OAuth client ID of type **Android** with the app's package name
+  your Google account as a test user, and the five scopes above); create an OAuth client ID of type **Android** with the app's package name
   (`com.jarvis.android`, or `com.jarvis.android.dev` for the debug build) and the SHA-1 of the key that signs the APK
   (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`); then Settings > Google > Connect. Google
   treats Gmail scopes as restricted: an unverified app in testing mode is limited to its test users, and the access may need to be renewed about every
   week.
+- **Real calendar events** (`calendar`, Settings > Agenda, *"Créer les événements sans confirmation"*, off by default). By default `add` only opens
+  Android's own "new event" form, prefilled, for the user to save; with this switch on and a clear ask, and once write access to the calendar is
+  separately granted (`WRITE_CALENDAR`, asked when the switch is turned on), the event is inserted directly instead
+  (`calendar/CalendarWriter.kt`). The calendar written to is chosen automatically: the account's own primary calendar (the one it owns, not a
+  calendar merely shared with it) over a secondary one, a real synced account over a purely local calendar, among calendars that both accept new
+  events (contributor access or better) and actually sync (so the event is not created somewhere invisible). *Checked:* unit tests for that choice,
+  covering ties and the "nothing writable" case. *Not tried* on a device: an actual event landing in a real calendar app.
 
 ### Android Auto / car mode
 

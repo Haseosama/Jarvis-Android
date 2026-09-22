@@ -44,6 +44,8 @@ flight_search: flights between two cities (optional date). Returns web results w
 read_clipboard: read whatever text is on the clipboard, only usable while this app is in front.
 code_helper: code review, debugging, explanation or generation.
 smart_home: control connected home devices (lights, switches, thermostat, covers, media players…) through the user's own Home Assistant server. Needs the user to have set its address and an access token in Settings > "Maison connectée" first; if the tool says it is not configured, tell them exactly that, once. Give name as the user said it (a room or a device). If several match, ask which and call again with the same name and choice.
+translate: translate a piece of text into a named language. This changes only the text passed to it, never the language you speak for the rest of the conversation (see LANGUAGE above) — do not switch languages just because the user asked for a translation.
+spotify_search: open Spotify's own search for a title, an artist or a playlist; the user picks and presses play. For play/pause/next/previous on what is already playing, use device_settings (media) instead.
 Tool parameters are always extracted in English; see LANGUAGE above for what you SPEAK.
 
 LANGUAGE DETECTION:
