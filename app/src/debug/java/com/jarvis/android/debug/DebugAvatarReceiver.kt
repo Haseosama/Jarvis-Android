@@ -25,6 +25,7 @@ class DebugAvatarReceiver : BroadcastReceiver() {
         intent.getStringExtra("cap")?.toIntOrNull()?.let { controller.cap = it }
         intent.getStringExtra("yaw")?.let { controller.debugYaw = if (it == "off") null else it.toFloatOrNull() }
         intent.getStringExtra("pitch")?.let { controller.debugPitch = if (it == "off") null else it.toFloatOrNull() }
+        intent.getStringExtra("mouth")?.let { controller.debugMouth = if (it == "off") null else it.toFloatOrNull() }
         intent.getStringExtra("mood")?.let { name ->
             controller.debugMood = when (name.lowercase()) {
                 "idle" -> Mood.IDLE

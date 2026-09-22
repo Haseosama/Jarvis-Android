@@ -18,8 +18,8 @@ class AvatarTest {
 
     @Test
     fun `the head asset loads with the expected shape`() {
-        assertEquals(26598, mesh.vertexCount)
-        assertEquals(37147, mesh.faceCount)
+        assertEquals(26622, mesh.vertexCount)
+        assertEquals(37161, mesh.faceCount)
         assertEquals(mapOf("eye_l" to 16, "eye_r" to 16, "brow_l" to 5, "brow_r" to 5, "lips_out" to 20, "lips_in" to 20), mesh.landmarks.mapValues { it.value.size })
         assertTrue(mesh.crown > mesh.bottom)
         assertEquals(mesh.vertexCount * 3, mesh.normals.size)
@@ -205,6 +205,24 @@ class AvatarTest {
         assertEquals(mesh.verts.size, av.pv.size)
         val openLow = (0 until mesh.vertexCount).minOf { av.pv[3 * it + 1] }
         assertNotEquals(restLow, openLow)
+    }
+
+    @Test
+    fun `an open mouth is rounded, not a rectangle — the corners barely move next to the middle`() {
+        val cx = mesh.lipCentre[0]
+        val jawVerts = mesh.mouthLower.filter { mesh.jaw[it] > 0.5f }
+        val centreV = jawVerts.minBy { abs(mesh.verts[3 * it] - cx) }
+        val cornerV = jawVerts.maxBy { abs(mesh.verts[3 * it] - cx) }
+        val av = HoloAvatar(mesh, Random(5))
+        av.pose()
+        val restY = floatArrayOf(av.pv[3 * centreV + 1], av.pv[3 * cornerV + 1])
+        val open = List(3) { AudioViseme(0.95f, 1f, 0f) }
+        repeat(60) { av.step(1f / 30f, 0.95f, true, Mood.IDLE, open) }
+        av.pose()
+        val centreDrop = abs(av.pv[3 * centreV + 1] - restY[0])
+        val cornerDrop = abs(av.pv[3 * cornerV + 1] - restY[1])
+        assertTrue("centre should drop clearly, dropped $centreDrop", centreDrop > 0.01f)
+        assertTrue("a corner should drop much less than the middle: centre $centreDrop, corner $cornerDrop", cornerDrop < centreDrop * 0.6f)
     }
 
     @Test

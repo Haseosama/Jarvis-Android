@@ -603,16 +603,43 @@ for x in FACE_X0 + np.linspace(-hwi * 0.98, hwi * 0.98, 24):
     ys = float(yseam(x)); zs = surface_z(x, ys); w_ = float(mouth_w(x))
     mouth_up.append(add_vertex(np.array([x, ys, zs + 0.002]), np.array([0, 0, 1.0]), 0.0, 0))
     mouth_lo.append(add_vertex(np.array([x, ys, zs + 0.002]), np.array([0, 0, 1.0]), 0.92 * w_, 0))
-tc = [k for k, x in enumerate(cols) if abs(x - FACE_X0) < 0.78 * hwi]
+def shade_colour(c, k):
+    a = (c >> 24) & 0xFF
+    r = min(255, max(0, int(((c >> 16) & 0xFF) * k)))
+    g = min(255, max(0, int(((c >> 8) & 0xFF) * k)))
+    b = min(255, max(0, int((c & 0xFF) * k)))
+    return (a << 24) | (r << 16) | (g << 8) | b
+
+
+# the teeth: separate blocks with a thin gap between them (no geometry fills the gap, so the dark cavity behind shows through and
+# reads as the line between two teeth), a top row fixed to the skull and a bottom row jaw-weighted so it opens with the mouth —
+# the previous version was one continuous, flat slab, and only the top row was ever built (TL/TLb were computed and unused). The
+# shade of white varies a little from one tooth to the next and dulls slightly towards the corners, as real teeth are not perfectly
+# uniform or perfectly white.
+N_TEETH = 8
+teeth_span = 1.56 * hwi
+GAP_FRAC = 0.12
+tooth_w = teeth_span / (N_TEETH + (N_TEETH - 1) * GAP_FRAC)
+gap_w = tooth_w * GAP_FRAC
 TU, TUb, TL, TLb = [], [], [], []
-for k in tc:
-    x = cols[k]; ys = float(yseam(x)); zs = surface_z(x, ys); w_ = float(mouth_w(x))
-    TU.append(add_vertex(np.array([x, ys, zs - 0.010]), np.array([0, 0, 1.0]), 0.0, TEETH))
-    TUb.append(add_vertex(np.array([x, ys - 0.045, zs - 0.045]), np.array([0, 0, 1.0]), 0.0, TEETH))
-    TL.append(add_vertex(np.array([x, ys, zs - 0.010]), np.array([0, 0, 1.0]), 0.92 * w_, TEETH))
-    TLb.append(add_vertex(np.array([x, ys + 0.026, zs - 0.038]), np.array([0, 0, 1.0]), 0.92 * w_, TEETH))
-for k in range(len(tc) - 1):
-    new_faces += [(TU[k], TU[k + 1], TUb[k + 1]), (TU[k], TUb[k + 1], TUb[k])]
+teeth_rng = np.random.default_rng(17)
+tooth_tint = teeth_rng.uniform(-1.0, 1.0, N_TEETH)
+x_cursor = FACE_X0 - teeth_span / 2.0
+for i in range(N_TEETH):
+    shade = 1.0 + 0.028 * tooth_tint[i] - 0.018 * abs(i - (N_TEETH - 1) / 2.0) / (N_TEETH / 2.0)
+    colour = shade_colour(TEETH, shade)
+    xl, xr = x_cursor, x_cursor + tooth_w
+    for x in (xl, xr):
+        ys = float(yseam(x)); zs = surface_z(x, ys); w_ = float(mouth_w(x))
+        TU.append(add_vertex(np.array([x, ys, zs - 0.010]), np.array([0, 0, 1.0]), 0.0, colour))
+        TUb.append(add_vertex(np.array([x, ys - 0.045, zs - 0.045]), np.array([0, 0, 1.0]), 0.0, colour))
+        TL.append(add_vertex(np.array([x, ys, zs - 0.010]), np.array([0, 0, 1.0]), 0.92 * w_, colour))
+        TLb.append(add_vertex(np.array([x, ys + 0.026, zs - 0.038]), np.array([0, 0, 1.0]), 0.92 * w_, colour))
+    l, r = 2 * i, 2 * i + 1
+    new_faces += [(TU[l], TU[r], TUb[r]), (TU[l], TUb[r], TUb[l])]           # the upper tooth: fixed to the skull
+    new_faces += [(TL[l], TLb[r], TL[r]), (TL[l], TLb[l], TLb[r])]           # the lower tooth: opens with the jaw
+    x_cursor = xr + gap_w
+print("teeth:", N_TEETH, "upper and lower, span", round(teeth_span, 3))
 
 # -- the eyes -------------------------------------------------------------------------------------------------------------
 IRIS_RINGS = [(0, 0xFF05070A), (6, 0xFF05070A), (12, 0xFF16324F), (18, 0xFF3F7CA6), (25, 0xFF1F4560), (31, 0xFFD9D3CA), (42, 0xFFE3DED5),

@@ -35,6 +35,7 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
     var yaw = 0f; private set
     @Volatile var yawOverride: Float? = null
     @Volatile var pitchOverride: Float? = null
+    @Volatile var mouthOverride: Float? = null   // for looking at the mouth wide open (debug builds set it)
     var pitch = 0f; private set
     var mouth = 0f; private set
     var glow = 0f; private set
@@ -64,6 +65,24 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
     /** Posed vertices and normals of the last [pose] call. */
     val pv = FloatArray(mesh.verts.size)
     val pn = FloatArray(mesh.normals.size)
+
+    /**
+     * How much of the jaw's drop reaches a vertex, by how far across the mouth it sits: 1 at the middle, fading out over the
+     * outer part towards each corner (computed once, from the rest pose, from how wide the lower lip actually is). Without it,
+     * every jaw-weighted vertex swings by the same angle and an open mouth reads as a rectangle; a real jaw barely moves the
+     * corners, which is what gives an open mouth its rounded, almond shape. Applied at render time (not baked into the mesh) so
+     * it reaches every jaw vertex the same way, with no seam where two differently-weighted vertices could tear apart.
+     */
+    private val cornerFactor: FloatArray = run {
+        val cx = mesh.lipCentre[0]
+        var halfWidth = 0.01f
+        for (i in mesh.mouthLower) halfWidth = max(halfWidth, abs(mesh.verts[3 * i] - cx))
+        FloatArray(mesh.vertexCount) { i ->
+            val d = abs(mesh.verts[3 * i] - cx) / halfWidth
+            val t = ((d - 0.55f) / (1.05f - 0.55f)).coerceIn(0f, 1f)
+            1f - t * t * (3f - 2f * t)
+        }
+    }
 
     private fun mouthStep(dt: Float, amp: Float, live: Boolean, vOpenIn: Float?, vLevel: Float?) {
         val shape: Float
@@ -124,6 +143,7 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         yaw += 0.018f * sin(t * 1.7f) * emph
         yawOverride?.let { yaw = it }       // for looking at the head from a chosen side (debug builds set it)
         pitchOverride?.let { pitch = it }
+        mouthOverride?.let { mouth = it }
 
         // The loudness envelope is lazier than the mouth: brows follow the phrase, not each syllable.
         val env = if (live) amp else 0f
@@ -258,7 +278,7 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
             for (i in 0 until n) {
                 val w = mesh.jaw[i]
                 if (w == 0f) continue
-                val ang = w * (mouth * JAW_MAX)
+                val ang = w * cornerFactor[i] * (mouth * JAW_MAX)
                 val ca = cos(ang)
                 val sa = sin(ang)
                 val dy = v[3 * i + 1] - py

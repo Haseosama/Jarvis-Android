@@ -654,6 +654,24 @@ crease and the lip line now use the hologram's own dark ink (`DEEP_BLUE`, the sa
 against every hologram skin and against the gold circuits regardless of the interface's theme colour. Checked on the emulator across the four
 moods and while speaking.
 
+#### Teeth, and a rounder open mouth
+
+Teeth were one flat, uniform slab (the upper row only — `TL`/`TLb`, the lower row's vertices, were computed and never turned into faces).
+`tools/avatar/export_head.py` now builds 8 upper and 8 lower teeth, each a separate block with a small gap to its neighbour (no geometry
+fills the gap, so the dark cavity behind shows through and reads as the line between two teeth), a shade of white that varies a little from
+one tooth to the next and dulls slightly towards the corners. The lower row is jaw-weighted so it opens with the mouth, the upper row is
+fixed to the skull. Regenerated for all three heads (Classique, Léa, Marc), since the mouth is shared before each is warped into its own face.
+
+Opening the mouth used to rotate every jaw-weighted vertex by the same angle, so a wide-open mouth read as a rectangle with sharp corners.
+`HoloAvatar.kt` now weighs that rotation by how far a vertex sits from the middle of the mouth (`cornerFactor`, computed once from the rest
+pose's own lower-lip width, applied at render time rather than baked into the mesh): full at the centre, fading out over the outer part
+towards each corner — real corners barely move, which is what gives an open mouth its rounded, almond shape. A first attempt baked this
+into the exported mesh instead and left a visible tear at the corner, where a masked-out vertex kept swinging the old, larger angle next to
+its now-tempered neighbours; doing it at render time reaches every jaw vertex through the same formula, with no such seam. Checked on the
+emulator (a debug `--es mouth` override drives the jaw open directly, since the debug synthetic voice's amplitude was too flat to hold the
+mouth open on its own) across all three heads and the hologram looks, and by a unit test that the middle of the mouth drops clearly more
+than a corner.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`
