@@ -32,6 +32,7 @@ internal class AvatarController(private val context: Context) {
     @Volatile var debugMood: Mood? = null
     @Volatile var debugYaw: Float? = null
     @Volatile var debugPitch: Float? = null
+    @Volatile var debugRoll: Float? = null
     @Volatile var debugMouth: Float? = null
 
     val timeline = VisemeTimeline()

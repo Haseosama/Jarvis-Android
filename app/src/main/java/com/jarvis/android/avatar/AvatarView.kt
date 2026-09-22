@@ -45,6 +45,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
                 val dt = (now - last) / 1e9f
                 last = now
                 avatar.yawOverride = controller.debugYaw; avatar.pitchOverride = controller.debugPitch
+                avatar.rollOverride = controller.debugRoll
                 avatar.mouthOverride = controller.debugMouth
                 val sample = controller.timeline.sample(now)
                 avatar.step(

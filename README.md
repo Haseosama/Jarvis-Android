@@ -769,6 +769,19 @@ emulator (a debug `--es mouth` override drives the jaw open directly, since the 
 mouth open on its own) across all three heads and the hologram looks, and by a unit test that the middle of the mouth drops clearly more
 than a corner.
 
+#### A head that also tilts, not just turns and nods
+
+The idle sway (`HoloAvatar.kt`) only ever turned the head side to side (yaw) and nodded it (pitch); a head that never
+tilts reads as a camera on a gimbal rather than something alive. Added a third idle rotation, roll, on its own slow,
+irregular rhythm (a different frequency and phase from yaw and pitch, so the three never lock into a visibly
+repeating combination), composed last in the pose matrix — a plain 2D turn of the already-posed head around the
+axis pointing out of the screen, leaving depth alone. Kept small (a few degrees at most): a head that visibly tips
+over looks drunk, not alive. `DebugAvatarReceiver`'s existing `--es yaw`/`--es pitch` overrides gained a matching
+`--es roll` (radians; `off` releases it). Checked with unit tests (idle roll stays under 0.08 rad over a 20 s
+simulated run; an override pins it exactly; a side vertex's posed position changes once rolled) and visually on the
+emulator, forcing a large roll (0.35 rad) to confirm the tilt is geometrically clean — no tearing or distortion,
+the cap tilts with the head — then releasing the override to see the idle version.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`

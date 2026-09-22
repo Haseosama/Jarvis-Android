@@ -35,8 +35,10 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
     var yaw = 0f; private set
     @Volatile var yawOverride: Float? = null
     @Volatile var pitchOverride: Float? = null
+    @Volatile var rollOverride: Float? = null
     @Volatile var mouthOverride: Float? = null   // for looking at the mouth wide open (debug builds set it)
     var pitch = 0f; private set
+    var roll = 0f; private set
     var mouth = 0f; private set
     var glow = 0f; private set
     var scan = -1.6f; private set
@@ -129,6 +131,10 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         val s = sway
         yaw = 0.26f * sin(s * 0.31f) + 0.09f * sin(s * 0.73f + 1.3f)
         pitch = 0.060f * sin(s * 0.23f + 0.7f) + 0.024f * sin(s * 0.61f)
+        // A head that only turns and nods reads as a camera on a gimbal; real idle movement also tilts, off its own,
+        // slower rhythm so the three never lock into a visibly repeating combination. Kept small — a few degrees at
+        // most — since a head that visibly tips over looks drunk, not alive.
+        roll = 0.045f * sin(s * 0.17f + 2.6f) + 0.018f * sin(s * 0.44f)
 
         if (frames != null) {
             for (f in frames) mouthStep(hop, amp, live, f.open, f.level)
@@ -143,6 +149,7 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         yaw += 0.018f * sin(t * 1.7f) * emph
         yawOverride?.let { yaw = it }       // for looking at the head from a chosen side (debug builds set it)
         pitchOverride?.let { pitch = it }
+        rollOverride?.let { roll = it }
         mouthOverride?.let { mouth = it }
 
         // The loudness envelope is lazier than the mouth: brows follow the phrase, not each syllable.
@@ -292,15 +299,24 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         val m00 = cy; val m01 = 0f; val m02 = sy
         val m10 = sp * sy; val m11 = cp; val m12 = -sp * cy
         val m20 = -cp * sy; val m21 = sp; val m22 = cp * cy
+        // Roll (head tilt) is composed last, around the axis pointing out of the screen: it mixes the already
+        // yaw/pitch-rotated x and y, leaving z (depth) alone — a simple 2D turn of the posed head in the viewing plane.
+        val cr = cos(roll); val sr = sin(roll)
         for (i in 0 until n) {
             val x = v[3 * i]; val y = v[3 * i + 1]; val z = v[3 * i + 2]
-            v[3 * i] = m00 * x + m01 * y + m02 * z
-            v[3 * i + 1] = m10 * x + m11 * y + m12 * z
-            v[3 * i + 2] = m20 * x + m21 * y + m22 * z
+            val rx = m00 * x + m01 * y + m02 * z
+            val ry = m10 * x + m11 * y + m12 * z
+            val rz = m20 * x + m21 * y + m22 * z
+            v[3 * i] = rx * cr - ry * sr
+            v[3 * i + 1] = rx * sr + ry * cr
+            v[3 * i + 2] = rz
             val nx = mesh.normals[3 * i]; val ny = mesh.normals[3 * i + 1]; val nzv = mesh.normals[3 * i + 2]
-            pn[3 * i] = m00 * nx + m01 * ny + m02 * nzv
-            pn[3 * i + 1] = m10 * nx + m11 * ny + m12 * nzv
-            pn[3 * i + 2] = m20 * nx + m21 * ny + m22 * nzv
+            val rnx = m00 * nx + m01 * ny + m02 * nzv
+            val rny = m10 * nx + m11 * ny + m12 * nzv
+            val rnz = m20 * nx + m21 * ny + m22 * nzv
+            pn[3 * i] = rnx * cr - rny * sr
+            pn[3 * i + 1] = rnx * sr + rny * cr
+            pn[3 * i + 2] = rnz
         }
     }
 }

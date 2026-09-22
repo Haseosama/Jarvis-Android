@@ -226,6 +226,35 @@ class AvatarTest {
     }
 
     @Test
+    fun `idle roll stays small and an override pins it exactly`() {
+        val av = HoloAvatar(mesh, Random(6))
+        var maxAbsRoll = 0f
+        repeat(600) { // 20 s at 30 fps: several full periods of the idle sway
+            av.step(1f / 30f, 0f, false, Mood.IDLE, null)
+            maxAbsRoll = maxOf(maxAbsRoll, abs(av.roll))
+        }
+        assertTrue("idle roll should stay a few degrees at most, was $maxAbsRoll", maxAbsRoll < 0.08f)
+        av.rollOverride = 0.3f
+        av.step(1f / 30f, 0f, false, Mood.IDLE, null)
+        assertEquals(0.3f, av.roll, 0.0001f)
+    }
+
+    @Test
+    fun `roll visibly tilts the posed head — a side vertex moves in y once rolled, not when level`() {
+        val av = HoloAvatar(mesh, Random(7))
+        av.yawOverride = 0f; av.pitchOverride = 0f; av.rollOverride = 0f
+        av.step(1f / 30f, 0f, false, Mood.IDLE, null)
+        av.pose()
+        val sideV = (0 until mesh.vertexCount).maxBy { abs(mesh.verts[3 * it]) } // a vertex far from the midline
+        val levelY = av.pv[3 * sideV + 1]
+        av.rollOverride = 0.2f
+        av.step(1f / 30f, 0f, false, Mood.IDLE, null)
+        av.pose()
+        val rolledY = av.pv[3 * sideV + 1]
+        assertNotEquals(levelY, rolledY)
+    }
+
+    @Test
     fun `the state is reduced to a mood`() {
         assertEquals(Mood.ASLEEP, moodFor(JarvisState.ASLEEP))
         assertEquals(Mood.ASLEEP, moodFor(JarvisState.ERROR))
