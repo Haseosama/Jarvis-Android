@@ -258,6 +258,18 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         val k = (0.30f + 0.85f * vlam + 0.10f * vz.coerceIn(0f, 1f)).coerceIn(0.15f, 1.15f) * (0.94f + 0.12f * amp)
         val skinRgb = 0xFF000000.toInt() or SKIN_TONES[skin - 1]
         var c = lit(skinRgb, k)
+        if (!holo) {
+            // a faint natural sheen (skin is not matte) and a touch of warmth where the light lands most, like blood under thin skin
+            val spec = Math.pow((vx * -0.22f + vy * 0.28f + vz * 0.93f).coerceIn(0f, 1f).toDouble(), 30.0).toFloat()
+            val sheen = (spec * 26f).toInt()
+            val blush = (vlam * vlam * 9f).toInt()
+            c = argb(
+                255,
+                (((c shr 16) and 0xFF) + sheen + blush).coerceAtMost(255),
+                (((c shr 8) and 0xFF) + (sheen * 0.9f).toInt() + (blush * 0.35f).toInt()).coerceAtMost(255),
+                (((c and 0xFF) + (sheen * 0.8f).toInt()).coerceAtMost(255)),
+            )
+        }
         if (lipW > 0.02f) {
             val lipRgb = if (lips > 0) 0xFF000000.toInt() or LIP_TONES[lips - 1] else mix(skinRgb, 0xFFB04A5A.toInt(), 0.7f)
             // the lips are lit less unevenly than the skin: the upper one faces the light and would otherwise come out pale

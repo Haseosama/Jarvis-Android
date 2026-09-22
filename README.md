@@ -638,6 +638,13 @@ What is said in a voice session (the user's words and the assistant's, not the s
 
 The offline mode's exchanges are kept the same way. Verified: the storage and the prompt by unit tests, and the display on the emulator with a test file; a real session was not run.
 
+#### Plain skin tones
+
+The four plain skin looks (Claire, Mate, Bronzée, Foncée — used by Classique, Léa and Marc, not the hologram ones) got a small pass: a faint natural
+sheen (skin is not matte — a soft, narrow highlight where the surface faces the light, the same half-vector calculation as the hair) and a
+touch of warmth added where the light lands most (like blood under thin skin), instead of a single flat tint. Checked on the emulator on a
+light and a dark tone. The cartoon face and the hologram looks were not touched here.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`
