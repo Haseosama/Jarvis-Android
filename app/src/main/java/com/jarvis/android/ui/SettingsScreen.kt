@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
@@ -131,6 +132,33 @@ fun SettingsScreen(
         }
     }
     var wakeProgress by remember { mutableStateOf<Int?>(null) }
+    val localModelStore = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.localModelStore }
+    var localInstalled by remember { mutableStateOf(localModelStore.installed()) }
+    var localSizeMb by remember { mutableStateOf(localModelStore.sizeMb()) }
+    var localMessage by remember { mutableStateOf<String?>(null) }
+    var localImporting by remember { mutableStateOf(false) }
+    val pickLocalModel = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            localImporting = true
+            localMessage = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val tmp = java.io.File(context0.cacheDir, "import_local_model.tmp")
+                try {
+                    val ok = context0.contentResolver.openInputStream(uri)?.use { input ->
+                        tmp.outputStream().use { output -> input.copyTo(output, bufferSize = 1 shl 20) }
+                        true
+                    } ?: false
+                    if (!ok) "Fichier illisible." else localModelStore.import(tmp)
+                } catch (_: Exception) {
+                    "Import impossible (place manquante sur le téléphone ?)."
+                } finally {
+                    tmp.delete()
+                }
+            }
+            localInstalled = localModelStore.installed()
+            localSizeMb = localModelStore.sizeMb()
+            localImporting = false
+        }
+    }
     var assistantNameField by remember(assistantName) { mutableStateOf(assistantName) }
     var userNameField by remember(userName) { mutableStateOf(userName) }
     var modelField by remember(model) { mutableStateOf(model) }
@@ -348,6 +376,40 @@ fun SettingsScreen(
                     }
                 }
             }
+            }
+            SettingsCard(tr("IA locale (hors ligne)"), Icons.Filled.Memory, initiallyExpanded = false) {
+            val localAiEnabled by configStore.localAiEnabled.collectAsState(initial = true)
+            Text(
+                tr("Sans réseau, Jarvis ne connaît que les commandes fixes ci-dessus. Pour qu’il puisse aussi répondre à une vraie question hors ligne, il peut utiliser un petit modèle (Gemma) installé sur le téléphone : tout tourne sur l’appareil, rien n’est envoyé où que ce soit."),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                tr("Les poids de Gemma sont soumis à une licence Google sur Hugging Face : Jarvis ne peut pas les télécharger lui-même. Sur huggingface.co/litert-community/Gemma3-1B-IT, acceptez la licence puis téléchargez « gemma3-1b-it-int4.task » (≈ 530 Mo) dans le navigateur du téléphone, puis importez-le ici. Nettement moins capable que Gemini ; je n’ai pas pu tester de vraies réponses, faute d’accès à ce fichier protégé pendant le développement."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            if (localInstalled) {
+                Text(
+                    trf("Modèle installé (≈ {0} Mo).", localSizeMb ?: 0L),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    Text(tr("L’utiliser pour ce qui n’est pas une commande connue"), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Switch(checked = localAiEnabled, onCheckedChange = { scope.launch { configStore.setLocalAiEnabled(it) } })
+                }
+                OutlinedButton(
+                    onClick = { localModelStore.remove(); localInstalled = false; localSizeMb = null; localMessage = null },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text(tr("Supprimer le modèle")) }
+            } else {
+                OutlinedButton(
+                    enabled = !localImporting,
+                    onClick = { pickLocalModel.launch(arrayOf("*/*")) },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text(if (localImporting) tr("Import en cours…") else tr("Importer le modèle (.task)")) }
+            }
+            localMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) }
             }
             SettingsCard(tr("Apparence"), Icons.Filled.Palette, initiallyExpanded = false) {
             Text(tr("Langue de l’interface"), style = MaterialTheme.typography.labelLarge)

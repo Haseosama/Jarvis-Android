@@ -38,8 +38,8 @@ android {
         applicationId = "com.jarvis.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 56
-        versionName = "0.8.8"
+        versionCode = 57
+        versionName = "0.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -141,6 +141,9 @@ dependencies {
 
     // HTML parsing for the web_search action's DuckDuckGo results
     implementation("org.jsoup:jsoup:1.17.2")
+
+    // Local AI for the offline mode: a small Gemma model run entirely on the phone (the user imports the .task file themselves; see README)
+    implementation("com.google.mediapipe:tasks-genai:0.10.27")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

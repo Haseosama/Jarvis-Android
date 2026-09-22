@@ -613,7 +613,33 @@ Without a network (or when Gemini cannot be reached), a session no longer fails:
 
 What it understands is a fixed list of French commands, matched by rules (`offline/OfflineIntents.kt`, covered by unit tests) and run through the existing tools, with their own safeguards (the volume still asks for confirmation): open an app, call a contact or draft an SMS (never sent), volume, brightness, flashlight, music (pause, play, next, previous), timer, time, date, battery, settings pages, lock the screen, screenshot, "aide", "au revoir". Time and date are worked out on the phone. Anything else is answered with "Je n'ai pas compris" and a pointer to "aide". It ends after three silences.
 
-**What it is not:** it does not chat or reason: there is no local language model in this version (a model such as Gemma would mean a download of 1 to 3 GB, and is the next step if wanted). It needs the French offline language pack (Google speech services: offline speech recognition) and a French voice; the errors say so when they are missing. The spoken answers are French only. Verified on the emulator (commands through the debug receiver `DEBUG_OFFLINE`, and the automatic switch without network, which stops with the message about the missing language pack, as that emulator has none); **not** verified with real offline speech recognition on a phone.
+It needs the French offline language pack (Google speech services: offline speech recognition) and a French voice; the errors say so when they are missing. The spoken answers are French only. Verified on the emulator (commands through the debug receiver `DEBUG_OFFLINE`, and the automatic switch without network, which stops with the message about the missing language pack, as that emulator has none); **not** verified with real offline speech recognition on a phone.
+
+#### A local model for what is not a fixed command
+
+Settings > "IA locale (hors ligne)". Anything that is not one of the fixed commands above used to always get "Je n'ai pas compris" — now, if the user has installed a local model, that sentence is what is said instead
+of a real answer only when there is none. With one installed, the phone runs a small Gemma model itself (Google's [MediaPipe LLM Inference API](https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference/android),
+`com.google.mediapipe:tasks-genai`) to answer in French, entirely on the device — nothing about the question or the answer is sent anywhere. It only talks: it cannot open an app, place a call, change a setting or
+search the web, and the system prompt given to the model (`offline/LocalPrompt.kt`) tells it so, so it says it cannot rather than pretending it did it.
+
+**Getting the model.** Gemma's own weights are gated by a Google licence on Hugging Face, so the app cannot fetch them the automatic way it fetches the (open) wake-word models. On a computer or the phone's own browser:
+open [huggingface.co/litert-community/Gemma3-1B-IT](https://huggingface.co/litert-community/Gemma3-1B-IT), log in, accept the Gemma licence, and download `gemma3-1b-it-int4.task` (≈ 530 MB). Then, in Jarvis, Settings >
+"IA locale (hors ligne)" > "Importer le modèle (.task)", and pick that file — the same way a custom wake-word model, trained outside the app, is imported. The file is copied into the app's own storage (checked first:
+a plausible size and the zip header every MediaPipe `.task` bundle has); nothing is downloaded by Jarvis itself.
+
+**How it is used.** `offline/LocalModelStore.kt` holds the imported file; `offline/LocalLlm.kt` wraps MediaPipe's `LlmInference`, loaded only the first time an offline question actually needs it (not at the start of
+every offline session) and unloaded when the offline session ends, to give its memory back. `offline/LocalPrompt.kt` builds the one block of text sent to the model: a short instruction, the last three exchanges of the
+*offline* session only (never the online conversation, never the long-term memory, never a tool's answer), and the new question — plain labelled turns ("Utilisateur : … / Jarvis : …"), not the model's own special
+tokens, since I could not confirm against the real weights whether the `.task` bundle already wraps a query in its expected chat template. A reply is capped at 512 tokens and 60 seconds; past that, or on any error
+(model too big for the phone's memory, a corrupt file, the API failing to initialise), Jarvis says it could not think of an answer rather than staying silent or crashing. A switch next to "Modèle installé" turns this off
+without removing the file, and "Supprimer le modèle" erases it.
+
+**What I could and could not check.** The `tasks-genai` dependency resolves and the app builds and runs with it (its native library for the LLM engine loads correctly on the emulator, confirmed in logcat). The whole
+pipeline — detecting an unrecognised sentence, finding the model installed, trying to load it, and answering gracefully on failure — was exercised end to end on the emulator with a fake, correctly-shaped but not real
+`.task` file: MediaPipe's own loader rejects it ("Failed to initialize"), which Jarvis catches and reports in the activity log and to the user, without crashing. The settings screen (import, the installed state and its
+size, the switch, removal) was checked the same way. **What was not checked, because the model's weights are gated and I had no way to accept that licence or download them in this environment: whether a real Gemma
+`.task` file loads, how long it takes, how much memory and battery it uses, and the quality of its answers.** The MediaPipe LLM Inference API is also documented as being in maintenance mode, with new work going to a
+successor ("LiteRT-LM") that does not yet have as documented an Android/Kotlin surface — this is the practical, working choice today, not necessarily a permanent one.
 
 #### Hologram look
 

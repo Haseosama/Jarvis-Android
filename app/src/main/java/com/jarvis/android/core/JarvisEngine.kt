@@ -160,6 +160,8 @@ class JarvisEngine(
     private var lastActivityAt = 0L
     /** The time the running session started: the name under which its exchanges are kept. */
     @Volatile private var sessionId = 0L
+    /** The offline mode's local model, loaded only once a question actually needs it, unloaded when the offline session ends. */
+    private var localLlm: com.jarvis.android.offline.LocalLlm? = null
     private val endOfSession = EndOfSession()
     /** Runs once, when a requested end of session is done and the microphone is free (see [requestEndSession]). */
     @Volatile private var afterSession: (() -> Unit)? = null
@@ -602,6 +604,8 @@ class JarvisEngine(
         } finally {
             withContext(NonCancellable) {
                 voice.shutdown()
+                localLlm?.unload()
+                localLlm = null
                 _outputLevel.value = 0f
             }
         }
@@ -617,9 +621,27 @@ class JarvisEngine(
                 val result = ToolRegistry.run(action.name, args, container)
                 com.jarvis.android.offline.spokenResult(action, result) to false
             }
-            com.jarvis.android.offline.OfflineAction.Unknown ->
-                "Je n’ai pas compris. Hors ligne, je ne connais que certaines commandes : dites « aide » pour les connaître." to false
+            com.jarvis.android.offline.OfflineAction.Unknown -> offlineUnknown(text) to false
         }
+    }
+
+    /**
+     * What is not one of the fixed commands: the local model's answer when one is installed and switched on, otherwise the same
+     * "not understood" as before. The local model never sees more than a short window of the offline exchanges, never the online
+     * memory or the tool results — it only talks, it takes no action.
+     */
+    private suspend fun offlineUnknown(text: String): String {
+        val store = container.localModelStore
+        if (!store.installed() || !container.configStore.localAiEnabled.first()) {
+            return "Je n’ai pas compris. Hors ligne, je ne connais que certaines commandes : dites « aide » pour les connaître."
+        }
+        val llm = localLlm ?: com.jarvis.android.offline.LocalLlm(container.appContext).also { localLlm = it }
+        val history = com.jarvis.android.offline.recentOfflineExchanges(_conversation.value)
+        val prompt = com.jarvis.android.offline.buildLocalPrompt(history, text)
+        val result = llm.reply(prompt, store.file.absolutePath)
+        result.reason?.let { log(trf("IA locale : {0}", it)) }
+        return result.text?.trim()?.takeIf { it.isNotBlank() }
+            ?: "Je n’ai pas pu réfléchir à une réponse. Réessayez, ou dites « aide » pour les commandes."
     }
 
     /** Speaks [text], with the avatar's mouth moving while it does. */

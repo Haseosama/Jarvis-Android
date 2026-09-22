@@ -2,6 +2,15 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "IA locale : {0}" to "Local AI: {0}",
+    "IA locale (hors ligne)" to "Local AI (offline)",
+    "Sans réseau, Jarvis ne connaît que les commandes fixes ci-dessus. Pour qu’il puisse aussi répondre à une vraie question hors ligne, il peut utiliser un petit modèle (Gemma) installé sur le téléphone : tout tourne sur l’appareil, rien n’est envoyé où que ce soit." to "Without a network, Jarvis only knows the fixed commands above. For it to also answer a real question offline, it can use a small model (Gemma) installed on the phone: everything runs on the device, nothing is sent anywhere.",
+    "Les poids de Gemma sont soumis à une licence Google sur Hugging Face : Jarvis ne peut pas les télécharger lui-même. Sur huggingface.co/litert-community/Gemma3-1B-IT, acceptez la licence puis téléchargez « gemma3-1b-it-int4.task » (≈ 530 Mo) dans le navigateur du téléphone, puis importez-le ici. Nettement moins capable que Gemini ; je n’ai pas pu tester de vraies réponses, faute d’accès à ce fichier protégé pendant le développement." to "Gemma's weights are gated by a Google licence on Hugging Face: Jarvis cannot download them itself. On huggingface.co/litert-community/Gemma3-1B-IT, accept the licence then download \"gemma3-1b-it-int4.task\" (≈ 530 MB) in the phone's browser, then import it here. Clearly less capable than Gemini; I could not test real answers, for lack of access to this gated file during development.",
+    "Modèle installé (≈ {0} Mo)." to "Model installed (≈ {0} MB).",
+    "L’utiliser pour ce qui n’est pas une commande connue" to "Use it for what is not a known command",
+    "Supprimer le modèle" to "Remove the model",
+    "Import en cours…" to "Importing…",
+    "Importer le modèle (.task)" to "Import the model (.task)",
     "Hologramme bleu" to "Blue hologram",
     "Les échanges de la session apparaîtront ici. Ils sont conservés sur le téléphone (Paramètres > Historique des sessions)." to "The session's exchanges will appear here. They are kept on the phone (Settings > Session history).",
     "Dernière session" to "Last session",

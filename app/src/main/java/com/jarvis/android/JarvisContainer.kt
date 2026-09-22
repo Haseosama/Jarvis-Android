@@ -100,6 +100,9 @@ class JarvisContainer(val appContext: Context) {
 
     internal val wakeModel = com.jarvis.android.wake.WakeModelManager(appContext, http)
 
+    /** The offline mode's local model (imported by the user; see LocalModelStore.kt). */
+    internal val localModelStore = com.jarvis.android.offline.LocalModelStore(appContext)
+
     internal val agent: com.jarvis.android.agent.AgentRunner by lazy { com.jarvis.android.agent.AgentRunner(this, appScope) }
 
     /** Text chat over generateContent; independent of the Live session. */
