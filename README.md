@@ -62,7 +62,8 @@ too — see "Lists" under "Offline mode"), `system_monitor` (battery/storage), `
 (volume behind an on-screen confirmation; Wi-Fi/brightness panels), `send_message` (WhatsApp, Telegram, Messenger or SMS: by default a draft the user sends themselves;
 with *automatic sending* switched on it really sends, see "Sending messages on your word"),
 `youtube_video`, `read_clipboard`, `code_helper`, `recall_memory`, `remember_fact`,
-`forget_fact`, `undo`, `end_session`, and the phone-control tools below.
+`forget_fact`, `undo`, `end_session`, `smart_home` (lights, switches, covers, thermostats… through
+the user's own Home Assistant server, see "Maison connectée"), and the phone-control tools below.
 
 `end_session` lets you close the voice session by voice ("arrête la session"): the model says
 goodbye, and once that turn is complete the session and the foreground service are stopped (a
@@ -339,6 +340,39 @@ Not checked on the real phone with a real voice.
   the screen and takes a screenshot (both through the accessibility service), and opens named settings pages
   (Wi-Fi, Bluetooth, airplane, display, sound, battery, location, apps, storage, NFC, date, language,
   accessibility, security, network). Media keys and screenshots cannot be verified: the tool says so.
+
+### Maison connectée (Home Assistant)
+
+`smart_home` (`actions/SmartHomeTool.kt`) — not a Mark-LIII port, no equivalent there. Controls
+lights, switches, covers, thermostats, media players, locks, scenes and scripts through the user's
+own [Home Assistant](https://www.home-assistant.io/) server (a self-hosted home-automation hub).
+Chosen over Google Home or Amazon Alexa: those need the user to first register their own Google
+Cloud project and a paid *Device Access* console, or a developer account, before any of this code
+would even run; Home Assistant only needs a server address and a Long-Lived Access Token, the same
+shape as the Gemini key already in Settings. Settings > *Maison connectée* holds both (the token
+encrypted the same way as the Gemini key), plus a *Tester la connexion* button (a plain `GET /api/`
+health check).
+
+Actions: `status` (a named device, or every controllable device when no name is given), `turn_on`,
+`turn_off`, `toggle` (all three through Home Assistant's own generic `homeassistant.turn_on` /
+`turn_off` / `toggle` services, which dispatch to the right per-domain service themselves — lights,
+switches, covers, climate, media players, scenes and scripts all understand it, so the tool does not
+have to hand-map each domain's own verb), `set_brightness` (0-100, lights only) and `set_temperature`
+(degrees Celsius, thermostats only). The device is found by a partial, accent-insensitive match on
+its Home Assistant friendly name (the same matching style as contacts and the shopping lists); several
+matches are listed with numbers, the same disambiguate-by-number pattern as `call_contact` and
+`send_message`.
+
+**The one thing switching off confirmations (see "Phone control" above) does not change here**: Home
+Assistant devices were never behind Jarvis's own confirmation banner to begin with (there is no safe
+way to ask "confirm?" for an arbitrary user-defined smart-home fleet), so anything linked in Home
+Assistant is voice-controllable the moment the token is saved — worth knowing before pointing it at a
+door lock. Checked: unit tests for the pure logic (parsing `/api/states`, matching a name to a domain,
+building the right service call and body, formatting a status line) with literal example payloads.
+**Not checked against a real Home Assistant server**: this development environment has no such server
+to connect to. The code follows Home Assistant's documented REST API closely (`/api/states`,
+`/api/services/{domain}/{service}`, Bearer token authentication), but a first real run at home is the
+only way to be sure a specific server's devices behave exactly as expected.
 
 ### Plugins and self-knowledge
 

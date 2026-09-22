@@ -58,6 +58,9 @@ class ConfigStore(private val context: Context) {
     }
     private val store get() = stores[0]
 
+    /** The Home Assistant Long-Lived Access Token — a credential, so encrypted like the Gemini key, not plain DataStore. */
+    private val homeAssistantTokenStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_ha_token.enc", keys = keystoreKey)
+
     private var slotCache: List<String?>? = null
 
     @Synchronized
@@ -158,6 +161,11 @@ class ConfigStore(private val context: Context) {
         }
     }
 
+    fun getHomeAssistantToken(): String? = homeAssistantTokenStore.read()
+    fun hasHomeAssistantToken(): Boolean = !getHomeAssistantToken().isNullOrBlank()
+    suspend fun saveHomeAssistantToken(value: String): Boolean = withContext(Dispatchers.IO) { homeAssistantTokenStore.write(value) }
+    suspend fun deleteHomeAssistantToken(): Boolean = withContext(Dispatchers.IO) { homeAssistantTokenStore.delete() }
+
     private val KEY_ASSISTANT_NAME = stringPreferencesKey("assistant_name")
     private val KEY_USER_NAME = stringPreferencesKey("user_name")
     private val KEY_VOICE = stringPreferencesKey("voice")
@@ -186,6 +194,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_PROACTIVE = booleanPreferencesKey("proactive_enabled")
     private val KEY_WAKE_SENSITIVITY = intPreferencesKey("wake_sensitivity")
     private val KEY_WORK_FOLDER = stringPreferencesKey("work_folder_uri")
+    private val KEY_HOME_ASSISTANT_URL = stringPreferencesKey("home_assistant_url")
     private val KEY_AUDIO_IN = stringPreferencesKey("audio_input_device")
     private val KEY_AUDIO_OUT = stringPreferencesKey("audio_output_device")
     private val KEY_LAST_BRIEFING = stringPreferencesKey("last_briefing_date")
@@ -204,6 +213,8 @@ class ConfigStore(private val context: Context) {
     val deviceControlEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_DEVICE_CONTROL] ?: true }
     /** The folder (a Storage Access Framework tree URI) the file manager may work in; empty when none was chosen. */
     val workFolder: Flow<String> = context.dataStore.data.map { it[KEY_WORK_FOLDER].orEmpty() }
+    /** The user's own Home Assistant server address (e.g. "http://192.168.1.50:8123"); empty when not configured. Not a secret, kept in plain DataStore like the work folder. */
+    val homeAssistantUrl: Flow<String> = context.dataStore.data.map { it[KEY_HOME_ASSISTANT_URL].orEmpty() }
     val wakeSensitivity: Flow<Int> = context.dataStore.data.map { it[KEY_WAKE_SENSITIVITY] ?: 1 }
     val proactiveEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PROACTIVE] ?: false }
     val audioInputKey: Flow<String> = context.dataStore.data.map { it[KEY_AUDIO_IN].orEmpty() }
@@ -254,6 +265,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setThemeHue(v: Float) = context.dataStore.edit { it[KEY_THEME_HUE] = v }
     suspend fun setDeviceControlEnabled(v: Boolean) = context.dataStore.edit { it[KEY_DEVICE_CONTROL] = v }
     suspend fun setWorkFolder(v: String) = context.dataStore.edit { it[KEY_WORK_FOLDER] = v }
+    suspend fun setHomeAssistantUrl(v: String) = context.dataStore.edit { it[KEY_HOME_ASSISTANT_URL] = v.trim() }
     suspend fun setWakeSensitivity(v: Int) = context.dataStore.edit { it[KEY_WAKE_SENSITIVITY] = v.coerceIn(0, 2) }
     suspend fun setProactiveEnabled(v: Boolean) = context.dataStore.edit { it[KEY_PROACTIVE] = v }
     suspend fun setAudioInputKey(v: String) = context.dataStore.edit { it[KEY_AUDIO_IN] = v }

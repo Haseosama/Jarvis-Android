@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Memory
@@ -50,6 +51,7 @@ import com.jarvis.android.reminders.ReminderRecord
 import com.jarvis.android.reminders.ReminderService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -88,6 +90,8 @@ fun SettingsScreen(
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
     var langMenuOpen by remember { mutableStateOf(false) }
     val workFolder by configStore.workFolder.collectAsState(initial = "")
+    val homeAssistantUrl by configStore.homeAssistantUrl.collectAsState(initial = "")
+    var haUrlField by remember(homeAssistantUrl) { mutableStateOf(homeAssistantUrl) }
     val pluginStore = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.pluginStore }
     var pluginTick by remember { mutableStateOf(0) }
     var pluginToRemove by remember { mutableStateOf<String?>(null) }
@@ -195,6 +199,12 @@ fun SettingsScreen(
     var reminderWhen by remember { mutableStateOf("") }
     var reminderFeedback by remember { mutableStateOf<String?>(null) }
     var loadingReminders by remember { mutableStateOf(false) }
+    var hasHaToken by remember { mutableStateOf<Boolean?>(null) }
+    var haTokenField by remember { mutableStateOf("") }
+    var haStatus by remember { mutableStateOf<String?>(null) }
+    var haBusy by remember { mutableStateOf(false) }
+    var haTesting by remember { mutableStateOf(false) }
+    var haTestResult by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     LaunchedEffect(Unit) {
@@ -215,6 +225,9 @@ fun SettingsScreen(
         }
         filledSlots = slots ?: filledSlots
         hasKey = slots?.any { it } ?: false
+    }
+    LaunchedEffect(Unit) {
+        hasHaToken = withContext(Dispatchers.IO) { try { configStore.hasHomeAssistantToken() } catch (_: Exception) { null } }
     }
     LaunchedEffect(Unit) {
         loadingReminders = true
@@ -1369,6 +1382,106 @@ fun SettingsScreen(
                 ) { Text(tr("Retirer ce qui est coché")) }
             }
             }
+            SettingsCard(tr("Maison connectée"), Icons.Filled.Home, initiallyExpanded = false) {
+            Text(
+                tr("Piloter des lumières, prises, volets ou le chauffage par la voix, via votre propre serveur Home Assistant (auto-hébergé). Créez un jeton d’accès longue durée depuis votre profil Home Assistant (icône en bas à gauche > votre nom > tout en bas de la page) et collez-le ici, avec l’adresse du serveur."),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedTextField(
+                value = haUrlField,
+                onValueChange = { haUrlField = it },
+                label = { Text(tr("Adresse du serveur")) },
+                placeholder = { Text("http://192.168.1.50:8123") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+            Button(
+                onClick = { scope.launch { configStore.setHomeAssistantUrl(haUrlField.trim()) } },
+                enabled = haUrlField.trim() != homeAssistantUrl,
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text(tr("Enregistrer l’adresse")) }
+            OutlinedTextField(
+                value = haTokenField,
+                onValueChange = { haTokenField = it },
+                label = { Text(if (hasHaToken == true) tr("Remplacer le jeton") else tr("Jeton d’accès longue durée")) },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            )
+            Row(modifier = Modifier.padding(top = 8.dp)) {
+                Button(
+                    onClick = {
+                        val candidate = haTokenField.trim()
+                        if (candidate.isEmpty()) return@Button
+                        haBusy = true
+                        haStatus = null
+                        scope.launch {
+                            try {
+                                haStatus = if (configStore.saveHomeAssistantToken(candidate)) {
+                                    haTokenField = ""
+                                    hasHaToken = true
+                                    tr("Jeton enregistré et chiffré sur cet appareil.")
+                                } else tr("Enregistrement impossible. Réessayez.")
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                                haStatus = tr("Enregistrement impossible. Réessayez.")
+                            } finally {
+                                haBusy = false
+                            }
+                        }
+                    },
+                    enabled = haTokenField.isNotBlank() && !haBusy,
+                ) { Text(tr("Enregistrer le jeton")) }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        haBusy = true
+                        haStatus = null
+                        scope.launch {
+                            try {
+                                haStatus = if (configStore.deleteHomeAssistantToken()) {
+                                    hasHaToken = false
+                                    tr("Jeton retiré.")
+                                } else tr("Suppression impossible. Réessayez.")
+                            } finally {
+                                haBusy = false
+                            }
+                        }
+                    },
+                    enabled = hasHaToken == true && !haBusy,
+                ) { Text(tr("Retirer le jeton")) }
+            }
+            Text(
+                haStatus ?: when (hasHaToken) {
+                    true -> tr("Jeton enregistré.")
+                    false -> tr("Aucun jeton enregistré : la maison connectée ne répondra pas tant qu’il n’y en a pas un.")
+                    null -> tr("Lecture du stockage sécurisé…")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            OutlinedButton(
+                onClick = {
+                    haTesting = true
+                    haTestResult = null
+                    scope.launch {
+                        try { haTestResult = testHomeAssistant(configStore) } finally { haTesting = false }
+                    }
+                },
+                enabled = !haTesting,
+                modifier = Modifier.padding(top = 12.dp),
+            ) { Text(if (haTesting) tr("Vérification en cours…") else tr("Tester la connexion")) }
+            haTestResult?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+            }
+            Text(
+                tr("Un seul garde-fou : les écrans de réglages, d’autorisations ou d’installation restent hors de portée de Jarvis, mais Home Assistant n’a pas cette limite — tout appareil que vous y avez relié devient contrôlable par la voix. Non testé contre un vrai serveur ici (l’environnement de développement n’y a pas accès) : le code suit fidèlement l’API REST documentée de Home Assistant, mais une vérification chez vous reste utile."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            }
             Spacer(Modifier.height(32.dp))
         }
     }
@@ -1457,6 +1570,30 @@ private suspend fun testApiKey(configStore: ConfigStore): String = withContext(D
         tr("Diagnostic indisponible : connexion impossible ou délai dépassé.")
     } catch (_: Exception) {
         tr("Impossible de tester la clé enregistrée.")
+    }
+}
+
+/** GET /api/ — Home Assistant's own health check, the lightest possible round trip to confirm the address and token both work. */
+private suspend fun testHomeAssistant(configStore: ConfigStore): String = withContext(Dispatchers.IO) {
+    try {
+        val base = configStore.homeAssistantUrl.first().trim().trimEnd('/')
+        if (base.isEmpty()) return@withContext tr("Indiquez d’abord l’adresse du serveur.")
+        val token = configStore.getHomeAssistantToken()
+        if (token.isNullOrBlank()) return@withContext tr("Indiquez d’abord un jeton d’accès.")
+        val request = Request.Builder().url("$base/api/").header("Authorization", "Bearer $token").build()
+        settingsHttp.newCall(request).execute().use { response ->
+            when {
+                response.code == 401 || response.code == 403 -> trf("Jeton refusé (HTTP {0}).", response.code)
+                response.isSuccessful -> trf("Connexion réussie (HTTP {0}).", response.code)
+                else -> trf("Échec (HTTP {0}). Vérifiez l’adresse.", response.code)
+            }
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: IOException) {
+        tr("Connexion impossible : adresse injoignable ou délai dépassé. Vérifiez que le téléphone peut atteindre ce serveur (même réseau, ou accès distant configuré).")
+    } catch (_: Exception) {
+        tr("Impossible de tester la connexion.")
     }
 }
 
