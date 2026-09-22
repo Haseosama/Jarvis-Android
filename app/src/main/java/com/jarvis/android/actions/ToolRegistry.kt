@@ -65,6 +65,7 @@ object ToolRegistry {
         WatchTool,
         GmailTool,
         DriveTool,
+        TaskListTool,
     )
 
     private val byName = ALL.associateBy { it.name }

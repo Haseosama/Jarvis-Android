@@ -57,8 +57,9 @@ release APK comes out unsigned. `keystore/`, `*.keystore` and `*.jks` are git-ig
 `web_search`, `flight_search` (web results + Google Flights link), `weather_report`,
 `open_app`, `browser_control`, `reminder` (create / list / cancel, persisted, re-armed after
 a reboot, read aloud when due), `timer` (create / list / cancel, read aloud at the end),
-`system_monitor` (battery/storage), `device_settings` (volume behind an on-screen
-confirmation; Wi-Fi/brightness panels), `send_message` (WhatsApp, Telegram, Messenger or SMS: by default a draft the user sends themselves;
+`task_list` (a shopping list, a to-do list, or any other named list, persisted, works offline
+too — see "Lists" under "Offline mode"), `system_monitor` (battery/storage), `device_settings`
+(volume behind an on-screen confirmation; Wi-Fi/brightness panels), `send_message` (WhatsApp, Telegram, Messenger or SMS: by default a draft the user sends themselves;
 with *automatic sending* switched on it really sends, see "Sending messages on your word"),
 `youtube_video`, `read_clipboard`, `code_helper`, `recall_memory`, `remember_fact`,
 `forget_fact`, `undo`, `end_session`, and the phone-control tools below.
@@ -193,6 +194,19 @@ Safeguards (`device/ScreenModel.kt`, `actions/ScreenTools.kt`):
 - Text read on the screen is marked as data, never as instructions; the system prompt tells the
   model so.
 - What is read on screen is sent to Gemini to process your request.
+
+**Turning confirmations off** (Settings > *Contrôle du téléphone* > *Ne jamais demander de confirmation*,
+off by default). Once on, the confirmation notification above is skipped for sensitive taps, and the same
+setting also skips it for the volume confirmation (`device_settings`) and for file writes/deletes/organising
+(`file_manager`) — Jarvis acts the moment it decides to, with nothing to tap, including while the phone is
+out of sight. The **one exception that this setting cannot remove**: a tap inside Settings, the permission
+dialogs, the package installer or the system UI still always asks, whatever this is set to — that check
+exists specifically so the assistant can never grant itself a permission or an install, including if a
+malicious web page or message it read tried to talk it into tapping through one. `send_message`'s own
+*envoi automatique* toggle (see "Sending messages on your word") is separate and already worked this way
+before this setting existed. Checked: unit tests do not cover this (it needs a live `JarvisContainer`, like
+the rest of this section); reasoned through by inspection and exercised with the compiled app's test suite
+and a debug build, not with a real confirmation banner suppressed end to end on a device.
 
 Checked on an emulator with the service switched on, through a debug-only adb trigger: reading the
 Clock and Settings apps, tapping a tab by its text, an unknown text refused, swipe, scroll, home,
@@ -640,6 +654,29 @@ pipeline — detecting an unrecognised sentence, finding the model installed, tr
 size, the switch, removal) was checked the same way. **What was not checked, because the model's weights are gated and I had no way to accept that licence or download them in this environment: whether a real Gemma
 `.task` file loads, how long it takes, how much memory and battery it uses, and the quality of its answers.** The MediaPipe LLM Inference API is also documented as being in maintenance mode, with new work going to a
 successor ("LiteRT-LM") that does not yet have as documented an Android/Kotlin surface — this is the practical, working choice today, not necessarily a permanent one.
+
+#### Lists
+
+Settings > "Listes", or by voice, online or offline: shopping lists, to-do lists, or any other
+named list, kept on the phone (`tasks/TaskListStore.kt`, file `task_lists.json`) and shared
+between the online tool (`actions/TaskListTool.kt`), the offline fixed commands, and the settings
+screen — one item added offline shows up online and in the settings UI, and the other way round.
+Several distinct lists coexist by name ("courses", "tâches"…); without a name, a default list is
+used, so "ajoute du lait" needs no list to have been named first. Matching an item back (to check
+it off or remove it) is a partial, accent- and case-insensitive match on its text, and also
+insensitive to which French article is used to refer to it — "coche le lait" finds an item added
+as "du lait" — and prefers the shortest, most exact match, so "coche les pommes" does not
+accidentally match "pommes de terre". Limits: 30 distinct lists, 300 items per list, 200
+characters per item.
+
+Offline (`offline/OfflineIntents.kt`), fixed phrasings are understood without a network: "ajoute
+… à ma liste (de …)", "j'ai acheté / pris …" or "coche …", "retire … de ma liste", "montre / lis
+(-moi) ma liste" or "qu'est-ce qu'il y a sur ma liste", "vide ma liste". Online, the model routes
+free-form phrasing to the same `task_list` tool itself, guided by a short description of it added
+to the system prompt. Checked with unit tests for both the store's matching rules and the offline
+regex dispatch, and manually on the emulator for the settings screen (add, check, uncheck, remove,
+clear-checked) and for offline voice-style commands through the debug receiver, including the
+French-article case above. Not checked with real offline speech recognition on a phone.
 
 #### Hologram look
 

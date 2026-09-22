@@ -55,14 +55,16 @@ object DeviceSettingsTool : Tool {
 
     private suspend fun setVolume(percent: Int, ctx: JarvisContainer): String {
         if (percent < 0 || percent > 100) return "Give a volume percentage between 0 and 100."
-        val confirmed = try {
-            withTimeout(CONFIRM_TIMEOUT_MS) {
-                ctx.confirmManager.request("Volume", "Mettre le volume à $percent % ?")
+        if (!ctx.skipConfirmations) {
+            val confirmed = try {
+                withTimeout(CONFIRM_TIMEOUT_MS) {
+                    ctx.confirmManager.request("Volume", "Mettre le volume à $percent % ?")
+                }
+            } catch (_: TimeoutCancellationException) {
+                return "Confirmation expirée : volume inchangé."
             }
-        } catch (_: TimeoutCancellationException) {
-            return "Confirmation expirée : volume inchangé."
+            if (!confirmed) return "Volume inchangé : action refusée."
         }
-        if (!confirmed) return "Volume inchangé : action refusée."
         val am = ctx.appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         val previous = am.getStreamVolume(AudioManager.STREAM_MUSIC)

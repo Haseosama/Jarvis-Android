@@ -78,5 +78,6 @@ internal suspend fun collectSelfKnowledge(container: JarvisContainer, assistantN
         briefingEnabled = store.briefingEnabled.first(),
         proactiveEnabled = store.proactiveEnabled.first(),
         messageAutoSend = store.messageAutoSend.first(),
+        skipConfirmations = store.skipConfirmations.first(),
     )
 }

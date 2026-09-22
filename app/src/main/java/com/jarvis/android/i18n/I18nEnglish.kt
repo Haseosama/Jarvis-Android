@@ -2,6 +2,13 @@ package com.jarvis.android.i18n
 
 /** English texts of the interface, keyed by the French source text. Generated once; edit by hand from now on. */
 internal val ENGLISH: Map<String, String> = mapOf(
+    "Listes" to "Lists",
+    "La liste par défaut (« ajoute du lait à la liste », « coche le lait », « vide la liste »), gérée aussi bien en ligne que hors ligne. Une liste nommée par vous (« ma liste de courses », « mes tâches ») est une liste à part, à voir et gérer à la voix." to "The default list (\"add milk to the list\", \"check off the milk\", \"empty the list\"), managed online and offline alike. A list you named (\"my shopping list\", \"my tasks\") is a separate list, to view and manage by voice.",
+    "Ajouter à la liste" to "Add to the list",
+    "Ajouter" to "Add",
+    "Liste vide." to "Empty list.",
+    "Retirer" to "Remove",
+    "Retirer ce qui est coché" to "Remove what is checked off",
     "IA locale : {0}" to "Local AI: {0}",
     "IA locale (hors ligne)" to "Local AI (offline)",
     "Sans réseau, Jarvis ne connaît que les commandes fixes ci-dessus. Pour qu’il puisse aussi répondre à une vraie question hors ligne, il peut utiliser un petit modèle (Gemma) installé sur le téléphone : tout tourne sur l’appareil, rien n’est envoyé où que ce soit." to "Without a network, Jarvis only knows the fixed commands above. For it to also answer a real question offline, it can use a small model (Gemma) installed on the phone: everything runs on the device, nothing is sent anywhere.",
@@ -471,7 +478,11 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Le rappel n’a pas pu être enregistré. Vérifiez la date et réessayez." to "The reminder could not be saved. Check the date and try again.",
     "Lecture du stockage sécurisé…" to "Reading secure storage…",
     "Les 30 dernières sessions vocales, avec ce qui les a lancées (mot d’activation ou bouton de l’appli). Gardé sur l’appareil seulement." to "The last 30 voice sessions, with what started them (wake word or the app button). Kept on the device only.",
-    "Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et tout ce qui touche aux réglages système demandent votre confirmation dans une notification. " to "Sensitive actions (send, pay, delete, install, allow) and anything touching system settings ask for your confirmation in a notification. ",
+    "Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et le volume demandent votre confirmation dans une notification. " to "Sensitive actions (send, pay, delete, install, allow) and volume ask for your confirmation in a notification. ",
+    "Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et le volume ne demandent plus votre confirmation (réglage ci-dessous). " to "Sensitive actions (send, pay, delete, install, allow) and volume no longer ask for your confirmation (setting below). ",
+    "Tout ce qui touche aux réglages système, aux autorisations ou à l’installation d’applications demande toujours votre confirmation, quel que soit ce réglage. " to "Anything touching system settings, permissions or installing an app always asks for your confirmation, whatever this setting is. ",
+    "Ne jamais demander de confirmation (volume, fichiers, actions sur l’écran)" to "Never ask for confirmation (volume, files, on-screen actions)",
+    "Toujours désactivé par défaut. Une fois activé, Jarvis agit du premier coup, sans bannière à valider, y compris à distance ou pendant que vous ne regardez pas le téléphone. Les écrans système (réglages, autorisations, installation d’applications) continuent, eux, à toujours demander confirmation : ce garde-fou n’est pas désactivable, c’est ce qui empêche Jarvis de s’accorder lui-même un accès qu’il n’a pas." to "Always off by default. Once on, Jarvis acts right away, with no banner to approve, including remotely or while you are not looking at the phone. System screens (settings, permissions, installing apps) still always ask to confirm: that guard rail cannot be turned off, it is what stops Jarvis from granting itself access it does not have.",
     "Les phrases proposées sont celles fournies par openWakeWord (téléchargées à la demande, environ 200 Ko chacune). Une autre phrase, comme « Debout Jarvis », demande un modèle entraîné exprès : entraînez-le avec le carnet « automatic_model_training » d’openWakeWord (github.com/dscripka/openWakeWord), puis importez le fichier .tflite avec « Mon modèle ». Je n’ai pas pu entraîner ni tester un tel modèle ici. Actuellement : {0}." to "The phrases offered are those supplied by openWakeWord (downloaded on demand, about 200 KB each). Another phrase, such as « Debout Jarvis », needs a purpose-trained model: train it with openWakeWord's « automatic_model_training » notebook (github.com/dscripka/openWakeWord), then import the .tflite file with « My model ». I could not train or test such a model here. Currently: {0}.",
     "Liste des modèles indisponible (HTTP {0}). Vérifiez la clé et réessayez plus tard." to "Model list unavailable (HTTP {0}). Check the key and try again later.",
     "Liste des modèles indisponible : connexion impossible ou délai dépassé." to "Model list unavailable: connection impossible or timed out.",

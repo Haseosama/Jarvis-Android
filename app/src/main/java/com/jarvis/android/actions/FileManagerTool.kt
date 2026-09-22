@@ -78,9 +78,12 @@ object FileManagerTool : Tool {
         result.message
     }
 
-    private suspend fun confirm(ctx: JarvisContainer, label: String, detail: String): Boolean = try {
-        withTimeout(60_000L) { ctx.confirmManager.request(label, detail) }
-    } catch (_: TimeoutCancellationException) {
-        false
+    private suspend fun confirm(ctx: JarvisContainer, label: String, detail: String): Boolean {
+        if (ctx.skipConfirmations) return true
+        return try {
+            withTimeout(60_000L) { ctx.confirmManager.request(label, detail) }
+        } catch (_: TimeoutCancellationException) {
+            false
+        }
     }
 }

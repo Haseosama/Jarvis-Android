@@ -3,6 +3,7 @@ package com.jarvis.android.actions
 import android.content.Intent
 import android.provider.Settings
 import com.jarvis.android.JarvisContainer
+import com.jarvis.android.device.ALWAYS_CONFIRM_PACKAGES
 import com.jarvis.android.device.ActionResult
 import com.jarvis.android.device.ElementMatch
 import com.jarvis.android.device.JarvisAccessibilityService
@@ -131,17 +132,21 @@ object ScreenTapTool : Tool {
             }
             val element = service.elementAt(index) ?: return@withContext "Élément [$index] introuvable. Relisez l’écran."
             confirmationReason(snapshot.packageName, element, ctx.messageAutoSend)?.let { why ->
-                val approved = try {
-                    withTimeout(CONFIRM_TIMEOUT_MS) {
-                        ctx.confirmManager.request(
-                            "Contrôle du téléphone",
-                            "Appuyer sur « ${element.label.take(60)} » dans ${service.appLabel(snapshot.packageName)} ? ($why)",
-                        )
+                // "Skip confirmations" never applies to a screen that touches system security, permissions or app
+                // installs: that check is not a preference, it is what stops Jarvis from approving its own access.
+                if (snapshot.packageName in ALWAYS_CONFIRM_PACKAGES || !ctx.skipConfirmations) {
+                    val approved = try {
+                        withTimeout(CONFIRM_TIMEOUT_MS) {
+                            ctx.confirmManager.request(
+                                "Contrôle du téléphone",
+                                "Appuyer sur « ${element.label.take(60)} » dans ${service.appLabel(snapshot.packageName)} ? ($why)",
+                            )
+                        }
+                    } catch (_: TimeoutCancellationException) {
+                        return@withContext "Confirmation expirée : rien n’a été touché."
                     }
-                } catch (_: TimeoutCancellationException) {
-                    return@withContext "Confirmation expirée : rien n’a été touché."
+                    if (!approved) return@withContext "Action refusée par l’utilisateur : rien n’a été touché."
                 }
-                if (!approved) return@withContext "Action refusée par l’utilisateur : rien n’a été touché."
             }
             report(service.tap(index), service)
         }

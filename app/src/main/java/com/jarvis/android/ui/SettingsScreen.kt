@@ -11,7 +11,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
@@ -73,6 +76,7 @@ fun SettingsScreen(
     val hue by configStore.themeHue.collectAsState(initial = 190f)
     val wakeWordEnabled by configStore.wakeWordEnabled.collectAsState(initial = false)
     val deviceControl by configStore.deviceControlEnabled.collectAsState(initial = true)
+    val skipConfirmations by configStore.skipConfirmations.collectAsState(initial = false)
     val briefingOn by configStore.briefingEnabled.collectAsState(initial = true)
     val muteWhileSpeaking by configStore.muteMicWhileSpeaking.collectAsState(initial = true)
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
@@ -1034,10 +1038,27 @@ fun SettingsScreen(
             Text(
                 tr("Android n’autorise le contrôle des autres applications que via un service d’accessibilité, à activer vous-même : Paramètres > Accessibilité > Jarvis : contrôle du téléphone. ") +
                     tr("Sur Xiaomi (MIUI), si l’option est grisée : Paramètres > Applications > Jarvis > menu ⋮ > Autoriser les paramètres restreints. ") +
-                    tr("Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et tout ce qui touche aux réglages système demandent votre confirmation dans une notification. ") +
+                    (if (skipConfirmations)
+                        tr("Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et le volume ne demandent plus votre confirmation (réglage ci-dessous). ")
+                    else
+                        tr("Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et le volume demandent votre confirmation dans une notification. ")) +
+                    tr("Tout ce qui touche aux réglages système, aux autorisations ou à l’installation d’applications demande toujours votre confirmation, quel que soit ce réglage. ") +
                     tr("Jarvis ne remplit jamais un mot de passe. Le contenu lu à l’écran est transmis à Gemini pour traiter votre demande."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            ) {
+                Text(tr("Ne jamais demander de confirmation (volume, fichiers, actions sur l’écran)"), modifier = Modifier.weight(1f))
+                Switch(checked = skipConfirmations, onCheckedChange = { scope.launch { configStore.setSkipConfirmations(it) } })
+            }
+            Text(
+                tr("Toujours désactivé par défaut. Une fois activé, Jarvis agit du premier coup, sans bannière à valider, y compris à distance ou pendant que vous ne regardez pas le téléphone. Les écrans système (réglages, autorisations, installation d’applications) continuent, eux, à toujours demander confirmation : ce garde-fou n’est pas désactivable, c’est ce qui empêche Jarvis de s’accorder lui-même un accès qu’il n’a pas."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
             )
             }
             SettingsCard(tr("Clés API et modèles"), Icons.Filled.Key, initiallyExpanded = false) {
@@ -1292,6 +1313,60 @@ fun SettingsScreen(
                         }
                     })
                 }
+            }
+            }
+            SettingsCard(tr("Listes"), Icons.Filled.Checklist, initiallyExpanded = false) {
+            val taskListStore = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.taskListStore }
+            var listTick by remember { mutableStateOf(0) }
+            var listItems by remember { mutableStateOf<List<com.jarvis.android.tasks.TaskItem>>(emptyList()) }
+            var newItemText by remember { mutableStateOf("") }
+            LaunchedEffect(listTick) { listItems = taskListStore.items(com.jarvis.android.tasks.DEFAULT_LIST_NAME) }
+            Text(
+                tr("La liste par défaut (« ajoute du lait à la liste », « coche le lait », « vide la liste »), gérée aussi bien en ligne que hors ligne. Une liste nommée par vous (« ma liste de courses », « mes tâches ») est une liste à part, à voir et gérer à la voix."),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                OutlinedTextField(
+                    value = newItemText,
+                    onValueChange = { newItemText = it.take(200) },
+                    label = { Text(tr("Ajouter à la liste")) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(8.dp))
+                FilledIconButton(
+                    enabled = newItemText.isNotBlank(),
+                    onClick = {
+                        val text = newItemText.trim()
+                        scope.launch { taskListStore.add(com.jarvis.android.tasks.DEFAULT_LIST_NAME, text); newItemText = ""; listTick++ }
+                    },
+                ) { Icon(Icons.Filled.Add, contentDescription = tr("Ajouter")) }
+            }
+            if (listItems.isEmpty()) {
+                Text(tr("Liste vide."), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
+            }
+            listItems.forEach { item ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                    Checkbox(checked = item.done, onCheckedChange = {
+                        scope.launch { taskListStore.setDone(com.jarvis.android.tasks.DEFAULT_LIST_NAME, item.text, it); listTick++ }
+                    })
+                    Text(
+                        item.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textDecoration = if (item.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+                        color = if (item.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = { scope.launch { taskListStore.remove(com.jarvis.android.tasks.DEFAULT_LIST_NAME, item.text); listTick++ } }) {
+                        Icon(Icons.Filled.Close, contentDescription = tr("Retirer"))
+                    }
+                }
+            }
+            if (listItems.any { it.done }) {
+                OutlinedButton(
+                    onClick = { scope.launch { taskListStore.clearDone(com.jarvis.android.tasks.DEFAULT_LIST_NAME); listTick++ } },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text(tr("Retirer ce qui est coché")) }
             }
             }
             Spacer(Modifier.height(32.dp))

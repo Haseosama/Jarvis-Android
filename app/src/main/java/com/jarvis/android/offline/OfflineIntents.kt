@@ -33,8 +33,8 @@ internal fun normalize(text: String): String {
 
 internal const val OFFLINE_HELP =
     "Sans connexion, je sais ouvrir une application, appeler un contact, régler le volume ou la luminosité, allumer la lampe, " +
-        "gérer la musique, lancer un minuteur, dire l’heure, la date et la batterie, ouvrir les réglages, verrouiller l’écran " +
-        "et faire une capture d’écran."
+        "gérer la musique, lancer un minuteur, gérer une liste de courses ou de tâches, dire l’heure, la date et la batterie, " +
+        "ouvrir les réglages, verrouiller l’écran et faire une capture d’écran."
 
 private val END = Regex("^(au revoir|a plus|a plus tard|a bientot|bonne nuit|stop|arrete|arrete toi|termine|c est tout|mets toi en veille|en veille)( jarvis)?$")
 private val END_IN = Regex("(arrete|ferme|termine|coupe) (la )?session|mets toi en veille|au revoir")
@@ -58,6 +58,14 @@ private val SETTINGS = Regex("^(ouvre|ouvrir|affiche|va dans|va sur|montre) (les
 private val WIFI = Regex("^(ouvre|ouvrir|active|affiche) (le |les )?(wifi|wi fi)$")
 private val TIMER = Regex("(?:minuteur|minuterie|chronometre|timer|compte a rebours)(?: de| d| pour)? (.+)$")
 private val SET_TIMER = Regex("(?:mets|met|lance|demarre|programme|regle|fais) (?:un |une |le )?(?:minuteur|minuterie|chronometre|timer|compte a rebours)(?: de| d| pour)? (.+)$")
+private val LIST_ADD = Regex("^(?:ajoute|mets|rajoute|ecris) (.+?) (?:a|sur|dans) (?:ma |ta |la |mes )?liste(?: de| d)?(?: (.+))?$")
+private val LIST_BOUGHT = Regex("^j ai achete (.+)$")
+private val LIST_DONE = Regex("^(?:coche|j ai fait|raye|barre) (.+?)(?: de| sur)? (?:ma |la |mes )?liste(?: de| d)?(?: (.+))?$")
+private val LIST_DONE_SIMPLE = Regex("^(?:coche|j ai fait) (.+)$")
+private val LIST_REMOVE = Regex("^(?:retire|enleve|supprime) (.+?) (?:de |sur )(?:ma |la |mes )?liste(?: de| d)?(?: (.+))?$")
+private val LIST_SHOW = Regex("^(?:qu est ce qu il y a sur|qu y a t il sur|montre moi|montre|lis moi|lis|dis moi ce qu il y a sur) (?:ma |la |mes )?liste(?: de| d)?(?: (.+))?$")
+private val LIST_CLEAR = Regex("^vide(?: moi)? (?:ma |la |mes )?liste(?: de| d)?(?: (.+))?$")
+
 private val CALL = Regex("^(?:appelle|appeler|telephone a|passe un appel a|contacte|joins|phone a) (.+)$")
 private val SMS = Regex("^(?:ecris|envoie|redige) (?:un |une )?(?:sms|message|texto)(?: a| pour)? (.+)$")
 private val OPEN = Regex("^(?:ouvre|ouvrir|lance|demarre|va sur|va dans|lancer|ouvre moi) (?:l application |l appli |l app |le |la |les |l |mon |ma |mes )?(.+)$")
@@ -127,6 +135,25 @@ internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): O
         return OfflineAction.ToolCall("timer", mapOf("action" to "create", "duration" to timerText), "Minuteur de ${TimerDurations.format(seconds)} lancé.")
     }
 
+    LIST_ADD.find(n)?.let { m ->
+        val item = m.groupValues[1].trim()
+        if (item.isNotEmpty()) return OfflineAction.ToolCall("task_list", taskArgs("add", item, m.groupValues.getOrNull(2)), "Ajouté.", format = { it })
+    }
+    LIST_REMOVE.find(n)?.let { m ->
+        val item = m.groupValues[1].trim()
+        if (item.isNotEmpty()) return OfflineAction.ToolCall("task_list", taskArgs("remove", item, m.groupValues.getOrNull(2)), "Retiré.", format = { it })
+    }
+    LIST_DONE.find(n)?.let { m ->
+        val item = m.groupValues[1].trim()
+        if (item.isNotEmpty()) return OfflineAction.ToolCall("task_list", taskArgs("done", item, m.groupValues.getOrNull(2)), "Coché.", format = { it })
+    }
+    (LIST_BOUGHT.find(n) ?: LIST_DONE_SIMPLE.find(n))?.let { m ->
+        val item = m.groupValues[1].trim()
+        if (item.isNotEmpty()) return OfflineAction.ToolCall("task_list", taskArgs("done", item), "Coché.", format = { it })
+    }
+    LIST_SHOW.find(n)?.let { return OfflineAction.ToolCall("task_list", taskArgs("list", list = it.groupValues.getOrNull(1)), "", format = { it }) }
+    LIST_CLEAR.find(n)?.let { return OfflineAction.ToolCall("task_list", taskArgs("clear", list = it.groupValues.getOrNull(1)), "Liste vidée.", format = { it }) }
+
     WIFI.find(n)?.let { return settings("wifi") }
     SETTINGS.find(n)?.let { m ->
         val what = m.groupValues[5].trim()
@@ -150,6 +177,13 @@ internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): O
 }
 
 private fun media(command: String, say: String) = OfflineAction.ToolCall("device_settings", mapOf("action" to "media", "command" to command), say)
+
+private fun taskArgs(action: String, item: String? = null, list: String? = null): Map<String, String> {
+    val m = mutableMapOf("action" to action)
+    if (item != null) m["item"] = item
+    if (!list.isNullOrBlank()) m["liste"] = list.trim()
+    return m
+}
 
 private fun settings(page: String) =
     OfflineAction.ToolCall("device_settings", mapOf("action" to "open_settings", "page" to page), "J’ouvre les réglages ${PAGE_NAMES[page] ?: ""}".trim() + ".")

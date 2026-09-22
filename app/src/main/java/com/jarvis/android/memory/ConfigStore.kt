@@ -177,6 +177,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_OFFLINE_MODE = intPreferencesKey("offline_mode")
     private val KEY_KEEP_TRANSCRIPTS = booleanPreferencesKey("keep_session_transcripts")
     private val KEY_LOCAL_AI = booleanPreferencesKey("local_ai_enabled")
+    private val KEY_SKIP_CONFIRMATIONS = booleanPreferencesKey("skip_confirmations")
     private val KEY_AVATAR_MODEL = intPreferencesKey("avatar_face_model")
     private val KEY_AVATAR_LIPS = intPreferencesKey("avatar_lip_colour")
     private val KEY_AVATAR_CAP = intPreferencesKey("avatar_cap")
@@ -225,6 +226,13 @@ class ConfigStore(private val context: Context) {
     /** Whether the offline mode may use the local model, once one is installed, for what is not a fixed command. On by default. */
     val localAiEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_LOCAL_AI] ?: true }
     val messageAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_MESSAGE_AUTO_SEND] ?: false }
+    /**
+     * Off by default: when on, volume changes, file writes/deletes/organising and any other on-screen action Jarvis would
+     * normally ask about go ahead without a confirmation banner. Screens that touch system security, permissions or
+     * app installs (settings, permission controller, package installer…) still always ask, whatever this is set to —
+     * that one check is not a preference, it is what stops Jarvis from ever approving its own system-level access.
+     */
+    val skipConfirmations: Flow<Boolean> = context.dataStore.data.map { it[KEY_SKIP_CONFIRMATIONS] ?: false }
     val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 7 }   // 7 = the blue hologram (avatar.BLUE_HOLO_SKIN), unless the user chose another look
     /** 0 = natural, 1..4 = a lip colour (rose, red, plum, coral). */
     val avatarLips: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_LIPS] ?: 0 }
@@ -260,6 +268,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setOfflineMode(v: Int) = context.dataStore.edit { it[KEY_OFFLINE_MODE] = v }
     suspend fun setCarAudioMode(v: Int) = context.dataStore.edit { it[KEY_CAR_AUDIO] = v }
     suspend fun setMessageAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_MESSAGE_AUTO_SEND] = v }
+    suspend fun setSkipConfirmations(v: Boolean) = context.dataStore.edit { it[KEY_SKIP_CONFIRMATIONS] = v }
     suspend fun setAvatarSkin(v: Int) = context.dataStore.edit { it[KEY_AVATAR_SKIN] = v }
     suspend fun setAvatarLips(v: Int) = context.dataStore.edit { it[KEY_AVATAR_LIPS] = v }
     suspend fun setAvatarCap(v: Int) = context.dataStore.edit { it[KEY_AVATAR_CAP] = v }

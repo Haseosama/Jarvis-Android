@@ -49,6 +49,9 @@ class JarvisContainer(val appContext: Context) {
     /** Mirror of the setting for sending messages on the user's word, read by the tools that must not suspend to look it up. */
     @Volatile var messageAutoSend: Boolean = false
 
+    /** Mirror of the setting that skips the confirmation banner for volume, file changes and on-screen taps (never for system/security screens, see ConfigStore.skipConfirmations). */
+    @Volatile var skipConfirmations: Boolean = false
+
     internal val sentMessages: com.jarvis.android.messaging.SentMessages by lazy {
         com.jarvis.android.messaging.SentMessages(java.io.File(appContext.noBackupFilesDir, "sent_messages.json"))
     }
@@ -103,6 +106,9 @@ class JarvisContainer(val appContext: Context) {
     /** The offline mode's local model (imported by the user; see LocalModelStore.kt). */
     internal val localModelStore = com.jarvis.android.offline.LocalModelStore(appContext)
 
+    /** Shopping and to-do lists, shared by the online and the offline mode (see tasks/TaskListStore.kt). */
+    internal val taskListStore = com.jarvis.android.tasks.TaskListStore(java.io.File(appContext.filesDir, "task_lists.json"))
+
     internal val agent: com.jarvis.android.agent.AgentRunner by lazy { com.jarvis.android.agent.AgentRunner(this, appScope) }
 
     /** Text chat over generateContent; independent of the Live session. */
@@ -129,6 +135,7 @@ class JarvisContainer(val appContext: Context) {
             configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
         }
         appScope.launch { configStore.messageAutoSend.collect { messageAutoSend = it } }
+        appScope.launch { configStore.skipConfirmations.collect { skipConfirmations = it } }
         appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }
         appScope.launch { configStore.avatarModel.collect { avatar.model = it } }
         appScope.launch { configStore.avatarSkin.collect { avatar.skin = it } }
