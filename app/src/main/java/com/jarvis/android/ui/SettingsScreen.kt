@@ -12,6 +12,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Hearing
@@ -28,8 +32,10 @@ import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,7 +77,7 @@ fun SettingsScreen(
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
     val faceOn by configStore.avatarFace.collectAsState(initial = true)
     val faceModel by configStore.avatarModel.collectAsState(initial = 0)
-    val skinTone by configStore.avatarSkin.collectAsState(initial = 5)
+    val skinTone by configStore.avatarSkin.collectAsState(initial = 7)
     val lipTone by configStore.avatarLips.collectAsState(initial = 0)
     val capTone by configStore.avatarCap.collectAsState(initial = 0)
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
@@ -663,24 +669,56 @@ fun SettingsScreen(
                     OutlinedButton(onClick = { pluginToRemove = plugin.name }) { Text(tr("Désinstaller")) }
                 }
             }
-            Text(tr("Catalogue intégré"), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 16.dp))
             val catalog = remember { com.jarvis.android.plugins.readCatalog(context0, com.jarvis.android.actions.ToolRegistry.builtInNames()) }
             val installedNames = installed.map { it.name }.toSet()
-            catalog.forEach { entry ->
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text(entry.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                        Text(entry.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            var catalogExpanded by rememberSaveable { mutableStateOf(false) }
+            var catalogQuery by rememberSaveable { mutableStateOf("") }
+            val catalogArrow by animateFloatAsState(if (catalogExpanded) 180f else 0f, label = "catalogArrow")
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp).clickable { catalogExpanded = !catalogExpanded },
+            ) {
+                Text(trf("Catalogue intégré ({0})", catalog.size), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                Icon(
+                    Icons.Filled.ExpandMore,
+                    contentDescription = if (catalogExpanded) tr("Replier") else tr("Déplier"),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.rotate(catalogArrow),
+                )
+            }
+            AnimatedVisibility(visible = catalogExpanded) {
+                Column(Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = catalogQuery,
+                        onValueChange = { catalogQuery = it },
+                        label = { Text(tr("Chercher un plugin")) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    )
+                    val filtered = remember(catalog, catalogQuery) {
+                        val q = catalogQuery.trim()
+                        if (q.isEmpty()) catalog else catalog.filter { it.name.contains(q, ignoreCase = true) || it.description.contains(q, ignoreCase = true) }
                     }
-                    if (entry.name in installedNames) {
-                        OutlinedButton(onClick = { pluginToRemove = entry.name }, modifier = Modifier.padding(start = 8.dp)) { Text(tr("Désinstaller")) }
-                    } else {
-                        FilledTonalButton(onClick = {
-                            scope.launch {
-                                pluginMessage = withContext(Dispatchers.IO) { pluginStore.install(entry.json) } ?: trf("« {0} » installé. Il est actif dès la prochaine session vocale.", entry.name)
-                                pluginTick++
+                    if (filtered.isEmpty()) {
+                        Text(tr("Aucun plugin ne correspond."), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                    }
+                    filtered.forEach { entry ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                            Column(Modifier.weight(1f)) {
+                                Text(entry.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                                Text(entry.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                        }, modifier = Modifier.padding(start = 8.dp)) { Text(tr("Installer")) }
+                            if (entry.name in installedNames) {
+                                OutlinedButton(onClick = { pluginToRemove = entry.name }, modifier = Modifier.padding(start = 8.dp)) { Text(tr("Désinstaller")) }
+                            } else {
+                                FilledTonalButton(onClick = {
+                                    scope.launch {
+                                        pluginMessage = withContext(Dispatchers.IO) { pluginStore.install(entry.json) } ?: trf("« {0} » installé. Il est actif dès la prochaine session vocale.", entry.name)
+                                        pluginTick++
+                                    }
+                                }, modifier = Modifier.padding(start = 8.dp)) { Text(tr("Installer")) }
+                            }
+                        }
                     }
                 }
             }

@@ -13,7 +13,9 @@ import java.io.IOException
 
 object WebSearchTool : Tool {
     override val name = "web_search"
-    override val description = "Rechercher des informations actuelles sur le Web et retourner leurs titres, liens et extraits."
+    override val description =
+        "Rechercher des informations actuelles sur le Web et retourner leurs titres, liens et extraits. Les extraits sont courts : pour un " +
+            "fait précis, une date, un chiffre exact ou une citation, ouvrez ensuite un des liens avec read_webpage pour lire la page elle-même."
     override val parameters = objectSchema(required = listOf("query")) {
         string("query", "Termes à rechercher sur le Web.")
     }

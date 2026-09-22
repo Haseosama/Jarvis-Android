@@ -248,6 +248,15 @@ by the `DUMP` permission so only adb can call it; it is not in the release build
   across an app kill on the emulator. *Not checked:* the real Gemini answer (no key on the emulator), so how well the facts are chosen.
 - **Google search** (`rest/Grounding.kt`). `web_search` first asks Gemini with the Google Search tool and
   returns the answer with numbered sources; on any failure it falls back to DuckDuckGo as before.
+- **Reading a page** (`actions/ReadWebpageTool.kt`, tool `read_webpage`). `web_search` only ever gives short snippets; for a precise fact
+  (an exact figure, a date, a quote, something the snippets disagree on) the model is told to open one of its links itself and read the
+  page — its own judgment, no need to ask the user first — and it may follow a link the page lists to keep going, the way someone clicks
+  through a site to find something. Fetches the page (HTTPS or HTTP, private and local addresses refused, up to 3 MB), strips scripts,
+  styles, navigation, headers and footers with Jsoup, keeps the `<main>`/`<article>` text (or the whole body) up to 6,000 characters, and
+  lists up to 10 of the page's own links (text and address) so the model can choose one. A page's text is a source to read, never
+  instructions to follow — non-HTML content (a PDF, for example) is reported as such instead of being read as text. *Checked:* the text
+  extraction and the link list by unit tests, and live on the emulator (a real Wikipedia page, a refused private address, a PDF correctly
+  turned away).
 - **Audio device picker** (`core/AudioRoute.kt`). Choose the microphone and the output in the settings
   (automatic by default). A saved device that is unplugged is ignored. Applied to the Live session, the wake
   word and the text-chat voice.
@@ -338,6 +347,8 @@ a plugin only describes one of three declarative actions, and the file is checke
   not `agent_task` or `end_session`), with `{parameter}` filled in. Sensitive taps still ask for confirmation.
 
 Limits: 100 plugins, 5 parameters each, 20 000 characters per file, a name that is not a built-in tool's.
+Settings: the catalogue (67 built-in plugins) is a dropdown, folded by default, with a search field on the name and description; the
+installed ones stay listed above it.
 **Many plugins.** Every installed plugin is usable, but only the first 25 (by file name) are declared to the model as tools of their own: a long list
 of tool declarations weighs on every session, and one the service refuses would break the whole session, and Gemini's documentation gives no
 figure to rely on. From the 26th, a single tool, `plugin_run` (a name and a JSON object of parameters), reaches the others, and its description
@@ -608,7 +619,8 @@ What it understands is a fixed list of French commands, matched by rules (`offli
 
 The skin setting has, besides the tones and the glowing web alone, an **Hologramme** option: a solid skin (the light tone tinted a little by the web's colour), the fine web of nodes and lines drawn over it, no hair, and the brows and the lip line in the web's colour. The web itself is denser than before (nodes 0.031 apart in head half-heights, computed when a face loads, with a grid for the neighbour search). The skin of the hologram is solid, with no transparency effect: it is brighter than the plain looks, opaque down to the base of the neck, and has a soft bright edge at the contour instead of dots; the web of nodes and lines is no longer drawn over it (it is for the glowing-web look only). What makes it a hologram is the circuits, the colour of the brows and the lack of hair.
 
-**Hologramme bleu** (skin setting): one skin that mixes two blues: a light blue skin (0x69B4F0), a deep blue (0x0C2160) for the edge all round and for the hollows (the parts turned away from the light), and about four in ten of the circuit tracks (and their pads) in deep blue. The gold circuits are more numerous (lattice pitch 0.036, up to 6,000 attempts, 9 to 33 points long) and glow: a wide, faint gold halo under each track, brighter under the pulse that runs along it.
+**Hologramme bleu** (skin setting): one skin that mixes two blues: a light blue skin (0x69B4F0), a deep blue (0x0C2160) for the edge all round and for the hollows (the parts turned away from the light), and about four in ten of the circuit tracks (and their pads) in deep blue. The gold circuits are more numerous (lattice pitch 0.036, up to 6,000 attempts, 9 to 33 points long) and glow: a wide, faint gold halo under each track, brighter under the pulse that runs along it. It is the default look for a new install and for anyone who never touched the setting (skin value 7); anyone who had already chosen
+a look keeps it.
 
 Gold **circuit tracks** are laid on the face in this look (`avatar/CircuitTraces.kt`): paths on a lattice that turn by 45 or 90 degrees and end in round pads, anchored on the mesh like the web's nodes so they follow the relief and the movement, keeping away from the eyes and the mouth, with a pulse of light running along each track. **Hologramme + cheveux** (skin setting): hair of optical fibres (`avatar/FiberHair.kt`). The mass of the hair is a dark blue, and over it each lock of the mesh carries three thin strands, added to what is behind them so that they glow: dim at the root, brighter towards the tip, which ends in a gold spark, with a pulse of light running from root to tip on some of them and a slow sway. They follow the locks of the mesh, so they move with the head. Not the realistic hair of the other looks (that one is in `drawFibres`, lit like real hair). Checked on the emulator only.
 

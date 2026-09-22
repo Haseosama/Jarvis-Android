@@ -222,7 +222,7 @@ class ConfigStore(private val context: Context) {
     /** Keeps what was said in the voice sessions (shown on the main screen, and recalled to the model at the next session). On by default. */
     val keepSessionTranscripts: Flow<Boolean> = context.dataStore.data.map { it[KEY_KEEP_TRANSCRIPTS] ?: true }
     val messageAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_MESSAGE_AUTO_SEND] ?: false }
-    val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 5 }   // the hologram over the skin, unless the user chose another look
+    val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 7 }   // 7 = the blue hologram (avatar.BLUE_HOLO_SKIN), unless the user chose another look
     /** 0 = natural, 1..4 = a lip colour (rose, red, plum, coral). */
     val avatarLips: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_LIPS] ?: 0 }
     /** The cap on the avatar: 0 = none, 1..5 = black, blue, red, white, khaki, 6 = grey-green with an emblem. */

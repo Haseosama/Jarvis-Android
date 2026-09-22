@@ -24,6 +24,7 @@ internal const val MAX_DECLARED_PLUGINS = 25
 object ToolRegistry {
     val ALL: List<Tool> = listOf(
         WebSearchTool,
+        ReadWebpageTool,
         FlightSearchTool,
         WeatherTool,
         OpenAppTool,

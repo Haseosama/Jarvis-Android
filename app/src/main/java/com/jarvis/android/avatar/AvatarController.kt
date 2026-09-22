@@ -23,7 +23,7 @@ internal class AvatarController(private val context: Context) {
     @Volatile var enabled = true
 
     /** How the head is dressed: 0 = the glowing web, 1..4 = a skin tone, 5 = the hologram over the skin (the default), 6 = the same with hair of optical fibres, 7 = the blue hologram (light blue with deep blue accents); lip colour 0 = natural, 1..4 = rose, red, plum, coral. */
-    @Volatile var skin = 5
+    @Volatile var skin = 7   // the blue hologram by default (avatar.BLUE_HOLO_SKIN)
     @Volatile var lips = 0
     /** 0 = no cap, 1..5 = black, blue, red, white, khaki, 6 = grey-green with an emblem. */
     @Volatile var cap = 0
