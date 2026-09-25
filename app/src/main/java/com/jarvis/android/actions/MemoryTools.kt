@@ -26,10 +26,13 @@ object RecallMemoryTool : Tool {
 /** Explicitly save a new fact — used when the user says "remember that…". */
 object RememberTool : Tool {
     override val name = "remember_fact"
-    override val description = "Save a fact about the user to long-term memory."
+    override val description =
+        "Save a fact about the user to long-term memory. Also use it for standing instructions about how to " +
+            "speak to them (tutoiement, shorter answers, no emoji): store those under category 'preferences' " +
+            "and they will be applied as a rule in later conversations."
     override val parameters = objectSchema(required = listOf("key", "value")) {
-        string("key", "Short identifier, e.g. 'sister_name'.")
-        string("value", "The fact itself.")
+        string("key", "Short identifier, e.g. 'sister_name' or 'tutoiement'.")
+        string("value", "The fact itself, or the instruction to follow.")
         string("category", "One of: identity, preferences, projects, relationships, wishes, notes. Default notes.")
     }
 

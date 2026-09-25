@@ -269,6 +269,9 @@ class MemoryManager(
         for (cat in categoryLabels.keys) {
             for ((key, entry) in store.categories()[cat] ?: emptyMap()) {
                 if (entry.value.isBlank()) continue
+                // Les consignes de style sont promues en directive plus bas : les répéter ici les affaiblirait
+                // et mangerait le budget deux fois.
+                if (cat == "preferences" && isSpeechPreference(key, entry.value)) continue
                 val updated = entry.updated.ifBlank { "0000-00-00" }
                 rest += Row(memoryPromptScore(cat, updated, today), updated, cat, key, entry.value)
             }
@@ -335,10 +338,19 @@ class MemoryManager(
             coreLines += lines
         }
 
-        if (coreLines.isEmpty() && indexed.isEmpty() && store.sessions.isEmpty()) return ""
+        // « Préfère être tutoyé » n'est pas une chose à savoir sur quelqu'un, c'est un ordre : le bloc passe en
+        // tête, hors du descriptif (voir SpeechStyle.kt).
+        val styleLines = speechStyleBlock(store.preferences)
 
-        val out = mutableListOf("[WHAT YOU KNOW ABOUT THIS PERSON — use naturally, never recite like a list]")
-        out += coreLines
+        if (coreLines.isEmpty() && indexed.isEmpty() && store.sessions.isEmpty() && styleLines.isEmpty()) return ""
+
+        val out = mutableListOf<String>()
+        out += styleLines
+        if (coreLines.isNotEmpty() || indexed.isNotEmpty()) {
+            if (out.isNotEmpty()) out += ""
+            out += "[WHAT YOU KNOW ABOUT THIS PERSON — use naturally, never recite like a list]"
+            out += coreLines
+        }
 
         if (indexed.isNotEmpty()) {
             var budget = promptIndexChars
@@ -349,13 +361,13 @@ class MemoryManager(
                 budget -= n.length + 2
             }
             if (names.isNotEmpty()) {
-                out += ""
+                if (out.isNotEmpty()) out += ""
                 out += "[ALSO REMEMBERED — values not shown here. Call recall_memory with a keyword to read any of these before saying you do not know]"
                 out += names.joinToString(", ") + if (indexed.size > names.size) " (+${indexed.size - names.size} more)" else ""
             }
         }
         if (store.sessions.isNotEmpty()) {
-            out += ""
+            if (out.isNotEmpty()) out += ""
             out += "[RECENT CONVERSATIONS — background you remember; bring one up only when it is relevant]"
             for (s in store.sessions.takeLast(PROMPT_SESSION_SUMMARIES)) out += "- ${s.date}: ${s.summary}"
         }

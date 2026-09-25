@@ -276,6 +276,24 @@ by the `DUMP` permission so only adb can call it; it is not in the release build
   keeps at least one line. *Checked:* by unit tests (`MemoryRecallTest`, `MemoryManagerTest`) — the questions
   above, the precision on unrelated questions, the merging and the prompt budget. *Not checked:* on a real phone
   with a real voice.
+- **Telling Jarvis how to speak to you** (`memory/SpeechStyle.kt`). « Tutoie-moi », « réponds plus court », « pas
+  d'emoji » were stored like any other preference and handed to the model under a heading that announces things
+  worth knowing about the user. Read as trivia, such a line is followed out of statistical politeness rather than
+  obligation, and it dilutes over a long conversation — unlike the address rule and the language rule, which are
+  stated as orders. A preference that says *how to speak* rather than *what the user likes* is now pulled out of
+  that descriptive block and placed first in the prompt, under a heading that presents it as a standing
+  instruction, with the reminder that a rule stated above it wins. It is not repeated as a fact: saying it twice
+  would weaken it and spend the budget twice. The sorting is done on the key, which the extractor writes short and
+  curated (`tutoiement`, `longueur_reponses`, `ton`), and only a handful of words that can mean nothing else are
+  accepted from the free-text value, so that « il aime les réponses courtes de son fils » stays an anecdote.
+  Language is deliberately excluded: an imperative rule already governs it higher up, and two competing
+  instructions on one subject are worth less than a single clear one. The block is capped at six lines and 400
+  characters, freshest first, since a new style instruction replaces the previous one more than it adds to it.
+  The system prompt and the `remember_fact` description now also tell the model to save such a request as soon as
+  it hears it, and to apply it immediately rather than waiting for the next conversation. *Checked:* by unit tests
+  (`SpeechStyleTest`, `MemoryManagerTest`) — the sorting in both directions, the caps, the promotion into the
+  prompt and the absence of repetition. *Not checked:* whether the model obeys the instruction more faithfully in
+  a real long conversation, which is the whole point and can only be judged in use.
 - **What Jarvis remembers after a session** (`memory/MemoryExtraction.kt`, `rest/RestChat.kt`). Until 0.4.4 it kept only what the model
   explicitly saved with `remember_fact`. Now, when a session with at least two exchanges ends, one Gemini call reads the conversation and
   returns a summary and the lasting facts the user gave about themselves (name, city, tastes, projects, people, wishes: at most 8, never a

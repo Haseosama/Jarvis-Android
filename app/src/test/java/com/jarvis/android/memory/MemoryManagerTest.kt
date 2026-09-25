@@ -262,6 +262,45 @@ class MemoryManagerTest {
         assertTrue(prompt.contains("Soeur: Camille"))
     }
 
+    @Test
+    fun `a speech preference is stated as an instruction, not as a fact about the person`() = runBlocking {
+        file().writeText(
+            Json.encodeToString(
+                MemoryStore(
+                    preferences = mutableMapOf(
+                        "tutoiement" to MemEntry("Préfère être tutoyé", "2026-09-20"),
+                        "boisson" to MemEntry("Café noir", "2026-09-20"),
+                    ),
+                )
+            )
+        )
+        val prompt = MemoryManager(file(), now = { day("2026-09-25") }).formatForPrompt()
+
+        // La consigne ouvre l'invite, avant tout ce qui est simplement bon à savoir.
+        assertTrue(prompt.startsWith(SPEECH_STYLE_HEADER))
+        assertTrue(prompt.contains("- Tutoiement: Préfère être tutoyé"))
+        // Et elle n'est pas répétée dans le descriptif : la dire deux fois l'affaiblirait et coûterait le
+        // budget deux fois.
+        assertEquals(1, prompt.split("Tutoiement").size - 1)
+        // Le goût, lui, reste un fait.
+        assertTrue(prompt.contains("Preferences:"))
+        assertTrue(prompt.contains("Boisson: Café noir"))
+    }
+
+    @Test
+    fun `a memory holding nothing but a speech instruction still builds a prompt`() = runBlocking {
+        file().writeText(
+            Json.encodeToString(
+                MemoryStore(preferences = mutableMapOf("tutoiement" to MemEntry("Préfère être tutoyé", "2026-09-20")))
+            )
+        )
+        val prompt = MemoryManager(file(), now = { day("2026-09-25") }).formatForPrompt()
+
+        assertTrue(prompt.contains("- Tutoiement: Préfère être tutoyé"))
+        // Rien de descriptif à annoncer : l'en-tête du bloc « ce que tu sais » n'a pas lieu d'être.
+        assertFalse(prompt.contains("WHAT YOU KNOW ABOUT THIS PERSON"))
+    }
+
     private fun day(text: String): Long =
         java.time.LocalDate.parse(text).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
 
