@@ -11,6 +11,7 @@ import com.jarvis.android.device.confirmationReason
 import com.jarvis.android.device.findByText
 import com.jarvis.android.device.formatScreen
 import com.jarvis.android.device.parseDirection
+import com.jarvis.android.device.tappableSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
@@ -120,16 +121,35 @@ object ScreenTapTool : Tool {
         return withContext(Dispatchers.Default) {
             var index = args.optInt("index")
             val text = args["text"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            val snapshot = service.lastSnapshot() ?: return@withContext "Lisez d’abord l’écran avec screen_read."
+
+            // Par la voix, le modèle appuie souvent sans avoir lu l'écran : quand il désigne un texte, on lit
+            // pour lui au lieu de lui rendre la main (screen_scroll procède déjà ainsi). Un numéro, lui, ne
+            // veut rien dire sans la lecture qui l'a produit.
+            val first = service.lastSnapshot()
+            if (first == null && index != null) return@withContext "Lisez d’abord l’écran avec screen_read."
+            val opening = first ?: service.readScreen() ?: return@withContext ERROR_NO_SCREEN
+            var chosen = opening
+
             if (index == null) {
                 if (text.isBlank()) return@withContext "Indiquez le numéro ou le texte de l’élément."
-                when (val match = findByText(snapshot.elements, text)) {
-                    is ElementMatch.Found -> index = match.element.index
-                    is ElementMatch.None -> return@withContext "Aucun élément « $text » sur l’écran. Relisez l’écran."
+                var match = findByText(opening.elements, text)
+                if (match is ElementMatch.None && first != null) {
+                    // L'instantané peut dater d'avant la dernière action : on relit une fois avant d'abandonner,
+                    // plutôt que d'annoncer absent un élément qui est à l'écran.
+                    val refreshed = service.readScreen() ?: return@withContext ERROR_NO_SCREEN
+                    chosen = refreshed
+                    match = findByText(refreshed.elements, text)
+                }
+                when (val found = match) {
+                    is ElementMatch.Found -> index = found.element.index
+                    is ElementMatch.None -> return@withContext "Aucun élément « $text » sur l’écran. " +
+                        tappableSummary(chosen.elements)
                     is ElementMatch.Ambiguous -> return@withContext "Plusieurs éléments correspondent : " +
-                        match.candidates.joinToString("; ") { "[${it.index}] ${it.label}" } + ". Précisez le numéro."
+                        found.candidates.joinToString("; ") { "[${it.index}] ${it.role} « ${it.label} »" } +
+                        ". Précisez le numéro."
                 }
             }
+            val snapshot = chosen
             val element = service.elementAt(index) ?: return@withContext "Élément [$index] introuvable. Relisez l’écran."
             confirmationReason(snapshot.packageName, element, ctx.messageAutoSend)?.let { why ->
                 // "Skip confirmations" never applies to a screen that touches system security, permissions or app
@@ -148,7 +168,10 @@ object ScreenTapTool : Tool {
                     if (!approved) return@withContext "Action refusée par l’utilisateur : rien n’a été touché."
                 }
             }
-            report(service.tap(index), service)
+            // Le libellé retenu est renvoyé : maintenant que le rapprochement tolère la traduction et la faute
+            // de frappe, le modèle doit pouvoir constater ce qu'il a réellement touché.
+            val what = if (element.password) "••••" else element.label.take(60)
+            report(service.tap(index), service, "Appuyé sur « $what ».")
         }
     }
 }
@@ -229,12 +252,13 @@ object ScreenNavigateTool : Tool {
 }
 
 /** Waits for the screen to settle after an action, then tells the model what happened. */
-private suspend fun report(result: ActionResult, service: JarvisAccessibilityService): String =
+private suspend fun report(result: ActionResult, service: JarvisAccessibilityService, did: String? = null): String =
     when (result) {
         is ActionResult.Failed -> result.reason
         ActionResult.Done -> {
             delay(SETTLE_MS)
             val pkg = service.activePackage()
-            "Fait." + if (pkg != null) " Application au premier plan : ${service.appLabel(pkg)}. Relisez l’écran pour vérifier." else ""
+            (did ?: "Fait.") +
+                if (pkg != null) " Application au premier plan : ${service.appLabel(pkg)}. Relisez l’écran pour vérifier." else ""
         }
     }

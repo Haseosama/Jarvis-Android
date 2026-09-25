@@ -35,7 +35,7 @@ internal class BriefingCoordinator(private val container: JarvisContainer) {
         if (!pending) return false
         pending = false
         container.configStore.setLastBriefingDate(LocalDate.now().toString())
-        container.memoryManager.popLastSession()
+        container.memoryManager.markLastSessionBriefed()
         return true
     }
 }

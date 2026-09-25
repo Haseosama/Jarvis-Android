@@ -188,6 +188,28 @@ Accessibility → *Jarvis : contrôle du téléphone* (on Xiaomi/MIUI, if greyed
 Jarvis → ⋮ → *Allow restricted settings*). A switch in Jarvis' settings turns the tools off without
 touching the system setting, and the system switch can be turned off at any time.
 
+**Finding the thing to tap** (`device/ScreenMatch.kt`). Naming an element by its text used to mean « the label
+equals what was asked, or contains it ». That failed in one direction in particular: a request *longer* than the
+label never matched, so a model saying « Envoyer le message » or « le bouton Envoyer » missed the button reading
+`Envoyer`, got *Aucun élément*, read the screen again and retried — a wasted round trip, audible in a voice
+conversation. It also ignored language: an app's interface is in English while the user speaks French, and
+« Envoyer » never met `Send`. Matching is now graded, best tier wins: exact label, same words allowing for
+French/English equivalents of the common interface verbs (send, search, settings, cancel, delete…), one text
+being the start of the other, every asked word present in the label, every label word present in the request,
+plain substring either way, and last a bounded typo tolerance (nothing forgiven under five letters, where one
+letter already makes another word — `Nom` must not tap `Non`). Words that only designate the element or the
+gesture (« le bouton », « appuie sur ») are dropped from the request, never from the labels. A strict winner is
+required: candidates tied at the top are handed back for the model to pick a number, since a tap cannot be taken
+back. The same label carried by a list row and by the text inside it no longer counts as two candidates — when
+one contains the other on screen, the smaller one is kept. `screen_tap` by text now also reads the screen itself
+when nothing has been read yet (as `screen_scroll` already did) and reads it once more before reporting a miss,
+so a snapshot taken before the last action no longer hides an element that is on screen. A miss lists what can be
+tapped here instead of ending on a refusal, and a successful tap reports the label it actually hit (masked for a
+password field), which matters now that matching tolerates translation and typos. *Checked:* by unit tests
+(`ScreenMatchTest`) — the requests above, the safeguards against a wrong tap, the nesting, the dead-end listing.
+*Not checked:* on a real phone; the confirmation flow and the service itself are unchanged and remain covered
+only as described below.
+
 Safeguards (`device/ScreenModel.kt`, `actions/ScreenTools.kt`):
 - Taps on buttons that send, pay, delete, install, grant access, accept terms or call, and **every**
   tap inside Settings, the permission dialogs, the package installer and the system UI, need your
@@ -254,9 +276,46 @@ by the `DUMP` permission so only adb can call it; it is not in the release build
 ### More features (all switchable in the settings unless noted)
 
 - **Session summary and morning briefing** (`memory/Briefing*.kt`). When a voice session with at least two
-  exchanges ends, Gemini writes a one- or two-sentence summary (kept on the device, three at most). At the
-  first session of the day the assistant is asked to give a ~20 s briefing: the last summary and today's
-  reminders. Given once a day; the summary is only consumed when the briefing was really requested.
+  exchanges ends, Gemini writes a one- or two-sentence summary (kept on the device, twelve at most, the last
+  three quoted in the prompt). At the first session of the day the assistant is asked to give a ~20 s briefing:
+  the last summary not yet briefed and today's reminders. Given once a day; the summary is only marked as
+  briefed when the briefing was really requested. Until 0.9.5 the briefing *deleted* that summary and only three
+  were kept at all, so Jarvis lost the thread of what had been done as soon as it had mentioned it once.
+- **Finding a memory again** (`memory/MemoryRecall.kt`, tool `recall_memory`). The search behind `recall_memory`
+  used to compare raw substrings, which failed in both directions: « quel est le prénom de ma sœur ? » gave points
+  to every memory containing « de » or « ma » (a question of eight filler words brought back most of the file) and
+  none at all to the key `sister_name`, because the extractor writes its keys in English while the user speaks
+  French. It now drops the filler words of the question (never those of the memories, which stay indexed as they
+  are), compares stems so that « voitures » finds « voiture », carries a French/English table of equivalents
+  (« métier » ↔ `job`, « sœur » ↔ `sister`), forgives one or two characters to absorb a dictation slip
+  (« camile » → « Camille »), and ranks a memory that answers several words of the question above one that
+  repeats a single word. When nothing matches, the answer lists the subjects on file so the model can search
+  again with the right word instead of claiming it does not know. Two spellings of the same fact are also merged
+  on write rather than stored twice (`Ville`/`ville` everywhere, `ville`/`city` inside `identity`, where a fact has
+  only one value — elsewhere two neighbouring keys may well be two different people). Finally, what goes into the
+  prompt is no longer picked on the update date alone, which let three notes written yesterday push out the
+  sister's name learnt last year: each category carries a weight that freshness only tempers, and every category
+  keeps at least one line. *Checked:* by unit tests (`MemoryRecallTest`, `MemoryManagerTest`) — the questions
+  above, the precision on unrelated questions, the merging and the prompt budget. *Not checked:* on a real phone
+  with a real voice.
+- **Telling Jarvis how to speak to you** (`memory/SpeechStyle.kt`). « Tutoie-moi », « réponds plus court », « pas
+  d'emoji » were stored like any other preference and handed to the model under a heading that announces things
+  worth knowing about the user. Read as trivia, such a line is followed out of statistical politeness rather than
+  obligation, and it dilutes over a long conversation — unlike the address rule and the language rule, which are
+  stated as orders. A preference that says *how to speak* rather than *what the user likes* is now pulled out of
+  that descriptive block and placed first in the prompt, under a heading that presents it as a standing
+  instruction, with the reminder that a rule stated above it wins. It is not repeated as a fact: saying it twice
+  would weaken it and spend the budget twice. The sorting is done on the key, which the extractor writes short and
+  curated (`tutoiement`, `longueur_reponses`, `ton`), and only a handful of words that can mean nothing else are
+  accepted from the free-text value, so that « il aime les réponses courtes de son fils » stays an anecdote.
+  Language is deliberately excluded: an imperative rule already governs it higher up, and two competing
+  instructions on one subject are worth less than a single clear one. The block is capped at six lines and 400
+  characters, freshest first, since a new style instruction replaces the previous one more than it adds to it.
+  The system prompt and the `remember_fact` description now also tell the model to save such a request as soon as
+  it hears it, and to apply it immediately rather than waiting for the next conversation. *Checked:* by unit tests
+  (`SpeechStyleTest`, `MemoryManagerTest`) — the sorting in both directions, the caps, the promotion into the
+  prompt and the absence of repetition. *Not checked:* whether the model obeys the instruction more faithfully in
+  a real long conversation, which is the whole point and can only be judged in use.
 - **What Jarvis remembers after a session** (`memory/MemoryExtraction.kt`, `rest/RestChat.kt`). Until 0.4.4 it kept only what the model
   explicitly saved with `remember_fact`. Now, when a session with at least two exchanges ends, one Gemini call reads the conversation and
   returns a summary and the lasting facts the user gave about themselves (name, city, tastes, projects, people, wishes: at most 8, never a

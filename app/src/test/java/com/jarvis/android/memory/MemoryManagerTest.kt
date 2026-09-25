@@ -5,6 +5,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -49,7 +50,7 @@ class MemoryManagerTest {
             expectIoFailure { memory.forget("clé") }
             expectIoFailure { memory.update(mapOf("notes" to mapOf("clé" to "valeur"))) }
             expectIoFailure { memory.saveSessionSummary("Résumé") }
-            expectIoFailure { memory.popLastSession() }
+            expectIoFailure { memory.markLastSessionBriefed() }
             assertEquals(text, file().readText())
         }
     }
@@ -175,6 +176,135 @@ class MemoryManagerTest {
     }
 
     @Test
+    fun `a question in french finds a fact stored under an english key`() = runBlocking {
+        val memory = MemoryManager(file())
+        memory.remember("sister_name", "Sa sœur s'appelle Camille", "relationships")
+        memory.remember("job", "Il est développeur back-end", "identity")
+        assertTrue(memory.search("quel est le prénom de ma sœur ?").contains("relationships/sister name:"))
+        assertTrue(memory.search("où je travaille").contains("identity/job:"))
+        // La question ne parle ni du métier ni de la sœur : rien ne doit remonter.
+        assertTrue(memory.search("la recette du gâteau au chocolat").startsWith("Nothing stored about"))
+    }
+
+    @Test
+    fun `an unknown subject answers with the subjects on file`() = runBlocking {
+        val memory = MemoryManager(file())
+        memory.remember("boisson", "Café noir", "preferences")
+        val answer = memory.search("mon numéro de sécurité sociale")
+        assertTrue(answer.startsWith("Nothing stored about"))
+        // Le modèle peut relancer avec le bon mot au lieu d'affirmer qu'il ne sait rien.
+        assertTrue(answer.contains("boisson"))
+    }
+
+    @Test
+    fun `two spellings of the same fact do not become two contradictory memories`() = runBlocking {
+        val memory = MemoryManager(file())
+        memory.remember("city", "Bordeaux", "identity")
+        memory.remember("ville", "Lyon", "identity")
+        assertEquals(1, memory.load().identity.size)
+        assertEquals("Lyon", memory.load().identity.getValue("city").value)
+
+        memory.remember("Chien", "Pixel", "relationships")
+        memory.remember("chiens", "Pixel, un berger australien", "relationships")
+        assertEquals(1, memory.load().relationships.size)
+
+        // Hors identité, deux clés voisines peuvent désigner deux personnes : rien n'est fusionné.
+        memory.remember("ami_paul", "Paul, son collègue", "relationships")
+        memory.remember("ami_pauline", "Pauline, sa voisine", "relationships")
+        assertEquals(3, memory.load().relationships.size)
+    }
+
+    @Test
+    fun `forgetting a fact works whatever spelling of the key is used`() = runBlocking {
+        val memory = MemoryManager(file())
+        memory.remember("city", "Bordeaux", "identity")
+        assertTrue(memory.forgetChange("ville", "identity").changed)
+        assertTrue(memory.load().identity.isEmpty())
+    }
+
+    @Test
+    fun `a lasting fact is not pushed out of the prompt by fresh throwaway notes`() = runBlocking {
+        val filler = "à traiter dans la semaine ".repeat(6)
+        file().writeText(
+            Json.encodeToString(
+                MemoryStore(
+                    relationships = mutableMapOf("sister_name" to MemEntry("Sa sœur s'appelle Camille", "2025-02-11")),
+                    notes = (1..6).associate {
+                        "note$it" to MemEntry("Rappel de passage numéro $it : $filler".take(135), "2026-09-24")
+                    }.toMutableMap(),
+                )
+            )
+        )
+        val prompt = MemoryManager(file(), now = { day("2026-09-25") }).formatForPrompt()
+
+        assertTrue(prompt.contains("Sister name: Sa sœur s'appelle Camille"))
+        // Le budget doit bien être saturé, sinon le test ne prouverait rien : au moins une note est
+        // renvoyée à l'index « ALSO REMEMBERED » au lieu d'être écrite en entier.
+        assertTrue(prompt.contains("ALSO REMEMBERED"))
+    }
+
+    @Test
+    fun `every category keeps a place in the prompt`() = runBlocking {
+        // Six notes fraîches remplissent exactement le budget : sans réservation par catégorie, les
+        // préférences et les relations n'apparaîtraient plus du tout.
+        val long = "x".repeat(138)
+        file().writeText(
+            Json.encodeToString(
+                MemoryStore(
+                    preferences = mutableMapOf("boisson" to MemEntry("Café noir", "2026-09-01")),
+                    relationships = mutableMapOf("soeur" to MemEntry("Camille", "2026-09-01")),
+                    notes = (1..6).associate { "note$it" to MemEntry(long, "2026-09-24") }.toMutableMap(),
+                )
+            )
+        )
+        val prompt = MemoryManager(file(), now = { day("2026-09-25") }).formatForPrompt()
+        assertTrue(prompt.contains("Boisson: Café noir"))
+        assertTrue(prompt.contains("Soeur: Camille"))
+    }
+
+    @Test
+    fun `a speech preference is stated as an instruction, not as a fact about the person`() = runBlocking {
+        file().writeText(
+            Json.encodeToString(
+                MemoryStore(
+                    preferences = mutableMapOf(
+                        "tutoiement" to MemEntry("Préfère être tutoyé", "2026-09-20"),
+                        "boisson" to MemEntry("Café noir", "2026-09-20"),
+                    ),
+                )
+            )
+        )
+        val prompt = MemoryManager(file(), now = { day("2026-09-25") }).formatForPrompt()
+
+        // La consigne ouvre l'invite, avant tout ce qui est simplement bon à savoir.
+        assertTrue(prompt.startsWith(SPEECH_STYLE_HEADER))
+        assertTrue(prompt.contains("- Tutoiement: Préfère être tutoyé"))
+        // Et elle n'est pas répétée dans le descriptif : la dire deux fois l'affaiblirait et coûterait le
+        // budget deux fois.
+        assertEquals(1, prompt.split("Tutoiement").size - 1)
+        // Le goût, lui, reste un fait.
+        assertTrue(prompt.contains("Preferences:"))
+        assertTrue(prompt.contains("Boisson: Café noir"))
+    }
+
+    @Test
+    fun `a memory holding nothing but a speech instruction still builds a prompt`() = runBlocking {
+        file().writeText(
+            Json.encodeToString(
+                MemoryStore(preferences = mutableMapOf("tutoiement" to MemEntry("Préfère être tutoyé", "2026-09-20")))
+            )
+        )
+        val prompt = MemoryManager(file(), now = { day("2026-09-25") }).formatForPrompt()
+
+        assertTrue(prompt.contains("- Tutoiement: Préfère être tutoyé"))
+        // Rien de descriptif à annoncer : l'en-tête du bloc « ce que tu sais » n'a pas lieu d'être.
+        assertFalse(prompt.contains("WHAT YOU KNOW ABOUT THIS PERSON"))
+    }
+
+    private fun day(text: String): Long =
+        java.time.LocalDate.parse(text).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    @Test
     fun `truncation preserves surrogate pairs and reports stored value`() = runBlocking {
         val memory = MemoryManager(file())
         val result = memory.remember("clé", "x".repeat(379) + "\uD83D\uDE00" + "z")
@@ -184,12 +314,41 @@ class MemoryManagerTest {
     }
 
     @Test
-    fun `sessions retain last three and pop persists`() = runBlocking {
+    fun `sessions keep a year of history instead of the last three`() = runBlocking {
         val memory = MemoryManager(file())
-        repeat(4) { memory.saveSessionSummary("Résumé $it", "fr") }
-        assertEquals(listOf("Résumé 1", "Résumé 2", "Résumé 3"), memory.load().sessions.map { it.summary })
-        assertEquals("Résumé 3", memory.popLastSession()?.summary)
+        repeat(MAX_SESSION_SUMMARIES + 2) { memory.saveSessionSummary("Résumé $it", "fr") }
+        val kept = memory.load().sessions.map { it.summary }
+        assertEquals(MAX_SESSION_SUMMARIES, kept.size)
+        assertEquals("Résumé 2", kept.first())
+        assertEquals("Résumé ${MAX_SESSION_SUMMARIES + 1}", kept.last())
+    }
+
+    @Test
+    fun `a briefed summary stays in history and is not offered twice`() = runBlocking {
+        val memory = MemoryManager(file())
+        memory.saveSessionSummary("Résumé ancien")
+        memory.saveSessionSummary("Résumé récent")
+        assertEquals("Résumé récent", memory.peekLastSession()?.summary)
+        assertEquals("Résumé récent", memory.markLastSessionBriefed()?.summary)
+
+        // Le briefing supprimait le résumé ; il doit maintenant rester lisible pour les sessions suivantes.
+        val reloaded = MemoryManager(file())
+        assertEquals(listOf("Résumé ancien", "Résumé récent"), reloaded.load().sessions.map { it.summary })
+        assertEquals(listOf(false, true), reloaded.load().sessions.map { it.briefed })
+        assertEquals("Résumé ancien", reloaded.peekLastSession()?.summary)
+
+        assertEquals("Résumé ancien", reloaded.markLastSessionBriefed()?.summary)
+        assertNull(reloaded.markLastSessionBriefed())
+        assertNull(reloaded.peekLastSession())
         assertEquals(2, MemoryManager(file()).load().sessions.size)
+    }
+
+    @Test
+    fun `an old memory file without the briefed flag still loads`() = runBlocking {
+        file().writeText("""{"sessions":[{"date":"2026-01-01","summary":"Ancien format"}]}""")
+        val memory = MemoryManager(file())
+        assertEquals("Ancien format", memory.peekLastSession()?.summary)
+        assertTrue(memory.formatForPrompt().contains("Ancien format"))
     }
 
     private suspend fun expectIoFailure(block: suspend () -> Any?) {
