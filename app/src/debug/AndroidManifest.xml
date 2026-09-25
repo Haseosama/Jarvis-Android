@@ -20,6 +20,14 @@
             </intent-filter>
         </receiver>
         <receiver
+            android:name="com.jarvis.android.debug.DebugPlaceReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.jarvis.android.DEBUG_PLACE" />
+            </intent-filter>
+        </receiver>
+        <receiver
             android:name="com.jarvis.android.debug.DebugAvatarReceiver"
             android:exported="true"
             android:permission="android.permission.DUMP">

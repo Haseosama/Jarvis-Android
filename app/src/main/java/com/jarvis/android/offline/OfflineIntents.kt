@@ -33,7 +33,7 @@ internal fun normalize(text: String): String {
 
 internal const val OFFLINE_HELP =
     "Sans connexion, je sais ouvrir une application, appeler un contact, régler le volume ou la luminosité, allumer la lampe, " +
-        "gérer la musique, lancer un minuteur, gérer une liste de courses ou de tâches, dire l’heure, la date et la batterie, " +
+        "gérer la musique, lancer un minuteur, gérer une liste de courses ou de tâches, noter une dépense et dire combien vous avez dépensé, noter un médicament pris, faire sonner le téléphone pour le retrouver, dire l’heure, la date et la batterie, " +
         "ouvrir les réglages, verrouiller l’écran et faire une capture d’écran."
 
 private val END = Regex("^(au revoir|a plus|a plus tard|a bientot|bonne nuit|stop|arrete|arrete toi|termine|c est tout|mets toi en veille|en veille)( jarvis)?$")
@@ -65,6 +65,29 @@ private val LIST_DONE_SIMPLE = Regex("^(?:coche|j ai fait) (.+)$")
 private val LIST_REMOVE = Regex("^(?:retire|enleve|supprime) (.+?) (?:de |sur )(?:ma |la |mes )?liste(?: de| d)?(?: (.+))?$")
 private val LIST_SHOW = Regex("^(?:qu est ce qu il y a sur|qu y a t il sur|montre moi|montre|lis moi|lis|dis moi ce qu il y a sur) (?:ma |la |mes )?liste(?: de| d)?(?: (.+))?$")
 private val LIST_CLEAR = Regex("^vide(?: moi)? (?:ma |la |mes )?liste(?: de| d)?(?: (.+))?$")
+
+// Spending. normalize() turns "12,50 €" into "12 50" and "12 € 50" into "12 50" too, so the cents are the second number.
+private val EXPENSE_ADD = Regex("^(?:j ai depense|j ai paye|note une depense de|ajoute une depense de|depense de) (\\d+)(?: euros?| eur)?(?: (\\d{1,2}))?(?: euros?| centimes?)?(?: (?:au|a la|a l|aux|en|pour|chez|de la|de l|des|du|de|dans|a) (.+))?$")
+private val EXPENSE_SUMMARY = Regex("^(?:combien (?:j ai|ai je|est ce que j ai) depense|(?:le )?total (?:de mes|des) depenses|mes depenses)(.*)$")
+private val EXPENSE_UNDO = Regex("^(?:annule|supprime|retire|efface) (?:la )?derniere depense$")
+
+// Finding the phone: said from across the room, through the wake word.
+private val FIND_PHONE = Regex("^(?:jarvis )?(?:ou es tu|t es ou|ou est mon telephone|ou est le telephone|ou est mon portable|fais sonner (?:le |mon )?(?:telephone|portable)|sonne|retrouve (?:mon |le )?(?:telephone|portable))$")
+private val STOP_RING = Regex("^(?:arrete de sonner|arrete la sonnerie|stop la sonnerie|coupe la sonnerie|(?:c est bon )?je t ai trouve)$")
+
+// Medications and habits.
+private val HABIT_DONE = Regex("^(?:j ai pris|j ai bien pris) (?:mon |ma |mes |le |la |les )?(.+)$")
+private val HABIT_DONE_BARE = Regex("^(?:c est fait|c est bon c est fait|voila c est fait)$")
+private val HABIT_STATUS = Regex("^(?:est ce que j ai pris|est ce que j ai deja pris|ai je pris|j ai pris ou pas) (?:mon |ma |mes |le |la |les )?(.+?)(?: aujourd hui)?$")
+
+/** The period words of a spending question: "cette semaine", "aujourd hui"… (month when none). */
+internal fun spokenPeriod(rest: String): String = when {
+    "semaine" in rest -> "semaine"
+    "aujourd hui" in rest || " jour" in " $rest" -> "jour"
+    "annee" in rest -> "année"
+    "en tout" in rest || "au total" in rest || "depuis le debut" in rest -> "tout"
+    else -> "mois"
+}
 
 private val CALL = Regex("^(?:appelle|appeler|telephone a|passe un appel a|contacte|joins|phone a) (.+)$")
 private val SMS = Regex("^(?:ecris|envoie|redige) (?:un |une )?(?:sms|message|texto)(?: a| pour)? (.+)$")
@@ -153,6 +176,25 @@ internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): O
     }
     LIST_SHOW.find(n)?.let { return OfflineAction.ToolCall("task_list", taskArgs("list", list = it.groupValues.getOrNull(1)), "", format = { it }) }
     LIST_CLEAR.find(n)?.let { return OfflineAction.ToolCall("task_list", taskArgs("clear", list = it.groupValues.getOrNull(1)), "Liste vidée.", format = { it }) }
+
+    if (FIND_PHONE.matches(n)) return OfflineAction.ToolCall("find_phone", mapOf("action" to "ring"), "Je suis ici !")
+    if (STOP_RING.matches(n)) return OfflineAction.ToolCall("find_phone", mapOf("action" to "stop"), "Sonnerie arrêtée.")
+
+    // The status question first: "est ce que j ai pris mon medicament" would otherwise also match "j ai pris …".
+    HABIT_STATUS.find(n)?.let { m -> return OfflineAction.ToolCall("habits", mapOf("action" to "status", "name" to m.groupValues[1].trim()), "", format = { it }) }
+    HABIT_DONE.find(n)?.let { m -> return OfflineAction.ToolCall("habits", mapOf("action" to "done", "name" to m.groupValues[1].trim()), "C’est noté.", format = { it }) }
+    if (HABIT_DONE_BARE.matches(n)) return OfflineAction.ToolCall("habits", mapOf("action" to "done"), "C’est noté.", format = { it })
+
+    EXPENSE_ADD.find(n)?.let { m ->
+        val cents = m.groupValues[2].takeIf { it.isNotEmpty() }?.padEnd(2, '0') ?: "00"
+        val args = mutableMapOf("action" to "add", "amount" to "${m.groupValues[1]},$cents")
+        m.groupValues[3].trim().takeIf { it.isNotEmpty() }?.let { args["category"] = it }
+        return OfflineAction.ToolCall("expenses", args, "Dépense notée.", format = { it })
+    }
+    EXPENSE_UNDO.find(n)?.let { return OfflineAction.ToolCall("expenses", mapOf("action" to "remove_last"), "Dernière dépense retirée.", format = { it }) }
+    EXPENSE_SUMMARY.find(n)?.let { m ->
+        return OfflineAction.ToolCall("expenses", mapOf("action" to "summary", "period" to spokenPeriod(m.groupValues[1])), "", format = { it })
+    }
 
     WIFI.find(n)?.let { return settings("wifi") }
     SETTINGS.find(n)?.let { m ->

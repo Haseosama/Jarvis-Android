@@ -21,6 +21,8 @@ class BootReceiver : BroadcastReceiver() {
                     Log.i("JarvisReminders", "Rappels reprogrammés après redémarrage : ${reminders.reprogrammed}, manqués : ${reminders.missed}, échecs : ${reminders.failed}.")
                     val timers = TimerService.rescheduleAll(appContext)
                     Log.i("JarvisTimers", "Minuteurs reprogrammés après redémarrage : ${timers.reprogrammed}, manqués : ${timers.missed}, échecs : ${timers.failed}.")
+                    com.jarvis.android.habits.HabitAlarms.reschedule(appContext)
+                    com.jarvis.android.places.Geofences.registerAll(appContext) // a reboot clears every geofence
                 } catch (_: Exception) {
                     Log.e("JarvisReminders", "Reprogrammation impossible après redémarrage.")
                 } finally {

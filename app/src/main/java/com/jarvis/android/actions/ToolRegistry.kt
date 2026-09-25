@@ -71,6 +71,10 @@ object ToolRegistry {
         SpotifyTool,
         AirQualityTool,
         PlanesOverheadTool,
+        ExpensesTool,
+        HabitsTool,
+        FindPhoneTool,
+        PlaceReminderTool,
     )
 
     private val byName = ALL.associateBy { it.name }

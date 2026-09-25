@@ -109,6 +109,15 @@ class JarvisContainer(val appContext: Context) {
     /** Shopping and to-do lists, shared by the online and the offline mode (see tasks/TaskListStore.kt). */
     internal val taskListStore = com.jarvis.android.tasks.TaskListStore(java.io.File(appContext.filesDir, "task_lists.json"))
 
+    /** Spending noted by voice (see expenses/ExpenseStore.kt). */
+    internal val expenseStore = com.jarvis.android.expenses.ExpenseStore(java.io.File(appContext.filesDir, "expenses.json"))
+
+    /** Medications and habits at fixed times, with their log (see habits/Habits.kt). */
+    internal val habitStore = com.jarvis.android.habits.HabitStore(java.io.File(appContext.filesDir, "habits.json"))
+
+    /** Named places and location reminders (see places/PlaceReminders.kt). */
+    internal val placeStore = com.jarvis.android.places.PlaceStore(java.io.File(appContext.filesDir, "place_reminders.json"))
+
     internal val agent: com.jarvis.android.agent.AgentRunner by lazy { com.jarvis.android.agent.AgentRunner(this, appScope) }
 
     /** Text chat over generateContent; independent of the Live session. */
@@ -142,6 +151,11 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch { configStore.avatarLips.collect { avatar.lips = it } }
         appScope.launch { configStore.avatarCap.collect { avatar.cap = it } }
         com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)
+        // Habit alarms and geofences are gone after a force-stop: armed again at every start (both are idempotent).
+        appScope.launch(Dispatchers.IO) {
+            try { com.jarvis.android.habits.HabitAlarms.reschedule(appContext) } catch (_: Exception) {}
+            try { com.jarvis.android.places.Geofences.registerAll(appContext) } catch (_: Exception) {}
+        }
         com.jarvis.android.watch.WatchScheduler.sync(appContext)
         appScope.launch { configStore.audioInputKey.collect { com.jarvis.android.core.AudioRoute.inputKey = it } }
         appScope.launch { configStore.audioOutputKey.collect { com.jarvis.android.core.AudioRoute.outputKey = it } }

@@ -38,8 +38,8 @@ android {
         applicationId = "com.jarvis.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 63
-        versionName = "0.9.6"
+        versionCode = 64
+        versionName = "0.9.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -124,6 +124,9 @@ dependencies {
 
     // Google sign-in for Gmail and Drive (the Authorization API).
     implementation("com.google.android.gms:play-services-auth:21.2.0")
+
+    // Location reminders ("quand j'arrive à la maison…"): Android's geofencing, which wakes the app only at the boundary
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 
     // Reminders
     implementation("androidx.work:work-runtime-ktx:2.9.1")

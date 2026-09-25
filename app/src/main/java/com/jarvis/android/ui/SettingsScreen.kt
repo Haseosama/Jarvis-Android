@@ -13,6 +13,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Euro
+import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.animation.AnimatedVisibility
@@ -1401,6 +1404,150 @@ fun SettingsScreen(
                     onClick = { scope.launch { taskListStore.clearDone(com.jarvis.android.tasks.DEFAULT_LIST_NAME); listTick++ } },
                     modifier = Modifier.padding(top = 8.dp),
                 ) { Text(tr("Retirer ce qui est coché")) }
+            }
+            }
+            SettingsCard(tr("Dépenses"), Icons.Filled.Euro, initiallyExpanded = false) {
+            val expenseStore = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.expenseStore }
+            var expenseTick by remember { mutableStateOf(0) }
+            var expenseSummary by remember { mutableStateOf("") }
+            var recentExpenses by remember { mutableStateOf<List<com.jarvis.android.expenses.Expense>>(emptyList()) }
+            LaunchedEffect(expenseTick) {
+                val month = expenseStore.inPeriod(com.jarvis.android.expenses.ExpensePeriod.MONTH)
+                expenseSummary = com.jarvis.android.expenses.summarize(month, com.jarvis.android.expenses.ExpensePeriod.MONTH)
+                recentExpenses = expenseStore.inPeriod(com.jarvis.android.expenses.ExpensePeriod.ALL).takeLast(10).reversed()
+            }
+            Text(
+                tr("Dites « j’ai dépensé 12 euros au restaurant », puis « combien j’ai dépensé ce mois-ci ? » (ou cette semaine, aujourd’hui, cette année). Gardé sur le téléphone seulement, marche aussi hors ligne."),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(expenseSummary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+            recentExpenses.forEach { e ->
+                Text(
+                    com.jarvis.android.expenses.describeExpense(e, java.time.ZoneId.systemDefault()),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            if (recentExpenses.isNotEmpty()) {
+                OutlinedButton(
+                    onClick = { scope.launch { expenseStore.removeLast(); expenseTick++ } },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text(tr("Retirer la dernière dépense")) }
+            }
+            }
+            SettingsCard(tr("Médicaments et habitudes"), Icons.Filled.Medication, initiallyExpanded = false) {
+            val habitStore = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.habitStore }
+            var habitTick by remember { mutableStateOf(0) }
+            var habitLines by remember { mutableStateOf<List<Pair<com.jarvis.android.habits.Habit, String>>>(emptyList()) }
+            var exactAllowed by remember { mutableStateOf(com.jarvis.android.habits.HabitAlarms.exactAlarmsAllowed(context0)) }
+            LaunchedEffect(habitTick) {
+                val data = withContext(Dispatchers.IO) { habitStore.load() }
+                val zone = java.time.ZoneId.systemDefault()
+                val now = java.time.LocalDateTime.now(zone)
+                habitLines = data.habits.map { it to com.jarvis.android.habits.todayStatus(it, data.log, now, zone) }
+                exactAllowed = com.jarvis.android.habits.HabitAlarms.exactAlarmsAllowed(context0)
+            }
+            Text(
+                tr("Dites « rappelle-moi mon médicament à 8 h tous les jours » ou « boire de l’eau à 10 h, 14 h et 17 h ». À chaque heure, Jarvis vous le dit et affiche une notification « Fait » / « Pas cette fois » ; « j’ai pris mon médicament » le note aussi. Un aide-mémoire : il ne remplace ni un pilulier ni l’avis d’un médecin."),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            if (!exactAllowed && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                Text(
+                    tr("Android ne permet pas encore à Jarvis de sonner à l’heure exacte : un rappel peut arriver jusqu’à une heure en retard."),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                OutlinedButton(
+                    onClick = {
+                        try {
+                            context0.startActivity(
+                                android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                    .setData(android.net.Uri.parse("package:" + context0.packageName))
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        } catch (_: Exception) {
+                        }
+                    },
+                    modifier = Modifier.padding(top = 4.dp),
+                ) { Text(tr("Autoriser les alarmes exactes")) }
+            }
+            if (habitLines.isEmpty()) {
+                Text(tr("Aucune habitude ni aucun médicament enregistré."), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+            }
+            habitLines.forEach { (habit, status) ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text(com.jarvis.android.habits.describeHabit(habit), style = MaterialTheme.typography.bodyMedium)
+                        Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = {
+                        scope.launch {
+                            withContext(Dispatchers.IO) { habitStore.remove(habit.id) }
+                            com.jarvis.android.habits.HabitAlarms.reschedule(context0)
+                            habitTick++
+                        }
+                    }) { Icon(Icons.Filled.Close, contentDescription = tr("Retirer")) }
+                }
+            }
+            }
+            SettingsCard(tr("Rappels selon le lieu"), Icons.Filled.Place, initiallyExpanded = false) {
+            val placeStore = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.placeStore }
+            var placeTick by remember { mutableStateOf(0) }
+            var placeProblem by remember { mutableStateOf(com.jarvis.android.places.placePermissionProblem(context0)) }
+            var placeData by remember { mutableStateOf(com.jarvis.android.places.PlaceData()) }
+            val askFine = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) {
+                placeProblem = com.jarvis.android.places.placePermissionProblem(context0); placeTick++
+            }
+            val askBackground = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {
+                placeProblem = com.jarvis.android.places.placePermissionProblem(context0); placeTick++
+            }
+            LaunchedEffect(placeTick) {
+                placeData = withContext(Dispatchers.IO) { placeStore.load() }
+                placeProblem = com.jarvis.android.places.placePermissionProblem(context0)
+                if (placeProblem == null) withContext(Dispatchers.IO) { com.jarvis.android.places.Geofences.registerAll(context0) }
+            }
+            Text(
+                tr("« Rappelle-moi d’acheter du pain quand je passe près de la boulangerie », « quand j’arrive à la maison, allume la lumière du salon ». Enregistrez d’abord vos lieux en y étant : « retiens que la maison c’est ici ». Android surveille les zones lui-même, sans vider la batterie ; il faut la position précise, autorisée « tout le temps »."),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            val fineGranted = androidx.core.content.ContextCompat.checkSelfPermission(context0, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (placeProblem != null) {
+                Text(if (!fineGranted) tr("Étape 1 : autorisez la position précise.") else tr("Étape 2 : choisissez « Toujours autoriser » pour que les rappels marchent quand Jarvis est fermé."),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+                OutlinedButton(
+                    onClick = {
+                        if (!fineGranted) askFine.launch(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION))
+                        else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) askBackground.launch(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                    },
+                    modifier = Modifier.padding(top = 4.dp),
+                ) { Text(if (!fineGranted) tr("Autoriser la position précise") else tr("Autoriser « Toujours »")) }
+            } else {
+                Text(tr("Position autorisée ✓"), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+            }
+            if (placeData.places.isNotEmpty()) {
+                Text(tr("Lieux enregistrés"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp))
+                placeData.places.forEach { p ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text("${p.name} — ${p.label}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { scope.launch { withContext(Dispatchers.IO) { placeStore.forgetPlace(p.name) }; placeTick++ } }) {
+                            Icon(Icons.Filled.Close, contentDescription = tr("Retirer"))
+                        }
+                    }
+                }
+            }
+            Text(tr("Rappels"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp))
+            if (placeData.reminders.isEmpty()) Text(tr("Aucun rappel de lieu."), style = MaterialTheme.typography.bodySmall)
+            placeData.reminders.forEach { r ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text(com.jarvis.android.places.describeReminder(r), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    IconButton(onClick = {
+                        scope.launch {
+                            withContext(Dispatchers.IO) { placeStore.remove(listOf(r.id)); com.jarvis.android.places.Geofences.registerAll(context0) }
+                            placeTick++
+                        }
+                    }) { Icon(Icons.Filled.Close, contentDescription = tr("Retirer")) }
+                }
             }
             }
             SettingsCard(tr("Maison connectée"), Icons.Filled.Home, initiallyExpanded = false) {

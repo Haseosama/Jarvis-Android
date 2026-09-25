@@ -67,6 +67,8 @@ the user's own Home Assistant server, see "Maison connectée"), `translate` (tra
 text into a named language without switching the language of the conversation itself), `spotify_search`
 (opens Spotify's own search for a title, artist or playlist; the user picks and plays it — see below),
 `air_quality` (air quality index and pollen), `planes_overhead` (aircraft flying around the phone),
+`expenses` (spending by voice), `habits` (medications and habits at fixed times), `find_phone` (rings the phone
+loud to find it), `place_reminder` (reminders on arriving at or leaving a place) — see "Four everyday helpers",
 and the phone-control tools below.
 
 `end_session` lets you close the voice session by voice ("arrête la session"): the model says
@@ -489,6 +491,50 @@ Two plugins were also added to the catalogue (no key, `open` type): **`suivi_col
 Colissimo tracking for a parcel number, and **`trafic_routier`** opens Google Maps on a place with the live
 traffic layer. The next buses and metros to a destination were already covered by `itineraire` with
 `mode = transit`.
+
+### Four everyday helpers
+
+- **Spending** (`expenses`, `expenses/ExpenseStore.kt`, Settings > *Dépenses*). "J'ai dépensé 12 euros au restaurant",
+  then "combien j'ai dépensé ce mois-ci / cette semaine / aujourd'hui ?": a total and one per category, biggest first;
+  "annule la dernière dépense" takes the last one back. Amounts are kept in cents (no floating-point crumbs in totals),
+  read the ways they are said or typed ("12,50", "12 euros 50", "12€50", "1 200"), capped at a million against a misheard
+  number; categories fold case, accents and a leading article so "Au restaurant" and "restaurant" add up. On the phone
+  only (`expenses.json`), and understood offline too — where the recogniser's "12,50 €" arrives as "12 50" once folded,
+  so the offline rule reads the cents as a second number.
+- **Medications and habits** (`habits`, `habits/`, Settings > *Médicaments et habitudes*). "Rappelle-moi mon médicament à
+  8 h et 20 h tous les jours", "boire de l'eau à 10 h, 14 h et 17 h", "sport lundi et jeudi à 18 h". One exact alarm is
+  armed at a time, for the next slot of any habit (re-armed after each change, at start-up and after a reboot); when it
+  rings Jarvis says it and shows a notification whose "Fait" / "Pas cette fois" buttons only write the answer in a log.
+  "J'ai pris mon médicament" or a bare "c'est fait" does the same by voice (the generic word means the only medicine
+  saved; "c'est fait" means the habit that was just due) — an answer counts for a slot up to an hour early and twelve
+  hours late. "Est-ce que j'ai pris mon médicament ?" reads today's slots (done at what time, skipped, not noted, not due
+  yet); "combien j'en ai oublié cette semaine ?" counts the past slots of the last 7 or 30 days and names the ones not
+  noted. It is a memory aid: the tool and the system prompt tell the model never to give dosage or treatment advice.
+  Android 12+ only lets an app ring "around" a time unless *Alarms & reminders* is allowed — up to an hour late — so the
+  card shows a button for it and the tool says so when creating one.
+- **Find the phone** (`find_phone`, `device/PhoneRinger.kt`). "Où es-tu ?", "où est mon téléphone ?", "fais sonner le
+  téléphone" — through the wake word, online or offline. It rings on the ALARM stream (which silent mode does not mute),
+  turned to maximum for the ring and put back afterwards, vibrates, and shows a "Trouvé" notification; it stops after a
+  minute, on "arrête de sonner" / "je t'ai trouvé", or with the button. When the phone has no usable ringtone a generated
+  alarm tone plays instead.
+- **Location reminders** (`place_reminder`, `places/`, Settings > *Rappels selon le lieu*). "Rappelle-moi d'acheter du
+  pain quand je passe près de la boulangerie", "quand j'arrive à la maison, allume la lumière du salon", "quand je quitte
+  le bureau, rappelle-moi d'appeler Paul". Places are saved once, while there ("retiens que la maison c'est ici"), or
+  looked up as an address or a shop — within ~20 km of the phone first, so "la boulangerie" is one nearby. Android's own
+  geofencing (Play services) watches the circles (150 m by default; below ~100 m it gets unreliable) and wakes Jarvis
+  only at the boundary; a reboot clears every geofence, so they are registered again at boot and at start-up. When one
+  fires: a notification and a spoken reminder, and, if the reminder has a task, Jarvis carries it out in the background the
+  way a routine does and shows the result. One-offs are deleted after firing; repeating ones wait 30 minutes before firing
+  again. Needs the precise position allowed "all the time" (two steps, both in the card).
+- *Checked*: unit tests for the pure rules of all four (27 cases: amounts, periods, categories, slots and answers,
+  adherence, triggers, place names, cooldowns, and the offline phrases). On the emulator: a spending noted and summed;
+  a habit alarm that rang with its notification, whose "Done" button logged "fait à 20 h 23" and armed the next day's slot;
+  the phone ringing on the alarm stream in silent mode, volume raised to 7/7 and put back to 6/7, stopped by the button
+  and by voice; a place saved at the emulator's position, a reminder registered with Play services' geofencer (visible in
+  `dumpsys location`), and a fired reminder showing its notification and running its task. *Not checked*: a geofence
+  firing by itself — the emulator's network location provider is off and Play services' low-power geofencing never
+  sees its simulated GPS fixes, so a debug-only `DEBUG_PLACE` trigger stands in for the crossing; on a phone, Wi-Fi and
+  cell positions feed it.
 
 ### Plugins and self-knowledge
 
