@@ -75,6 +75,10 @@ private val EXPENSE_UNDO = Regex("^(?:annule|supprime|retire|efface) (?:la )?der
 private val FIND_PHONE = Regex("^(?:jarvis )?(?:ou es tu|t es ou|ou est mon telephone|ou est le telephone|ou est mon portable|fais sonner (?:le |mon )?(?:telephone|portable)|sonne|retrouve (?:mon |le )?(?:telephone|portable))$")
 private val STOP_RING = Regex("^(?:arrete de sonner|arrete la sonnerie|stop la sonnerie|coupe la sonnerie|(?:c est bon )?je t ai trouve)$")
 
+// The car's spot.
+private val PARK_SAVE = Regex("^(?:retiens|note|enregistre|memorise|souviens toi de) (?:ou|l endroit ou) (?:je me suis gare|je suis gare|j ai gare la voiture|j ai gare ma voiture|est garee la voiture|est garee ma voiture)(?: (.+))?$|^(?:je suis gare ici|je me suis gare ici|je me gare ici)$")
+private val PARK_FIND = Regex("^(?:ou est (?:ma|la) voiture|ou est ce que je me suis gare|ou je me suis gare|ou est ce que j ai gare (?:ma|la) voiture|ou ai je gare (?:ma|la) voiture|ramene moi a (?:ma|la) voiture)$")
+
 // Medications and habits.
 private val HABIT_DONE = Regex("^(?:j ai pris|j ai bien pris) (?:mon |ma |mes |le |la |les )?(.+)$")
 private val HABIT_DONE_BARE = Regex("^(?:c est fait|c est bon c est fait|voila c est fait)$")
@@ -177,6 +181,16 @@ internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): O
     LIST_SHOW.find(n)?.let { return OfflineAction.ToolCall("task_list", taskArgs("list", list = it.groupValues.getOrNull(1)), "", format = { it }) }
     LIST_CLEAR.find(n)?.let { return OfflineAction.ToolCall("task_list", taskArgs("clear", list = it.groupValues.getOrNull(1)), "Liste vidée.", format = { it }) }
 
+    PARK_SAVE.find(n)?.let { m ->
+        val args = mutableMapOf("action" to "save")
+        if (!m.groupValues.getOrNull(1).isNullOrBlank()) {
+            // The note from the sentence as said: folding would turn "niveau -2" into "niveau 2", another floor.
+            val said = Regex("(?:gar[ée]e?|voiture)\\s+(.+)$", RegexOption.IGNORE_CASE).find(raw.trim())?.groupValues?.get(1)?.trim()?.trimEnd('.', '!')
+            args["note"] = said?.takeIf { it.isNotEmpty() } ?: m.groupValues[1].trim()
+        }
+        return OfflineAction.ToolCall("parking", args, "", format = { it })
+    }
+    if (PARK_FIND.matches(n)) return OfflineAction.ToolCall("parking", mapOf("action" to "find", "open" to (if (n.startsWith("ramene")) "true" else "")), "", format = { it })
     if (FIND_PHONE.matches(n)) return OfflineAction.ToolCall("find_phone", mapOf("action" to "ring"), "Je suis ici !")
     if (STOP_RING.matches(n)) return OfflineAction.ToolCall("find_phone", mapOf("action" to "stop"), "Sonnerie arrêtée.")
 

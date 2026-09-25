@@ -102,7 +102,7 @@ object PlaceReminderTool : Tool {
      * when [near] (so "la boulangerie" means one nearby, not the first in France).
      */
     private suspend fun resolve(ctx: JarvisContainer, where: String, near: Boolean?): Result<Resolved> {
-        val here = com.jarvis.android.weather.locate(ctx.appContext)
+        val here = com.jarvis.android.weather.locate(ctx.appContext, maxAgeMs = com.jarvis.android.parking.FRESH_FIX_MS)
         if (isHere(where) || placeKey(where).isEmpty()) {
             return when (here) {
                 is LocationOutcome.Found -> Result.success(Resolved(here.fix.latitude, here.fix.longitude, here.place ?: "votre position actuelle"))

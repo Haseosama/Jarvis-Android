@@ -188,6 +188,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_KEEP_TRANSCRIPTS = booleanPreferencesKey("keep_session_transcripts")
     private val KEY_LOCAL_AI = booleanPreferencesKey("local_ai_enabled")
     private val KEY_SKIP_CONFIRMATIONS = booleanPreferencesKey("skip_confirmations")
+    private val KEY_RAIN_ALERTS = booleanPreferencesKey("rain_alerts")
     private val KEY_AVATAR_MODEL = intPreferencesKey("avatar_face_model")
     private val KEY_AVATAR_LIPS = intPreferencesKey("avatar_lip_colour")
     private val KEY_AVATAR_CAP = intPreferencesKey("avatar_cap")
@@ -243,6 +244,8 @@ class ConfigStore(private val context: Context) {
     val gmailAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_GMAIL_AUTO_SEND] ?: false }
     /** Off by default: when on, and the user has just asked clearly, calendar's add action really creates the event instead of only opening the form. */
     val calendarAutoCreate: Flow<Boolean> = context.dataStore.data.map { it[KEY_CALENDAR_AUTO_CREATE] ?: false }
+    /** Off by default: a notification when rain is about to start where the phone is (see weather/RainSoon.kt). */
+    val rainAlerts: Flow<Boolean> = context.dataStore.data.map { it[KEY_RAIN_ALERTS] ?: false }
     /**
      * Off by default: when on, volume changes, file writes/deletes/organising and any other on-screen action Jarvis would
      * normally ask about go ahead without a confirmation banner. Screens that touch system security, permissions or
@@ -288,6 +291,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setMessageAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_MESSAGE_AUTO_SEND] = v }
     suspend fun setGmailAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_GMAIL_AUTO_SEND] = v }
     suspend fun setCalendarAutoCreate(v: Boolean) = context.dataStore.edit { it[KEY_CALENDAR_AUTO_CREATE] = v }
+    suspend fun setRainAlerts(v: Boolean) = context.dataStore.edit { it[KEY_RAIN_ALERTS] = v }
     suspend fun setSkipConfirmations(v: Boolean) = context.dataStore.edit { it[KEY_SKIP_CONFIRMATIONS] = v }
     suspend fun setAvatarSkin(v: Int) = context.dataStore.edit { it[KEY_AVATAR_SKIN] = v }
     suspend fun setAvatarLips(v: Int) = context.dataStore.edit { it[KEY_AVATAR_LIPS] = v }

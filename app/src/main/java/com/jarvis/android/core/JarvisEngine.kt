@@ -463,6 +463,7 @@ class JarvisEngine(
     }
 
     private suspend fun runSession() {
+        container.interpreterPair = null // a new session starts in the normal mode
         try {
             val apiKey = container.configStore.getApiKey()
             val offlineMode = container.configStore.offlineMode.first()

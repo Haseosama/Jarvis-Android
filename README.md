@@ -69,6 +69,7 @@ text into a named language without switching the language of the conversation it
 `air_quality` (air quality index and pollen), `planes_overhead` (aircraft flying around the phone),
 `expenses` (spending by voice), `habits` (medications and habits at fixed times), `find_phone` (rings the phone
 loud to find it), `place_reminder` (reminders on arriving at or leaving a place) — see "Four everyday helpers",
+`prix_carburant` (cheapest fuel), `parking`, `rain_soon`, `birthdays`, `interpreter` — see "Car, rain, birthdays, interpreter",
 and the phone-control tools below.
 
 `end_session` lets you close the voice session by voice ("arrête la session"): the model says
@@ -548,6 +549,40 @@ payload shaped like the real one, and live on the emulator for Lyon, Paris and a
   firing by itself — the emulator's network location provider is off and Play services' low-power geofencing never
   sees its simulated GPS fixes, so a debug-only `DEBUG_PLACE` trigger stands in for the crossing; on a phone, Wi-Fi and
   cell positions feed it.
+
+### Car, rain, birthdays, interpreter
+
+- **Where the car is** (`parking`, `parking/Parking.kt`, Settings > *Voiture garée*). "Retiens où je me suis garé" (a note
+  such as "niveau -2, place 45" is kept as said — offline too, where the folding used for commands would have turned it
+  into "niveau 2"), then "où est ma voiture ?": how long ago, near what, how far and which way ("à 1,5 km au
+  sud-ouest"), and a walking route in Maps on request. Both use a position no older than 30 seconds, otherwise a new one
+  is asked for — an older "last known" position is where you were, not where you are. Optionally saved by itself when
+  the phone leaves the car's Bluetooth (the car picked among the paired devices; Android delivers that disconnection to
+  an app that is not running); that needs the position allowed "all the time", otherwise a notification says it could
+  not be saved.
+- **Rain within the hour** (`rain_soon`, `weather/RainSoon.kt`). Open-Meteo's 15-minute precipitation forecast (free, no
+  key) for the next two hours: "pluie modérée attendue vers 14 h 30, dans environ 25 minutes", "il pleut en ce moment,
+  jusqu'à environ 15 h", or none. Intensity with the usual 2.5 / 7.6 mm/h limits; "now" read on the forecast's own clock
+  (its `utc_offset_seconds`), so a city in another time zone is right too. Settings > *Position (météo)* > *Alerte pluie*
+  (off by default): a check about every quarter of an hour, a notification when rain is about to start within 45 minutes
+  and it is not already raining, one per shower (three hours between two).
+- **Birthdays** (`birthdays`, `calendar/Birthdays.kt`). Read from the "birthday" field of the phone's contacts (with the
+  contacts permission already asked for calls; nothing copied): "c'est quand l'anniversaire de Paul ?", "quels
+  anniversaires ce mois-ci ?", with the age when the year is known; the formats contacts apps use are all read
+  ("1990-05-12", "--05-12", "19900512", "12/05/1990", and the "1604" some apps write for an unknown year); 29 February
+  falls on the 28th in other years. Today's birthdays join today's events in the morning briefing and notification, and
+  the model is told to offer a message, never to send one unasked.
+- **Interpreter mode** (`interpreter`). "Sois mon interprète en anglais": from the next turn, every sentence heard in one
+  language is said again in the other, in the first person, with nothing added and no answer of Jarvis's own, until
+  "arrête de traduire". The translating is the Live model's own; the tool switches the mode on and off and states the
+  rules in its answer (a tool's answer stays in the conversation), and the LANGUAGE rule of the system prompt gives way
+  to it while it is on. A new session starts in the normal mode.
+- Also fixed on the way: a city name now resolves in the phone's country first (SIM, then the phone settings, then
+  France) — "Brest" was Brest in Belarus, the geocoder ranking by population — for the weather, air quality and rain.
+- *Checked*: unit tests (16 new cases). On the emulator: the car saved and found 1.5 km away in the right direction, with
+  its note; rain for Brest (France) and around the phone; a birthday added to a test contact and found as "aujourd'hui
+  (36 ans)". *Not checked*: the interpreter mode and the rain notification, which need a working Gemini key and actual
+  rain; the automatic save on leaving a car's Bluetooth, which the emulator has no way to simulate.
 
 ### Plugins and self-knowledge
 

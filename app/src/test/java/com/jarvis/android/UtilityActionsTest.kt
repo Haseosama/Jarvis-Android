@@ -148,6 +148,16 @@ class UtilityActionsTest {
     }
 
     @Test
+    fun `among several places of one name, the one in the phone's country wins`() {
+        val body = """{"results":[
+            {"name":"Brest","country":"Biélorussie","country_code":"BY","latitude":52.1,"longitude":23.7},
+            {"name":"Brest","admin1":"Bretagne","country":"France","country_code":"FR","latitude":48.39,"longitude":-4.49}]}"""
+        assertEquals("Brest, Bretagne, France", parseWeatherPlace(body, "FR")!!.label)
+        assertEquals("Brest, Biélorussie", parseWeatherPlace(body, "DE")!!.label) // none in that country: the first
+        assertEquals("Brest, Biélorussie", parseWeatherPlace(body)!!.label)
+    }
+
+    @Test
     fun `weather distinguishes unknown city and invalid service data`() {
         assertNull(parseWeatherPlace("{}"))
         assertNull(parseWeatherPlace("""{"results":[]}"""))

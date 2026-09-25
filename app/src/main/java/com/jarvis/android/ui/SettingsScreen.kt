@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Euro
 import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
@@ -599,6 +600,16 @@ fun SettingsScreen(
             }
             Text(
                 tr("Position approximative, lue seulement au moment d’une demande de météo, envoyée à Open-Meteo pour obtenir les conditions et jamais enregistrée. Fiable quand Jarvis est ouvert ; en arrière-plan Android peut la refuser."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            val rainAlerts by configStore.rainAlerts.collectAsState(initial = false)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text(tr("Alerte pluie : prévenir quand la pluie arrive dans les 45 minutes"), modifier = Modifier.weight(1f))
+                Switch(checked = rainAlerts, onCheckedChange = { scope.launch { configStore.setRainAlerts(it) } })
+            }
+            Text(
+                tr("Vérifié tous les quarts d’heure environ, une seule alerte par averse. Il faut la position autorisée « tout le temps » (carte Rappels selon le lieu), sinon Android ne la donne pas quand Jarvis est fermé."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -1548,6 +1559,75 @@ fun SettingsScreen(
                         }
                     }) { Icon(Icons.Filled.Close, contentDescription = tr("Retirer")) }
                 }
+            }
+            }
+            SettingsCard(tr("Voiture garée"), Icons.Filled.DirectionsCar, initiallyExpanded = false) {
+            val parkingStore = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.parkingStore }
+            var parkingTick by remember { mutableStateOf(0) }
+            var parking by remember { mutableStateOf(com.jarvis.android.parking.ParkingData()) }
+            var btAllowed by remember { mutableStateOf(com.jarvis.android.parking.canListBluetooth(context0)) }
+            var bonded by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+            val askBt = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {
+                btAllowed = com.jarvis.android.parking.canListBluetooth(context0); parkingTick++
+            }
+            LaunchedEffect(parkingTick) {
+                parking = withContext(Dispatchers.IO) { parkingStore.load() }
+                bonded = if (btAllowed) try {
+                    @Suppress("MissingPermission")
+                    context0.getSystemService(android.bluetooth.BluetoothManager::class.java)?.adapter?.bondedDevices.orEmpty()
+                        .map { (it.name ?: it.address) to it.address }.sortedBy { it.first }
+                } catch (_: SecurityException) { emptyList() } else emptyList()
+            }
+            Text(
+                tr("Dites « retiens où je me suis garé », puis « où est ma voiture ? » : distance, direction et itinéraire à pied. Jarvis peut aussi l’enregistrer tout seul quand le téléphone quitte le Bluetooth de la voiture."),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            parking.car?.let { car ->
+                Text(
+                    trf("Garée {0} près de {1}.", com.jarvis.android.parking.sinceWords(car.at, System.currentTimeMillis()), car.label.ifEmpty { "?" }) +
+                        if (car.note.isNotBlank()) " ${car.note}" else "",
+                    style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp),
+                )
+                OutlinedButton(onClick = {
+                    try {
+                        context0.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=" +
+                                String.format(java.util.Locale.ROOT, "%.6f,%.6f", car.latitude, car.longitude)))
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    } catch (_: Exception) {
+                    }
+                }, modifier = Modifier.padding(top = 4.dp)) { Text(tr("Y aller à pied")) }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text(tr("Enregistrer la place en quittant le Bluetooth de la voiture"), modifier = Modifier.weight(1f))
+                Switch(checked = parking.autoSave, onCheckedChange = { v ->
+                    scope.launch { withContext(Dispatchers.IO) { parkingStore.update { it.copy(autoSave = v) } }; parkingTick++ }
+                })
+            }
+            if (parking.autoSave) {
+                if (!btAllowed && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    OutlinedButton(onClick = { askBt.launch(android.Manifest.permission.BLUETOOTH_CONNECT) }, modifier = Modifier.padding(top = 4.dp)) {
+                        Text(tr("Autoriser les appareils à proximité"))
+                    }
+                } else {
+                    Text(
+                        if (parking.carBluetoothAddress.isEmpty()) tr("Choisissez la voiture :") else trf("Voiture : {0}", parking.carBluetoothName),
+                        style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp),
+                    )
+                    bonded.forEach { (label, address) ->
+                        FilterChip(
+                            selected = address == parking.carBluetoothAddress,
+                            onClick = { scope.launch { withContext(Dispatchers.IO) { parkingStore.update { it.copy(carBluetoothAddress = address, carBluetoothName = label) } }; parkingTick++ } },
+                            label = { Text(label) },
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
+                    if (bonded.isEmpty()) Text(tr("Aucun appareil Bluetooth appairé."), style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    tr("Il faut la position autorisée « tout le temps » (carte Rappels selon le lieu) : sinon Android ne donne aucune position à Jarvis à ce moment-là, et une notification le signale."),
+                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp),
+                )
             }
             }
             SettingsCard(tr("Maison connectée"), Icons.Filled.Home, initiallyExpanded = false) {

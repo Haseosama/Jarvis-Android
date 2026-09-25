@@ -73,13 +73,13 @@ object AirQualityTool : Tool {
             ?: return@withContext "Indiquez une ville de 200 caractères maximum, ou demandez la qualité de l'air ici."
         try {
             val geoUrl = "https://geocoding-api.open-meteo.com/v1/search".toHttpUrl().newBuilder()
-                .addQueryParameter("count", "1").addQueryParameter("language", "fr")
+                .addQueryParameter("count", "10").addQueryParameter("language", "fr")
                 .addQueryParameter("name", city).build()
             val geoBody = ctx.http.newCall(Request.Builder().url(geoUrl).build()).execute().use { response ->
                 if (!response.isSuccessful) return@withContext utilityHttpError("Localisation", response.code)
                 response.body?.string().orEmpty()
             }
-            val place = parseWeatherPlace(geoBody)
+            val place = parseWeatherPlace(geoBody, phoneCountry(ctx))
                 ?: return@withContext "Aucune ville trouvée pour « $city ». Précisez son nom."
             val aqUrl = airQualityUrl(place.latitude, place.longitude)
             val aqBody = ctx.http.newCall(Request.Builder().url(aqUrl).build()).execute().use { response ->

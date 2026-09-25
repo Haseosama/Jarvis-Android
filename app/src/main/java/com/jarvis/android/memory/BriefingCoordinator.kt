@@ -23,7 +23,7 @@ internal class BriefingCoordinator(private val container: JarvisContainer) {
                 reminders = remindersToday(
                     ReminderService.list(container.appContext), System.currentTimeMillis(), ZoneId.systemDefault(),
                 ),
-                events = com.jarvis.android.calendar.eventsToday(container.appContext),
+                events = com.jarvis.android.calendar.birthdaysToday(container.appContext) + com.jarvis.android.calendar.eventsToday(container.appContext),
             )
         )
         pending = block.isNotEmpty()

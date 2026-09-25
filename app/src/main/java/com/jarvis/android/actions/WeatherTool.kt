@@ -32,13 +32,13 @@ object WeatherTool : Tool {
             ?: return@withContext "Indiquez une ville de 200 caractères maximum, ou demandez la météo ici."
         try {
             val geoUrl = "https://geocoding-api.open-meteo.com/v1/search".toHttpUrl().newBuilder()
-                .addQueryParameter("count", "1").addQueryParameter("language", "fr")
+                .addQueryParameter("count", "10").addQueryParameter("language", "fr")
                 .addQueryParameter("name", city).build()
             val geoBody = ctx.http.newCall(Request.Builder().url(geoUrl).build()).execute().use { response ->
                 if (!response.isSuccessful) return@withContext utilityHttpError("Localisation", response.code)
                 response.body?.string().orEmpty()
             }
-            val place = parseWeatherPlace(geoBody)
+            val place = parseWeatherPlace(geoBody, phoneCountry(ctx))
                 ?: return@withContext "Aucune ville trouvée pour « $city ». Précisez son nom."
             val wxUrl = "https://api.open-meteo.com/v1/forecast".toHttpUrl().newBuilder()
                 .addQueryParameter("latitude", place.latitude.toString())
@@ -63,13 +63,22 @@ object WeatherTool : Tool {
 
 internal data class WeatherPlace(val latitude: Double, val longitude: Double, val label: String)
 
-internal fun parseWeatherPlace(body: String): WeatherPlace? {
+/**
+ * The place a name means. The geocoder ranks by population, so "Brest" is Brest in Belarus; among several results the
+ * first one in the first of [preferCountries] that has one is taken, and the first overall only when none is.
+ */
+internal fun parseWeatherPlace(body: String, preferCountry: String?): WeatherPlace? = parseWeatherPlace(body, listOfNotNull(preferCountry))
+
+internal fun parseWeatherPlace(body: String, preferCountries: List<String> = emptyList()): WeatherPlace? {
     val root = Json.parseToJsonElement(body) as? JsonObject ?: error("Invalid weather data")
     require(root["error"]?.toString() != "true")
     val results = root["results"] ?: return null
     require(results is JsonArray)
     if (results.isEmpty()) return null
-    val place = results.first() as? JsonObject ?: error("Invalid place")
+    val preferred = preferCountries.firstNotNullOfOrNull { code ->
+        results.firstOrNull { ((it as? JsonObject)?.get("country_code") as? JsonPrimitive)?.contentOrNull.equals(code, ignoreCase = true) }
+    }
+    val place = (preferred ?: results.first()) as? JsonObject ?: error("Invalid place")
     val lat = (place["latitude"] as? JsonPrimitive)?.doubleOrNull
     val lon = (place["longitude"] as? JsonPrimitive)?.doubleOrNull
     require(lat != null && lat.isFinite() && lat in -90.0..90.0)
@@ -81,6 +90,14 @@ internal fun parseWeatherPlace(body: String): WeatherPlace? {
         .filter { it.isNotBlank() }.distinct().joinToString(", ").take(300)
     return WeatherPlace(lat, lon, label)
 }
+
+/** The countries to prefer for a place name, in order: the SIM's, the phone settings', then France (Jarvis speaks French). */
+internal fun phoneCountry(ctx: JarvisContainer): List<String> =
+    listOfNotNull(
+        ctx.appContext.getSystemService(android.telephony.TelephonyManager::class.java)?.simCountryIso,
+        Locale.getDefault().country,
+        "FR",
+    ).filter { it.isNotBlank() }.map { it.uppercase(Locale.ROOT) }.distinct()
 
 internal fun formatCurrentWeather(body: String, label: String): String {
     val root = Json.parseToJsonElement(body) as? JsonObject ?: error("Invalid weather data")

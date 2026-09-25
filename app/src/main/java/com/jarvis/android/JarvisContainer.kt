@@ -49,6 +49,9 @@ class JarvisContainer(val appContext: Context) {
     /** Mirror of the setting for sending messages on the user's word, read by the tools that must not suspend to look it up. */
     @Volatile var messageAutoSend: Boolean = false
 
+    /** The two languages while interpreter mode is on (see actions/InterpreterTool.kt), null otherwise. */
+    @Volatile var interpreterPair: Pair<String, String>? = null
+
     /** Mirror of the setting that skips the confirmation banner for volume, file changes and on-screen taps (never for system/security screens, see ConfigStore.skipConfirmations). */
     @Volatile var skipConfirmations: Boolean = false
 
@@ -118,6 +121,9 @@ class JarvisContainer(val appContext: Context) {
     /** Named places and location reminders (see places/PlaceReminders.kt). */
     internal val placeStore = com.jarvis.android.places.PlaceStore(java.io.File(appContext.filesDir, "place_reminders.json"))
 
+    /** Where the car is parked, and the car's Bluetooth for saving it by itself (see parking/Parking.kt). */
+    internal val parkingStore = com.jarvis.android.parking.ParkingStore(java.io.File(appContext.filesDir, "parking.json"))
+
     internal val agent: com.jarvis.android.agent.AgentRunner by lazy { com.jarvis.android.agent.AgentRunner(this, appScope) }
 
     /** Text chat over generateContent; independent of the Live session. */
@@ -143,6 +149,7 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch {
             configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
         }
+        appScope.launch { configStore.rainAlerts.collect { com.jarvis.android.weather.RainWatchWorker.apply(appContext, it) } }
         appScope.launch { configStore.messageAutoSend.collect { messageAutoSend = it } }
         appScope.launch { configStore.skipConfirmations.collect { skipConfirmations = it } }
         appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }

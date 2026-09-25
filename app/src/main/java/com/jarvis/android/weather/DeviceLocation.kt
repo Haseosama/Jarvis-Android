@@ -30,7 +30,7 @@ internal fun hasLocationPermission(context: Context): Boolean =
  * The phone's approximate position, only when the user has allowed location for Jarvis: a recent
  * known fix first, then a fresh one (up to 10 s). The position is used for one request and not stored.
  */
-internal suspend fun locate(context: Context): LocationOutcome = withContext(Dispatchers.IO) {
+internal suspend fun locate(context: Context, maxAgeMs: Long = MAX_FIX_AGE_MS): LocationOutcome = withContext(Dispatchers.IO) {
     if (!hasLocationPermission(context)) return@withContext LocationOutcome.NoPermission
     val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     if (!LocationManagerCompat.isLocationEnabled(manager)) return@withContext LocationOutcome.ServicesOff
@@ -38,7 +38,7 @@ internal suspend fun locate(context: Context): LocationOutcome = withContext(Dis
     try {
         val known = manager.getProviders(true).mapNotNull { manager.getLastKnownLocation(it) }
             .map { Fix(it.latitude, it.longitude, it.time, it.accuracy) }
-        var fix = pickFreshest(known, now)
+        var fix = pickFreshest(known, now, maxAgeMs)
         if (fix == null) {
             val provider = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
                 .firstOrNull { manager.isProviderEnabled(it) } ?: return@withContext LocationOutcome.Unavailable

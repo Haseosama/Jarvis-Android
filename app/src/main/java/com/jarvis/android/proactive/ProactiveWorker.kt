@@ -49,7 +49,7 @@ class ProactiveWorker(context: Context, params: WorkerParameters) : CoroutineWor
                 lastBriefingDate = "",
                 lastSession = container.memoryManager.peekLastSession(),
                 reminders = remindersToday(ReminderService.list(applicationContext), System.currentTimeMillis(), ZoneId.systemDefault()),
-                events = com.jarvis.android.calendar.eventsToday(applicationContext),
+                events = com.jarvis.android.calendar.birthdaysToday(applicationContext) + com.jarvis.android.calendar.eventsToday(applicationContext),
             )
         )
         val (alerts, next) = evaluateProactive(readStatus(), state, LocalDateTime.now(), morning)
