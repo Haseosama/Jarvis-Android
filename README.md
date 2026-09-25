@@ -66,6 +66,7 @@ with *automatic sending* switched on it really sends, see "Sending messages on y
 the user's own Home Assistant server, see "Maison connectée"), `translate` (translates a piece of
 text into a named language without switching the language of the conversation itself), `spotify_search`
 (opens Spotify's own search for a title, artist or playlist; the user picks and plays it — see below),
+`air_quality` (air quality index and pollen), `planes_overhead` (aircraft flying around the phone),
 and the phone-control tools below.
 
 `end_session` lets you close the voice session by voice ("arrête la session"): the model says
@@ -450,6 +451,45 @@ tried. Play/pause/next/previous already work for whatever is currently playing, 
 builders (the query is percent-encoded, a blank or over-long one is refused). Not checked: opening a real
 Spotify app or a browser on a device.
 
+### Searching: inside files, and narrower web searches
+
+- **Inside files** (`file_manager` action `search_content`). `find` only ever matched a file's *name*; this
+  reads the files of the work folder and looks for the text itself ("trouve le fichier qui parle de la facture
+  4521"), answering with the path and a one-line excerpt around the first match. Plain case-insensitive
+  matching, like `grep -i`, not the accent-folding used for spoken commands: folding would stop the excerpt
+  from being a faithful slice of the file. Bounded so a big folder cannot freeze the phone: known binary
+  extensions (images, audio, video, PDF, archives, APKs…) are skipped without being opened, files over 300 KB
+  are skipped, at most 300 files are actually read and 20 matches returned, the trash is never searched, and a
+  file that decodes to noise is dropped by the same test `read` already used.
+- **Web search filters** (`web_search` parameters `site` and `recency`). `site` adds `site:domain` to the query
+  (a scheme or trailing slash the user dictated is stripped). `recency` (jour / semaine / mois / année, said
+  any way — "cette semaine", "aujourd'hui"…) becomes, for the Google-grounded search, an `after:YYYY-MM-DD`
+  operator computed from today's date (a fixed date, rather than a relative word Google might read
+  differently), and for the DuckDuckGo fallback its own `df` parameter. The model is told to use them only
+  when the user asks. Checked: unit tests for both (22 file-manager cases in all, plus the filter builders).
+
+### Air quality, and planes overhead
+
+- **`air_quality`**: the European air quality index with its official bands, PM2.5/PM10 and, in Europe, birch,
+  grass and ragweed pollen, from Open-Meteo's free Air Quality API (no key). A named city goes through the same
+  geocoding as `weather_report`; no city or "ici" uses the phone's position the same way. A pollen value the
+  service leaves empty (outside Europe) is left out, never reported as zero.
+- **`planes_overhead`**: aircraft in flight within a radius (50 km by default, 5 to 200) of the phone, nearest
+  first, with callsign, country of registration, altitude and speed, from the OpenSky Network's public API (no
+  key, rate-limited). OpenSky only sees aircraft whose transponder reaches one of its volunteer receivers —
+  most airliners, not necessarily every light or military aircraft — so the answer says "vus par OpenSky".
+  Aircraft on the ground are left out.
+- **Satellites overhead: not done.** Every free "what is above me" service found (N2YO and similar) needs the
+  user to register for their own API key first — the same trap as Google Home or Spotify's Web API.
+- Checked: unit tests for the parsing and formatting of both (the positional arrays OpenSky returns, an empty
+  sky, the nearest-first order, the bounding box, a haversine distance), and called live on the emulator (see the
+  release notes of this version for what came back).
+
+Two plugins were also added to the catalogue (no key, `open` type): **`suivi_colis`** opens La Poste /
+Colissimo tracking for a parcel number, and **`trafic_routier`** opens Google Maps on a place with the live
+traffic layer. The next buses and metros to a destination were already covered by `itineraire` with
+`mode = transit`.
+
 ### Plugins and self-knowledge
 
 **Plugins** (`plugins/`, the Android counterpart of Mark-LIII's `plugins/` folder). A plugin is one JSON file,
@@ -471,7 +511,7 @@ a plugin only describes one of three declarative actions, and the file is checke
   not `agent_task` or `end_session`), with `{parameter}` filled in. Sensitive taps still ask for confirmation.
 
 Limits: 100 plugins, 5 parameters each, 20 000 characters per file, a name that is not a built-in tool's.
-Settings: the catalogue (67 built-in plugins) is a dropdown, folded by default, with a search field on the name and description; the
+Settings: the catalogue (69 built-in plugins) is a dropdown, folded by default, with a search field on the name and description; the
 installed ones stay listed above it.
 **Many plugins.** Every installed plugin is usable, but only the first 25 (by file name) are declared to the model as tools of their own: a long list
 of tool declarations weighs on every session, and one the service refuses would break the whole session, and Gemini's documentation gives no
@@ -497,7 +537,7 @@ not real time, files only in the work folder). Something switched off is reporte
   position*); the position is used for that one request and never stored. Android may refuse location to an app that is
   not in front, so it is most reliable with Jarvis open; the tool then says how to fix it or asks for a city. Checked
   on an emulator (position → town → weather, named city unchanged); not on the real phone.
-- **Plugin catalogue.** Settings → *Plugins* lists 67 bundled plugins with an *Installer* button (up to 100 can be installed).
+- **Plugin catalogue.** Settings → *Plugins* lists 69 bundled plugins with an *Installer* button (up to 100 can be installed).
   The first 16: crypto prices, exchange rates, Wikipedia summary, public holidays, Maps search and directions, YouTube, translation, news,
   recipes, calendar event, night, meeting and car routines. Added later (13): the position of the International Space Station, a random
   French Wikipedia article, sunrise and sunset, the phase of the moon, NASA's astronomy picture of the day (its explanation, in English), a

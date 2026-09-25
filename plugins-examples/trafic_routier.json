@@ -1,0 +1,13 @@
+{
+  "name": "trafic_routier",
+  "description": "Ouvre Google Maps centré sur un lieu avec la circulation en temps réel affichée. Pour « il y a du trafic à… », « comment ça circule vers… ».",
+  "parameters": [
+    {
+      "name": "lieu",
+      "description": "Le lieu à afficher, par exemple une ville ou une adresse",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.google.com/maps/@?api=1&map_action=map&layer=traffic&center={lieu}"
+}

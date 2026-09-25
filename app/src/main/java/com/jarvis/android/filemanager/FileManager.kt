@@ -1,6 +1,7 @@
 package com.jarvis.android.filemanager
 
 import com.jarvis.android.core.UndoEntry
+import com.jarvis.android.offline.normalize
 import java.util.Locale
 
 /** One file or folder as the manager sees it. */
@@ -31,6 +32,16 @@ internal const val MAX_READ_CHARS = 4_000
 internal const val MAX_WRITE_CHARS = 200_000
 internal const val MAX_VISITED = 5_000
 internal const val MAX_DEPTH = 6
+internal const val MAX_CONTENT_SEARCH_READS = 300     // files actually opened and read, not just listed
+internal const val MAX_CONTENT_SEARCH_HITS = 20
+internal const val MAX_CONTENT_SEARCH_FILE_BYTES = 300_000  // a file bigger than this is skipped rather than read in full
+internal const val CONTENT_SNIPPET_RADIUS = 60         // characters kept on each side of a match
+
+/** Extensions never worth opening for a text search: the read would just be wasted decoding noise. */
+internal val NOT_TEXT_EXTENSIONS = setOf(
+    "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "mp3", "mp4", "wav", "m4a", "aac", "ogg", "flac",
+    "mov", "avi", "mkv", "webm", "zip", "rar", "7z", "apk", "pdf", "exe", "dll", "so", "bin", "ttf", "otf",
+)
 
 /** Path text to segments, or null when it is unsafe ("..", ".", empty segments, backslashes, a trash path). */
 internal fun parsePath(text: String): List<String>? {
@@ -43,6 +54,30 @@ internal fun parsePath(text: String): List<String>? {
 }
 
 internal fun joinPath(path: List<String>): String = if (path.isEmpty()) "/" else "/" + path.joinToString("/")
+
+/** The same "too many replacement characters" heuristic `read` uses to refuse a binary file. */
+internal fun looksLikeText(bytes: ByteArray): Boolean {
+    if (bytes.isEmpty()) return true
+    val text = bytes.toString(Charsets.UTF_8)
+    return text.count { it == '�' } <= 5
+}
+
+/**
+ * The first case-insensitive match of [query] in [text], as up to [radius] characters of context on each side
+ * (an ellipsis where it was cut, runs of whitespace collapsed for a readable one-line result), or null when
+ * [query] does not occur. Plain substring matching, not the accent-folding `normalize()` uses elsewhere: a
+ * file-content search is closer to grep than to a spoken command, and folding would break mapping the match
+ * back to a real slice of the original text.
+ */
+internal fun contentSnippet(text: String, query: String, radius: Int = CONTENT_SNIPPET_RADIUS): String? {
+    if (query.isEmpty()) return null
+    val at = text.indexOf(query, ignoreCase = true)
+    if (at < 0) return null
+    val start = (at - radius).coerceAtLeast(0)
+    val end = (at + query.length + radius).coerceAtMost(text.length)
+    val core = text.substring(start, end).replace(Regex("\\s+"), " ").trim()
+    return (if (start > 0) "…" else "") + core + (if (end < text.length) "…" else "")
+}
 
 internal fun formatSize(bytes: Long): String = when {
     bytes >= 1_000_000_000 -> String.format(Locale.FRANCE, "%.1f Go", bytes / 1_000_000_000.0)
@@ -224,6 +259,42 @@ internal class FileManager(private val tree: FileTree, private val clock: () -> 
                 val extOk = ext.isEmpty() || (!node.isDirectory && node.name.substringAfterLast('.', "").lowercase() == ext)
                 if (nameOk && extOk) hits += joinPath(path) + if (node.isDirectory) "/" else " (${formatSize(node.size)})"
                 if (node.isDirectory) walk(path, depth + 1)
+            }
+        }
+        walk(dir, 0)
+        return FileResult(if (hits.isEmpty()) "Aucun résultat." else "${hits.size} résultat(s) :\n" + hits.joinToString("\n"))
+    }
+
+    /**
+     * Searches the TEXT of files, not just their names (`find` only matches the name). Binary-looking extensions
+     * and files over [MAX_CONTENT_SEARCH_FILE_BYTES] are skipped without opening them; at most
+     * [MAX_CONTENT_SEARCH_READS] files are actually read, whichever comes first among size, depth and hit limits.
+     */
+    fun searchContent(query: String, dirText: String): FileResult {
+        val dir = parsePath(dirText) ?: return bad(dirText)
+        val q = query.trim()
+        if (q.isEmpty()) return FileResult("Indiquez le texte à chercher.")
+        if (q.length > 200) return FileResult("Texte à chercher trop long (200 caractères maximum).")
+        val hits = mutableListOf<String>()
+        var visited = 0
+        var opened = 0
+        fun walk(current: List<String>, depth: Int) {
+            if (depth > MAX_DEPTH) return
+            for (node in tree.list(current).orEmpty()) {
+                if (visited > MAX_VISITED || opened >= MAX_CONTENT_SEARCH_READS || hits.size >= MAX_CONTENT_SEARCH_HITS) return
+                if (node.name == TRASH_DIR) continue
+                visited++
+                val path = current + node.name
+                if (node.isDirectory) {
+                    walk(path, depth + 1)
+                    continue
+                }
+                val ext = node.name.substringAfterLast('.', "").lowercase()
+                if (ext in NOT_TEXT_EXTENSIONS || node.size !in 1..MAX_CONTENT_SEARCH_FILE_BYTES.toLong()) continue
+                opened++
+                val bytes = tree.read(path, MAX_CONTENT_SEARCH_FILE_BYTES) ?: continue
+                if (!looksLikeText(bytes)) continue
+                contentSnippet(bytes.toString(Charsets.UTF_8), q)?.let { snippet -> hits += "${joinPath(path)} : $snippet" }
             }
         }
         walk(dir, 0)

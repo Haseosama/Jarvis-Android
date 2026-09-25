@@ -227,6 +227,51 @@ class FileManagerTest {
     }
 
     @Test
+    fun `looksLikeText accepts plain text and refuses dense binary noise`() {
+        assertTrue(looksLikeText("Bonjour, ceci est un texte normal.".toByteArray()))
+        assertTrue(looksLikeText(ByteArray(0)))
+        // Bytes that are not valid UTF-8 decode to many U+FFFD replacement characters.
+        assertFalse(looksLikeText(byteArrayOf(-1, -2, -3, -4, -5, -6, -7, -8, -9, -10)))
+    }
+
+    @Test
+    fun `contentSnippet finds a case-insensitive match with context and ellipses`() {
+        val text = "Ceci est le début. " + "x".repeat(200) + " La facture 4521 est réglée. " + "y".repeat(200)
+        val snippet = contentSnippet(text, "FACTURE 4521", radius = 15)!!
+        assertTrue(snippet.contains("facture 4521"))
+        assertTrue(snippet.startsWith("…"))
+        assertTrue(snippet.endsWith("…"))
+        assertNull(contentSnippet(text, "introuvable"))
+        assertNull(contentSnippet(text, ""))
+    }
+
+    @Test
+    fun `contentSnippet collapses newlines so the result stays one line`() {
+        assertEquals("avant CIBLE après", contentSnippet("avant\nCIBLE\naprès", "CIBLE", radius = 20))
+    }
+
+    @Test
+    fun `search_content finds a match inside a file, not just its name, and skips binary extensions`() {
+        val (_, m) = setup {
+            put("Docs/lettre.txt", "Cher client, votre facture n° 4521 est jointe.")
+            put("Docs/autre.txt", "Rien à voir ici.")
+            put("Docs/photo.jpg", "4521 ne compte pas : ce n'est pas un fichier texte.")
+        }
+        val result = m.searchContent("facture n° 4521", "").message
+        assertTrue(result.contains("/Docs/lettre.txt"))
+        assertTrue(result.contains("facture n° 4521"))
+        assertFalse(result.contains("autre.txt"))
+        assertFalse(result.contains("photo.jpg"))
+    }
+
+    @Test
+    fun `search_content skips the trash and asks for a query`() {
+        val (_, m) = setup { put(".jarvis_trash/secret.txt", "mot de passe : hunter2") }
+        assertEquals("Aucun résultat.", m.searchContent("hunter2", "").message)
+        assertTrue(m.searchContent("", "").message.startsWith("Indiquez"))
+    }
+
+    @Test
     fun `largest lists the biggest files first`() {
         val (_, m) = setup { put("a.bin", "1"); put("D/b.bin", "x".repeat(50)); put("c.bin", "x".repeat(10)) }
         val lines = m.largest("", 2).message.lines()

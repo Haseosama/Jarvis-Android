@@ -1,0 +1,13 @@
+{
+  "name": "suivi_colis",
+  "description": "Ouvre le suivi La Poste / Colissimo pour un numéro de colis. Pour « où en est mon colis », « suivi de mon envoi ».",
+  "parameters": [
+    {
+      "name": "code",
+      "description": "Le numéro de suivi du colis",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.laposte.fr/outils/suivre-vos-envois?code={code}"
+}

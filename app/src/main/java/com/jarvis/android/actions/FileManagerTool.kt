@@ -26,16 +26,17 @@ internal const val ERROR_NO_WORK_FOLDER =
 object FileManagerTool : Tool {
     override val name = "file_manager"
     override val description =
-        "Gérer les fichiers du dossier de travail choisi par l’utilisateur (rien en dehors). Actions : list, info, read, find, largest, usage, " +
+        "Gérer les fichiers du dossier de travail choisi par l’utilisateur (rien en dehors). Actions : list, info, read, find (par nom), " +
+            "search_content (dans le texte des fichiers, pas seulement leur nom — pour « trouve le fichier qui parle de… »), largest, usage, " +
             "create_file, create_folder, write, rename, move, copy, delete (corbeille, confirmation demandée), organize (range par type, confirmation demandée). " +
             "Les chemins sont relatifs au dossier de travail (« Documents/notes.txt », vide pour la racine). Tout changement peut être annulé avec undo."
     override val parameters = objectSchema(required = listOf("action")) {
-        string("action", "list, info, read, find, largest, usage, create_file, create_folder, write, rename, move, copy, delete ou organize.")
+        string("action", "list, info, read, find, search_content, largest, usage, create_file, create_folder, write, rename, move, copy, delete ou organize.")
         string("path", "Fichier ou dossier visé, relatif au dossier de travail.")
         string("destination", "Pour move/copy : dossier de destination.")
         string("name", "Pour rename : le nouveau nom.")
         string("content", "Pour create_file/write : le texte.")
-        string("query", "Pour find : une partie du nom.")
+        string("query", "Pour find : une partie du nom. Pour search_content : le texte cherché dans le contenu.")
         string("extension", "Pour find : l’extension (pdf, jpg…).")
         integer("count", "Pour largest : nombre de fichiers (défaut 10).")
         string("append", "Pour write : 'true' pour ajouter à la fin au lieu de remplacer.")
@@ -52,6 +53,7 @@ object FileManagerTool : Tool {
             "info" -> manager.info(path)
             "read" -> manager.read(path)
             "find" -> manager.find(args.text("query"), args.text("extension"), path)
+            "search_content" -> manager.searchContent(args.text("query"), path)
             "largest" -> manager.largest(path, args.intArg("count", 10))
             "usage" -> manager.usage(path)
             "create_file" -> manager.createFile(path, args.text("content"))

@@ -120,6 +120,34 @@ class UtilityActionsTest {
     }
 
     @Test
+    fun `a site filter prefixes site colon, stripping a scheme or trailing slash the user might have said`() {
+        assertEquals("site:lemonde.fr chat", withSiteFilter("chat", "lemonde.fr"))
+        assertEquals("site:lemonde.fr chat", withSiteFilter("chat", "https://lemonde.fr/"))
+        assertEquals("chat", withSiteFilter("chat", ""))
+        assertEquals("chat", withSiteFilter("chat", "   "))
+    }
+
+    @Test
+    fun `recency words are folded to a one-letter code, accents and case ignored, unknown words pass through as null`() {
+        assertEquals("d", recencyCode("Aujourd'hui"))
+        assertEquals("w", recencyCode("cette semaine"))
+        assertEquals("m", recencyCode("MOIS"))
+        assertEquals("y", recencyCode("année"))
+        assertNull(recencyCode(""))
+        assertNull(recencyCode("hier soir"))
+    }
+
+    @Test
+    fun `the google after operator is a fixed date computed from today, not a relative word`() {
+        val today = java.time.LocalDate.of(2026, 3, 10)
+        assertEquals("after:2026-03-09", googleAfterOperator("d", today))
+        assertEquals("after:2026-03-03", googleAfterOperator("w", today))
+        assertEquals("after:2026-02-10", googleAfterOperator("m", today))
+        assertEquals("after:2025-03-10", googleAfterOperator("y", today))
+        assertNull(googleAfterOperator(null, today))
+    }
+
+    @Test
     fun `weather distinguishes unknown city and invalid service data`() {
         assertNull(parseWeatherPlace("{}"))
         assertNull(parseWeatherPlace("""{"results":[]}"""))

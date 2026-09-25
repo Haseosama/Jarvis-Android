@@ -1,6 +1,7 @@
 package com.jarvis.android.actions
 
 import com.jarvis.android.JarvisContainer
+import com.jarvis.android.offline.normalize
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -10,24 +11,56 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
 import org.jsoup.Jsoup
 import java.io.IOException
+import java.time.LocalDate
+
+/** "site", "semaine", "cette année"… (accent/case-insensitive) to the one-letter code both search backends below understand. */
+internal fun recencyCode(recency: String): String? = when (normalize(recency)) {
+    "jour", "aujourd hui", "24h", "24 heures", "hier", "recent", "recemment" -> "d"
+    "semaine", "cette semaine", "derniere semaine" -> "w"
+    "mois", "ce mois", "ce mois ci", "dernier mois" -> "m"
+    "annee", "cette annee", "an", "cette annee ci" -> "y"
+    else -> null
+}
+
+/** Prefixes `site:` onto the query when [site] is given (a bare domain, any "https://" or trailing slash stripped). */
+internal fun withSiteFilter(query: String, site: String): String {
+    val s = site.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
+    return if (s.isEmpty()) query else "site:$s $query"
+}
+
+/** The Google search operator for "no older than [code]", computed from [today] so it is a fixed date the way Google expects, not a relative word it might not parse the same way every time. Null passes through unfiltered. */
+internal fun googleAfterOperator(code: String?, today: LocalDate): String? = when (code) {
+    "d" -> "after:${today.minusDays(1)}"
+    "w" -> "after:${today.minusWeeks(1)}"
+    "m" -> "after:${today.minusMonths(1)}"
+    "y" -> "after:${today.minusYears(1)}"
+    else -> null
+}
 
 object WebSearchTool : Tool {
     override val name = "web_search"
     override val description =
         "Rechercher des informations actuelles sur le Web et retourner leurs titres, liens et extraits. Les extraits sont courts : pour un " +
-            "fait précis, une date, un chiffre exact ou une citation, ouvrez ensuite un des liens avec read_webpage pour lire la page elle-même."
+            "fait précis, une date, un chiffre exact ou une citation, ouvrez ensuite un des liens avec read_webpage pour lire la page elle-même. " +
+            "site restreint la recherche à un domaine (« lemonde.fr »). recency ne garde que les résultats récents ('jour', 'semaine', 'mois' ou 'année') " +
+            "— seulement quand l’utilisateur le demande (« cette semaine », « récemment »…), jamais par défaut."
     override val parameters = objectSchema(required = listOf("query")) {
         string("query", "Termes à rechercher sur le Web.")
+        string("site", "Facultatif : restreindre à un domaine, par exemple « lemonde.fr ».")
+        string("recency", "Facultatif : 'jour', 'semaine', 'mois' ou 'année' pour ne garder que les résultats récents.")
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String = withContext(Dispatchers.IO) {
-        val query = normalizedUtilityQuery(args.utilityString("query"), 500)
+        val rawQuery = normalizedUtilityQuery(args.utilityString("query"), 500)
             ?: return@withContext "Indiquez une recherche non vide, de 500 caractères maximum."
+        val query = withSiteFilter(rawQuery, args.stringArg("site"))
+        val recency = recencyCode(args.stringArg("recency"))
         // First choice: Gemini answering with Google Search. Any failure falls back to DuckDuckGo.
         try {
+            val groundedQuery = query + (googleAfterOperator(recency, LocalDate.now())?.let { " $it" } ?: "")
             val model = ctx.configStore.snapshotRestModel()
             val answer = com.jarvis.android.rest.formatGroundedAnswer(
-                ctx.restChat.transport.generate(model, com.jarvis.android.rest.buildGroundedRequest(query))
+                ctx.restChat.transport.generate(model, com.jarvis.android.rest.buildGroundedRequest(groundedQuery))
             )
             return@withContext "Recherche Google pour « $query » :\n$answer"
         } catch (e: CancellationException) {
@@ -36,8 +69,10 @@ object WebSearchTool : Tool {
             // fall through to the DuckDuckGo path below
         }
         try {
-            val url = "https://lite.duckduckgo.com/lite/".toHttpUrl().newBuilder()
-                .addQueryParameter("q", query).build()
+            val urlBuilder = "https://lite.duckduckgo.com/lite/".toHttpUrl().newBuilder()
+                .addQueryParameter("q", query)
+            recency?.let { urlBuilder.addQueryParameter("df", it) }
+            val url = urlBuilder.build()
             val request = Request.Builder().url(url)
                 .header("User-Agent", "Mozilla/5.0 (Android) Jarvis/1.0").build()
             ctx.http.newCall(request).execute().use { response ->
