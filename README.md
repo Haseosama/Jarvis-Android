@@ -254,9 +254,28 @@ by the `DUMP` permission so only adb can call it; it is not in the release build
 ### More features (all switchable in the settings unless noted)
 
 - **Session summary and morning briefing** (`memory/Briefing*.kt`). When a voice session with at least two
-  exchanges ends, Gemini writes a one- or two-sentence summary (kept on the device, three at most). At the
-  first session of the day the assistant is asked to give a ~20 s briefing: the last summary and today's
-  reminders. Given once a day; the summary is only consumed when the briefing was really requested.
+  exchanges ends, Gemini writes a one- or two-sentence summary (kept on the device, twelve at most, the last
+  three quoted in the prompt). At the first session of the day the assistant is asked to give a ~20 s briefing:
+  the last summary not yet briefed and today's reminders. Given once a day; the summary is only marked as
+  briefed when the briefing was really requested. Until 0.9.5 the briefing *deleted* that summary and only three
+  were kept at all, so Jarvis lost the thread of what had been done as soon as it had mentioned it once.
+- **Finding a memory again** (`memory/MemoryRecall.kt`, tool `recall_memory`). The search behind `recall_memory`
+  used to compare raw substrings, which failed in both directions: « quel est le prénom de ma sœur ? » gave points
+  to every memory containing « de » or « ma » (a question of eight filler words brought back most of the file) and
+  none at all to the key `sister_name`, because the extractor writes its keys in English while the user speaks
+  French. It now drops the filler words of the question (never those of the memories, which stay indexed as they
+  are), compares stems so that « voitures » finds « voiture », carries a French/English table of equivalents
+  (« métier » ↔ `job`, « sœur » ↔ `sister`), forgives one or two characters to absorb a dictation slip
+  (« camile » → « Camille »), and ranks a memory that answers several words of the question above one that
+  repeats a single word. When nothing matches, the answer lists the subjects on file so the model can search
+  again with the right word instead of claiming it does not know. Two spellings of the same fact are also merged
+  on write rather than stored twice (`Ville`/`ville` everywhere, `ville`/`city` inside `identity`, where a fact has
+  only one value — elsewhere two neighbouring keys may well be two different people). Finally, what goes into the
+  prompt is no longer picked on the update date alone, which let three notes written yesterday push out the
+  sister's name learnt last year: each category carries a weight that freshness only tempers, and every category
+  keeps at least one line. *Checked:* by unit tests (`MemoryRecallTest`, `MemoryManagerTest`) — the questions
+  above, the precision on unrelated questions, the merging and the prompt budget. *Not checked:* on a real phone
+  with a real voice.
 - **What Jarvis remembers after a session** (`memory/MemoryExtraction.kt`, `rest/RestChat.kt`). Until 0.4.4 it kept only what the model
   explicitly saved with `remember_fact`. Now, when a session with at least two exchanges ends, one Gemini call reads the conversation and
   returns a summary and the lasting facts the user gave about themselves (name, city, tastes, projects, people, wishes: at most 8, never a

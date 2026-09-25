@@ -12,9 +12,11 @@ import kotlinx.serialization.json.JsonObject
 object RecallMemoryTool : Tool {
     override val name = "recall_memory"
     override val description =
-        "Search stored long-term memory for a keyword. Use this before saying you don't know something about the user."
+        "Search stored long-term memory. Pass a keyword or the user's own question — filler words, plurals, " +
+            "French/English wording and dictation slips are handled. Use this before saying you don't know " +
+            "something about the user."
     override val parameters = objectSchema {
-        string("query", "Keyword to search for, or empty to list everything stored.")
+        string("query", "Keyword or question to search for, or empty to list everything stored.")
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String =

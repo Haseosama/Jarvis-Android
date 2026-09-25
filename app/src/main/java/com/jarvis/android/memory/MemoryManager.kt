@@ -12,16 +12,26 @@ import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
 import java.nio.file.StandardCopyOption
-import java.text.Normalizer
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
 
 @Serializable
 data class MemEntry(val value: String, val updated: String)
 
+/**
+ * Le résumé d'une conversation terminée. [briefed] retient qu'il a déjà servi au briefing du matin :
+ * il n'est plus annoncé, mais il reste dans l'historique (avant, le briefing le supprimait).
+ */
 @Serializable
-data class SessionEntry(val date: String, val summary: String, val language: String = "")
+data class SessionEntry(val date: String, val summary: String, val language: String = "", val briefed: Boolean = false)
+
+/** Combien de résumés de conversation sont conservés, et combien sont rappelés dans l'invite de départ. */
+internal const val MAX_SESSION_SUMMARIES = 12
+internal const val PROMPT_SESSION_SUMMARIES = 3
 
 @Serializable
 data class MemoryStore(
@@ -39,7 +49,10 @@ data class MemoryStore(
     )
 }
 
-class MemoryManager(private val file: File) {
+class MemoryManager(
+    private val file: File,
+    private val now: () -> Long = System::currentTimeMillis,
+) {
     constructor(context: Context) : this(File(context.filesDir, "long_term_memory.json"))
 
     private val mutex = Mutex()
@@ -61,7 +74,9 @@ class MemoryManager(private val file: File) {
     private val promptMaxPerCategory = 6
     private val maxValueLength = 380
 
-    private fun today() = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    private fun today() = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(now()))
+
+    private fun todayDate(): LocalDate = Instant.ofEpochMilli(now()).atZone(ZoneId.systemDefault()).toLocalDate()
 
     suspend fun load(): MemoryStore = mutex.withLock { loadLocked() }
 
@@ -125,6 +140,29 @@ class MemoryManager(private val file: File) {
     internal fun normalizeCategory(category: String): String =
         category.trim().lowercase(Locale.ROOT).takeIf { it in validCategories } ?: "notes"
 
+    /**
+     * La clé sous laquelle écrire réellement [key] : celle d'un souvenir déjà là qui dit la même chose, sinon
+     * [key] inchangée. Les clés viennent d'un modèle, qui écrit « Ville » un jour et « ville » le lendemain,
+     * « sister_name » puis « prenom_soeur » ; sans cela la mémoire finit par contenir deux réponses
+     * différentes à la même question. Le rapprochement strict (mêmes radicaux) vaut partout ; le rapprochement
+     * par équivalents (« ville » = `city`) n'est fait que dans `identity`, où chaque fait n'a qu'une valeur —
+     * ailleurs deux clés voisines peuvent parfaitement désigner deux personnes ou deux projets différents.
+     */
+    private fun existingKeyFor(target: Map<String, MemEntry>, category: String, key: String): String {
+        if (target.containsKey(key)) return key
+        val literal = memoryLiteralKey(key)
+        if (literal.isNotEmpty()) {
+            target.keys.firstOrNull { memoryLiteralKey(it) == literal }?.let { return it }
+        }
+        if (category == "identity") {
+            val canonical = memoryCanonicalKey(key)
+            if (canonical.isNotEmpty()) {
+                target.keys.firstOrNull { memoryCanonicalKey(it) == canonical }?.let { return it }
+            }
+        }
+        return key
+    }
+
     /** category -> key -> newValue. Writes are additive/overwriting, never destructive of other keys. */
     suspend fun update(update: Map<String, Map<String, String>>, onTrim: ((String) -> Unit)? = null): MemoryStore =
         mutex.withLock {
@@ -133,8 +171,9 @@ class MemoryManager(private val file: File) {
             for ((cat, kv) in update) {
                 if (cat !in validCategories) continue
                 val target = store.categories()[cat] ?: continue
-                for ((key, value) in kv) {
-                    if (key.isBlank() || value.isBlank()) continue
+                for ((rawKey, value) in kv) {
+                    if (rawKey.isBlank() || value.isBlank()) continue
+                    val key = existingKeyFor(target, cat, rawKey)
                     val newVal = truncate(value)
                     val existing = target[key]
                     if (existing?.value != newVal) {
@@ -166,14 +205,15 @@ class MemoryManager(private val file: File) {
             val cat = normalizeCategory(category)
             val store = loadLocked()
             val target = store.categories().getValue(cat)
-            val before = target[key]
+            val storedKey = existingKeyFor(target, cat, key)
+            val before = target[storedKey]
             val storedValue = truncate(value)
             val after = if (before != null && before.value == storedValue) before else MemEntry(storedValue, today())
             if (before != after) {
-                target[key] = after
+                target[storedKey] = after
                 saveLocked(store)
             }
-            Change(cat, key, before, after, "Mémorisé : $cat/$key = $storedValue")
+            Change(cat, storedKey, before, after, "Mémorisé : $cat/$storedKey = $storedValue")
         }
 
     suspend fun forget(key: String, category: String = "notes"): String =
@@ -183,9 +223,12 @@ class MemoryManager(private val file: File) {
         require(key.isNotBlank()) { "Une clé est nécessaire." }
         val cat = normalizeCategory(category)
         val store = loadLocked()
-        val before = store.categories().getValue(cat).remove(key)
+        val target = store.categories().getValue(cat)
+        // Oublier « ma ville » doit effacer le souvenir même s'il a été rangé sous `city`.
+        val storedKey = existingKeyFor(target, cat, key)
+        val before = target.remove(storedKey)
         if (before != null) saveLocked(store)
-        Change(cat, key, before, null, if (before == null) "Introuvable : $cat/$key" else "Supprimé : $cat/$key")
+        Change(cat, storedKey, before, null, if (before == null) "Introuvable : $cat/$storedKey" else "Supprimé : $cat/$storedKey")
     }
 
     internal suspend fun restore(change: Change): String = mutex.withLock {
@@ -220,30 +263,48 @@ class MemoryManager(private val file: File) {
             coreLines += "${pretty(key).replaceFirstChar { it.uppercase() }}: ${entry.value}"
         }
 
-        data class Row(val updated: String, val cat: String, val key: String, val value: String)
+        data class Row(val score: Double, val updated: String, val cat: String, val key: String, val value: String)
+        val today = todayDate()
         val rest = mutableListOf<Row>()
         for (cat in categoryLabels.keys) {
             for ((key, entry) in store.categories()[cat] ?: emptyMap()) {
                 if (entry.value.isBlank()) continue
-                rest += Row(entry.updated.ifBlank { "0000-00-00" }, cat, key, entry.value)
+                val updated = entry.updated.ifBlank { "0000-00-00" }
+                rest += Row(memoryPromptScore(cat, updated, today), updated, cat, key, entry.value)
             }
         }
-        rest.sortByDescending { it.updated }
+        // La date seule ne suffit pas : trois notes écrites hier chassaient le prénom de la sœur appris l'an
+        // dernier. Le poids de la catégorie passe devant, la fraîcheur départage.
+        rest.sortWith(compareByDescending<Row> { it.score }.thenByDescending { it.updated }.thenBy { it.key })
+
+        fun lineFor(row: Row) = "  - ${pretty(row.key).replaceFirstChar { it.uppercase() }}: ${row.value}"
 
         var used = coreLines.sumOf { it.length + 1 }
-        val shown = linkedMapOf<String, MutableList<String>>()
-        val overflow = linkedMapOf<String, MutableList<String>>()
+        val chosen = mutableSetOf<String>()
         val perCatUsed = mutableMapOf<String, Int>()
 
+        fun tryTake(row: Row): Boolean {
+            val id = "${row.cat}/${row.key}"
+            if (id in chosen) return false
+            if ((perCatUsed[row.cat] ?: 0) >= promptMaxPerCategory) return false
+            val length = lineFor(row).length + 1
+            if (used + length > promptCoreChars) return false
+            chosen += id
+            perCatUsed[row.cat] = (perCatUsed[row.cat] ?: 0) + 1
+            used += length
+            return true
+        }
+
+        // D'abord le meilleur souvenir de chaque catégorie, pour qu'aucune ne disparaisse entièrement de
+        // l'invite, puis le reste du budget au mérite.
+        for (cat in categoryLabels.keys) rest.firstOrNull { it.cat == cat }?.let { tryTake(it) }
+        for (row in rest) tryTake(row)
+
+        val shown = linkedMapOf<String, MutableList<String>>()
+        val overflow = linkedMapOf<String, MutableList<String>>()
         for (row in rest) {
-            val line = "  - ${pretty(row.key).replaceFirstChar { it.uppercase() }}: ${row.value}"
-            if ((perCatUsed[row.cat] ?: 0) < promptMaxPerCategory && used + line.length + 1 <= promptCoreChars) {
-                shown.getOrPut(row.cat) { mutableListOf() } += line
-                perCatUsed[row.cat] = (perCatUsed[row.cat] ?: 0) + 1
-                used += line.length + 1
-            } else {
-                overflow.getOrPut(row.cat) { mutableListOf() } += pretty(row.key)
-            }
+            if ("${row.cat}/${row.key}" in chosen) shown.getOrPut(row.cat) { mutableListOf() } += lineFor(row)
+            else overflow.getOrPut(row.cat) { mutableListOf() } += pretty(row.key)
         }
 
         val indexed = mutableListOf<String>()
@@ -296,48 +357,61 @@ class MemoryManager(private val file: File) {
         if (store.sessions.isNotEmpty()) {
             out += ""
             out += "[RECENT CONVERSATIONS — background you remember; bring one up only when it is relevant]"
-            for (s in store.sessions.takeLast(3)) out += "- ${s.date}: ${s.summary}"
+            for (s in store.sessions.takeLast(PROMPT_SESSION_SUMMARIES)) out += "- ${s.date}: ${s.summary}"
         }
         return out.joinToString("\n") + "\n"
     }
 
+    /**
+     * Les souvenirs qui répondent à [query] (voir MemoryRecall.kt pour le rapprochement des mots). Les résumés
+     * des conversations passées sont cherchés aussi, pour « de quoi on a parlé la dernière fois ». Quand rien
+     * ne correspond, la liste des sujets connus est renvoyée : le modèle peut relancer une recherche avec le bon
+     * mot plutôt que d'affirmer qu'il ne sait pas.
+     */
     suspend fun search(query: String, limit: Int = 8): String {
         val store = load()
-        val words = searchText(query).split(Regex("[^\\p{L}\\p{N}\\p{M}]+")).filter { it.isNotEmpty() }.distinct()
+        val parsed = MemoryQuery.of(query)
+        val blank = query.isBlank()
 
         data class Row(val score: Int, val cat: String, val key: String, val value: String)
         val rows = mutableListOf<Row>()
         for ((cat, items) in store.categories()) {
             for ((key, entry) in items) {
                 if (entry.value.isBlank()) continue
-                val s = if (query.isBlank()) 1 else score(words, cat, key, entry.value)
+                val s = if (blank) 1 else scoreMemoryEntry(parsed, cat, key, entry.value)
                 if (s > 0) rows += Row(s, cat, key, entry.value)
             }
         }
-        if (rows.isEmpty()) {
-            return if (query.isNotBlank()) "Nothing stored about '$query'." else "I have not stored anything about this person yet."
+        val sessions: List<String> = if (blank) emptyList() else store.sessions
+            .map { it to scoreMemoryEntry(parsed, "sessions", it.date, it.summary) }
+            .filter { it.second > 0 }
+            .sortedByDescending { it.second }
+            .take(2)
+            .map { "- ${it.first.date}: ${it.first.summary}" }
+
+        if (rows.isEmpty() && sessions.isEmpty()) {
+            if (blank) return "I have not stored anything about this person yet."
+            val known = store.categories().values.flatMap { it.keys }.map { pretty(it) }.sorted()
+            if (known.isEmpty()) return "Nothing stored about '$query'."
+            val listed = mutableListOf<String>()
+            var budget = 400
+            for (name in known) {
+                if (budget - name.length - 2 < 0) break
+                listed += name
+                budget -= name.length + 2
+            }
+            val extra = if (known.size > listed.size) " (+${known.size - listed.size} more)" else ""
+            return "Nothing stored about '$query'. Subjects on file, try one of these as the keyword: " +
+                listed.joinToString(", ") + extra + "."
         }
+
         rows.sortWith(compareByDescending<Row> { it.score }.thenBy { it.key })
         val lines = rows.take(limit.coerceAtLeast(1)).map { "${it.cat}/${pretty(it.key)}: ${it.value}" }
-        val head = if (query.isNotBlank()) "Stored facts matching '$query':" else "Everything currently stored:"
+        val head = if (blank) "Everything currently stored:" else "Stored facts matching '$query':"
         val more = if (rows.size > lines.size) "\n(+${rows.size - lines.size} more — search with a narrower keyword)" else ""
-        return "$head\n${lines.joinToString("\n")}$more"
-    }
-
-    private fun searchText(value: String): String =
-        Normalizer.normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
-
-    private fun score(words: List<String>, cat: String, key: String, value: String): Int {
-        val hayKey = searchText(pretty(key))
-        val hayVal = searchText(value)
-        var s = 0
-        for (w in words) {
-            if (w.isEmpty()) continue
-            if (w == hayKey) s += 10 else if (hayKey.contains(w)) s += 6
-            if (hayVal.contains(w)) s += 3
-            if (cat.contains(w)) s += 1
-        }
-        return s
+        val past = if (sessions.isEmpty()) "" else "\nEarlier conversations on this:\n" + sessions.joinToString("\n")
+        val body = if (lines.isEmpty()) "(no stored fact, but see below)" else lines.joinToString("\n")
+        return "$head\n$body$more$past"
     }
 
     data class UiRow(val category: String, val key: String, val value: String, val updated: String)
@@ -358,7 +432,7 @@ class MemoryManager(private val file: File) {
         if (summary.isBlank()) return@withLock
         val store = loadLocked()
         store.sessions += SessionEntry(today(), summary.take(280), language)
-        while (store.sessions.size > 3) store.sessions.removeAt(0)
+        while (store.sessions.size > MAX_SESSION_SUMMARIES) store.sessions.removeAt(0)
         saveLocked(store, null)
     }
 
@@ -381,12 +455,20 @@ class MemoryManager(private val file: File) {
         }
     }
 
-    suspend fun peekLastSession(): SessionEntry? = mutex.withLock { loadLocked().sessions.lastOrNull() }
+    /** Le dernier résumé de conversation qui n'a pas encore servi à un briefing. */
+    suspend fun peekLastSession(): SessionEntry? = mutex.withLock { loadLocked().sessions.lastOrNull { !it.briefed } }
 
-    suspend fun popLastSession(): SessionEntry? = mutex.withLock {
+    /**
+     * Retient que le résumé rendu par [peekLastSession] vient d'être annoncé : il ne sera plus proposé au
+     * briefing suivant, mais il reste dans l'historique. Le briefing l'effaçait purement et simplement, si bien
+     * que la mémoire perdait le fil de ce qui avait été fait la veille dès qu'elle en avait parlé une fois.
+     */
+    suspend fun markLastSessionBriefed(): SessionEntry? = mutex.withLock {
         val store = loadLocked()
-        if (store.sessions.isEmpty()) return@withLock null
-        val entry = store.sessions.removeAt(store.sessions.size - 1)
+        val index = store.sessions.indexOfLast { !it.briefed }
+        if (index < 0) return@withLock null
+        val entry = store.sessions[index]
+        store.sessions[index] = entry.copy(briefed = true)
         saveLocked(store, null)
         entry
     }
