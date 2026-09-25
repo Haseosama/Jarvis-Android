@@ -492,6 +492,19 @@ Colissimo tracking for a parcel number, and **`trafic_routier`** opens Google Ma
 traffic layer. The next buses and metros to a destination were already covered by `itineraire` with
 `mode = transit`.
 
+### Fuel prices (`prix_carburant`)
+
+A built-in tool now, replacing the catalogue plugin of the same name (an installed copy is shadowed by it, as every
+plugin named like a built-in tool is). The JSON plugin could not be made right: its city search also matched towns that
+merely contain the name ("Lyon" returned Chazelles-sur-Lyon, "Paris" Cormeilles-en-Parisis), the model had to spell the
+dataset field exactly (`gazole_prix` — "gazole" was an error from the service), a station out of that fuel could come
+first, and it had no "près de moi". The tool takes the fuel as said (diesel, gazole, sans plomb 98, SP95-E10, éthanol,
+GPL…), a city, a postcode, or nothing / "ici" for a radius around the phone (`within_distance` on the feed, 5 km by
+default, with the distance in the answer); it keeps only stations in that city itself, that have the fuel (not in their
+`carburants_indisponibles` list), with a price under 8 days old, cheapest first, and says how old each price is. Same
+live feed as before (data.economie.gouv.fr, no key); it has no brand names, only addresses. Checked: unit tests on a
+payload shaped like the real one, and live on the emulator for Lyon, Paris and around the phone.
+
 ### Four everyday helpers
 
 - **Spending** (`expenses`, `expenses/ExpenseStore.kt`, Settings > *Dépenses*). "J'ai dépensé 12 euros au restaurant",
@@ -557,7 +570,7 @@ a plugin only describes one of three declarative actions, and the file is checke
   not `agent_task` or `end_session`), with `{parameter}` filled in. Sensitive taps still ask for confirmation.
 
 Limits: 100 plugins, 5 parameters each, 20 000 characters per file, a name that is not a built-in tool's.
-Settings: the catalogue (69 built-in plugins) is a dropdown, folded by default, with a search field on the name and description; the
+Settings: the catalogue (68 built-in plugins) is a dropdown, folded by default, with a search field on the name and description; the
 installed ones stay listed above it.
 **Many plugins.** Every installed plugin is usable, but only the first 25 (by file name) are declared to the model as tools of their own: a long list
 of tool declarations weighs on every session, and one the service refuses would break the whole session, and Gemini's documentation gives no
@@ -583,7 +596,7 @@ not real time, files only in the work folder). Something switched off is reporte
   position*); the position is used for that one request and never stored. Android may refuse location to an app that is
   not in front, so it is most reliable with Jarvis open; the tool then says how to fix it or asks for a city. Checked
   on an emulator (position → town → weather, named city unchanged); not on the real phone.
-- **Plugin catalogue.** Settings → *Plugins* lists 69 bundled plugins with an *Installer* button (up to 100 can be installed).
+- **Plugin catalogue.** Settings → *Plugins* lists 68 bundled plugins with an *Installer* button (up to 100 can be installed).
   The first 16: crypto prices, exchange rates, Wikipedia summary, public holidays, Maps search and directions, YouTube, translation, news,
   recipes, calendar event, night, meeting and car routines. Added later (13): the position of the International Space Station, a random
   French Wikipedia article, sunrise and sunset, the phase of the moon, NASA's astronomy picture of the day (its explanation, in English), a
