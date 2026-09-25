@@ -56,23 +56,7 @@ internal sealed interface ElementMatch {
     data object None : ElementMatch
 }
 
-/**
- * Finds the element the user means by text: an exact (accent- and case-insensitive) match wins,
- * otherwise a partial one. Several matches are reported rather than guessed. Password fields are
- * never matched by their content.
- */
-internal fun findByText(elements: List<ScreenElement>, query: String, onlyActionable: Boolean = true): ElementMatch {
-    val wanted = normalizeLabel(query)
-    if (wanted.isEmpty()) return ElementMatch.None
-    val pool = elements.filter { !it.password && (!onlyActionable || it.clickable || it.editable || it.checked != null) }
-    val exact = pool.filter { normalizeLabel(it.label) == wanted }
-    val hits = exact.ifEmpty { pool.filter { normalizeLabel(it.label).contains(wanted) } }
-    return when (hits.size) {
-        0 -> ElementMatch.None
-        1 -> ElementMatch.Found(hits[0])
-        else -> ElementMatch.Ambiguous(hits.take(8))
-    }
-}
+// findByText et le rapprochement des libellés vivent dans ScreenMatch.kt.
 
 private val SENSITIVE_WORDS = listOf(
     "envoyer", "send", "payer", "pay", "acheter", "buy", "purchase", "commander", "order", "passer la commande",

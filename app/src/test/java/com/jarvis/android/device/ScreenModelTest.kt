@@ -47,34 +47,7 @@ class ScreenModelTest {
         assertTrue(formatScreen("App", "p", emptyList()).contains("aucun élément"))
     }
 
-    @Test
-    fun `exact text beats a partial match`() {
-        val list = listOf(el(0, "Photos"), el(1, "Photos récentes"))
-        assertEquals(ElementMatch.Found(list[0]), findByText(list, "photos"))
-    }
-
-    @Test
-    fun `several partial matches are reported rather than guessed`() {
-        val list = listOf(el(0, "Photo 1"), el(1, "Photo 2"))
-        val match = findByText(list, "photo")
-        assertTrue(match is ElementMatch.Ambiguous)
-        assertEquals(2, (match as ElementMatch.Ambiguous).candidates.size)
-    }
-
-    @Test
-    fun `no match, blank query, and password fields are not matched`() {
-        val list = listOf(el(0, "Envoyer"), el(1, "secret", password = true, editable = true))
-        assertEquals(ElementMatch.None, findByText(list, "supprimer"))
-        assertEquals(ElementMatch.None, findByText(list, "  "))
-        assertEquals(ElementMatch.None, findByText(list, "secret"))
-    }
-
-    @Test
-    fun `plain text that cannot be tapped is skipped unless asked`() {
-        val list = listOf(el(0, "Bonjour", clickable = false))
-        assertEquals(ElementMatch.None, findByText(list, "bonjour"))
-        assertTrue(findByText(list, "bonjour", onlyActionable = false) is ElementMatch.Found)
-    }
+    // Le rapprochement des libellés a déménagé dans ScreenMatch.kt : ses tests sont dans ScreenMatchTest.
 
     @Test
     fun `buttons that send, pay, delete or grant access are sensitive`() {

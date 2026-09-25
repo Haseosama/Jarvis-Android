@@ -188,6 +188,28 @@ Accessibility → *Jarvis : contrôle du téléphone* (on Xiaomi/MIUI, if greyed
 Jarvis → ⋮ → *Allow restricted settings*). A switch in Jarvis' settings turns the tools off without
 touching the system setting, and the system switch can be turned off at any time.
 
+**Finding the thing to tap** (`device/ScreenMatch.kt`). Naming an element by its text used to mean « the label
+equals what was asked, or contains it ». That failed in one direction in particular: a request *longer* than the
+label never matched, so a model saying « Envoyer le message » or « le bouton Envoyer » missed the button reading
+`Envoyer`, got *Aucun élément*, read the screen again and retried — a wasted round trip, audible in a voice
+conversation. It also ignored language: an app's interface is in English while the user speaks French, and
+« Envoyer » never met `Send`. Matching is now graded, best tier wins: exact label, same words allowing for
+French/English equivalents of the common interface verbs (send, search, settings, cancel, delete…), one text
+being the start of the other, every asked word present in the label, every label word present in the request,
+plain substring either way, and last a bounded typo tolerance (nothing forgiven under five letters, where one
+letter already makes another word — `Nom` must not tap `Non`). Words that only designate the element or the
+gesture (« le bouton », « appuie sur ») are dropped from the request, never from the labels. A strict winner is
+required: candidates tied at the top are handed back for the model to pick a number, since a tap cannot be taken
+back. The same label carried by a list row and by the text inside it no longer counts as two candidates — when
+one contains the other on screen, the smaller one is kept. `screen_tap` by text now also reads the screen itself
+when nothing has been read yet (as `screen_scroll` already did) and reads it once more before reporting a miss,
+so a snapshot taken before the last action no longer hides an element that is on screen. A miss lists what can be
+tapped here instead of ending on a refusal, and a successful tap reports the label it actually hit (masked for a
+password field), which matters now that matching tolerates translation and typos. *Checked:* by unit tests
+(`ScreenMatchTest`) — the requests above, the safeguards against a wrong tap, the nesting, the dead-end listing.
+*Not checked:* on a real phone; the confirmation flow and the service itself are unchanged and remain covered
+only as described below.
+
 Safeguards (`device/ScreenModel.kt`, `actions/ScreenTools.kt`):
 - Taps on buttons that send, pay, delete, install, grant access, accept terms or call, and **every**
   tap inside Settings, the permission dialogs, the package installer and the system UI, need your
