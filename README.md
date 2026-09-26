@@ -11,7 +11,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 Version 0.5.x (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on GitHub, see "Updating from
 GitHub"). The voice loop works end to end on a real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live
-transcripts. The unit-test suite (about 740 tests, `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was
+transcripts. The unit-test suite (about 770 tests, `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was
 checked and what was not; in short, a lot was checked on an emulator (with synthetic voices, or without a Gemini key), and **not yet on a
 real phone with a real voice**: the wake word (built-in and taught), the meeting notes with a real Gemini answer, Gmail and Drive, the update
 on a Xiaomi, reminders re-armed after a reboot, timers, flight search, and the live video. Reconnection after a real network drop was tested by
@@ -71,6 +71,8 @@ text into a named language without switching the language of the conversation it
 loud to find it), `place_reminder` (reminders on arriving at or leaving a place) — see "Four everyday helpers",
 `prix_carburant` (cheapest fuel), `parking`, `rain_soon`, `birthdays`, `interpreter` — see "Car, rain, birthdays, interpreter",
 `call_log` (missed calls and calling back), `sos` (emergency alert), `photos` (photo search) — see "Calls, SOS, photos",
+`receipt` (receipt to expense), `person_reminder` (reminders tied to a person), `driving_mode`, `health` (Health Connect) —
+see "Receipts, people, driving, health",
 and the phone-control tools below.
 
 `end_session` lets you close the voice session by voice ("arrête la session"): the model says
@@ -612,6 +614,46 @@ payload shaped like the real one, and live on the emulator for Lyon, Paris and a
   real to the emulator's own number with the right map link, a second trigger refused during the countdown and within
   the minute after; the Settings cards, and a contact added through the picker. *Not checked*: the call to the first
   contact after the SMS, and a real phone's photo library.
+
+### Receipts, people, driving, health
+
+- **Photos by what is on them** (`photos` with `subject` and `labels`, `photos/PhotoLabels.kt`). "Mes photos de chien",
+  "les photos de plage de cet été": the model gives the user's word and ML Kit's English labels (dog, beach…); each
+  photo is looked at once, from its thumbnail, by ML Kit's on-device image labeling (the model ships in the app), and its
+  labels are kept in `photo_labels.json`, so the next search is instant. A search looks at up to 20 seconds of new
+  photos, newest first; the rest is done by a worker while the phone charges. Without dates, it covers the past year.
+- **Receipt to expense** (`receipt`, `receipts/Receipt.kt`). "Scanne ce ticket" (also offline) opens the camera app
+  through a screen-less activity (asking for the camera permission first if needed); "le ticket que je viens de
+  photographier" takes the last photo. ML Kit's on-device text recognition reads it; the lines are put back into
+  printed rows (the recognizer reads columns apart), then the total is found by its words ("net à payer", "total TTC",
+  "CB"…, never "sous-total" or "TVA"), else the amount printed twice; the shop is the first line of words, the date
+  the first valid one of the last 90 days. The expense is noted with a category guessed from the shop (courses,
+  essence, restaurant…), and "annule la dernière dépense" undoes it. The photo taken for it is deleted.
+- **Reminders tied to a person** (`person_reminder`, `people/PersonReminders.kt`). "La prochaine fois que Paul
+  m'appelle, rappelle-moi de lui parler du week-end": kept with all of that contact's numbers, shown as a notification
+  with *Fait* when they call (PHONE_STATE, which needs "Rappels pendant les appels" in the Contacts card), when a
+  message from them arrives (notification access), and in Jarvis's own answer when it calls or writes to them. Shown at
+  most once per half hour; stays until *Fait* or "c'est fait pour Paul".
+- **Driving mode** (`driving_mode`, `driving/DrivingMode.kt`, Settings > *Mode conduite*). "Mode conduite" / "je prends
+  la route" (also offline), or by itself when the phone joins the car's Bluetooth (the car chosen in *Voiture garée*),
+  until "arrête le mode conduite", "je suis arrivé" or leaving the car. While on: a [DRIVING] rule for short answers in
+  the next session's prompt, messages read aloud through Android's speech on the navigation audio channel, and — off
+  by default — "Je conduis…" answered through the notification's own reply button, once per person every 30 minutes,
+  never in a group, 10 an hour at most, each one logged with the messages sent by Jarvis.
+- **Health** (`health`, `health/Health.kt`, Settings > *Santé*). Steps, distance, sleep and heart rate read from Health
+  Connect (read permissions only, asked on Health Connect's own screen; the page it links to explains what Jarvis does
+  with them). Sleep counts the stages asleep; when Health Connect's totals skip a source not in its priority list, the
+  records are read and the largest source counts. Yesterday's steps and last night's sleep go into the morning
+  briefing. The app is now compiled against Android 16 (compileSdk 36, which the Health Connect library needs); it
+  still targets Android 14.
+- *Checked*: unit tests (21 new cases). On the emulator: sample Health Connect data (written by a debug-only receiver)
+  read back as steps, a week, sleep and heart rate, and the permission screen and privacy page; a person reminder shown
+  on an incoming call, in the answer of call_contact, and on an SMS from that person; driving mode by voice, the SMS
+  read aloud on the navigation channel, one "je conduis" answer really sent through Google Messages' reply button and
+  not a second one; a generated French receipt read as 16,55 € at Carrefour Market on 24/09 in « courses », and the
+  camera flow (permission, photo, back to Jarvis, temporary photo deleted); photos labelled on the phone and a search
+  finding the receipt photo. *Not checked*: driving mode started by a real car's Bluetooth, and ML Kit on a real photo
+  library.
 
 ### Plugins and self-knowledge
 

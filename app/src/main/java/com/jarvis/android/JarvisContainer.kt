@@ -127,6 +127,12 @@ class JarvisContainer(val appContext: Context) {
     /** The trusted contacts of the SOS alert (see sos/Sos.kt). */
     internal val sosStore = com.jarvis.android.sos.SosStore(java.io.File(appContext.filesDir, "sos.json"))
 
+    /** Notes tied to a contact, shown when they call or write (see people/PersonReminders.kt). */
+    /** Driving mode's settings (see driving/DrivingMode.kt). */
+    internal val drivingStore = com.jarvis.android.driving.DrivingStore(java.io.File(appContext.filesDir, "driving.json"))
+
+    internal val personReminderStore = com.jarvis.android.people.PersonReminderStore(java.io.File(appContext.filesDir, "person_reminders.json"))
+
     internal val agent: com.jarvis.android.agent.AgentRunner by lazy { com.jarvis.android.agent.AgentRunner(this, appScope) }
 
     /** Text chat over generateContent; independent of the Live session. */

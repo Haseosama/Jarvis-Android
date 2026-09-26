@@ -3,6 +3,11 @@ package com.jarvis.android.actions
 import android.content.Intent
 import com.jarvis.android.JarvisContainer
 import com.jarvis.android.photos.Photo
+import com.jarvis.android.photos.PhotoIndexWorker
+import com.jarvis.android.photos.labelMissing
+import com.jarvis.android.photos.labelTerms
+import com.jarvis.android.photos.matchesLabels
+import com.jarvis.android.photos.photoLabelIndex
 import com.jarvis.android.photos.describePhotos
 import com.jarvis.android.photos.hasPhotoLocationPermission
 import com.jarvis.android.photos.hasPhotoPermission
@@ -26,14 +31,18 @@ object PhotoSearchTool : Tool {
     override val name = "photos"
     override val description =
         "Chercher dans les photos du téléphone : « mes photos d'août », « les photos de la semaine dernière », « mes photos à Brest », " +
-            "« les photos WhatsApp d'hier ». Donnez les jours en dates (from/to, AAAA-MM-JJ) calculées depuis la date du jour ; un lieu seulement " +
+            "« les photos WhatsApp d'hier », « mes photos de chien », « les photos de plage de cet été ». Donnez les jours en dates (from/to, AAAA-MM-JJ) calculées depuis la date du jour ; un lieu seulement " +
             "si l'utilisateur en nomme un. Répond combien il y en a et sur quels jours, et ouvre la plus récente (ou la plus ancienne) dans la galerie. " +
-            "Aucune photo n'est envoyée : Jarvis ne voit pas leur contenu."
+            "Pour ce qu'il y a SUR les photos, donnez subject (les mots de l'utilisateur) et labels (les étiquettes anglaises du modèle d'images " +
+            "du téléphone, ex. 'dog' pour chien, 'beach' pour plage, 'food' pour repas, 'cat', 'flower', 'car', 'sky', 'snow', 'cake', 'baby') ; sans dates, " +
+            "la recherche par sujet couvre l'année écoulée. Aucune photo n'est envoyée : l'analyse se fait sur le téléphone."
     override val parameters = objectSchema {
         string("from", "Premier jour, AAAA-MM-JJ (seul : ce jour-là ; sans from ni to : les 7 derniers jours).")
         string("to", "Dernier jour inclus, AAAA-MM-JJ.")
         string("place", "Ville ou lieu où les photos ont été prises (facultatif, à 25 km près).")
         string("album", "Nom d'album contenu, ex. 'WhatsApp', 'Screenshots', 'Camera' (facultatif).")
+        string("subject", "Ce qu'il y a sur les photos, avec les mots de l'utilisateur, ex. 'chien' (facultatif).")
+        string("labels", "Le même sujet en étiquettes anglaises séparées par des virgules, ex. 'dog' ou 'beach, sea' (avec subject).")
         string("open", "'latest' (défaut), 'first' ou 'none'.")
     }
 
@@ -43,8 +52,17 @@ object PhotoSearchTool : Tool {
             return@withContext "Je n'ai pas accès aux photos : autorisez-le dans les réglages de Jarvis (carte Photos)."
         }
         val zone = ZoneId.systemDefault()
-        val (start, end) = photoRange(args.stringArg("from"), args.stringArg("to"), LocalDate.now(zone), zone)
-            ?: return@withContext "Dates illisibles : donnez-les sous la forme AAAA-MM-JJ."
+        val subject = args.stringArg("subject").trim()
+        val terms = labelTerms(args.stringArg("labels").ifBlank { subject })
+        val today = LocalDate.now(zone)
+        val noDates = args.stringArg("from").isBlank() && args.stringArg("to").isBlank()
+        // Looking for what is on the photos with no dates: the whole past year (a start alone would mean that one day).
+        val yearBack = terms.isNotEmpty() && noDates
+        val (start, end) = photoRange(
+            if (yearBack) today.minusDays(364).toString() else args.stringArg("from"),
+            if (yearBack) today.toString() else args.stringArg("to"),
+            today, zone,
+        ) ?: return@withContext "Dates illisibles : donnez-les sous la forme AAAA-MM-JJ."
         var photos = try {
             queryPhotos(context, start, end, args.stringArg("album"))
         } catch (_: SecurityException) {
@@ -79,7 +97,18 @@ object PhotoSearchTool : Tool {
             if (noGps > 0) note += " ${if (noGps == 1) "1 photo de la période n'a" else "$noGps photos de la période n'ont"} pas de position enregistrée."
             if (total > scanned.size) note += " Seules les $PLACE_SCAN_LIMIT plus récentes de la période ont été vérifiées : précisez les dates pour aller plus loin."
         }
-        val summary = describePhotos(photos, zone, where) + note
+        if (terms.isNotEmpty() && photos.isNotEmpty()) {
+            val index = photoLabelIndex(context)
+            // Up to 20 seconds of looking at photos not seen yet, newest first; the rest is done while the phone charges.
+            val left = labelMissing(context, index, photos, System.currentTimeMillis() + 20_000L)
+            photos = photos.filter { p -> index.get(p.id)?.let { matchesLabels(it, terms) } == true }
+            if (left > 0) {
+                PhotoIndexWorker.schedule(context)
+                note += " ${left} photo${if (left > 1) "s" else ""} de la période n'${if (left > 1) "ont" else "a"} pas encore été analysée${if (left > 1) "s" else ""} : " +
+                    "Jarvis s'en occupe pendant la prochaine charge, redemandez ensuite."
+            }
+        }
+        val summary = describePhotos(photos, zone, where, subject.ifEmpty { terms.joinToString(", ") }) + note
         val open = args.stringArg("open").trim().lowercase()
         val target: Photo? = when (open) {
             "none", "non" -> null

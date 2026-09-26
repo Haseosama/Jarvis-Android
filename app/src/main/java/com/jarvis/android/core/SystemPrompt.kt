@@ -27,13 +27,18 @@ internal suspend fun buildSystemInstruction(container: JarvisContainer, textMode
     else "ADDRESS: Address the user with the ordinary respectful form for a superior in the language you are currently speaking."
     val identityCtx = "[IDENTITY]\nYour name is $assistantName. Always refer to yourself as $assistantName.\n$addr\n"
 
-    val modeCtx = if (textMode) TEXT_MODE_DIRECTIVE else ""
+    val modeCtx = if (textMode) TEXT_MODE_DIRECTIVE else if (com.jarvis.android.driving.DrivingMode.active) DRIVING_DIRECTIVE else ""
     val selfCtx = buildSelfKnowledge(collectSelfKnowledge(container, assistantName))
     val briefingCtx = if (textMode) "" else container.briefing.prepare()
     return listOf(buildLanguageDirective(if (com.jarvis.android.i18n.Lang.isEnglish) "English" else "French (France)"), modeCtx, timeCtx, identityCtx, selfCtx, memoryBlock, recentExchanges, briefingCtx, base)
         .filter { it.isNotBlank() }
         .joinToString("\n")
 }
+
+internal const val DRIVING_DIRECTIVE =
+    "[DRIVING]\n" +
+        "The user is driving: answer in one or two short spoken sentences, no lists, no reading of long texts unless asked, " +
+        "and never ask them to look at or touch the screen. Navigation, calls, messages and music come first.\n"
 
 internal const val TEXT_MODE_DIRECTIVE =
     "[MODE]\n" +

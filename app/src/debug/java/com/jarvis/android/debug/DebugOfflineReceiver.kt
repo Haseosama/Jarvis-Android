@@ -18,15 +18,14 @@ class DebugOfflineReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val text = intent.getStringExtra("say") ?: return
         val container = (context.applicationContext as JarvisApp).container
-        val pending = goAsync()
+        // The broadcast is not held until the answer: a command that waits (the receipt waits for the photo) would make
+        // Android declare the app not responding after 10 seconds. The app is alive in the foreground while it is tested.
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 val (reply, end) = container.engine.offlineReply(text)
                 Log.i("JarvisOffline", "\"$text\" -> \"$reply\" (end=$end)")
             } catch (e: Exception) {
                 Log.e("JarvisOffline", "\"$text\" failed", e)
-            } finally {
-                pending.finish()
             }
         }
     }

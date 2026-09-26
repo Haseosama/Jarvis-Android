@@ -133,12 +133,21 @@ internal object ParkingSaver {
 class CarBluetoothReceiver : BroadcastReceiver() {
     @SuppressLint("MissingPermission") // reading the address needs no permission; the name is never read here
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != BluetoothDevice.ACTION_ACL_DISCONNECTED) return
+        val connected = intent.action == BluetoothDevice.ACTION_ACL_CONNECTED
+        if (!connected && intent.action != BluetoothDevice.ACTION_ACL_DISCONNECTED) return
         val device: BluetoothDevice = (if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
         else @Suppress("DEPRECATION") intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)) ?: return
         val app = context.applicationContext
         val data = ParkingSaver.store(app).load()
-        if (!data.autoSave || data.carBluetoothAddress.isEmpty() || !device.address.equals(data.carBluetoothAddress, ignoreCase = true)) return
+        if (data.carBluetoothAddress.isEmpty() || !device.address.equals(data.carBluetoothAddress, ignoreCase = true)) return
+        // Driving mode: on when the phone joins the car, off when it leaves (only if it was switched on by the car).
+        val driving = com.jarvis.android.driving.DrivingMode
+        if (connected) {
+            if (driving.store(app).load().autoStart) driving.start(app, byCar = true)
+            return
+        }
+        if (driving.active && driving.startedByCar) driving.stop(app)
+        if (!data.autoSave) return
         val result = goAsync()
         Thread {
             try {

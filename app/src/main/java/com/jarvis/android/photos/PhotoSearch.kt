@@ -52,8 +52,9 @@ internal fun dayWords(d: LocalDate, withYear: Boolean): String =
     (if (d.dayOfMonth == 1) "1er" else d.dayOfMonth.toString()) + " " + MONTHS[d.monthValue - 1] + if (withYear) " ${d.year}" else ""
 
 /** "12 photos du 3 au 17 août 2026, surtout dans Camera": how many, over which days, and the main album. */
-internal fun describePhotos(photos: List<Photo>, zone: ZoneId, place: String = ""): String {
-    val where = if (place.isEmpty()) "" else (if (photos.size > 1) " prises" else " prise") + " près de $place"
+internal fun describePhotos(photos: List<Photo>, zone: ZoneId, place: String = "", subject: String = ""): String {
+    val where = (if (subject.isEmpty()) "" else " « $subject »") +
+        if (place.isEmpty()) "" else (if (photos.size > 1) " prises" else " prise") + " près de $place"
     if (photos.isEmpty()) return "Aucune photo$where pour cette période."
     val days = photos.map { Instant.ofEpochMilli(it.takenAt).atZone(zone).toLocalDate() }
     val first = days.min()

@@ -80,6 +80,11 @@ private val SOS = Regex("^(?:jarvis )?(?:sos|au secours|a l aide|urgence|c est u
 private val SOS_CANCEL = Regex("^(?:jarvis )?(?:annule (?:l alerte(?: sos)?|le sos)|fausse alerte|c est une fausse alerte|stop sos|arrete l alerte)$")
 private val SOS_CANCEL_WHILE_ARMED = Regex("^(?:jarvis )?(?:annule|annuler|stop|arrete|non|tout va bien)(?: jarvis)?$")
 private val PHOTOS = Regex("^(?:montre moi |ouvre |affiche )?(?:mes|les) (?:dernieres )?photos(?: (d aujourd hui|d hier|de la semaine))?$")
+private val RECEIPT = Regex("^(?:scanne|lis|photographie|ajoute) (?:ce|le|mon|un) ticket(?: de caisse)?(?: a mes depenses| dans mes depenses)?$")
+private val DRIVING_ON = Regex("^(?:jarvis )?(?:(?:active |lance |passe en |mets le |mets toi en )?mode conduite|je prends la route|je conduis)$")
+private val DRIVING_OFF = Regex("^(?:jarvis )?(?:(?:arrete|desactive|coupe|quitte|stop|fin du) (?:le )?mode conduite|je suis arrive)$")
+private val HEALTH_STEPS = Regex("^(?:combien (?:de pas|j ai fait de pas)(?: aujourd hui)?|(?:mes|mon nombre de) pas(?: aujourd hui)?|j ai fait combien de pas(?: aujourd hui)?)$")
+private val HEALTH_SLEEP = Regex("^(?:comment j ai dormi|combien j ai dormi|combien de temps j ai dormi|mon sommeil)(?: cette nuit)?$")
 private val CALLS_MISSED = Regex("^(?:qui m a appele|qui a appele|j ai des appels manques|j ai eu des appels|est ce que j ai (?:eu )?des appels(?: manques)?|mes appels manques|appels manques)(?: aujourd hui)?$")
 private val CALLS_RECENT = Regex("^(?:mes derniers appels|derniers appels|mon journal d appels|journal d appels)$")
 
@@ -201,6 +206,11 @@ internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): O
         val to = if (m.groupValues[1] == "d hier") from else today
         return OfflineAction.ToolCall("photos", mapOf("from" to from.toString(), "to" to to.toString()), "", format = { it })
     }
+    if (DRIVING_ON.matches(n)) return OfflineAction.ToolCall("driving_mode", mapOf("action" to "start"), "", format = { it.substringBefore(" (Répondez") })
+    if (DRIVING_OFF.matches(n)) return OfflineAction.ToolCall("driving_mode", mapOf("action" to "stop"), "", format = { it })
+    if (HEALTH_STEPS.matches(n)) return OfflineAction.ToolCall("health", mapOf("action" to "steps"), "", format = { it })
+    if (HEALTH_SLEEP.matches(n)) return OfflineAction.ToolCall("health", mapOf("action" to "sleep"), "", format = { it })
+    if (RECEIPT.matches(n)) return OfflineAction.ToolCall("receipt", mapOf("source" to "camera"), "", format = { it })
     if (CALLS_MISSED.matches(n)) return OfflineAction.ToolCall("call_log", mapOf("action" to "missed"), "", format = { it.substringBefore("\n(Pour rappeler") })
     if (CALLS_RECENT.matches(n)) return OfflineAction.ToolCall("call_log", mapOf("action" to "recent"), "", format = { it })
     PARK_SAVE.find(n)?.let { m ->

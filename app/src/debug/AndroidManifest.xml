@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Debug builds only: sample health data for testing (DebugHealthReceiver); the release app only reads. -->
+    <uses-permission android:name="android.permission.health.WRITE_STEPS" />
+    <uses-permission android:name="android.permission.health.WRITE_DISTANCE" />
+    <uses-permission android:name="android.permission.health.WRITE_SLEEP" />
+    <uses-permission android:name="android.permission.health.WRITE_HEART_RATE" />
     <application>
         <!-- Debug builds only. Requires the DUMP permission, which only adb (shell) and the system
              hold, so no other app can trigger a tool through it. -->
@@ -49,6 +54,14 @@
             android:permission="android.permission.DUMP">
             <intent-filter>
                 <action android:name="com.jarvis.android.DEBUG_UPDATE" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.jarvis.android.debug.DebugHealthReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.jarvis.android.DEBUG_HEALTH" />
             </intent-filter>
         </receiver>
     </application>

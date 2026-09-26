@@ -650,6 +650,23 @@ fun SettingsScreen(
                     Text(tr("Autoriser le journal d’appels"))
                 }
             }
+            var watchCalls by remember { mutableStateOf(com.jarvis.android.people.PersonReminders.canWatchCalls(context0)) }
+            val askWatchCalls = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) {
+                watchCalls = com.jarvis.android.people.PersonReminders.canWatchCalls(context0)
+                callLogGranted = com.jarvis.android.actions.hasCallLogPermission(context0)
+            }
+            Text(
+                if (watchCalls) tr("Rappels pendant les appels ✓ : « la prochaine fois que Paul m’appelle, rappelle-moi de… » s’affiche quand il appelle.")
+                else tr("Rappels pendant les appels : non autorisés (Jarvis doit voir qui appelle pour « la prochaine fois que Paul m’appelle, rappelle-moi de… »)."),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            if (!watchCalls) {
+                OutlinedButton(
+                    onClick = { askWatchCalls.launch(arrayOf(android.Manifest.permission.READ_PHONE_STATE, android.Manifest.permission.READ_CALL_LOG)) },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text(tr("Autoriser les rappels pendant les appels")) }
+            }
             }
             SettingsCard(tr("Notifications"), Icons.Filled.NotificationsActive, initiallyExpanded = false) {
             var notifEnabled by remember { mutableStateOf(com.jarvis.android.notifications.JarvisNotificationListener.isEnabled(context0)) }
@@ -903,6 +920,8 @@ fun SettingsScreen(
             MessageSendCard(configStore)
             SosCard()
             PhotosCard()
+            DrivingCard()
+            HealthCard()
             MeetingNotesCard()
             WatchesCard()
             GoogleCard(configStore)
@@ -1621,7 +1640,8 @@ fun SettingsScreen(
                     scope.launch { withContext(Dispatchers.IO) { parkingStore.update { it.copy(autoSave = v) } }; parkingTick++ }
                 })
             }
-            if (parking.autoSave) {
+            // The car's Bluetooth is also what starts driving mode (carte Mode conduite), so it can be chosen either way.
+            run {
                 if (!btAllowed && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                     OutlinedButton(onClick = { askBt.launch(android.Manifest.permission.BLUETOOTH_CONNECT) }, modifier = Modifier.padding(top = 4.dp)) {
                         Text(tr("Autoriser les appareils à proximité"))
@@ -1641,7 +1661,7 @@ fun SettingsScreen(
                     }
                     if (bonded.isEmpty()) Text(tr("Aucun appareil Bluetooth appairé."), style = MaterialTheme.typography.bodySmall)
                 }
-                Text(
+                if (parking.autoSave) Text(
                     tr("Il faut la position autorisée « tout le temps » (carte Rappels selon le lieu) : sinon Android ne donne aucune position à Jarvis à ce moment-là, et une notification le signale."),
                     style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp),
                 )

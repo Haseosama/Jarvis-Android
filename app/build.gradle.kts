@@ -32,14 +32,14 @@ if (!releaseSigningReady) {
 
 android {
     namespace = "com.jarvis.android"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.jarvis.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 69
-        versionName = "0.9.12"
+        versionCode = 70
+        versionName = "0.9.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -141,6 +141,13 @@ dependencies {
     implementation("androidx.camera:camera-core:1.3.4")
     implementation("androidx.camera:camera-camera2:1.3.4")
     implementation("androidx.camera:camera-lifecycle:1.3.4")
+
+    // On-device image labels ("mes photos de chien") and text reading (receipts); the models ship inside the app, nothing is sent
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+
+    // Steps, sleep and heart rate from Health Connect (read only, with the user's permission)
+    implementation("androidx.health.connect:connect-client:1.1.0")
 
     // HTML parsing for the web_search action's DuckDuckGo results
     implementation("org.jsoup:jsoup:1.17.2")

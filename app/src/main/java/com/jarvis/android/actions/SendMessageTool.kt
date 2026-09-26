@@ -76,6 +76,11 @@ object SendMessageTool : Tool {
             }
         }
 
+        val remind = chosen?.let { com.jarvis.android.people.PersonReminders.noteFor(ctx.appContext, it.number) }.orEmpty()
+        return sendOrDraft(ctx, draft, chosen, wantsSend) + remind
+    }
+
+    private suspend fun sendOrDraft(ctx: JarvisContainer, draft: MessageDraft, chosen: ContactChoice?, wantsSend: Boolean): String {
         if (wantsSend) {
             if (!ctx.messageAutoSend) {
                 return openDraft(ctx, draft, chosen) + " L’envoi automatique est désactivé : l’utilisateur peut l’activer dans les réglages de Jarvis (carte Contrôle du téléphone, « Envoyer les messages sans confirmation »)."

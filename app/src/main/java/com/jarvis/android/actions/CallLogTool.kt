@@ -120,7 +120,8 @@ object CallLogTool : Tool {
                 if (g.number.filter { it.isDigit() }.length < 3) return@withContext "Impossible de rappeler ${g.label} : le numéro est masqué."
                 try {
                     context.startActivity(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", g.number, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    "Numéroteur ouvert pour ${g.label}. L'appel ne part pas tout seul : l'utilisateur appuie sur appeler."
+                    "Numéroteur ouvert pour ${g.label}. L'appel ne part pas tout seul : l'utilisateur appuie sur appeler." +
+                        com.jarvis.android.people.PersonReminders.noteFor(context, g.number)
                 } catch (_: Exception) {
                     "Impossible d'ouvrir l'application téléphone."
                 }

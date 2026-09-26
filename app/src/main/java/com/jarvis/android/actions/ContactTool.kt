@@ -88,8 +88,9 @@ object ContactTool : Tool {
         }
         return try {
             context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            if (action == "sms") "Brouillon de SMS ouvert pour ${chosen.label}. Rien n'est envoyé : l'utilisateur envoie lui-même."
-            else "Numéroteur ouvert pour ${chosen.label}. L'appel ne part pas tout seul : l'utilisateur appuie sur appeler."
+            (if (action == "sms") "Brouillon de SMS ouvert pour ${chosen.label}. Rien n'est envoyé : l'utilisateur envoie lui-même."
+            else "Numéroteur ouvert pour ${chosen.label}. L'appel ne part pas tout seul : l'utilisateur appuie sur appeler.") +
+                com.jarvis.android.people.PersonReminders.noteFor(context, chosen.number)
         } catch (_: Exception) {
             "Impossible d'ouvrir l'application ${if (action == "sms") "de SMS" else "téléphone"}."
         }
