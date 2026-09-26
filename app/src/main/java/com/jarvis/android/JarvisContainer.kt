@@ -124,6 +124,9 @@ class JarvisContainer(val appContext: Context) {
     /** Where the car is parked, and the car's Bluetooth for saving it by itself (see parking/Parking.kt). */
     internal val parkingStore = com.jarvis.android.parking.ParkingStore(java.io.File(appContext.filesDir, "parking.json"))
 
+    /** The trusted contacts of the SOS alert (see sos/Sos.kt). */
+    internal val sosStore = com.jarvis.android.sos.SosStore(java.io.File(appContext.filesDir, "sos.json"))
+
     internal val agent: com.jarvis.android.agent.AgentRunner by lazy { com.jarvis.android.agent.AgentRunner(this, appScope) }
 
     /** Text chat over generateContent; independent of the Live session. */

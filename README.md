@@ -11,7 +11,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 Version 0.5.x (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on GitHub, see "Updating from
 GitHub"). The voice loop works end to end on a real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live
-transcripts. The unit-test suite (about 480 tests, `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was
+transcripts. The unit-test suite (about 740 tests, `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was
 checked and what was not; in short, a lot was checked on an emulator (with synthetic voices, or without a Gemini key), and **not yet on a
 real phone with a real voice**: the wake word (built-in and taught), the meeting notes with a real Gemini answer, Gmail and Drive, the update
 on a Xiaomi, reminders re-armed after a reboot, timers, flight search, and the live video. Reconnection after a real network drop was tested by
@@ -70,6 +70,7 @@ text into a named language without switching the language of the conversation it
 `expenses` (spending by voice), `habits` (medications and habits at fixed times), `find_phone` (rings the phone
 loud to find it), `place_reminder` (reminders on arriving at or leaving a place) — see "Four everyday helpers",
 `prix_carburant` (cheapest fuel), `parking`, `rain_soon`, `birthdays`, `interpreter` — see "Car, rain, birthdays, interpreter",
+`call_log` (missed calls and calling back), `sos` (emergency alert), `photos` (photo search) — see "Calls, SOS, photos",
 and the phone-control tools below.
 
 `end_session` lets you close the voice session by voice ("arrête la session"): the model says
@@ -583,6 +584,34 @@ payload shaped like the real one, and live on the emulator for Lyon, Paris and a
   its note; rain for Brest (France) and around the phone; a birthday added to a test contact and found as "aujourd'hui
   (36 ans)". *Not checked*: the interpreter mode and the rain notification, which need a working Gemini key and actual
   rain; the automatic save on leaving a car's Bluetooth, which the emulator has no way to simulate.
+
+### Calls, SOS, photos
+
+- **Missed calls** (`call_log`, `actions/CallLogTool.kt`, Settings > *Contacts* > *Autoriser le journal d'appels*).
+  "Qui m'a appelé ?", "j'ai des appels manqués ?", "mes derniers appels": one line per caller, repeated calls grouped
+  ("Paul (2 fois), aujourd'hui à 11 h 20"), with the contact's name, or only the last two digits of an unknown number —
+  numbers never go to the model. "Rappelle-le" / "rappelle le premier" opens the dialer on that line's number; Jarvis
+  does not place the call itself. Works offline too.
+- **Emergency / SOS** (`sos`, `sos/Sos.kt`, Settings > *Urgence / SOS*). Up to 3 trusted contacts, picked with the
+  contacts picker; nothing happens until one is set. "Au secours", "SOS", "à l'aide" (also offline) start a 10-second
+  countdown shown in a notification with *Annuler*; "annule", "stop", "fausse alerte" or "tout va bien" call it off.
+  Then an SMS goes to each contact with a Google Maps link to the phone's position (a fix up to 10 minutes old, or
+  "position indisponible"), a notification says who got it and offers to call the first contact, and, if the user
+  turned it on (CALL_PHONE asked then), the first contact is called. A second alert within a minute is refused, so a
+  loop cannot flood the contacts. Jarvis never calls emergency services; it tells the user to call 112.
+- **Photo search** (`photos`, `photos/PhotoSearch.kt`, Settings > *Photos*). "Mes photos d'août", "les photos de
+  samedi", "mes photos à Brest", "les photos WhatsApp d'hier": the model turns the days into dates; MediaStore gives
+  the photos by the day they were taken (or added, when a file has no date), optionally by album, and, for a place,
+  the GPS position in each photo (ACCESS_MEDIA_LOCATION; the 400 newest of the period, 25 km around the place,
+  geocoded in the phone's country first). The answer is the count, the days and the main album, and the newest (or
+  oldest) opens in the gallery. The model never sees the pictures. Offline: "mes photos d'aujourd'hui / d'hier",
+  "mes dernières photos".
+- *Checked*: unit tests (11 new cases). On the emulator: three missed calls grouped by caller, by the tool and offline;
+  three test photos with GPS and dates (two in Brest, one in Paris): August gave 3, "à Brest" gave 2 and opened the
+  newest Brest photo in Google Photos; SOS armed by "au secours", cancelled by "annule" with nothing sent, then sent for
+  real to the emulator's own number with the right map link, a second trigger refused during the countdown and within
+  the minute after; the Settings cards, and a contact added through the picker. *Not checked*: the call to the first
+  contact after the SMS, and a real phone's photo library.
 
 ### Plugins and self-knowledge
 

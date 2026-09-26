@@ -635,6 +635,21 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
+            var callLogGranted by remember { mutableStateOf(com.jarvis.android.actions.hasCallLogPermission(context0)) }
+            val askCallLog = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+                callLogGranted = granted
+            }
+            Text(
+                if (callLogGranted) tr("Journal d’appels autorisé ✓ : « qui m’a appelé ? », « j’ai des appels manqués ? », puis « rappelle-le ».")
+                else tr("Journal d’appels non autorisé : Jarvis ne peut pas dire qui vous a appelé."),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            if (!callLogGranted) {
+                OutlinedButton(onClick = { askCallLog.launch(android.Manifest.permission.READ_CALL_LOG) }, modifier = Modifier.padding(top = 8.dp)) {
+                    Text(tr("Autoriser le journal d’appels"))
+                }
+            }
             }
             SettingsCard(tr("Notifications"), Icons.Filled.NotificationsActive, initiallyExpanded = false) {
             var notifEnabled by remember { mutableStateOf(com.jarvis.android.notifications.JarvisNotificationListener.isEnabled(context0)) }
@@ -886,6 +901,8 @@ fun SettingsScreen(
             )
             }
             MessageSendCard(configStore)
+            SosCard()
+            PhotosCard()
             MeetingNotesCard()
             WatchesCard()
             GoogleCard(configStore)

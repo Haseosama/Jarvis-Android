@@ -80,6 +80,7 @@ object ToolRegistry {
         RainSoonTool,
         BirthdaysTool,
         InterpreterTool,
+        CallLogTool, SosTool, PhotoSearchTool,
     )
 
     private val byName = ALL.associateBy { it.name }

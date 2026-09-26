@@ -75,6 +75,14 @@ private val EXPENSE_UNDO = Regex("^(?:annule|supprime|retire|efface) (?:la )?der
 private val FIND_PHONE = Regex("^(?:jarvis )?(?:ou es tu|t es ou|ou est mon telephone|ou est le telephone|ou est mon portable|fais sonner (?:le |mon )?(?:telephone|portable)|sonne|retrouve (?:mon |le )?(?:telephone|portable))$")
 private val STOP_RING = Regex("^(?:arrete de sonner|arrete la sonnerie|stop la sonnerie|coupe la sonnerie|(?:c est bon )?je t ai trouve)$")
 
+// Calls received.
+private val SOS = Regex("^(?:jarvis )?(?:sos|au secours|a l aide|urgence|c est une urgence|alerte sos|lance l alerte(?: sos)?|envoie un sos|previens mes contacts d urgence)(?: jarvis)?$")
+private val SOS_CANCEL = Regex("^(?:jarvis )?(?:annule (?:l alerte(?: sos)?|le sos)|fausse alerte|c est une fausse alerte|stop sos|arrete l alerte)$")
+private val SOS_CANCEL_WHILE_ARMED = Regex("^(?:jarvis )?(?:annule|annuler|stop|arrete|non|tout va bien)(?: jarvis)?$")
+private val PHOTOS = Regex("^(?:montre moi |ouvre |affiche )?(?:mes|les) (?:dernieres )?photos(?: (d aujourd hui|d hier|de la semaine))?$")
+private val CALLS_MISSED = Regex("^(?:qui m a appele|qui a appele|j ai des appels manques|j ai eu des appels|est ce que j ai (?:eu )?des appels(?: manques)?|mes appels manques|appels manques)(?: aujourd hui)?$")
+private val CALLS_RECENT = Regex("^(?:mes derniers appels|derniers appels|mon journal d appels|journal d appels)$")
+
 // The car's spot.
 private val PARK_SAVE = Regex("^(?:retiens|note|enregistre|memorise|souviens toi de) (?:ou|l endroit ou) (?:je me suis gare|je suis gare|j ai gare la voiture|j ai gare ma voiture|est garee la voiture|est garee ma voiture)(?: (.+))?$|^(?:je suis gare ici|je me suis gare ici|je me gare ici)$")
 private val PARK_FIND = Regex("^(?:ou est (?:ma|la) voiture|ou est ce que je me suis gare|ou je me suis gare|ou est ce que j ai gare (?:ma|la) voiture|ou ai je gare (?:ma|la) voiture|ramene moi a (?:ma|la) voiture)$")
@@ -116,6 +124,12 @@ private val PAGE_NAMES = mapOf(
 internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): OfflineAction {
     val n = normalize(raw)
     if (n.isEmpty()) return OfflineAction.Unknown
+
+    // before "stop" and "aide": a cry for help, or calling off an alert that is counting down
+    if (SOS.matches(n)) return OfflineAction.ToolCall("sos", mapOf("action" to "alert"), "", format = { it })
+    if (SOS_CANCEL.matches(n) || (com.jarvis.android.sos.SosAlarm.armed && SOS_CANCEL_WHILE_ARMED.matches(n))) {
+        return OfflineAction.ToolCall("sos", mapOf("action" to "cancel"), "", format = { it })
+    }
 
     if (THANKS.containsMatchIn(n)) return OfflineAction.Say("Je vous en prie.")
     if (HELP.containsMatchIn(n)) return OfflineAction.Say(OFFLINE_HELP)
@@ -181,6 +195,14 @@ internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): O
     LIST_SHOW.find(n)?.let { return OfflineAction.ToolCall("task_list", taskArgs("list", list = it.groupValues.getOrNull(1)), "", format = { it }) }
     LIST_CLEAR.find(n)?.let { return OfflineAction.ToolCall("task_list", taskArgs("clear", list = it.groupValues.getOrNull(1)), "Liste vidée.", format = { it }) }
 
+    PHOTOS.matchEntire(n)?.let { m ->
+        val today = now.toLocalDate()
+        val from = when (m.groupValues[1]) { "d aujourd hui" -> today; "d hier" -> today.minusDays(1); else -> today.minusDays(6) }
+        val to = if (m.groupValues[1] == "d hier") from else today
+        return OfflineAction.ToolCall("photos", mapOf("from" to from.toString(), "to" to to.toString()), "", format = { it })
+    }
+    if (CALLS_MISSED.matches(n)) return OfflineAction.ToolCall("call_log", mapOf("action" to "missed"), "", format = { it.substringBefore("\n(Pour rappeler") })
+    if (CALLS_RECENT.matches(n)) return OfflineAction.ToolCall("call_log", mapOf("action" to "recent"), "", format = { it })
     PARK_SAVE.find(n)?.let { m ->
         val args = mutableMapOf("action" to "save")
         if (!m.groupValues.getOrNull(1).isNullOrBlank()) {
