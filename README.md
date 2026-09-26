@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.14 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.15 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 790 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -19,8 +19,9 @@ flight search, the live video, the interpreter mode, driving mode started by a r
 library. Reconnection after a real network drop was tested by cutting the phone's Wi-Fi (see "Connection drops" below).
 
 Requirements: Android 8.0 or later (minSdk 26); the app targets Android 14 (targetSdk 34) and is compiled against Android 16
-(compileSdk 36). The release APK is about 176 MB, mostly the on-device models (wake word, image labels, text recognition) and their native
-libraries for four processor types.
+(compileSdk 36). The release APK is about 87 MB, mostly the on-device models (wake word, image labels, text recognition, local AI) and their
+native libraries; it carries them for phone processors only (arm64-v8a and armeabi-v7a), while the debug build also has x86 and x86_64 for
+the emulator.
 
 ## What it can do (at a glance)
 
