@@ -922,6 +922,8 @@ fun SettingsScreen(
             PhotosCard()
             DrivingCard()
             HealthCard()
+            QuietCard()
+            ParcelsCard()
             MeetingNotesCard()
             WatchesCard()
             GoogleCard(configStore)

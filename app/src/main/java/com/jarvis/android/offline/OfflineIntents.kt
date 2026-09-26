@@ -85,6 +85,9 @@ private val DRIVING_ON = Regex("^(?:jarvis )?(?:(?:active |lance |passe en |mets
 private val DRIVING_OFF = Regex("^(?:jarvis )?(?:(?:arrete|desactive|coupe|quitte|stop|fin du) (?:le )?mode conduite|je suis arrive)$")
 private val HEALTH_STEPS = Regex("^(?:combien (?:de pas|j ai fait de pas)(?: aujourd hui)?|(?:mes|mon nombre de) pas(?: aujourd hui)?|j ai fait combien de pas(?: aujourd hui)?)$")
 private val HEALTH_SLEEP = Regex("^(?:comment j ai dormi|combien j ai dormi|combien de temps j ai dormi|mon sommeil)(?: cette nuit)?$")
+private val NOTIF_DIGEST = Regex("^(?:qu est ce que j ai (?:rate|manque)|j ai rate quoi|j ai manque quoi|resume (?:de )?mes notifications|quoi de neuf)(?: depuis ce matin| aujourd hui)?$")
+private val SUBSCRIPTIONS = Regex("^(?:mes abonnements|liste mes abonnements|combien (?:me coutent|coutent) mes abonnements|mes prelevements)$")
+private val PARCELS = Regex("^(?:ou en est mon colis|ou en sont mes colis|mes colis|suivi de mes colis|ou est mon colis|mon colis est ou)$")
 private val CALLS_MISSED = Regex("^(?:qui m a appele|qui a appele|j ai des appels manques|j ai eu des appels|est ce que j ai (?:eu )?des appels(?: manques)?|mes appels manques|appels manques)(?: aujourd hui)?$")
 private val CALLS_RECENT = Regex("^(?:mes derniers appels|derniers appels|mon journal d appels|journal d appels)$")
 
@@ -134,6 +137,11 @@ internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): O
     if (SOS.matches(n)) return OfflineAction.ToolCall("sos", mapOf("action" to "alert"), "", format = { it })
     if (SOS_CANCEL.matches(n) || (com.jarvis.android.sos.SosAlarm.armed && SOS_CANCEL_WHILE_ARMED.matches(n))) {
         return OfflineAction.ToolCall("sos", mapOf("action" to "cancel"), "", format = { it })
+    }
+
+    // A recipe under way: "suivant" is its next step, not the next song ("ma recette de crêpes" works at any time).
+    com.jarvis.android.recipes.recipePhrase(n, com.jarvis.android.recipes.RecipeLive.cooking())?.let {
+        return OfflineAction.ToolCall("recipe", it, "", format = { r -> r })
     }
 
     if (THANKS.containsMatchIn(n)) return OfflineAction.Say("Je vous en prie.")
@@ -208,6 +216,17 @@ internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): O
     }
     if (DRIVING_ON.matches(n)) return OfflineAction.ToolCall("driving_mode", mapOf("action" to "start"), "", format = { it.substringBefore(" (Répondez") })
     if (DRIVING_OFF.matches(n)) return OfflineAction.ToolCall("driving_mode", mapOf("action" to "stop"), "", format = { it })
+    NOTIF_DIGEST.matchEntire(n)?.let {
+        val minutes = if (n.endsWith("ce matin") || n.endsWith("aujourd hui")) ((now.hour * 60 + now.minute) - 6 * 60).coerceIn(60, 1440) else 180
+        return OfflineAction.ToolCall("notifications", mapOf("action" to "digest", "since_minutes" to minutes.toString()), "", format = { it.substringBefore("\n(Contenu des notifications") })
+    }
+    com.jarvis.android.quiet.quietStartPhrase(n)?.let { q ->
+        val args = if (q.until.isNotEmpty()) mapOf("action" to "start", "until" to q.until) else mapOf("action" to "start", "minutes" to q.minutes.toString())
+        return OfflineAction.ToolCall("quiet_mode", args, "", format = { it })
+    }
+    if (com.jarvis.android.quiet.quietStopPhrase(n)) return OfflineAction.ToolCall("quiet_mode", mapOf("action" to "stop"), "", format = { it })
+    if (SUBSCRIPTIONS.matches(n)) return OfflineAction.ToolCall("subscriptions", mapOf("action" to "list"), "", format = { it })
+    if (PARCELS.matches(n)) return OfflineAction.ToolCall("parcel", mapOf("action" to "status"), "", format = { it })
     if (HEALTH_STEPS.matches(n)) return OfflineAction.ToolCall("health", mapOf("action" to "steps"), "", format = { it })
     if (HEALTH_SLEEP.matches(n)) return OfflineAction.ToolCall("health", mapOf("action" to "sleep"), "", format = { it })
     if (RECEIPT.matches(n)) return OfflineAction.ToolCall("receipt", mapOf("source" to "camera"), "", format = { it })

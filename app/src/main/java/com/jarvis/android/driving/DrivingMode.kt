@@ -4,18 +4,15 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.RemoteInput
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
-import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.i18n.tr
-import com.jarvis.android.messaging.SentMessage
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -90,7 +87,6 @@ internal object DrivingMode {
     private var ttsReady = false
     private val pending = mutableListOf<String>()
     private val spoken = ArrayDeque<String>()
-    private val replies = mutableListOf<Pair<String, Long>>()
 
     fun store(context: Context) = (context.applicationContext as JarvisApp).container.drivingStore
 
@@ -124,30 +120,8 @@ internal object DrivingMode {
             while (spoken.size > 60) spoken.removeFirst()
         }
         if (settings.readMessages) speak(context, announcement(app, sender, text))
-        if (settings.autoReply) autoReply(context, notification, app, sender, settings.replyText.ifBlank { DEFAULT_DRIVING_REPLY })
-    }
-
-    private fun autoReply(context: Context, n: Notification, app: String, sender: String, text: String) {
-        val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(n)
-        if (style?.isGroupConversation == true) return
-        val now = System.currentTimeMillis()
-        synchronized(this) {
-            replies.removeAll { now - it.second > 60 * 60_000L }
-            if (!autoReplyAllowed(replies, sender, now)) return
-        }
-        val action = n.actions?.firstOrNull { a ->
-            a.remoteInputs?.any { it.allowFreeFormInput } == true &&
-                (android.os.Build.VERSION.SDK_INT < 28 || a.semanticAction == Notification.Action.SEMANTIC_ACTION_REPLY || a.semanticAction == Notification.Action.SEMANTIC_ACTION_NONE)
-        } ?: return
-        try {
-            val inputs = action.remoteInputs
-            val results = Bundle().apply { inputs.forEach { putCharSequence(it.resultKey, text) } }
-            val intent = Intent()
-            RemoteInput.addResultsToIntent(inputs, intent, results)
-            action.actionIntent.send(context, 0, intent)
-            synchronized(this) { replies += sender to now }
-            (context.applicationContext as JarvisApp).container.sentMessages.add(SentMessage(now, sender, "$app (réponse auto, mode conduite)", text))
-        } catch (_: Exception) {
+        if (settings.autoReply) {
+            com.jarvis.android.messaging.AutoReply.tryReply(context, notification, app, sender, settings.replyText.ifBlank { DEFAULT_DRIVING_REPLY }, "mode conduite")
         }
     }
 

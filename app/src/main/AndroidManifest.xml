@@ -35,6 +35,7 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <!-- "Where is my car": knowing when the phone leaves the car's Bluetooth. -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
@@ -246,6 +247,18 @@
 
         <receiver
             android:name=".driving.DrivingReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".quiet.QuietReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".subscriptions.SubscriptionReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".parcels.ParcelReceiver"
             android:exported="false" />
 
         <!-- Calls, for the reminders tied to a person: Android still delivers this broadcast to a declared receiver. -->

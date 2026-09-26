@@ -131,6 +131,20 @@ class JarvisContainer(val appContext: Context) {
     /** Driving mode's settings (see driving/DrivingMode.kt). */
     internal val drivingStore = com.jarvis.android.driving.DrivingStore(java.io.File(appContext.filesDir, "driving.json"))
 
+    /** The quiet mode ("je suis en réunion jusqu'à 15 h") and its automatic answer (see quiet/QuietMode.kt). */
+    internal val quietStore = com.jarvis.android.quiet.QuietStore(java.io.File(appContext.filesDir, "quiet.json"))
+
+    /** Subscriptions and regular payments (see subscriptions/Subscriptions.kt). */
+    internal val subscriptionStore = com.jarvis.android.subscriptions.SubscriptionStore(java.io.File(appContext.filesDir, "subscriptions.json"))
+
+    /** The recipe being cooked and the kept ones (see recipes/Recipes.kt). */
+    internal val recipeStore = com.jarvis.android.recipes.RecipeStore(java.io.File(appContext.filesDir, "recipes.json")).also { store ->
+        store.current()?.let { com.jarvis.android.recipes.RecipeLive.lastUsed = it.updatedAt }
+    }
+
+    /** Parcels being followed (see parcels/Parcels.kt). */
+    internal val parcelStore = com.jarvis.android.parcels.ParcelStore(java.io.File(appContext.filesDir, "parcels.json"))
+
     internal val personReminderStore = com.jarvis.android.people.PersonReminderStore(java.io.File(appContext.filesDir, "person_reminders.json"))
 
     internal val agent: com.jarvis.android.agent.AgentRunner by lazy { com.jarvis.android.agent.AgentRunner(this, appScope) }

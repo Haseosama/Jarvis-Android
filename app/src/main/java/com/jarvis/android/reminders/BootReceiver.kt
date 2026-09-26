@@ -23,6 +23,7 @@ class BootReceiver : BroadcastReceiver() {
                     Log.i("JarvisTimers", "Minuteurs reprogrammés après redémarrage : ${timers.reprogrammed}, manqués : ${timers.missed}, échecs : ${timers.failed}.")
                     com.jarvis.android.habits.HabitAlarms.reschedule(appContext)
                     com.jarvis.android.places.Geofences.registerAll(appContext) // a reboot clears every geofence
+                    com.jarvis.android.quiet.QuietMode.afterBoot(appContext) // a reboot clears the alarm that ends the quiet time
                 } catch (_: Exception) {
                     Log.e("JarvisReminders", "Reprogrammation impossible après redémarrage.")
                 } finally {

@@ -23,6 +23,7 @@ class JarvisNotificationListener : NotificationListenerService() {
 
     override fun onListenerDisconnected() {
         LOG.clear()
+        HISTORY.clear()
         super.onListenerDisconnected()
     }
 
@@ -50,16 +51,22 @@ class JarvisNotificationListener : NotificationListenerService() {
             sbn.packageName
         }
         val (safeTitle, safeText) = redactSensitive(title, text)
-        LOG.add(SeenNotification(sbn.key, clean(app, 60), sbn.packageName, sbn.postTime, safeTitle, safeText))
+        val seen = SeenNotification(sbn.key, clean(app, 60), sbn.packageName, sbn.postTime, safeTitle, safeText)
+        LOG.add(seen)
+        HISTORY.add(seen)
+        // A tracking number in a message or a mail ("votre colis … est expédié"): offered for tracking, once.
+        try { com.jarvis.android.parcels.ParcelTracking.offerFromMessage(this, clean(app, 60), "$safeTitle $safeText") } catch (_: Exception) { }
         // A message from someone with a reminder tied to them ("quand Paul m'écrit…"), and what driving mode reads out.
         if (n.category == Notification.CATEGORY_MESSAGE || MESSAGING_APPS.contains(sbn.packageName)) {
             try { com.jarvis.android.people.PersonReminders.onMessage(this, title) } catch (_: Exception) { }
             try { com.jarvis.android.driving.DrivingMode.onMessage(this, n, clean(app, 60), safeTitle, safeText, sbn.key) } catch (_: Exception) { }
+            try { com.jarvis.android.quiet.QuietMode.onMessage(this, n, clean(app, 60), safeTitle) } catch (_: Exception) { }
         }
     }
 
     companion object {
         internal val LOG = NotificationLog()
+        internal val HISTORY = NotificationHistory()
 
         /** Apps whose notifications are messages from a person, even when they do not say so. */
         internal val MESSAGING_APPS = setOf(

@@ -9,9 +9,9 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.13 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.14 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
-real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 770 tests,
+real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 790 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
 emulator (with synthetic voices, test data, or without a Gemini key), and **not yet on a real phone with a real voice**: the wake word (built-in
 and taught), the meeting notes with a real Gemini answer, Gmail and Drive, the update on a Xiaomi, reminders re-armed after a reboot, timers,
@@ -29,9 +29,10 @@ Everything is asked by voice (French first, English too), or typed in the chat. 
 - **Conversation and memory**: real-time voice with Gemini Live, a long-term memory, the morning briefing (agenda, reminders, birthdays,
   yesterday's steps and last night's sleep), kept session history, a 3D holographic avatar that speaks with its lips.
 - **The phone itself**: open apps, read and drive the screen (accessibility service), send messages (SMS, WhatsApp, Telegram, Messenger),
-  calls, missed calls and calling back, notifications, volume, brightness, flashlight, alarms, timers, reminders (by time, by place, or tied
+  calls, missed calls and calling back, notifications and "what did I miss?", Do Not Disturb until a time, volume, brightness, flashlight, alarms, timers, reminders (by time, by place, or tied
   to a person: "la prochaine fois que Paul m'appelle…"), find the phone, files in a work folder.
-- **Everyday life**: lists, spending (by voice or by scanning a receipt), medications and habits, where the car is parked, driving mode,
+- **Everyday life**: lists, spending (by voice or by scanning a receipt), subscriptions and regular payments, recipes read step by
+  step, parcel tracking, medications and habits, where the car is parked, driving mode,
   weather and rain in the next hour, air quality, fuel prices, planes overhead, birthdays, calendar, photos (by date, place, or what is on
   them), health (steps, sleep, heart rate from Health Connect), an emergency SOS to chosen contacts.
 - **Knowledge and work**: web search, reading a web page, flights, translation and interpreter mode, meeting notes, documents, Gmail and
@@ -94,7 +95,8 @@ loud to find it), `place_reminder` (reminders on arriving at or leaving a place)
 `prix_carburant` (cheapest fuel), `parking`, `rain_soon`, `birthdays`, `interpreter` — see "Car, rain, birthdays, interpreter",
 `call_log` (missed calls and calling back), `sos` (emergency alert), `photos` (photo search) — see "Calls, SOS, photos",
 `receipt` (receipt to expense), `person_reminder` (reminders tied to a person), `driving_mode`, `health` (Health Connect) —
-see "Receipts, people, driving, health",
+see "Receipts, people, driving, health", `quiet_mode` (Do Not Disturb until a time), `subscriptions`, `recipe`, `parcel`, and
+`notifications`' digest — see "Missed notifications, quiet time, subscriptions, recipes, parcels",
 and the phone-control tools below.
 
 `end_session` lets you close the voice session by voice ("arrête la session"): the model says
@@ -121,7 +123,8 @@ a message into the running voice session.
 Added here and not in the original: `alarm`, `calendar`, `call_contact`, `call_log`, `notifications`, `routine`, `timer`, `liberty_music`,
 `meeting_notes`, `create_document`, `gmail`, `drive`, `watch`, `end_session`, `undo`, `task_list`, `translate`, `interpreter`, `smart_home`,
 `spotify_search`, `air_quality`, `planes_overhead`, `prix_carburant`, `rain_soon`, `expenses`, `receipt`, `habits`, `find_phone`,
-`place_reminder`, `person_reminder`, `parking`, `driving_mode`, `birthdays`, `photos`, `health`, `sos`, plus the widgets, the avatar, the
+`place_reminder`, `person_reminder`, `parking`, `driving_mode`, `birthdays`, `photos`, `health`, `sos`, `quiet_mode`,
+`subscriptions`, `recipe`, `parcel`, plus the widgets, the avatar, the
 taught wake word, the offline mode and the in-app update.
 
 ## Not ported — no Android equivalent
@@ -680,6 +683,40 @@ payload shaped like the real one, and live on the emulator for Lyon, Paris and a
   finding the receipt photo. *Not checked*: driving mode started by a real car's Bluetooth, and ML Kit on a real photo
   library.
 
+### Missed notifications, quiet time, subscriptions, recipes, parcels
+
+- **"Qu'est-ce que j'ai raté ?"** (`notifications` action `digest`, `notifications/NotificationLog.kt`). Everything that arrived
+  since a moment (3 hours by default, "depuis ce matin"…), even the notifications already swiped away — kept in memory only,
+  300 at most, never on disk — grouped by app and by person, the busiest first, with the missed calls. The model sums it up.
+- **Do Not Disturb until a time** (`quiet_mode`, `quiet/QuietMode.kt`, Settings > *Ne pas déranger*). "Je suis en réunion
+  jusqu'à 15 h", "ne me dérange pas pendant une heure" (also offline): Android's Do Not Disturb with only the starred contacts
+  (calls and messages), repeated calls and alarms, for 5 minutes to 12 hours. The user's own Do Not Disturb settings are saved
+  and put back at the end (unless they changed them meanwhile), by an alarm that survives a reboot; then a notification sums up
+  what arrived meanwhile. Optional, off by default: one "je ne suis pas disponible jusqu'à 15 h" answer per person, through the
+  same automatic-answer rules as driving mode (now shared, `messaging/AutoReply.kt`). Needs the "Do Not Disturb access" the
+  card opens.
+- **Subscriptions** (`subscriptions`, `subscriptions/Subscriptions.kt`). "Ajoute l'abonnement Netflix, 13,49 € le 5 de chaque
+  mois", monthly or yearly; "mes abonnements" lists them in payment order with what they cost a month; a notification the day
+  before each payment (a worker, twice a day) with a button that notes it as an expense; today's and tomorrow's payments in the
+  morning briefing. "Trouve mes abonnements" looks through the expenses for the same shop or label about a month (or a year)
+  apart for about the same amount, and proposes them.
+- **Recipes step by step** (`recipe`, `recipes/`). "Qu'est-ce que je peux cuisiner avec des œufs et des tomates ?": the model
+  proposes, then starts the chosen recipe; each step is read on demand ("étape suivante", "répète", "l'étape d'avant", "étape
+  3" — offline too once it has started), a step with a duration suggests a timer, the missing ingredients go on the shopping
+  list, and "garde cette recette" keeps it (50 at most) for "ma recette de crêpes". A recipe untouched for four hours is over.
+- **Parcels** (`parcel`, `parcels/Parcels.kt`, Settings > *Colis*). The carrier is recognised from the number (La Poste /
+  Colissimo / Chronopost, UPS, DHL, DPD, GLS, Mondial Relay, Amazon). La Poste's own tracking API ("Suivi v2", with the
+  user's free developer key, stored encrypted like the Home Assistant token) follows La Poste, Colissimo and Chronopost
+  parcels every three hours and notifies each new step; parcels delivered a week ago are forgotten. For the other carriers,
+  Jarvis opens their tracking page. A tracking number in a message or a mail about a parcel is offered with a *Suivre* button,
+  once; only unmistakable formats are picked up, never a bare run of digits (a phone number).
+- *Checked*: unit tests (18 new cases). On the emulator: the digest of two SMS; Do Not Disturb switched to "starred contacts
+  only" and back to the exact previous policy, with the summary notification; subscriptions added, listed and notified; a
+  recipe followed step by step offline (next, repeat, back, step 4, the timer), the missing items added to the list, kept and
+  loaded again; a tracking number seen in an SMS followed with one tap; a UPS parcel's page opened; a real call to La Poste's
+  API with a fake key, refused cleanly. *Not checked*: a real La Poste key and parcel, the end of a quiet time by its alarm
+  (only by voice), and the day-before payment notification on the day before (the worker runs twice a day).
+
 ### Plugins and self-knowledge
 
 **Plugins** (`plugins/`, the Android counterpart of Mark-LIII's `plugins/` folder). A plugin is one JSON file,
@@ -970,7 +1007,10 @@ What it understands is a fixed list of French commands, matched by rules (`offli
 - **Phone**: open an app, call a contact or draft an SMS (never sent), volume, brightness, flashlight, settings pages, lock the screen, screenshot, battery, "où es-tu ?" (ring the phone).
 - **Time**: time, date, timer; music (pause, play, next, previous).
 - **Everyday**: lists ("ajoute du lait à ma liste"…), spending ("j'ai dépensé 12 € en courses", "combien j'ai dépensé ce mois-ci ?", "annule la dernière dépense"), "scanne ce ticket", medications taken, "retiens où je me suis garé" / "où est ma voiture ?".
-- **Calls and people**: "qui m'a appelé ?", "j'ai des appels manqués ?", "mes derniers appels".
+- **Calls and people**: "qui m'a appelé ?", "j'ai des appels manqués ?", "mes derniers appels", "qu'est-ce que j'ai raté ?".
+- **Quiet time**: "je suis en réunion jusqu'à 15 h", "ne me dérange pas pendant une heure", "j'ai fini ma réunion".
+- **Money and parcels**: "mes abonnements", "où en est mon colis ?".
+- **Cooking**: "ma recette de crêpes", then, while a recipe is under way, "étape suivante", "répète", "l'étape d'avant", "étape 3", "les ingrédients", "fin de la recette" ("suivant" is the next step only while cooking; otherwise it is the next song).
 - **Photos and health**: "mes photos d'aujourd'hui / d'hier", "mes dernières photos", "combien de pas aujourd'hui ?", "comment j'ai dormi ?".
 - **Driving and safety**: "mode conduite" / "je prends la route", "arrête le mode conduite" / "je suis arrivé"; "au secours", "SOS", "à l'aide" (the SOS countdown), and "annule" / "fausse alerte" to stop it.
 - "aide", "au revoir".

@@ -23,7 +23,8 @@ internal class BriefingCoordinator(private val container: JarvisContainer) {
                 reminders = remindersToday(
                     ReminderService.list(container.appContext), System.currentTimeMillis(), ZoneId.systemDefault(),
                 ),
-                events = com.jarvis.android.calendar.birthdaysToday(container.appContext) + com.jarvis.android.calendar.eventsToday(container.appContext),
+                events = com.jarvis.android.calendar.birthdaysToday(container.appContext) + com.jarvis.android.calendar.eventsToday(container.appContext) +
+                    com.jarvis.android.subscriptions.dueSoonLines(container.subscriptionStore.all(), LocalDate.now()),
                 health = com.jarvis.android.health.briefingHealthLine(container.appContext),
             )
         )

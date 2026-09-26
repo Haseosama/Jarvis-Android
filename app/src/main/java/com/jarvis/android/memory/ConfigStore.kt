@@ -61,6 +61,9 @@ class ConfigStore(private val context: Context) {
     /** The Home Assistant Long-Lived Access Token — a credential, so encrypted like the Gemini key, not plain DataStore. */
     private val homeAssistantTokenStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_ha_token.enc", keys = keystoreKey)
 
+    /** The La Poste developer key for parcel tracking (Okapi) — a credential too. */
+    private val laPosteKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_laposte_key.enc", keys = keystoreKey)
+
     private var slotCache: List<String?>? = null
 
     @Synchronized
@@ -165,6 +168,10 @@ class ConfigStore(private val context: Context) {
     fun hasHomeAssistantToken(): Boolean = !getHomeAssistantToken().isNullOrBlank()
     suspend fun saveHomeAssistantToken(value: String): Boolean = withContext(Dispatchers.IO) { homeAssistantTokenStore.write(value) }
     suspend fun deleteHomeAssistantToken(): Boolean = withContext(Dispatchers.IO) { homeAssistantTokenStore.delete() }
+
+    fun getLaPosteKey(): String? = laPosteKeyStore.read()
+    suspend fun saveLaPosteKey(value: String): Boolean = withContext(Dispatchers.IO) { laPosteKeyStore.write(value) }
+    suspend fun deleteLaPosteKey(): Boolean = withContext(Dispatchers.IO) { laPosteKeyStore.delete() }
 
     private val KEY_ASSISTANT_NAME = stringPreferencesKey("assistant_name")
     private val KEY_USER_NAME = stringPreferencesKey("user_name")
