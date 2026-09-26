@@ -66,6 +66,7 @@ object ReceiptTool : Tool {
         if (!ctx.expenseStore.add(total, category, info.merchant.orEmpty(), at)) return "Impossible d'enregistrer la dépense."
         val shop = info.merchant?.let { " chez $it" }.orEmpty()
         val day = info.date?.takeIf { it != today }?.let { " le ${it.dayOfMonth}/${it.monthValue.toString().padStart(2, '0')}" }.orEmpty()
-        return "Ticket lu : ${formatCents(total)}$shop$day, noté en « $category ». Si ce n'est pas le bon montant, dites « annule la dernière dépense »."
+        return "Ticket lu : ${formatCents(total)}$shop$day, noté en « $category ». Si ce n'est pas le bon montant, dites « annule la dernière dépense »." +
+            com.jarvis.android.budgets.Budgets.noteFor(ctx, category)
     }
 }

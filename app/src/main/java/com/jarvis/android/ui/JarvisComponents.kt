@@ -59,7 +59,11 @@ fun SettingsCard(
     initiallyExpanded: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    var expanded by rememberSaveable(frenchOf(title)) { mutableStateOf(initiallyExpanded) }
+    val french = frenchOf(title)
+    var expanded by rememberSaveable(french) { mutableStateOf(initiallyExpanded) }
+    // The search and theme chips at the top of the settings page hide the cards that do not match.
+    val filter = LocalSettingsFilter.current
+    if (!filter.accepts(french, title)) return
     val arrow by animateFloatAsState(if (expanded) 180f else 0f, label = "arrow")
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).animateContentSize(),

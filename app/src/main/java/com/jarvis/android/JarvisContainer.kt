@@ -145,6 +145,16 @@ class JarvisContainer(val appContext: Context) {
     /** Parcels being followed (see parcels/Parcels.kt). */
     internal val parcelStore = com.jarvis.android.parcels.ParcelStore(java.io.File(appContext.filesDir, "parcels.json"))
 
+    /** Monthly budgets per category (see budgets/Budgets.kt), told of every expense noted. */
+    internal val budgetStore = com.jarvis.android.budgets.BudgetStore(java.io.File(appContext.filesDir, "budgets.json"))
+
+    init {
+        expenseStore.onAdded = { e -> com.jarvis.android.budgets.Budgets.afterExpense(appContext, this, e) }
+    }
+
+    /** The briefing on waking up and the alarm it watches (see wakeup/WakeBriefing.kt). */
+    internal val wakeStore = com.jarvis.android.wakeup.WakeStore(java.io.File(appContext.filesDir, "wake_briefing.json"))
+
     internal val personReminderStore = com.jarvis.android.people.PersonReminderStore(java.io.File(appContext.filesDir, "person_reminders.json"))
 
     internal val agent: com.jarvis.android.agent.AgentRunner by lazy { com.jarvis.android.agent.AgentRunner(this, appScope) }
@@ -180,7 +190,7 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch { configStore.avatarSkin.collect { avatar.skin = it } }
         appScope.launch { configStore.avatarLips.collect { avatar.lips = it } }
         appScope.launch { configStore.avatarCap.collect { avatar.cap = it } }
-        com.jarvis.android.routines.RoutineScheduler.ensureScheduled(appContext)
+        com.jarvis.android.routines.RoutineScheduler.sync(appContext)
         // Habit alarms and geofences are gone after a force-stop: armed again at every start (both are idempotent).
         appScope.launch(Dispatchers.IO) {
             try { com.jarvis.android.habits.HabitAlarms.reschedule(appContext) } catch (_: Exception) {}

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Train
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.i18n.tr
+import com.jarvis.android.i18n.trf
 import kotlinx.coroutines.launch
 
 /** Parcels: the La Poste key for automatic tracking, and the parcels being followed. */
@@ -90,5 +92,66 @@ internal fun ParcelsCard() {
                 TextButton(onClick = { parcels = container.parcelStore.update { list -> list.filterNot { it.number == p.number } } }) { Text(tr("Retirer")) }
             }
         }
+    }
+}
+
+/** One service key: saved (with Supprimer) or a field to paste it, and where to get it. */
+@Composable
+private fun ServiceKey(label: String, how: String, link: String, get: () -> String?, save: suspend (String) -> Boolean, delete: suspend () -> Boolean) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var has by remember { mutableStateOf(!get().isNullOrBlank()) }
+    var field by remember { mutableStateOf("") }
+    if (has) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            Text(trf("{0} enregistrée ✓", label), modifier = Modifier.weight(1f))
+            TextButton(onClick = { scope.launch { delete(); has = false } }) { Text(tr("Supprimer")) }
+        }
+        return
+    }
+    Text(how, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 10.dp))
+    OutlinedButton(onClick = {
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: Exception) {
+        }
+    }, modifier = Modifier.padding(top = 4.dp)) { Text(trf("Ouvrir {0}", Uri.parse(link).host.orEmpty())) }
+    OutlinedTextField(
+        value = field,
+        onValueChange = { field = it.trim().take(200) },
+        label = { Text(label) },
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+    )
+    Button(onClick = { scope.launch { if (save(field)) { has = true; field = "" } } }, enabled = field.length >= 10, modifier = Modifier.padding(top = 4.dp)) {
+        Text(tr("Enregistrer la clé"))
+    }
+}
+
+/** Public transport: the SNCF key (trains) and the navitia.io key (local buses and trams). */
+@Composable
+internal fun TransportCard() {
+    val context = LocalContext.current
+    val config = remember { (context.applicationContext as JarvisApp).container.configStore }
+    SettingsCard(tr("Transports"), Icons.Filled.Train, initiallyExpanded = false) {
+        Text(
+            tr("« Quel est le prochain train pour Rennes ? », « les départs de la gare de Brest », « mon bus passe quand ? » : horaires en temps réel, avec les retards. Il faut une clé gratuite par service ; elles sont chiffrées sur le téléphone."),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        ServiceKey(
+            tr("Clé SNCF"),
+            tr("Trains : demandez une clé gratuite sur numerique.sncf.com (« API SNCF », jeton développeur, reçu par mail) et collez-la ici."),
+            "https://numerique.sncf.com/startup/api/token-developpeur/",
+            { config.getSncfKey() }, { config.saveSncfKey(it) }, { config.deleteSncfKey() },
+        )
+        ServiceKey(
+            tr("Clé navitia.io"),
+            tr("Bus, trams et métros de votre ville (facultatif) : créez un compte gratuit sur navitia.io et collez la clé ici."),
+            "https://navitia.io/inscription/",
+            { config.getNavitiaKey() }, { config.saveNavitiaKey(it) }, { config.deleteNavitiaKey() },
+        )
     }
 }

@@ -149,19 +149,7 @@ private suspend fun weatherHere(ctx: JarvisContainer): String {
             return "Position introuvable pour le moment (souvent : l’appli n’est pas au premier plan). Demandez le nom d’une ville, ou réessayez avec Jarvis ouvert."
     }
     return try {
-        val wxUrl = "https://api.open-meteo.com/v1/forecast".toHttpUrl().newBuilder()
-            .addQueryParameter("latitude", "%.3f".format(Locale.ROOT, fix.fix.latitude))
-            .addQueryParameter("longitude", "%.3f".format(Locale.ROOT, fix.fix.longitude))
-            .addQueryParameter("current", "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m")
-            .addQueryParameter("temperature_unit", "celsius")
-            .addQueryParameter("wind_speed_unit", "kmh").build()
-        val body = withContext(Dispatchers.IO) {
-            ctx.http.newCall(Request.Builder().url(wxUrl).build()).execute().use { response ->
-                if (!response.isSuccessful) return@withContext null
-                response.body?.string().orEmpty()
-            }
-        } ?: return "Météo indisponible pour le moment."
-        formatCurrentWeather(body, com.jarvis.android.weather.positionLabel(fix.place))
+        weatherAt(ctx, fix.fix.latitude, fix.fix.longitude, com.jarvis.android.weather.positionLabel(fix.place)) ?: "Météo indisponible pour le moment."
     } catch (e: CancellationException) {
         throw e
     } catch (_: IOException) {
@@ -169,4 +157,21 @@ private suspend fun weatherHere(ctx: JarvisContainer): String {
     } catch (_: Exception) {
         "Météo indisponible : données du service incomplètes ou invalides."
     }
+}
+
+/** The current weather at a point, in words; null when the service answers with an error. Throws on a network failure. */
+internal suspend fun weatherAt(ctx: JarvisContainer, latitude: Double, longitude: Double, label: String): String? {
+    val wxUrl = "https://api.open-meteo.com/v1/forecast".toHttpUrl().newBuilder()
+        .addQueryParameter("latitude", "%.3f".format(Locale.ROOT, latitude))
+        .addQueryParameter("longitude", "%.3f".format(Locale.ROOT, longitude))
+        .addQueryParameter("current", "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m")
+        .addQueryParameter("temperature_unit", "celsius")
+        .addQueryParameter("wind_speed_unit", "kmh").build()
+    val body = withContext(Dispatchers.IO) {
+        ctx.http.newCall(Request.Builder().url(wxUrl).build()).execute().use { response ->
+            if (!response.isSuccessful) return@withContext null
+            response.body?.string().orEmpty()
+        }
+    } ?: return null
+    return formatCurrentWeather(body, label)
 }

@@ -42,7 +42,7 @@ internal fun dayNames(days: List<Int>): String =
     else days.sorted().joinToString(", ") { DayOfWeek.of(it).getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.FRENCH) }
 
 /** Routines kept in a small private preferences file. */
-class RoutineStore(context: Context) {
+class RoutineStore(private val context: Context) {
     private val prefs = context.getSharedPreferences("jarvis_routines", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
     private val serializer = ListSerializer(Routine.serializer())
@@ -68,6 +68,7 @@ class RoutineStore(context: Context) {
         require(all.size < MAX_ROUTINES) { "Maximum $MAX_ROUTINES routines : supprimez-en une d’abord." }
         val routine = Routine((all.maxOfOrNull { it.id } ?: 0) + 1, parsed.toString(), task.trim().take(500), days.distinct().sorted())
         save(all + routine)
+        RoutineScheduler.sync(context)
         return routine
     }
 
@@ -76,6 +77,7 @@ class RoutineStore(context: Context) {
         val all = list()
         if (all.none { it.id == id }) return false
         save(all.filterNot { it.id == id })
+        RoutineScheduler.sync(context)
         return true
     }
 

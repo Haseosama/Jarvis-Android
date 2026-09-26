@@ -59,16 +59,20 @@ internal data class QuietData(
 internal class QuietStore(private val file: File) {
     private val json = Json { ignoreUnknownKeys = true }
 
+    // Kept in memory: every message that arrives looks at it.
+    private var cache: QuietData? = null
+
     @Synchronized
-    fun load(): QuietData = try {
+    fun load(): QuietData = cache ?: (try {
         if (file.exists()) json.decodeFromString<QuietData>(file.readText()) else QuietData()
     } catch (_: Exception) {
         QuietData()
-    }
+    }).also { cache = it }
 
     @Synchronized
     fun update(change: (QuietData) -> QuietData): QuietData {
         val next = change(load())
+        cache = next
         try {
             file.parentFile?.mkdirs()
             file.writeText(json.encodeToString(next))

@@ -116,14 +116,22 @@ internal class ExpenseStore(private val file: File, private val zone: () -> Zone
         }
     }
 
+    /** Told of every spending added, after it is saved (the budgets watch it); outside the lock, so it may read the store. */
+    @Volatile var onAdded: (suspend (Expense) -> Unit)? = null
+
     /** Adds one spending. False when the amount is out of range or the store is full. */
-    suspend fun add(cents: Long, category: String?, note: String = "", at: Long = System.currentTimeMillis()): Boolean = mutex.withLock {
-        if (cents !in 1..MAX_EXPENSE_CENTS) return@withLock false
-        val data = load()
-        if (data.items.size >= MAX_EXPENSES) return@withLock false
-        data.items += Expense(cents, normalizeCategory(category), note.trim().take(120), at)
-        save(data)
-        true
+    suspend fun add(cents: Long, category: String?, note: String = "", at: Long = System.currentTimeMillis()): Boolean {
+        val added = mutex.withLock {
+            if (cents !in 1..MAX_EXPENSE_CENTS) return@withLock null
+            val data = load()
+            if (data.items.size >= MAX_EXPENSES) return@withLock null
+            val e = Expense(cents, normalizeCategory(category), note.trim().take(120), at)
+            data.items += e
+            save(data)
+            e
+        } ?: return false
+        try { onAdded?.invoke(added) } catch (_: Exception) { }
+        return true
     }
 
     /** The spendings of [period] around [today], oldest first; an optional [category] narrows them. */

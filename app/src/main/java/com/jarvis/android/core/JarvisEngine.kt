@@ -28,7 +28,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
@@ -199,13 +201,31 @@ class JarvisEngine(
             container.configStore.wakeSensitivity.collect { wakeThreshold = com.jarvis.android.wake.wakeThresholdFor(it) }
         }
         scope.launch {
+            // Android's battery saver pauses the listening (if the user keeps that setting on): the service and its
+            // notification stay, only the microphone stops, so the listening can come back by itself afterwards.
+            val saverPause = combine(container.configStore.wakePauseInSaver, powerSaveMode()) { pause, saver -> pause && saver }
             combine(
                 container.configStore.wakeWordEnabled, state,
-                com.jarvis.android.meetings.MeetingRecorderService.recordingFlow, com.jarvis.android.wake.WakeTeaching.active,
-            ) { enabled, s, recording, teaching -> Triple(enabled && !recording && !teaching, s, recording) }
+                com.jarvis.android.meetings.MeetingRecorderService.recordingFlow, com.jarvis.android.wake.WakeTeaching.active, saverPause,
+            ) { enabled, s, recording, teaching, saving ->
+                if (enabled && saving && !recording && !teaching) log(tr("Mot d’activation en pause : économie d’énergie activée."))
+                Triple(enabled && !recording && !teaching && !saving, s, recording)
+            }
                 .collect { (enabled, s, _) -> updateWakeDetection(enabled, s) }
         }
     }
+
+    /** Whether Android's battery saver is on, now and whenever it changes. */
+    private fun powerSaveMode(): kotlinx.coroutines.flow.Flow<Boolean> = kotlinx.coroutines.flow.callbackFlow {
+        val context = container.appContext
+        val pm = context.getSystemService(android.os.PowerManager::class.java)
+        trySend(pm?.isPowerSaveMode == true)
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context, i: android.content.Intent) { trySend(pm?.isPowerSaveMode == true) }
+        }
+        ContextCompat.registerReceiver(context, receiver, android.content.IntentFilter(android.os.PowerManager.ACTION_POWER_SAVE_MODE_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
+        awaitClose { try { context.unregisterReceiver(receiver) } catch (_: Exception) { } }
+    }.distinctUntilChanged()
 
     /** Re-evaluates which wake-word detector to use, for example after the offline model was installed or removed. */
     fun refreshWakeDetection() {

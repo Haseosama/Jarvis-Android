@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.DoNotDisturbOn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -81,6 +82,30 @@ internal fun QuietCard() {
                 label = { Text(tr("Texte de la réponse")) },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
+        }
+    }
+}
+
+/** The briefing on waking up: off, shown, or said aloud when the morning alarm is stopped. */
+@Composable
+internal fun WakeBriefingCard() {
+    val context = LocalContext.current
+    val store = remember { (context.applicationContext as com.jarvis.android.JarvisApp).container.wakeStore }
+    var mode by remember { mutableStateOf(store.load().mode) }
+    SettingsCard(tr("Briefing au réveil"), Icons.Filled.Alarm, initiallyExpanded = false) {
+        Text(
+            tr("Quand vous arrêtez le réveil du matin (application Horloge, entre 4 h et midi ; pas quand vous le mettez en pause), Jarvis donne la météo, l’agenda et les rappels du jour, les prélèvements et votre nuit de sommeil."),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+            listOf(com.jarvis.android.wakeup.WAKE_OFF to tr("Désactivé"), com.jarvis.android.wakeup.WAKE_NOTIFY to tr("Notification"), com.jarvis.android.wakeup.WAKE_SPEAK to tr("À voix haute")).forEach { (m, label) ->
+                androidx.compose.material3.FilterChip(
+                    selected = mode == m,
+                    onClick = { mode = m; store.update { it.copy(mode = m) } },
+                    label = { Text(label) },
+                )
+            }
         }
     }
 }

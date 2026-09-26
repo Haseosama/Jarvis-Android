@@ -9,9 +9,9 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.15 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.16 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
-real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 790 tests,
+real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
 emulator (with synthetic voices, test data, or without a Gemini key), and **not yet on a real phone with a real voice**: the wake word (built-in
 and taught), the meeting notes with a real Gemini answer, Gmail and Drive, the update on a Xiaomi, reminders re-armed after a reboot, timers,
@@ -32,8 +32,8 @@ Everything is asked by voice (French first, English too), or typed in the chat. 
 - **The phone itself**: open apps, read and drive the screen (accessibility service), send messages (SMS, WhatsApp, Telegram, Messenger),
   calls, missed calls and calling back, notifications and "what did I miss?", Do Not Disturb until a time, volume, brightness, flashlight, alarms, timers, reminders (by time, by place, or tied
   to a person: "la prochaine fois que Paul m'appelle…"), find the phone, files in a work folder.
-- **Everyday life**: lists, spending (by voice or by scanning a receipt), subscriptions and regular payments, recipes read step by
-  step, parcel tracking, medications and habits, where the car is parked, driving mode,
+- **Everyday life**: lists, spending (by voice or by scanning a receipt) and monthly budgets, subscriptions and regular payments,
+  recipes read step by step, parcel tracking, train and bus times, text read through the camera, a briefing when the alarm stops, medications and habits, where the car is parked, driving mode,
   weather and rain in the next hour, air quality, fuel prices, planes overhead, birthdays, calendar, photos (by date, place, or what is on
   them), health (steps, sleep, heart rate from Health Connect), an emergency SOS to chosen contacts.
 - **Knowledge and work**: web search, reading a web page, flights, translation and interpreter mode, meeting notes, documents, Gmail and
@@ -97,7 +97,8 @@ loud to find it), `place_reminder` (reminders on arriving at or leaving a place)
 `call_log` (missed calls and calling back), `sos` (emergency alert), `photos` (photo search) — see "Calls, SOS, photos",
 `receipt` (receipt to expense), `person_reminder` (reminders tied to a person), `driving_mode`, `health` (Health Connect) —
 see "Receipts, people, driving, health", `quiet_mode` (Do Not Disturb until a time), `subscriptions`, `recipe`, `parcel`, and
-`notifications`' digest — see "Missed notifications, quiet time, subscriptions, recipes, parcels",
+`notifications`' digest — see "Missed notifications, quiet time, subscriptions, recipes, parcels", `budget`, `read_text` (text through
+the camera), `wake_briefing`, `transport` (trains and local transport) — see "Budgets, camera text, wake-up briefing, transport",
 and the phone-control tools below.
 
 `end_session` lets you close the voice session by voice ("arrête la session"): the model says
@@ -125,7 +126,7 @@ Added here and not in the original: `alarm`, `calendar`, `call_contact`, `call_l
 `meeting_notes`, `create_document`, `gmail`, `drive`, `watch`, `end_session`, `undo`, `task_list`, `translate`, `interpreter`, `smart_home`,
 `spotify_search`, `air_quality`, `planes_overhead`, `prix_carburant`, `rain_soon`, `expenses`, `receipt`, `habits`, `find_phone`,
 `place_reminder`, `person_reminder`, `parking`, `driving_mode`, `birthdays`, `photos`, `health`, `sos`, `quiet_mode`,
-`subscriptions`, `recipe`, `parcel`, plus the widgets, the avatar, the
+`subscriptions`, `recipe`, `parcel`, `budget`, `read_text`, `wake_briefing`, `transport`, plus the widgets, the avatar, the
 taught wake word, the offline mode and the in-app update.
 
 ## Not ported — no Android equivalent
@@ -718,6 +719,41 @@ payload shaped like the real one, and live on the emulator for Lyon, Paris and a
   API with a fake key, refused cleanly. *Not checked*: a real La Poste key and parcel, the end of a quiet time by its alarm
   (only by voice), and the day-before payment notification on the day before (the worker runs twice a day).
 
+### Budgets, camera text, wake-up briefing, transport, settings search, battery
+
+- **Budgets** (`budget`, `budgets/Budgets.kt`). "Mon budget courses c'est 400 € par mois", or a total for everything. Every
+  expense noted — by voice, from a receipt, from a subscription — is weighed as it is added (`ExpenseStore.onAdded`): a
+  notification at 80 % and at 100 % (once each a month), what is left in Jarvis's answer ("il reste 78 € pour 5 jours"), and
+  the budgets past 80 % in the morning briefing.
+- **Text through the camera** (`read_text`). "Qu'est-ce qui est écrit là ?", "traduis ce menu": the camera opens (the same
+  screen-less capture as the receipts), ML Kit reads the text on the phone (Latin alphabet), and the model reads, sums up or
+  translates it; offline, the text itself is said. The photo is deleted.
+- **Briefing on waking up** (`wake_briefing`, `wakeup/WakeBriefing.kt`, Settings > *Briefing au réveil*; off by default,
+  or notification, or aloud). Android tells apps when the next alarm changes, and the clock app changes it as soon as an alarm
+  starts ringing: when the alarm that was next is a morning one (4 h – 12 h) now due, Jarvis watches the alarm sound every 20
+  seconds; once it stops, a next alarm within 20 minutes means a snooze (it waits for the next ring), otherwise it gives the
+  weather at the phone's position, the day's agenda and reminders, the payments due, the budgets and last night's sleep —
+  aloud with Android's voice and as a notification. Once a day.
+- **Trains and local transport** (`transport`, `transport/Transport.kt`, Settings > *Transports*). "Quel est le prochain
+  train pour Rennes ?" (also offline), "les départs de la gare de Brest", "mon bus passe quand ?": the Navitia API, through
+  SNCF's own open data for trains (free SNCF key) and navitia.io for the buses, trams and metros of the phone's city (free
+  key, optional); both keys are encrypted like the others. Connections with the trains taken, the changes and the delays;
+  departures with their delay.
+- **Settings search and themes**. A search field (titles in both languages, plus a few keywords: "clé", "batterie",
+  "train"…) and theme chips (Voix et IA, Téléphone, Vie quotidienne, Voiture et sécurité, Services et données) narrow down the
+  forty cards; each card finds its theme from its French title (`ui/SettingsFilter.kt`), nothing was moved.
+- **Battery**. The routines' check (every 15 minutes) now runs only while there is a routine; the background checks read the
+  calendar only when the morning notification can still be sent; the rain watch sleeps from 23 h to 6 h; the notification
+  listener keeps the person reminders and the quiet time in memory instead of reading a file for every message. And the
+  wake word pauses while Android's battery saver is on (switch in the wake-word card, on by default): the microphone stops,
+  the service stays, and listening resumes by itself when the saver goes off.
+- *Checked*: unit tests (11 new cases). On the emulator: the app starts (a start-up crash caught this way and fixed); the
+  microphone stopping when the battery saver went on and starting again when it went off; budgets with the 80 % and 100 %
+  notifications; a French/English sign read from a photo; the whole alarm sequence with the time zone moved to the morning —
+  no briefing while the alarm rang, none after "Snooze", then the briefing spoken 19 seconds after "Stop"; the settings
+  search and themes; a real call to the SNCF API with a fake key, refused cleanly. *Not checked*: real train times (no key
+  here), and the camera text on a real sign.
+
 ### Plugins and self-knowledge
 
 **Plugins** (`plugins/`, the Android counterpart of Mark-LIII's `plugins/` folder). A plugin is one JSON file,
@@ -1010,7 +1046,8 @@ What it understands is a fixed list of French commands, matched by rules (`offli
 - **Everyday**: lists ("ajoute du lait à ma liste"…), spending ("j'ai dépensé 12 € en courses", "combien j'ai dépensé ce mois-ci ?", "annule la dernière dépense"), "scanne ce ticket", medications taken, "retiens où je me suis garé" / "où est ma voiture ?".
 - **Calls and people**: "qui m'a appelé ?", "j'ai des appels manqués ?", "mes derniers appels", "qu'est-ce que j'ai raté ?".
 - **Quiet time**: "je suis en réunion jusqu'à 15 h", "ne me dérange pas pendant une heure", "j'ai fini ma réunion".
-- **Money and parcels**: "mes abonnements", "où en est mon colis ?".
+- **Money, parcels, trains**: "mes abonnements", "où en est mon budget ?", "où en est mon colis ?", "quel est le prochain train pour Rennes ?".
+- **Camera**: "qu'est-ce qui est écrit là ?", "lis-moi cette notice" (the text is read on the phone and said as it is).
 - **Cooking**: "ma recette de crêpes", then, while a recipe is under way, "étape suivante", "répète", "l'étape d'avant", "étape 3", "les ingrédients", "fin de la recette" ("suivant" is the next step only while cooking; otherwise it is the next song).
 - **Photos and health**: "mes photos d'aujourd'hui / d'hier", "mes dernières photos", "combien de pas aujourd'hui ?", "comment j'ai dormi ?".
 - **Driving and safety**: "mode conduite" / "je prends la route", "arrête le mode conduite" / "je suis arrivé"; "au secours", "SOS", "à l'aide" (the SOS countdown), and "annule" / "fausse alerte" to stop it.

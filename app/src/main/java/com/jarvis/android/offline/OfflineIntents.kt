@@ -88,6 +88,9 @@ private val HEALTH_SLEEP = Regex("^(?:comment j ai dormi|combien j ai dormi|comb
 private val NOTIF_DIGEST = Regex("^(?:qu est ce que j ai (?:rate|manque)|j ai rate quoi|j ai manque quoi|resume (?:de )?mes notifications|quoi de neuf)(?: depuis ce matin| aujourd hui)?$")
 private val SUBSCRIPTIONS = Regex("^(?:mes abonnements|liste mes abonnements|combien (?:me coutent|coutent) mes abonnements|mes prelevements)$")
 private val PARCELS = Regex("^(?:ou en est mon colis|ou en sont mes colis|mes colis|suivi de mes colis|ou est mon colis|mon colis est ou)$")
+private val BUDGETS = Regex("^(?:mon budget|mes budgets|ou en est mon budget|ou en sont mes budgets|il me reste combien(?: de budget)?)$")
+private val READ_TEXT = Regex("^(?:qu est ce qui est ecrit(?: la| ici| dessus)?|c est ecrit quoi(?: la)?|lis moi (?:ca|ce texte|cette notice|ce panneau|cette etiquette|cette page|ce document|ce menu)|lis (?:ca|ce texte|cette notice|ce panneau|cette etiquette))$")
+private val NEXT_TRAIN = Regex("^(?:quel est le |c est quand le )?prochain train (?:pour|vers|a destination de|jusqu a) (.+)$")
 private val CALLS_MISSED = Regex("^(?:qui m a appele|qui a appele|j ai des appels manques|j ai eu des appels|est ce que j ai (?:eu )?des appels(?: manques)?|mes appels manques|appels manques)(?: aujourd hui)?$")
 private val CALLS_RECENT = Regex("^(?:mes derniers appels|derniers appels|mon journal d appels|journal d appels)$")
 
@@ -143,6 +146,9 @@ internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): O
     com.jarvis.android.recipes.recipePhrase(n, com.jarvis.android.recipes.RecipeLive.cooking())?.let {
         return OfflineAction.ToolCall("recipe", it, "", format = { r -> r })
     }
+
+    // Before the music: "prochain" alone is the next song, but "le prochain train pour Rennes" is a train.
+    NEXT_TRAIN.matchEntire(n)?.let { return OfflineAction.ToolCall("transport", mapOf("action" to "journey", "to" to it.groupValues[1]), "", format = { t -> t }) }
 
     if (THANKS.containsMatchIn(n)) return OfflineAction.Say("Je vous en prie.")
     if (HELP.containsMatchIn(n)) return OfflineAction.Say(OFFLINE_HELP)
@@ -225,6 +231,11 @@ internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): O
         return OfflineAction.ToolCall("quiet_mode", args, "", format = { it })
     }
     if (com.jarvis.android.quiet.quietStopPhrase(n)) return OfflineAction.ToolCall("quiet_mode", mapOf("action" to "stop"), "", format = { it })
+    if (READ_TEXT.matches(n)) return OfflineAction.ToolCall("read_text", mapOf("source" to "camera"), "", format = { t ->
+        // Offline there is no model to read it out: the text itself is said, without the instructions around it.
+        com.jarvis.android.actions.spokenReadText(t)
+    })
+    if (BUDGETS.matches(n)) return OfflineAction.ToolCall("budget", mapOf("action" to "status"), "", format = { it })
     if (SUBSCRIPTIONS.matches(n)) return OfflineAction.ToolCall("subscriptions", mapOf("action" to "list"), "", format = { it })
     if (PARCELS.matches(n)) return OfflineAction.ToolCall("parcel", mapOf("action" to "status"), "", format = { it })
     if (HEALTH_STEPS.matches(n)) return OfflineAction.ToolCall("health", mapOf("action" to "steps"), "", format = { it })

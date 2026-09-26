@@ -64,6 +64,10 @@ class ConfigStore(private val context: Context) {
     /** The La Poste developer key for parcel tracking (Okapi) — a credential too. */
     private val laPosteKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_laposte_key.enc", keys = keystoreKey)
 
+    /** The SNCF key (trains) and the navitia.io key (local buses and trams), for public transport — credentials too. */
+    private val sncfKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_sncf_key.enc", keys = keystoreKey)
+    private val navitiaKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_navitia_key.enc", keys = keystoreKey)
+
     private var slotCache: List<String?>? = null
 
     @Synchronized
@@ -173,6 +177,13 @@ class ConfigStore(private val context: Context) {
     suspend fun saveLaPosteKey(value: String): Boolean = withContext(Dispatchers.IO) { laPosteKeyStore.write(value) }
     suspend fun deleteLaPosteKey(): Boolean = withContext(Dispatchers.IO) { laPosteKeyStore.delete() }
 
+    fun getSncfKey(): String? = sncfKeyStore.read()
+    suspend fun saveSncfKey(value: String): Boolean = withContext(Dispatchers.IO) { sncfKeyStore.write(value) }
+    suspend fun deleteSncfKey(): Boolean = withContext(Dispatchers.IO) { sncfKeyStore.delete() }
+    fun getNavitiaKey(): String? = navitiaKeyStore.read()
+    suspend fun saveNavitiaKey(value: String): Boolean = withContext(Dispatchers.IO) { navitiaKeyStore.write(value) }
+    suspend fun deleteNavitiaKey(): Boolean = withContext(Dispatchers.IO) { navitiaKeyStore.delete() }
+
     private val KEY_ASSISTANT_NAME = stringPreferencesKey("assistant_name")
     private val KEY_USER_NAME = stringPreferencesKey("user_name")
     private val KEY_VOICE = stringPreferencesKey("voice")
@@ -196,6 +207,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_LOCAL_AI = booleanPreferencesKey("local_ai_enabled")
     private val KEY_SKIP_CONFIRMATIONS = booleanPreferencesKey("skip_confirmations")
     private val KEY_RAIN_ALERTS = booleanPreferencesKey("rain_alerts")
+    private val KEY_WAKE_PAUSE_SAVER = booleanPreferencesKey("wake_pause_saver")
     private val KEY_AVATAR_MODEL = intPreferencesKey("avatar_face_model")
     private val KEY_AVATAR_LIPS = intPreferencesKey("avatar_lip_colour")
     private val KEY_AVATAR_CAP = intPreferencesKey("avatar_cap")
@@ -253,6 +265,8 @@ class ConfigStore(private val context: Context) {
     val calendarAutoCreate: Flow<Boolean> = context.dataStore.data.map { it[KEY_CALENDAR_AUTO_CREATE] ?: false }
     /** Off by default: a notification when rain is about to start where the phone is (see weather/RainSoon.kt). */
     val rainAlerts: Flow<Boolean> = context.dataStore.data.map { it[KEY_RAIN_ALERTS] ?: false }
+    /** On by default: the wake word stops listening while Android's battery saver is on (the microphone is the costliest part). */
+    val wakePauseInSaver: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_PAUSE_SAVER] ?: true }
     /**
      * Off by default: when on, volume changes, file writes/deletes/organising and any other on-screen action Jarvis would
      * normally ask about go ahead without a confirmation banner. Screens that touch system security, permissions or
@@ -299,6 +313,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setGmailAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_GMAIL_AUTO_SEND] = v }
     suspend fun setCalendarAutoCreate(v: Boolean) = context.dataStore.edit { it[KEY_CALENDAR_AUTO_CREATE] = v }
     suspend fun setRainAlerts(v: Boolean) = context.dataStore.edit { it[KEY_RAIN_ALERTS] = v }
+    suspend fun setWakePauseInSaver(v: Boolean) = context.dataStore.edit { it[KEY_WAKE_PAUSE_SAVER] = v }
     suspend fun setSkipConfirmations(v: Boolean) = context.dataStore.edit { it[KEY_SKIP_CONFIRMATIONS] = v }
     suspend fun setAvatarSkin(v: Int) = context.dataStore.edit { it[KEY_AVATAR_SKIN] = v }
     suspend fun setAvatarLips(v: Int) = context.dataStore.edit { it[KEY_AVATAR_LIPS] = v }

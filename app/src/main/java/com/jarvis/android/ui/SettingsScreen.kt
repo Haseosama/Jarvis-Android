@@ -257,7 +257,10 @@ fun SettingsScreen(
             )
         }
     ) { padding ->
+        var settingsFilter by remember { mutableStateOf(SettingsFilter()) }
         Column(Modifier.fillMaxSize().padding(padding).imePadding().padding(16.dp).verticalScroll(rememberScrollState())) {
+            SettingsFilterBar(settingsFilter) { settingsFilter = it }
+            androidx.compose.runtime.CompositionLocalProvider(LocalSettingsFilter provides settingsFilter) {
             SettingsCard(tr("Identité"), Icons.Filled.Person, initiallyExpanded = true) {
             OutlinedTextField(
                 value = assistantNameField,
@@ -573,6 +576,15 @@ fun SettingsScreen(
                 tr("Mesuré avec des voix de synthèse : une voix anglaise déclenche presque à coup sûr, une voix française lisant « Hey Jarvis » avec l’accent est moins bien reconnue, et « Hey Travis » peut parfois déclencher. Si Jarvis ne réagit pas à votre voix, passez en « Sensible » ; s’il se réveille tout seul, en « Prudente ». Non testé avec votre voix."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
+            )
+            val pauseInSaver by configStore.wakePauseInSaver.collectAsState(initial = true)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text(tr("Mettre l’écoute en pause en mode économie d’énergie"), modifier = Modifier.weight(1f))
+                Switch(checked = pauseInSaver, onCheckedChange = { v -> scope.launch { configStore.setWakePauseInSaver(v) } })
+            }
+            Text(
+                tr("L’écoute permanente du micro est ce qui consomme le plus. Quand l’économie d’énergie d’Android est activée, Jarvis arrête d’écouter et reprend tout seul quand elle se désactive ; le bouton et la tuile marchent toujours."),
+                style = MaterialTheme.typography.bodySmall,
             )
             wakeMessage?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -924,6 +936,8 @@ fun SettingsScreen(
             HealthCard()
             QuietCard()
             ParcelsCard()
+            WakeBriefingCard()
+            TransportCard()
             MeetingNotesCard()
             WatchesCard()
             GoogleCard(configStore)
@@ -1768,6 +1782,15 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
             )
+            }
+            }
+            if (settingsFilter.active) {
+                Text(
+                    tr("Seuls les réglages qui correspondent sont affichés."),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
             Spacer(Modifier.height(32.dp))
         }

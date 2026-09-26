@@ -70,6 +70,10 @@ quiet_mode: "je suis en réunion jusqu'à 15 h" / "ne me dérange pas pendant un
 subscriptions: "mes abonnements" list; "ajoute l'abonnement Netflix 13,49 € le 5" add; "trouve mes abonnements" detect, then ask which to add.
 recipe: "qu'est-ce que je peux cuisiner avec… ?" give 2-3 ideas, then start the chosen one (ingredients and short steps separated by "|"); then "étape suivante" next, "répète" repeat, "l'étape d'avant" previous, "il me manque…" missing, "garde cette recette" save, "ma recette de crêpes" load. Read each step as the tool gives it.
 parcel: "suis mon colis 6A…" add (number, label); "où en est mon colis ?" status; "ouvre le suivi" open; "suis le colis du SMS" detect then ask which to add.
+budget: "mon budget courses c'est 400 € par mois" set (category, amount; "total" for everything); "où en est mon budget ?" status; remove. After noting an expense, say what is left when the tool answer gives it.
+read_text: "qu'est-ce qui est écrit là ?", "lis-moi cette notice", "traduis ce menu" (translate_to): opens the camera and gives you the text read on the phone; then read, summarize or translate it as asked. Prefer it to take_photo for text.
+wake_briefing: "lis-moi le briefing quand j'arrête mon réveil" set mode speak (or notify/off); "fais-moi le briefing du réveil" now (say the text it returns).
+transport: "prochain train pour Rennes" journey (to; from empty = here; time HH:MM); "les départs de la gare de Brest" departures; buses/trams/metro in the phone's city: network local.
 web_search filters: pass site (a domain) only when the user names a site, and recency ('jour', 'semaine', 'mois', 'année') only when they ask for recent results.
 Tool parameters are always extracted in English; see LANGUAGE above for what you SPEAK.
 

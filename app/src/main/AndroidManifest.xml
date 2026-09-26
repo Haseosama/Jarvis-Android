@@ -283,6 +283,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- The next alarm changed: the morning alarm may just have been stopped (briefing on waking up). -->
+        <receiver
+            android:name=".wakeup.WakeBriefingReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.app.action.NEXT_ALARM_CLOCK_CHANGED" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name=".reminders.BootReceiver"
             android:exported="false">

@@ -33,7 +33,8 @@ object ExpensesTool : Tool {
                 val cents = parseAmountCents(args.stringArg("amount"))
                     ?: return "Montant invalide : indiquez un nombre positif, par exemple 12,50."
                 if (store.add(cents, category, args.stringArg("note"))) {
-                    "Dépense notée : ${formatCents(cents)} en ${com.jarvis.android.expenses.normalizeCategory(category)}."
+                    "Dépense notée : ${formatCents(cents)} en ${com.jarvis.android.expenses.normalizeCategory(category)}." +
+                        com.jarvis.android.budgets.Budgets.noteFor(ctx, category)
                 } else {
                     "Impossible de noter cette dépense (montant hors limites ou carnet plein)."
                 }

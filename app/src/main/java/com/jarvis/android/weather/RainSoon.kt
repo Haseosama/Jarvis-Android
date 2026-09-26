@@ -109,6 +109,8 @@ class RainWatchWorker(context: Context, params: WorkerParameters) : CoroutineWor
     override suspend fun doWork(): Result {
         val container = (applicationContext as JarvisApp).container
         if (!container.configStore.rainAlerts.first()) return Result.success()
+        // At night nobody goes out without looking: no position and no network between 23 h and 6 h.
+        if (java.time.LocalTime.now().hour !in 6..22) return Result.success()
         val fix = (locate(applicationContext) as? LocationOutcome.Found)?.fix ?: return Result.success()
         return try {
             val body = container.http.newCall(Request.Builder().url(rainForecastUrl(fix.latitude, fix.longitude)).build()).execute()

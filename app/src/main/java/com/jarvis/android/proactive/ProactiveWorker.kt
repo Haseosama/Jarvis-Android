@@ -43,7 +43,10 @@ class ProactiveWorker(context: Context, params: WorkerParameters) : CoroutineWor
             lastStorageDay = prefs.getString("storage", "").orEmpty(),
             lastMorningDay = prefs.getString("morning", "").orEmpty(),
         )
-        val morning = morningNotificationText(
+        // The morning summary reads the calendar and the contacts: only when it can still be sent today, not every 15 minutes.
+        val hour = LocalDateTime.now().hour
+        val morningDue = state.lastMorningDay != LocalDate.now().toString() && hour in MORNING_FROM_HOUR until MORNING_UNTIL_HOUR
+        val morning = if (!morningDue) null else morningNotificationText(
             BriefingInputs(
                 today = LocalDate.now(),
                 lastBriefingDate = "",

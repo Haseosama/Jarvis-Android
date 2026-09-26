@@ -61,8 +61,15 @@ class RoutineWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 }
 
 internal object RoutineScheduler {
-    fun ensureScheduled(context: Context) {
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+    /** Checks every 15 minutes while there is a routine, and not at all otherwise (it used to wake the phone for nothing). */
+    fun sync(context: Context) {
+        val work = WorkManager.getInstance(context)
+        // Read straight from the store: this also runs while the app's container is being built.
+        if (RoutineStore(context.applicationContext).list().isEmpty()) {
+            work.cancelUniqueWork(ROUTINE_WORK)
+            return
+        }
+        work.enqueueUniquePeriodicWork(
             ROUTINE_WORK, ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<RoutineWorker>(15, TimeUnit.MINUTES).build(),
         )

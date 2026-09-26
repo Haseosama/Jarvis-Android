@@ -63,16 +63,20 @@ internal const val PERSON_REMINDER_QUIET_MS = 30 * 60_000L
 internal class PersonReminderStore(private val file: File) {
     private val json = Json { ignoreUnknownKeys = true }
 
+    // Kept in memory: every message that arrives asks for the list, and reading the file each time costs battery.
+    private var cache: List<PersonReminder>? = null
+
     @Synchronized
-    fun all(): List<PersonReminder> = try {
+    fun all(): List<PersonReminder> = cache ?: (try {
         if (file.exists()) json.decodeFromString<PersonReminderData>(file.readText()).items else emptyList()
     } catch (_: Exception) {
         emptyList()
-    }
+    }).also { cache = it }
 
     @Synchronized
     fun update(change: (List<PersonReminder>) -> List<PersonReminder>): List<PersonReminder> {
         val next = change(all())
+        cache = next
         try {
             file.parentFile?.mkdirs()
             val tmp = File(file.parentFile, file.name + ".tmp")
