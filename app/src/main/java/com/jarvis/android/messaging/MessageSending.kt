@@ -21,6 +21,7 @@ import com.jarvis.android.device.ActionResult
 import com.jarvis.android.device.JarvisAccessibilityService
 import com.jarvis.android.device.MESSAGING_PACKAGES
 import com.jarvis.android.device.isSendLabel
+import com.jarvis.android.device.pressSend
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
 import kotlinx.coroutines.Dispatchers
@@ -171,9 +172,12 @@ internal suspend fun sendThroughScreen(ctx: JarvisContainer, intent: Intent, app
         val snapshot = service.readScreen() ?: continue
         if (snapshot.packageName !in MESSAGING_PACKAGES) continue
         val button = snapshot.elements.firstOrNull { it.clickable && isSendLabel(it.label) } ?: continue
-        return when (service.tap(button.index)) {
-            is ActionResult.Done -> SendOutcome.Sent(appName)
-            is ActionResult.Failed -> SendOutcome.Failed(trf("Le bouton Envoyer de {0} n’a pas répondu : le message est prêt dans l’application, appuyez vous-même sur envoyer.", appName))
+        // Pressed, then checked: the message has left the compose field (or pressed again with a real tap) — see device/SendPress.kt.
+        return when (val press = service.pressSend(button.index)) {
+            is com.jarvis.android.device.SendPress.Sent -> SendOutcome.Sent(appName)
+            is com.jarvis.android.device.SendPress.NotSent -> SendOutcome.Failed(
+                trf("{0} n’a pas envoyé le message ({1}) : il est prêt dans l’application, appuyez vous-même sur envoyer.", appName, press.reason),
+            )
         }
     }
     return SendOutcome.Failed(trf("Je n’ai pas trouvé le bouton Envoyer de {0} : le message est prêt dans l’application, appuyez vous-même sur envoyer.", appName))
@@ -272,14 +276,22 @@ internal suspend fun sendThroughMessenger(ctx: JarvisContainer, person: String, 
                 if (service.tap(pick.sendIndex) !is ActionResult.Done) {
                     return SendOutcome.Failed(tr("Le bouton Envoyer de Messenger n’a pas répondu. Rien n’est envoyé."))
                 }
-                // Messenger turns the button into "Envoyé" / "Annuler": that is the only proof it went.
-                repeat(4) {
-                    delay(600)
-                    val after = service.readScreen()
-                    if (after != null && messengerConfirmsSent(after.elements, pick.name)) {
-                        after.elements.firstOrNull { it.clickable && com.jarvis.android.offline.normalize(it.label) in setOf("termine", "done", "ok") }
-                            ?.let { service.tap(it.index) }
-                        return SendOutcome.Sent("Messenger")
+                // Messenger turns the button into "Envoyé" / "Annuler": that is the only proof it went. If it did not, the
+                // accessibility click was swallowed: once more with a real finger tap on the button as it is now.
+                repeat(2) { attempt ->
+                    if (attempt == 1) {
+                        val now = service.readScreen() ?: return@repeat
+                        val again = (pickMessengerSend(now.elements, person) as? MessengerPick.Found)?.sendIndex ?: return@repeat
+                        service.fingerTap(again)
+                    }
+                    repeat(4) {
+                        delay(600)
+                        val after = service.readScreen()
+                        if (after != null && messengerConfirmsSent(after.elements, pick.name)) {
+                            after.elements.firstOrNull { it.clickable && com.jarvis.android.offline.normalize(it.label) in setOf("termine", "done", "ok") }
+                                ?.let { service.tap(it.index) }
+                            return SendOutcome.Sent("Messenger")
+                        }
                     }
                 }
                 return SendOutcome.Failed(

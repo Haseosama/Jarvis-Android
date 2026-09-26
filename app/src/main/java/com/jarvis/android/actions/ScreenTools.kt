@@ -7,6 +7,10 @@ import com.jarvis.android.device.ALWAYS_CONFIRM_PACKAGES
 import com.jarvis.android.device.ActionResult
 import com.jarvis.android.device.ElementMatch
 import com.jarvis.android.device.JarvisAccessibilityService
+import com.jarvis.android.device.MESSAGING_PACKAGES
+import com.jarvis.android.device.SendPress
+import com.jarvis.android.device.meansSend
+import com.jarvis.android.device.pressSend
 import com.jarvis.android.device.confirmationReason
 import com.jarvis.android.device.findByText
 import com.jarvis.android.device.formatScreen
@@ -166,6 +170,15 @@ object ScreenTapTool : Tool {
                         return@withContext "Confirmation expirée : rien n’a été touché."
                     }
                     if (!approved) return@withContext "Action refusée par l’utilisateur : rien n’a été touché."
+                }
+            }
+            // Sending a message: the button is taken again from the screen as it is now (it may just have turned from the
+            // thumbs-up into "Envoyer"), and "sent" is said only once the compose field is empty — see device/SendPress.kt.
+            if (snapshot.packageName in MESSAGING_PACKAGES && meansSend(element.label, text)) {
+                return@withContext when (val press = service.pressSend(index)) {
+                    is SendPress.Sent -> if (press.verified) "Message envoyé : le champ de saisie est vide."
+                        else "Bouton Envoyer appuyé ; aucun texte n’était dans le champ, rien à vérifier. Relisez l’écran pour voir le résultat."
+                    is SendPress.NotSent -> press.reason + " Ne dites pas à l’utilisateur que le message est parti."
                 }
             }
             // Le libellé retenu est renvoyé : maintenant que le rapprochement tolère la traduction et la faute

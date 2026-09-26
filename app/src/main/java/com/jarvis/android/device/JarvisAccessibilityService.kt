@@ -109,6 +109,8 @@ class JarvisAccessibilityService : AccessibilityService() {
                     checked = if (node.isCheckable) node.isChecked else null,
                     password = node.isPassword,
                     left = bounds.left, top = bounds.top, right = bounds.right, bottom = bounds.bottom,
+                    // showingHintText: some fields report their hint as their text while empty.
+                    filled = node.isEditable && !node.text.isNullOrBlank() && !node.isShowingHintText,
                 )
                 nodes += node
             }
@@ -165,6 +167,18 @@ class JarvisAccessibilityService : AccessibilityService() {
         if (target != null && target.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return ActionResult.Done
         // Not clickable through the tree: tap its centre instead.
         val bounds = Rect().also { node.getBoundsInScreen(it) }
+        return if (dispatchTap(bounds.exactCenterX(), bounds.exactCenterY())) ActionResult.Done
+        else ActionResult.Failed("Impossible d’appuyer sur cet élément.")
+    }
+
+    /**
+     * A real finger tap in the middle of the element, skipping the accessibility click: some apps (Messenger among them) answer the
+     * click "done" and do nothing, while a touch always goes through their normal button handling.
+     */
+    internal suspend fun fingerTap(index: Int): ActionResult {
+        val node = nodeAt(index) ?: return STALE
+        val bounds = Rect().also { node.getBoundsInScreen(it) }
+        if (bounds.isEmpty) return ActionResult.Failed("Élément sans position à l’écran.")
         return if (dispatchTap(bounds.exactCenterX(), bounds.exactCenterY())) ActionResult.Done
         else ActionResult.Failed("Impossible d’appuyer sur cet élément.")
     }

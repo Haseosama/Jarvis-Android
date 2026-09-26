@@ -16,6 +16,8 @@ internal data class ScreenElement(
     val top: Int = 0,
     val right: Int = 0,
     val bottom: Int = 0,
+    /** For an input field: it holds text the user or Jarvis typed (its [label] is then that text, not the hint). */
+    val filled: Boolean = false,
 )
 
 internal const val MAX_SCREEN_ELEMENTS = 150

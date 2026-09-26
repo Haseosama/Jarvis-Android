@@ -1066,6 +1066,18 @@ further confirmation.
   WhatsApp itself (not installed on the emulator: its button is looked up by the same rule, a clickable « Envoyer » or « Send » in the app),
   delivery to a real recipient, and a real spoken « envoie ».
 
+#### Pressing "send" reliably (0.9.11)
+
+Asked step by step ("ouvre la conversation", "écris…", "envoie"), the last tap did not always send. Three causes, all handled in
+`device/SendPress.kt`, used both by `screen_tap` on a send button in a messaging app and by the automatic sending of `send_message`:
+the model's screen reading could date from before the text was typed, when Messenger's button is still the thumbs-up (it turns into
+« Envoyer » only once there is text) — so the send button is looked up again on the screen as it is now, waiting up to two seconds for it
+to appear; an accessibility click can be answered "done" by the app and do nothing — so a message counts as sent only once the compose
+field no longer holds it (the service now tells a field holding typed text from one showing its hint), and otherwise the button is
+pressed once more with a real finger tap and checked again; and when it still has not gone, Jarvis says so instead of announcing it
+sent. In Messenger's "send to" list the same finger-tap retry is made when the row does not turn to « Envoyé ». *Checked*: unit tests of
+the draft/field/button rules. *Not checked* on a device: the emulator was unavailable this time, and Messenger cannot run on it anyway.
+
 ### Meeting notes, documents, watches, Gmail and Drive
 
 Four abilities inspired by [Brahma-Echo](https://github.com/titechprabhasolutions/Brahma-Echo) (a Windows assistant), each with its own tool for the

@@ -5,6 +5,7 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Listes" to "Lists",
     "Le contrôle du téléphone (service d’accessibilité) doit être activé pour envoyer par Messenger." to "Phone control (the accessibility service) must be on to send through Messenger.",
     "Messenger n’est pas installé ou ne peut pas s’ouvrir." to "Messenger is not installed or cannot open.",
+    "{0} n’a pas envoyé le message ({1}) : il est prêt dans l’application, appuyez vous-même sur envoyer." to "{0} did not send the message ({1}): it is ready in the app, press send yourself.",
     "Plusieurs personnes correspondent dans Messenger ({0}) : demandez le nom complet. Rien n’est envoyé." to "Several people match in Messenger ({0}): ask for the full name. Nothing is sent.",
     "Le bouton Envoyer de Messenger n’a pas répondu. Rien n’est envoyé." to "Messenger's Send button did not respond. Nothing is sent.",
     "J’ai appuyé sur Envoyer à côté de « {0} » dans Messenger, mais Messenger n’a pas indiqué que c’était parti : vérifiez dans l’application." to "I pressed Send next to « {0} » in Messenger, but Messenger did not show it as sent: check in the app.",
