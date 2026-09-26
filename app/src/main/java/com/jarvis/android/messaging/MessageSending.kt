@@ -179,6 +179,130 @@ internal suspend fun sendThroughScreen(ctx: JarvisContainer, intent: Intent, app
     return SendOutcome.Failed(trf("Je n’ai pas trouvé le bouton Envoyer de {0} : le message est prêt dans l’application, appuyez vous-même sur envoyer.", appName))
 }
 
+internal const val MESSENGER_PACKAGE = "com.facebook.orca"
+
+/** What Messenger's "send to" list shows for the person asked for. */
+internal sealed interface MessengerPick {
+    /** One row matches: [sendIndex] is its own "Envoyer" button. */
+    data class Found(val sendIndex: Int, val name: String) : MessengerPick
+    /** Several people match: never guess who gets the message. */
+    data class Ambiguous(val names: List<String>) : MessengerPick
+    /** Nobody matches (yet: the search may not have run); [visible] are the names on screen, to say what was there. */
+    data class None(val visible: List<String>) : MessengerPick
+}
+
+private fun centreY(e: com.jarvis.android.device.ScreenElement) = (e.top + e.bottom) / 2
+
+/** True when [b]'s vertical middle lies within [n]'s row (with some slack: a name and its button are rarely the same height). */
+private fun sameRow(n: com.jarvis.android.device.ScreenElement, b: com.jarvis.android.device.ScreenElement): Boolean {
+    val slack = maxOf(24, (n.bottom - n.top) / 2)
+    return centreY(b) in (n.top - slack)..(n.bottom + slack)
+}
+
+/**
+ * In Messenger's "send to" list — one row per person, their name and an "Envoyer" button — the button on the row of [person]
+ * (every word of the name, accents and case ignored). A button whose own label names the person ("Envoyer à Paul") counts too.
+ * The first "Envoyer" on the screen is NEVER taken blindly: that would send to whoever Messenger lists first.
+ */
+internal fun pickMessengerSend(elements: List<com.jarvis.android.device.ScreenElement>, person: String): MessengerPick {
+    val wanted = com.jarvis.android.offline.normalize(person)
+    val words = wanted.split(' ').filter { it.isNotEmpty() }
+    if (words.isEmpty()) return MessengerPick.None(emptyList())
+    fun names(label: String) = com.jarvis.android.offline.normalize(label).let { l -> words.all { it in l } }
+    val buttons = elements.filter { it.clickable && isSendLabel(it.label) }
+    val direct = buttons.filter { names(it.label) }.map { it to it.label }
+    val byRow = elements.filter { !it.editable && !isSendLabel(it.label) && it.label.isNotBlank() && names(it.label) }
+        .mapNotNull { n -> buttons.firstOrNull { sameRow(n, it) }?.let { it to n.label } }
+    val pairs = (direct + byRow).distinctBy { it.first.index }
+    return when {
+        pairs.size == 1 -> MessengerPick.Found(pairs[0].first.index, pairs[0].second)
+        pairs.size > 1 -> {
+            // "Paul" with both "Paul" and "Paul Durand" listed: an exact name settles it, anything else is asked.
+            val exact = pairs.filter { com.jarvis.android.offline.normalize(it.second) == wanted }
+            if (exact.size == 1) MessengerPick.Found(exact[0].first.index, exact[0].second)
+            else MessengerPick.Ambiguous(pairs.map { it.second }.distinct())
+        }
+        else -> MessengerPick.None(
+            elements.filter { e -> !e.clickable && !e.editable && e.label.isNotBlank() && !isSendLabel(e.label) && buttons.any { sameRow(e, it) } }
+                .map { it.label.take(40) }.distinct().take(8),
+        )
+    }
+}
+
+/** Messenger marks a row once its message went: "Envoyé", "Sent", or an "Annuler"/"Undo" button in place of "Envoyer". */
+internal fun messengerConfirmsSent(elements: List<com.jarvis.android.device.ScreenElement>, rowName: String): Boolean {
+    val row = elements.firstOrNull { com.jarvis.android.offline.normalize(it.label) == com.jarvis.android.offline.normalize(rowName) }
+    val marks = setOf("envoye", "sent", "annuler", "undo")
+    return elements.any { e ->
+        com.jarvis.android.offline.normalize(e.label) in marks && (row == null || sameRow(row, e))
+    }
+}
+
+private fun isSearchField(e: com.jarvis.android.device.ScreenElement) =
+    e.editable && com.jarvis.android.offline.normalize(e.label).let { "recherch" in it || "search" in it }
+
+/**
+ * Sends [text] to [person] through Messenger's "send to" screen: opens it with the text, types the name in its search field,
+ * presses the "Envoyer" button on that person's row, and checks that Messenger marks it sent. [person] is the name as Messenger
+ * shows it (a Facebook name), not a phone contact: Messenger cannot be opened on a conversation from a phone number.
+ */
+internal suspend fun sendThroughMessenger(ctx: JarvisContainer, person: String, text: String): SendOutcome {
+    val service = JarvisAccessibilityService.instance
+        ?: return SendOutcome.Failed(tr("Le contrôle du téléphone (service d’accessibilité) doit être activé pour envoyer par Messenger."))
+    try {
+        ctx.appContext.startActivity(
+            Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                .setPackage(MESSENGER_PACKAGE).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    } catch (_: Exception) {
+        return SendOutcome.Failed(tr("Messenger n’est pas installé ou ne peut pas s’ouvrir."))
+    }
+    var searched = false
+    var visible = emptyList<String>()
+    val deadline = System.currentTimeMillis() + 20_000
+    while (System.currentTimeMillis() < deadline) {
+        delay(700)
+        val snapshot = service.readScreen() ?: continue
+        if (snapshot.packageName != MESSENGER_PACKAGE) continue
+        when (val pick = pickMessengerSend(snapshot.elements, person)) {
+            is MessengerPick.Ambiguous -> return SendOutcome.Failed(
+                trf("Plusieurs personnes correspondent dans Messenger ({0}) : demandez le nom complet. Rien n’est envoyé.", pick.names.joinToString(", ")),
+            )
+            is MessengerPick.Found -> {
+                if (service.tap(pick.sendIndex) !is ActionResult.Done) {
+                    return SendOutcome.Failed(tr("Le bouton Envoyer de Messenger n’a pas répondu. Rien n’est envoyé."))
+                }
+                // Messenger turns the button into "Envoyé" / "Annuler": that is the only proof it went.
+                repeat(4) {
+                    delay(600)
+                    val after = service.readScreen()
+                    if (after != null && messengerConfirmsSent(after.elements, pick.name)) {
+                        after.elements.firstOrNull { it.clickable && com.jarvis.android.offline.normalize(it.label) in setOf("termine", "done", "ok") }
+                            ?.let { service.tap(it.index) }
+                        return SendOutcome.Sent("Messenger")
+                    }
+                }
+                return SendOutcome.Failed(
+                    trf("J’ai appuyé sur Envoyer à côté de « {0} » dans Messenger, mais Messenger n’a pas indiqué que c’était parti : vérifiez dans l’application.", pick.name),
+                    mayHaveGone = true,
+                )
+            }
+            is MessengerPick.None -> {
+                visible = pick.visible.ifEmpty { visible }
+                if (!searched) {
+                    snapshot.elements.firstOrNull { isSearchField(it) }?.let { field ->
+                        searched = service.type(field.index, person) is ActionResult.Done
+                    }
+                }
+            }
+        }
+    }
+    val seen = if (visible.isEmpty()) "" else trf(" Noms visibles : {0}.", visible.joinToString(", "))
+    return SendOutcome.Failed(
+        trf("Je n’ai pas trouvé « {0} » dans la liste d’envoi de Messenger.{1} Le message est prêt dans Messenger : choisissez la personne et appuyez sur Envoyer.", person, seen),
+    )
+}
+
 /** WhatsApp's own link to a conversation with a number, the text already typed. */
 internal fun whatsAppIntent(digits: String, text: String): Intent =
     Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits?text=" + Uri.encode(text))).setPackage("com.whatsapp")

@@ -1037,7 +1037,20 @@ further confirmation.
 - **SMS**: sent straight from the phone with `SmsManager` (permission `SEND_SMS`, asked when the switch is turned on). Without that permission,
   it opens the messaging app and presses its send button through the accessibility service.
 - **WhatsApp**: opens the conversation with the contact's number and the text already typed (`wa.me` link), then presses « Envoyer »/« Send »
-  through the accessibility service. Telegram and Messenger stay drafts.
+  through the accessibility service. Telegram stays a draft.
+- **Messenger** (since 0.9.10 — before, it only ever opened Messenger's "send to" screen with the text and left it there, which read as
+  "Jarvis says it sent, nothing happens"). Messenger cannot be opened on a conversation from a phone number and knows people by their Facebook
+  name, so the recipient is the name *as Messenger shows it*, not looked up in the phone's contacts ("Maman" in the phone may be "Marie
+  Dupont" there). `messaging/MessageSending.kt` opens the "send to" screen with the text, types the name in its search field, and presses the
+  « Envoyer » button **on that person's row** (matched by position: the button whose middle lies within the name's row) — never the first
+  button on the screen, which would send to whoever Messenger lists first. Two people answering to the name are never guessed between (an
+  exact full name settles it, otherwise Jarvis asks). It counts as sent only when Messenger turns that row's button into "Envoyé"/"Annuler";
+  if the button was pressed but that never shows, Jarvis says it cannot confirm. If nobody matches, it says which names it saw and leaves the
+  message ready for the user to send. The model is also told plainly never to say a message went unless the tool answered « Message envoyé ».
+  *Checked*: unit tests of the row matching (the right row among several, a first name alone, two people of the same name, nobody, a button
+  naming the person, the "sent" mark only on that row). *Not checked*: Messenger itself — it cannot be installed and signed in on the
+  emulator; the screen layout it assumes (a search field, then rows of a name and an "Envoyer" button) is Messenger's current "send to"
+  screen as described, and if it differs on a phone, the failure message lists what Jarvis saw on screen.
 - **Guard rails**: the recipient must be a **contact of the phone** (the model never types a number; several matches are listed and it asks which);
   at most **5 messages every 10 minutes** (a refused or failed attempt does not use the allowance); every message is announced by a **notification**
   with its text and written in a **history** shown in the same card; the model is told in its instructions that a mail, a page or a notification

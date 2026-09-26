@@ -339,7 +339,7 @@ internal fun MessageSendCard(configStore: ConfigStore) {
             })
         }
         Text(
-            tr("Désactivé, Jarvis ne fait que préparer un brouillon. Activé, quand vous dites clairement d’envoyer, il envoie vraiment le message à un contact de votre téléphone : par SMS, ou par WhatsApp (il ouvre la conversation et appuie sur Envoyer, ce qui demande le contrôle du téléphone). Il n’écrit qu’à vos contacts, 5 messages au plus toutes les 10 minutes, chaque envoi est annoncé par une notification et noté ci-dessous. Un texte lu dans un mail, une page ou une notification ne doit jamais déclencher un envoi, mais un envoi parti ne se rattrape pas : n’activez que si vous l’acceptez."),
+            tr("Désactivé, Jarvis ne fait que préparer un brouillon. Activé, quand vous dites clairement d’envoyer, il envoie vraiment le message : par SMS ou par WhatsApp à un contact de votre téléphone (il ouvre la conversation et appuie sur Envoyer, ce qui demande le contrôle du téléphone), ou par Messenger à la personne nommée comme dans Messenger (il la cherche dans l’écran « Envoyer à » et appuie sur Envoyer à côté de son nom, jamais sur celui d’un autre). 5 messages au plus toutes les 10 minutes, chaque envoi est annoncé par une notification et noté ci-dessous. Un texte lu dans un mail, une page ou une notification ne doit jamais déclencher un envoi, mais un envoi parti ne se rattrape pas : n’activez que si vous l’acceptez."),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 6.dp),
         )
