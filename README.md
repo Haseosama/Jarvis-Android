@@ -9,13 +9,35 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.5.x (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on GitHub, see "Updating from
-GitHub"). The voice loop works end to end on a real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live
-transcripts. The unit-test suite (about 770 tests, `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was
-checked and what was not; in short, a lot was checked on an emulator (with synthetic voices, or without a Gemini key), and **not yet on a
-real phone with a real voice**: the wake word (built-in and taught), the meeting notes with a real Gemini answer, Gmail and Drive, the update
-on a Xiaomi, reminders re-armed after a reboot, timers, flight search, and the live video. Reconnection after a real network drop was tested by
-cutting the phone's Wi-Fi (see "Connection drops" below).
+Version 0.9.13 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+[GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
+real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 770 tests,
+`./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
+emulator (with synthetic voices, test data, or without a Gemini key), and **not yet on a real phone with a real voice**: the wake word (built-in
+and taught), the meeting notes with a real Gemini answer, Gmail and Drive, the update on a Xiaomi, reminders re-armed after a reboot, timers,
+flight search, the live video, the interpreter mode, driving mode started by a real car's Bluetooth, and the photo analysis on a real photo
+library. Reconnection after a real network drop was tested by cutting the phone's Wi-Fi (see "Connection drops" below).
+
+Requirements: Android 8.0 or later (minSdk 26); the app targets Android 14 (targetSdk 34) and is compiled against Android 16
+(compileSdk 36). The release APK is about 176 MB, mostly the on-device models (wake word, image labels, text recognition) and their native
+libraries for four processor types.
+
+## What it can do (at a glance)
+
+Everything is asked by voice (French first, English too), or typed in the chat. Details, limits and what was tested are in the sections below.
+
+- **Conversation and memory**: real-time voice with Gemini Live, a long-term memory, the morning briefing (agenda, reminders, birthdays,
+  yesterday's steps and last night's sleep), kept session history, a 3D holographic avatar that speaks with its lips.
+- **The phone itself**: open apps, read and drive the screen (accessibility service), send messages (SMS, WhatsApp, Telegram, Messenger),
+  calls, missed calls and calling back, notifications, volume, brightness, flashlight, alarms, timers, reminders (by time, by place, or tied
+  to a person: "la prochaine fois que Paul m'appelle…"), find the phone, files in a work folder.
+- **Everyday life**: lists, spending (by voice or by scanning a receipt), medications and habits, where the car is parked, driving mode,
+  weather and rain in the next hour, air quality, fuel prices, planes overhead, birthdays, calendar, photos (by date, place, or what is on
+  them), health (steps, sleep, heart rate from Health Connect), an emergency SOS to chosen contacts.
+- **Knowledge and work**: web search, reading a web page, flights, translation and interpreter mode, meeting notes, documents, Gmail and
+  Drive, code help, watches on prices or sites, a multi-step agent mode.
+- **Without a network**: an offline mode with fixed French commands (and an optional local Gemma model), and an offline wake word.
+- **Extensible**: declarative JSON plugins, Home Assistant, Spotify and Liberty Music.
 
 ## Build variants
 
@@ -96,8 +118,11 @@ a message into the running voice session.
 | `computer_control`, `desktop` | no phone equivalent; the accessibility tools (`screen_read`, `screen_tap`, `screen_type`, `screen_scroll`, `screen_swipe`, `screen_navigate`) drive the phone the way those drive a PC |
 | `game_updater`, `dashboard` | none: not applicable to a phone |
 
-Added here and not in the original: `alarm`, `calendar`, `call_contact`, `notifications`, `routine`, `timer`, `liberty_music`, `meeting_notes`,
-`create_document`, `gmail`, `drive`, `watch`, `end_session`, `undo`, plus the widgets, the avatar, the taught wake word and the in-app update.
+Added here and not in the original: `alarm`, `calendar`, `call_contact`, `call_log`, `notifications`, `routine`, `timer`, `liberty_music`,
+`meeting_notes`, `create_document`, `gmail`, `drive`, `watch`, `end_session`, `undo`, `task_list`, `translate`, `interpreter`, `smart_home`,
+`spotify_search`, `air_quality`, `planes_overhead`, `prix_carburant`, `rain_soon`, `expenses`, `receipt`, `habits`, `find_phone`,
+`place_reminder`, `person_reminder`, `parking`, `driving_mode`, `birthdays`, `photos`, `health`, `sos`, plus the widgets, the avatar, the
+taught wake word, the offline mode and the in-app update.
 
 ## Not ported — no Android equivalent
 
@@ -940,7 +965,17 @@ The strands drawn over the hair locks follow what real-time hair rendering does:
 
 Without a network (or when Gemini cannot be reached), a session no longer fails: Jarvis switches to a local mode that uses the phone's own speech recognition (`SpeechRecognizer`, offline preferred, the on-device recogniser on Android 13+) and voice (`TextToSpeech`, an offline voice when the phone has one). Setting (card "Périphériques audio"): Automatique (default: no validated network, no API key, or Gemini unreachable at the first connection), Toujours, Jamais. The wake word already works offline, so it stays hands-free.
 
-What it understands is a fixed list of French commands, matched by rules (`offline/OfflineIntents.kt`, covered by unit tests) and run through the existing tools, with their own safeguards (the volume still asks for confirmation): open an app, call a contact or draft an SMS (never sent), volume, brightness, flashlight, music (pause, play, next, previous), timer, time, date, battery, settings pages, lock the screen, screenshot, "aide", "au revoir". Time and date are worked out on the phone. Anything else is answered with "Je n'ai pas compris" and a pointer to "aide". It ends after three silences.
+What it understands is a fixed list of French commands, matched by rules (`offline/OfflineIntents.kt`, covered by unit tests) and run through the existing tools, with their own safeguards (the volume still asks for confirmation):
+
+- **Phone**: open an app, call a contact or draft an SMS (never sent), volume, brightness, flashlight, settings pages, lock the screen, screenshot, battery, "où es-tu ?" (ring the phone).
+- **Time**: time, date, timer; music (pause, play, next, previous).
+- **Everyday**: lists ("ajoute du lait à ma liste"…), spending ("j'ai dépensé 12 € en courses", "combien j'ai dépensé ce mois-ci ?", "annule la dernière dépense"), "scanne ce ticket", medications taken, "retiens où je me suis garé" / "où est ma voiture ?".
+- **Calls and people**: "qui m'a appelé ?", "j'ai des appels manqués ?", "mes derniers appels".
+- **Photos and health**: "mes photos d'aujourd'hui / d'hier", "mes dernières photos", "combien de pas aujourd'hui ?", "comment j'ai dormi ?".
+- **Driving and safety**: "mode conduite" / "je prends la route", "arrête le mode conduite" / "je suis arrivé"; "au secours", "SOS", "à l'aide" (the SOS countdown), and "annule" / "fausse alerte" to stop it.
+- "aide", "au revoir".
+
+Time and date are worked out on the phone; the tools that need the internet (the rain, the place of a photo search) say so. Anything else goes to the local model if one is installed (below), or is answered with "Je n'ai pas compris" and a pointer to "aide". It ends after three silences.
 
 It needs the French offline language pack (Google speech services: offline speech recognition) and a French voice; the errors say so when they are missing. The spoken answers are French only. Verified on the emulator (commands through the debug receiver `DEBUG_OFFLINE`, and the automatic switch without network, which stops with the message about the missing language pack, as that emulator has none); **not** verified with real offline speech recognition on a phone.
 
