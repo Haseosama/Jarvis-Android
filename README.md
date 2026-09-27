@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.25 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.26 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -322,6 +322,12 @@ by the `DUMP` permission so only adb can call it; it is not in the release build
   once and is paid for once; a failure (no key, no speech model) shows Gemini's message under the list. *Checked:* `VoicePreviewTest`
   (fetched once then played from the phone, one sample per voice and language, failures kept out of the cache), the buttons and the error
   on the emulator. *Not checked:* a real sample heard (the emulator's key is not valid).
+  Fixed in 0.9.26: the samples were silent. A sample reached the player in one block of several seconds; the player wrote it into its
+  one-second buffer before starting, and a blocking write into the full buffer of a track that is not playing waits for ever. The player
+  now starts before a write that would fill it (which also covers a spoken reply that arrives whole), the sample is handed over in fifths
+  of a second, it is fetched in one plain request instead of a stream, a spinner shows while it is fetched, and a failure also shows as a
+  toast (the open list covered the message under it). *Checked on the emulator:* a sample in the cache played (the track started at
+  24 kHz on the speaker, then was released).
   *Checked:* `VoicesTest`, the list on the emulator. *Not checked:* each voice heard in a real session (no Gemini key on the emulator);
   the names are Google's list of prebuilt voices for its native-audio models.
 - **Session summary and morning briefing** (`memory/Briefing*.kt`). When a voice session with at least two

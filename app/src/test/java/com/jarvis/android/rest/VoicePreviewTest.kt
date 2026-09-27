@@ -39,7 +39,7 @@ class VoicePreviewTest {
         val pcm = ByteArray(4800) { (it % 7).toByte() }
         val t = Transport { audio(pcm) }
         val out = Output()
-        val p = VoicePreview(t, { "tts" }, out, dir)
+        val p = VoicePreview(t, { "tts" }, out, dir, { _, _ -> })
         assertNull(p.play("Leda", english = false, name = "JARVIS"))
         assertNull(p.play("Leda", english = false, name = "JARVIS"))
         assertEquals(1, t.requests.size)
@@ -54,12 +54,24 @@ class VoicePreviewTest {
         assertEquals(3, t.requests.size)
     }
 
+    @Test fun `the sample is announced when it starts playing`() = runBlocking {
+        var started = 0
+        val p = VoicePreview(Transport { audio(ByteArray(480)) }, { "tts" }, Output(), dir, { _, _ -> })
+        assertNull(p.play("Sulafat", english = false, name = "Jarvis") { started++ })
+        assertEquals(1, started)
+    }
+
+    @Test fun `an unexpected failure is a message too`() = runBlocking {
+        val p = VoicePreview(Transport { throw IllegalStateException("boom") }, { "tts" }, Output(), dir, { _, _ -> })
+        assertTrue(p.play("Achernar", english = false, name = "Jarvis")!!.contains("boom"))
+    }
+
     @Test fun `a failure is a message, and nothing is kept`() = runBlocking {
         val t = Transport { throw RestChatException("Clé API refusée.") }
-        val p = VoicePreview(t, { "tts" }, Output(), dir)
+        val p = VoicePreview(t, { "tts" }, Output(), dir, { _, _ -> })
         assertEquals("Clé API refusée.", p.play("Zephyr", english = false, name = "Jarvis"))
         val empty = Transport { Json.parseToJsonElement("""{"candidates":[{"content":{"parts":[]}}]}""").jsonObject }
-        val q = VoicePreview(empty, { "tts" }, Output(), dir)
+        val q = VoicePreview(empty, { "tts" }, Output(), dir, { _, _ -> })
         assertTrue(q.play("Zephyr", english = false, name = "Jarvis") != null)
         assertTrue(java.io.File(dir, "voice_samples").listFiles().orEmpty().none { it.name.startsWith("Zephyr") })
     }

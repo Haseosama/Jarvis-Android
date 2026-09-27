@@ -82,22 +82,27 @@ fun SettingsScreen(
     val voice by configStore.voice.collectAsState(initial = "Puck")
     // the voice samples: which voice is playing (and still being fetched), and what went wrong
     var samplePlaying by remember { mutableStateOf<String?>(null) }
+    var sampleFetching by remember { mutableStateOf(false) }
     var sampleError by remember { mutableStateOf<String?>(null) }
     var sampleJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val context00 = androidx.compose.ui.platform.LocalContext.current
     val preview = remember { (context00.applicationContext as com.jarvis.android.JarvisApp).container.restChat.voicePreview }
     val assistantNameForSample by configStore.assistantName.collectAsState(initial = "JARVIS")
     fun stopVoiceSample() {
-        sampleJob?.cancel(); preview.stop(); samplePlaying = null
+        sampleJob?.cancel(); preview.stop(); samplePlaying = null; sampleFetching = false
     }
     fun playVoiceSample(name: String) {
         stopVoiceSample()
         sampleError = null
-        samplePlaying = name
+        samplePlaying = name; sampleFetching = true
         sampleJob = scope.launch {
-            val error = preview.play(name, com.jarvis.android.i18n.Lang.isEnglish, assistantNameForSample)
-            if (samplePlaying == name) samplePlaying = null
-            error?.let { sampleError = it }
+            val error = preview.play(name, com.jarvis.android.i18n.Lang.isEnglish, assistantNameForSample) { sampleFetching = false }
+            if (samplePlaying == name) { samplePlaying = null; sampleFetching = false }
+            error?.let {
+                sampleError = it
+                // the list covers the text under it: the message also shows above everything
+                android.widget.Toast.makeText(context00, it, android.widget.Toast.LENGTH_LONG).show()
+            }
         }
     }
     val model by configStore.model.collectAsState(initial = ConfigStore.DEFAULT_MODEL)
@@ -329,8 +334,11 @@ fun SettingsScreen(
                             // hear the voice before choosing it
                             trailingIcon = {
                                 IconButton(onClick = { if (samplePlaying == v.name) stopVoiceSample() else playVoiceSample(v.name) }) {
-                                    if (samplePlaying == v.name) Icon(Icons.Filled.Stop, contentDescription = tr("Arrêter l’échantillon"))
-                                    else Icon(Icons.Filled.PlayArrow, contentDescription = tr("Écouter cette voix"))
+                                    when {
+                                        samplePlaying == v.name && sampleFetching -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                                        samplePlaying == v.name -> Icon(Icons.Filled.Stop, contentDescription = tr("Arrêter l’échantillon"))
+                                        else -> Icon(Icons.Filled.PlayArrow, contentDescription = tr("Écouter cette voix"))
+                                    }
                                 }
                             },
                         )

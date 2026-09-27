@@ -189,6 +189,12 @@ internal class AudioPlayer(context: Context) : SpeechOutput {
                 track = player
             }
             source { chunk ->
+                // A chunk larger than what is left of the head start would fill the track's buffer before it plays, and a blocking
+                // write into a full buffer of a track that is not playing waits for ever: start first.
+                if (!started && written + chunk.size >= PREBUFFER_BYTES) {
+                    player.play()
+                    started = true
+                }
                 var offset = 0
                 while (offset < chunk.size) {
                     currentCoroutineContext().ensureActive()
