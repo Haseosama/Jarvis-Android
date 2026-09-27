@@ -84,6 +84,8 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         renderer.cap = controller.cap
         // the hologram's own dark ink, not a pale theme cyan: a mood change (a lift, a lowered lid) has to read at a glance
         renderer.browColour = if (renderer.holo) DEEP_BLUE else avatarFace(model).browColour
+        renderer.browScale = avatarFace(model).browScale
+        renderer.lashScale = avatarFace(model).lashScale
         renderer.fibreOverlay = avatarFace(model).fibres
         renderer.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, accent, bg, stroke)
     }

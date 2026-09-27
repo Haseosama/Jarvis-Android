@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.18 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.19 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -990,7 +990,7 @@ also shown in the settings.
   flat with few twists and an even tone (`roll`, `scatter`), so the mass reads smooth instead of stringy, and the fringe parts in the middle and sweeps to
   the sides. Marc is a
   short crop: the sides and the nape trimmed shorter than the top with a clipper-like taper, and about four locks in ten grey, more of them at the
-  temples. `JHM_FACE=lea python export_head.py …` rebuilds one (`head_mesh_lea.bin`, `head_mesh_marc.bin`); every new style parameter defaults to the old
+  temples. Léa's face itself was made more feminine in the same pass: her warp now narrows the jaw and the whole oval, tapers the chin to a point, enlarges the eyes, raises the cheekbones, fine-points the nose, fills the lips out and slims and lengthens the neck, and the renderer draws her brows finer and her lashes longer than the other faces' (`AvatarFaces.browScale` / `lashScale`, 0.8 and 1.35 for her). `JHM_FACE=lea python export_head.py …` rebuilds one (`head_mesh_lea.bin`, `head_mesh_marc.bin`); every new style parameter defaults to the old
   behaviour, so *Classique* still rebuilds byte for byte identical. *Checked:* the pipeline reproduces the original byte for byte, the mesh invariants and
   the face differences asserted by `AvatarFacesTest` replayed offline on the rebuilt assets (rings, eye and lip placement, jaw widths, hair present,
   triangle budget), and before/after renders from four angles with the app's own shading. *Not checked:* the frame rate on a real phone — Léa and Marc
