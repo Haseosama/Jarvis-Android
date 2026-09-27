@@ -60,16 +60,24 @@ def vertex_normals(V, F):
 
 HAIR_STYLES = {
     "classic": None,
-    # shoulder-length, wavy, auburn: covers the ears, hangs down the sides and the back
-    "lea": dict(front=0.50, m=0.02, left_temple=0.05, temple=-0.05, nape=-0.55, burn_y=0.12, ears_bare=False,
-                len_top=(0.40, 0.10), len_side=(0.58, 0.16), len_front=0.10, lift=0.7, lift_side_damp=0.85, wave=1.1, wave_side_damp=0.15,
-                width=1.05, width_side=1.1, side_boost=2.6, kappa=0.40, body=(0x5C, 0x2C, 0x1C), root=(0x24, 0x10, 0x09), gold=(0x96, 0x5C, 0x36), cap=(0x40, 0x1E, 0x12),
-                flow_front=(0.55, 0.30, -0.35), flow_top=(0.60, -0.05, -0.75), flow_side=(0.0, -1.0, -0.15), locks=720, edge_locks=200),
-    # short, dark and touched with grey, a higher hairline
+    # shoulder-length, wavy, auburn: covers the ears, hangs down the sides and the back. The locks are integrated row by row so they
+    # fall with gravity, turn down along the head and curl in at the tips instead of sticking out in spikes; more rows per lock keep
+    # the curves smooth, a parting and a curtain fringe frame the face, and the cap fades into the skin at the hairline.
+    "lea": dict(front=0.50, m=0.02, left_temple=0.05, temple=-0.05, nape=-1.42, burn_y=0.12, ears_bare=False,
+                len_top=(0.40, 0.10), len_side=(0.66, 0.10), len_front=0.10, lift=0.75, lift_side_damp=0.85, wave=0.8, wave_side_damp=0.15,
+                width=1.05, width_side=0.9, side_boost=3.6, kappa=0.40, face_frame=0.30, cap_streaks=80.0, burn_e0=0.34, burn_e1=0.52, crown_w=1.4,
+                len_floor=0.82, len_span=0.28, body=(0x5C, 0x2C, 0x1C), root=(0x24, 0x10, 0x09), gold=(0x96, 0x5C, 0x36), cap=(0x38, 0x1A, 0x10),
+                flow_front=(0.40, 0.45, -0.50), flow_top=(0.35, -0.05, -0.85), flow_side=(0.0, -1.0, -0.15), locks=620, edge_locks=140,
+                rows=7, gravity=0.40, flow_down=0.50, tip_in=0.14, taper=1.1, tip_w=0.010, margin=0.03, fade_pow=1.0,
+                part=0.05, fringe=130, fringe_len=(0.26, 0.03), tone_lo=0.78, tone_hi=1.08),
+    # short, dark and touched with grey, a higher hairline; the cap fades out over a band at the temples and the nape (a trimmed
+    # taper instead of a cut line), the sides are cut shorter than the top, and about a third of the locks are grey
     "marc": dict(front=0.54, m=0.05, left_temple=0.0, temple=0.36, nape=0.05, burn_y=0.02, ears_bare=True,
-                 len_top=(0.13, 0.05), len_side=(0.045, 0.02), len_front=0.05, lift=0.9, wave=0.5, width=0.9, kappa=1.4,
+                 len_top=(0.17, 0.06), len_side=(0.05, 0.02), len_front=0.06, lift=1.0, wave=0.65, width=0.9, kappa=1.4,
                  body=(0x33, 0x30, 0x2F), root=(0x15, 0x13, 0x13), gold=(0x86, 0x83, 0x7E), cap=(0x24, 0x22, 0x21),
-                 flow_front=(0.20, 0.45, -0.10), flow_top=(0.30, 0.15, -0.85), flow_side=(0.05, -0.35, -0.90), locks=640, edge_locks=300),
+                 flow_front=(0.20, 0.45, -0.10), flow_top=(0.30, 0.15, -0.85), flow_side=(0.05, -0.35, -0.90), locks=640, edge_locks=280,
+                 rows=8, margin=0.12, fade_pow=0.6, side_trim=0.50, grey=0.42, grey_rgb=(0x8E, 0x8B, 0x86), taper=0.7, tip_w=0.002, gravity=0.12, flow_down=0.15,
+                 tone_lo=0.72, tone_hi=1.15),
 }
 
 # ---- 1. the scan, normalised: crown +1, chin -1, nose tip at the depth of the mask's, cut at the base of the neck -------------

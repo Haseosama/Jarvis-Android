@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.16 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.17 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -981,11 +981,17 @@ also shown in the settings.
 - **Three faces** (Settings > Appearance > Visage). *Classique* is the original. *Léa* and *Marc* are **the same scan reshaped**, not other
   people scanned: `export_head.py` bends the finished geometry with a smooth warp (a narrower jaw, a smaller nose, bigger eyes and higher cheekbones
   for Léa; a wider square jaw, a heavier brow ridge, a bigger nose and smaller eyes for Marc), on every vertex so the eyes, the lids, the teeth and the
-  lips stay lined up, and gives each its own hair (`groom.py` styles: Léa's is dark auburn, wavy and shoulder length, Marc's short, dark and touched
-  with grey) and matching eyebrows. `JHM_FACE=lea python export_head.py …` rebuilds one (`head_mesh_lea.bin`, `head_mesh_marc.bin`). *Checked:* the three
-  draw and switch on the emulator, the original is byte for byte what it was, unit tests on the rig, the placement of the eyes and mouth, and the
-  differences between the faces. *Not checked:* the frame rate on a real phone (Léa has about a quarter more triangles than the original), and Léa's hair is
-  stylised and a little angular.
+  lips stay lined up, and gives each its own hair (`groom.py`) and matching eyebrows. The two haircuts were re-groomed in this pass: a lock is now
+  integrated row by row so it falls with gravity, follows the head and curls in at the tip instead of sticking out as a straight spike, and carries more
+  rows (7 or 8 against 6) so the curves read smooth instead of faceted; the cap under the locks carries streaks of its own and melts into the skin at the
+  hairline instead of ending on a cut line. Léa is a shoulder-length bob: a curtain fringe from a slight parting, the locks in front of the ears kept
+  short so they frame the face, blunt tips and a nearly even bottom edge, and the cap carried down the nape so no skin shows through the mass. Marc is a
+  short crop: the sides and the nape trimmed shorter than the top with a clipper-like taper, and about four locks in ten grey, more of them at the
+  temples. `JHM_FACE=lea python export_head.py …` rebuilds one (`head_mesh_lea.bin`, `head_mesh_marc.bin`); every new style parameter defaults to the old
+  behaviour, so *Classique* still rebuilds byte for byte identical. *Checked:* the pipeline reproduces the original byte for byte, the mesh invariants and
+  the face differences asserted by `AvatarFacesTest` replayed offline on the rebuilt assets (rings, eye and lip placement, jaw widths, hair present,
+  triangle budget), and before/after renders from four angles with the app's own shading. *Not checked:* the frame rate on a real phone — Léa and Marc
+  now carry about a quarter more triangles than the original, which is the ceiling that unit test enforces.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.
