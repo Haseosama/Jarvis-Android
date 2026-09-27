@@ -63,6 +63,16 @@ class AvatarFacesTest {
         assertNotEquals(avatarFace(0).asset, avatarFace(1).asset)
     }
 
+    @Test fun `lea reads more feminine: finer brows and longer lashes than the other faces`() {
+        val lea = AVATAR_FACES[1]
+        assertTrue(lea.browScale < 1f)
+        assertTrue(lea.lashScale > 1f)
+        for (i in listOf(0, 2, 3)) {
+            assertTrue(AVATAR_FACES[i].browScale == 1f)
+            assertTrue(AVATAR_FACES[i].lashScale == 1f)
+        }
+    }
+
     @Test fun `no face is heavier than a quarter more than the original`() {
         val base = meshes[0].faceCount
         for ((i, mesh) in meshes.withIndex()) assertTrue("${faces[i].label}: ${mesh.faceCount} faces against $base", mesh.faceCount <= base * 1.25)

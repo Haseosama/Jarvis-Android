@@ -95,6 +95,12 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
 
     /** The colour of the eyebrows: the hair's. */
     var browColour = 0xFF34241C.toInt()
+
+    /** How thick the brows are drawn, against the default: under 1 gives a finer, more feminine brow. */
+    var browScale = 1f
+
+    /** How long the lashes are, against the default: over 1 opens the eye up. */
+    var lashScale = 1f
     /** 0 = natural lips; 1..4 = rose, red, plum, coral. */
     var lips = 0
     private var bgColor = 0
@@ -1019,7 +1025,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 for (i in 0 until n - 1) nc.drawLine(ux[i], uy[i] - r * 0.016f, ux[i + 1], uy[i + 1] - r * 0.016f, hairPaint)
                 hairPaint.color = withAlpha(lash, 235f * face)
                 for (i in 0 until n - 1) {
-                    hairPaint.strokeWidth = strokePx * (0.8f + 1.5f * (i + 0.5f) / (n - 1))
+                    hairPaint.strokeWidth = strokePx * (0.8f + 1.5f * (i + 0.5f) / (n - 1)) * (0.6f + 0.4f * lashScale)
                     nc.drawLine(ux[i], uy[i], ux[i + 1], uy[i + 1], hairPaint)
                 }
                 // the lashes curl up and outwards when the eye is open, and lie down when it shuts
@@ -1034,7 +1040,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                     val f = pos - i
                     val bx = ux[i] + (ux[i + 1] - ux[i]) * f
                     val by = uy[i] + (uy[i + 1] - uy[i]) * f
-                    val len = r * 0.030f * (0.45f + 0.75f * t) * (0.8f + 0.4f * lashRnd[k])
+                    val len = r * 0.030f * lashScale * (0.45f + 0.75f * t) * (0.8f + 0.4f * lashRnd[k])
                     val lift = 2f * open - 1f                      // +1 open (up), -1 shut (down)
                     val dx = outward * (0.30f + 0.55f * t) * kotlin.math.abs(lift).coerceAtLeast(0.5f)
                     val dy = -lift * (1.0f - 0.35f * t)
@@ -1119,7 +1125,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 val cy = py[seg - 1] + (py[seg] - py[seg - 1]) * f
                 if (step == 0) underlay.moveTo(cx, cy) else underlay.lineTo(cx, cy)
             }
-            scope.drawPath(underlay, Color(withAlpha(hairColour, 90f * face)), style = Stroke(width = r * 0.030f, cap = roundCap, join = roundJoin))
+            scope.drawPath(underlay, Color(withAlpha(hairColour, 90f * face)), style = Stroke(width = r * 0.030f * browScale, cap = roundCap, join = roundJoin))
             for (h in browHairs) {
                 val target = h.u * total
                 var seg = 1
@@ -1130,12 +1136,12 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 var ty = (py[seg] - py[seg - 1]) / segLen
                 var nx = -ty; var ny = tx
                 if (ny > 0f) { nx = -nx; ny = -ny }              // the normal points up the screen
-                val width = r * (0.050f - 0.026f * h.u)         // the brow is thicker at its inner end
+                val width = r * (0.050f - 0.026f * h.u) * browScale         // the brow is thicker at its inner end
                 val rx = px[seg - 1] + (px[seg] - px[seg - 1]) * f + nx * h.off * width * 0.5f
                 val ry = py[seg - 1] + (py[seg] - py[seg - 1]) * f + ny * h.off * width * 0.5f
                 val angle = (0.95f - 1.1f * h.u) + h.jitter        // upright at the inner end, flat (and a little down) at the outer end
                 val ca = cos(angle); val sa = kotlin.math.sin(angle)
-                val length = r * 0.048f * h.len * (1.0f - 0.35f * h.u)
+                val length = r * 0.048f * h.len * (1.0f - 0.35f * h.u) * (0.5f + 0.5f * browScale)
                 hairLines[count++] = rx; hairLines[count++] = ry
                 hairLines[count++] = rx + (tx * ca + nx * sa) * length; hairLines[count++] = ry + (ty * ca + ny * sa) * length
             }

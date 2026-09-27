@@ -788,16 +788,19 @@ def smooth(e0, e1, x):
 WARPS = {
     # the original face, slimmed a little: a narrower jaw and cheeks, a finer nose, a slightly longer chin
     "classic": dict(jaw=0.22, nose_w=0.10, nose_z=0.03, cheek=0.0, chin=-0.17, eyes=0.0, brow=0.0, square=0.03, width=0.985),
-    #        jaw narrowing, nose narrowing, nose depth, cheekbones, chin (+ longer), eye scale, brow ridge, square chin, overall width
-    "lea":  dict(jaw=0.22, nose_w=0.15, nose_z=0.18, cheek=0.030, chin=-0.07, eyes=0.14, brow=0.0, square=0.0, width=0.97),
+    #        jaw narrowing, nose narrowing, nose depth, cheekbones, chin (+ longer), eye scale, brow ridge, square chin, overall width,
+    #        pointed chin, fuller lips, slim neck
+    "lea":  dict(jaw=0.30, nose_w=0.20, nose_z=0.22, cheek=0.045, chin=-0.12, eyes=0.20, brow=0.0, square=0.0, width=0.955,
+                 chin_taper=0.18, lip_full=0.35, neck=0.22),
     "marc": dict(jaw=-0.11, nose_w=-0.11, nose_z=-0.11, cheek=0.0, chin=0.06, eyes=-0.07, brow=0.045, square=0.07, width=1.03),
 }
 
 
-def make_warp(name, eye_centres):
+def make_warp(name, eye_centres, lip_centre=None):
     if name not in WARPS:
         return lambda P: P
     k = WARPS[name]
+    lc = lip_centre if lip_centre is not None else np.array([FACE_X0, -0.49, 0.5])
 
     def warp(P):
         P = np.array(P, dtype=np.float64)
@@ -824,12 +827,30 @@ def make_warp(name, eye_centres):
         eyezone = best > 0.02
         nx = np.where(eyezone, cx + (nx - cx) * gain, nx)
         ny = np.where(eyezone, cy + (ny - cy) * gain, ny)
+        # a pointed chin: the very bottom of the face tapers towards the midline (an oval, not a U)
+        tap = k.get("chin_taper", 0.0)
+        if tap:
+            w = np.exp(-(((y + 0.95) / 0.22) ** 2 + (hx / 0.30) ** 2)) * front
+            nx = FACE_X0 + (nx - FACE_X0) * (1.0 - tap * w)
+        # fuller lips: the surface round the mouth line swells a little, outwards and vertically (a smooth bump: nothing tears)
+        lipf = k.get("lip_full", 0.0)
+        if lipf:
+            w = np.exp(-(((y - lc[1]) / 0.16) ** 2 + ((x - lc[0]) / 0.30) ** 2)) * front
+            ny = ny + (y - lc[1]) * (lipf * 0.5) * w
+            nz = nz + lipf * 0.06 * w
+        # a slim, longer neck: the section under the jaw narrows towards its axis and stretches down a little
+        necks = k.get("neck", 0.0)
+        if necks:
+            w = smooth(-0.80, -1.15, y)
+            nx = FACE_X0 + (nx - FACE_X0) * (1.0 - necks * 0.5 * w)
+            nz = -0.10 + (nz + 0.10) * (1.0 - necks * 0.5 * w)
+            ny = ny - necks * 0.10 * smooth(-0.95, -1.30, y)
         return np.stack([nx, ny, nz], axis=1)
 
     return warp
 
 
-warp_head = make_warp(FACE_NAME, [np.array(c) for _, _, c in eye_info])
+warp_head = make_warp(FACE_NAME, [np.array(c) for _, _, c in eye_info], lip_centre)
 V = warp_head(V)
 lip_centre = warp_head(lip_centre[None, :])[0]
 eye_info = [(first, count, warp_head(np.array(c)[None, :])[0]) for first, count, c in eye_info]
