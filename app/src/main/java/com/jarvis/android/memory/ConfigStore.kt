@@ -196,6 +196,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_BRIEFING = booleanPreferencesKey("briefing_enabled")
     private val KEY_CHAT_HISTORY = booleanPreferencesKey("chat_history_enabled")
     private val KEY_AVATAR_FACE = booleanPreferencesKey("avatar_face")
+    private val KEY_AVATAR_LIGHT = booleanPreferencesKey("avatar_light")
     private val KEY_GOOGLE = booleanPreferencesKey("google_connected")
     private val KEY_AVATAR_SKIN = intPreferencesKey("avatar_face_skin")
     private val KEY_MESSAGE_AUTO_SEND = booleanPreferencesKey("message_auto_send")
@@ -246,6 +247,8 @@ class ConfigStore(private val context: Context) {
     /** Whether the user connected their Google account for Gmail and Drive. */
     val googleConnected: Flow<Boolean> = context.dataStore.data.map { it[KEY_GOOGLE] ?: false }
     val avatarFace: Flow<Boolean> = context.dataStore.data.map { it[KEY_AVATAR_FACE] ?: true }
+    /** The light avatar: half the frame rate and no fine hair strands, for a phone that struggles (or to save battery). */
+    val avatarLight: Flow<Boolean> = context.dataStore.data.map { it[KEY_AVATAR_LIGHT] ?: false }
     /** 0 = the glowing web, 1..4 = a skin of that tone over the face (light by default). */
     /** Which head: 0 = the original, 1 and 2 = the other faces (see avatar/AvatarFaces.kt). */
     val avatarModel: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_MODEL] ?: 0 }
@@ -304,6 +307,7 @@ class ConfigStore(private val context: Context) {
     suspend fun snapshotChatHistoryEnabled() = chatHistoryEnabled.first()
     suspend fun setGoogleConnected(v: Boolean) = context.dataStore.edit { it[KEY_GOOGLE] = v }
     suspend fun setAvatarFace(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_FACE] = v }
+    suspend fun setAvatarLight(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_LIGHT] = v }
     suspend fun setAvatarModel(v: Int) = context.dataStore.edit { it[KEY_AVATAR_MODEL] = v }
     suspend fun setKeepSessionTranscripts(v: Boolean) = context.dataStore.edit { it[KEY_KEEP_TRANSCRIPTS] = v }
     suspend fun setLocalAiEnabled(v: Boolean) = context.dataStore.edit { it[KEY_LOCAL_AI] = v }

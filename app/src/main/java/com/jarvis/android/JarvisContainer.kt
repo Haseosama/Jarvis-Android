@@ -187,6 +187,7 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch { configStore.skipConfirmations.collect { skipConfirmations = it } }
         appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }
         appScope.launch { configStore.avatarModel.collect { avatar.model = it } }
+        appScope.launch { configStore.avatarLight.collect { avatar.light = it } }
         appScope.launch { configStore.avatarSkin.collect { avatar.skin = it } }
         appScope.launch { configStore.avatarLips.collect { avatar.lips = it } }
         appScope.launch { configStore.avatarCap.collect { avatar.cap = it } }

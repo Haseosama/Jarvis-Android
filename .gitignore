@@ -25,3 +25,6 @@
 # textured characters built from models whose rights are not ours to publish: only in a local debug build (tools/avatar/export_character.py)
 app/src/debug/assets/avatar/characters/
 tools/avatar/characters/local/
+
+# Python caches of the build tools
+__pycache__/

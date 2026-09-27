@@ -88,6 +88,11 @@ fun SettingsScreen(
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
     val faceOn by configStore.avatarFace.collectAsState(initial = true)
     val faceModel by configStore.avatarModel.collectAsState(initial = 0)
+    val faceLight by configStore.avatarLight.collectAsState(initial = false)
+    var avatarImport by remember { mutableStateOf<android.net.Uri?>(null) }
+    val pickAvatar = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) avatarImport = uri
+    }
     val skinTone by configStore.avatarSkin.collectAsState(initial = 7)
     val lipTone by configStore.avatarLips.collectAsState(initial = 0)
     val capTone by configStore.avatarCap.collectAsState(initial = 0)
@@ -453,6 +458,13 @@ fun SettingsScreen(
                 )
                 Switch(checked = faceOn, onCheckedChange = { scope.launch { configStore.setAvatarFace(it) } })
             }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                Text(
+                    tr("Mode léger : le visage est animé deux fois moins souvent et sans mèches fines. Pour un téléphone qui saccade, ou pour économiser la batterie."),
+                    style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
+                )
+                Switch(checked = faceLight, onCheckedChange = { scope.launch { configStore.setAvatarLight(it) } })
+            }
             Text(tr("Visage"), style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).horizontalScroll(rememberScrollState())) {
                 com.jarvis.android.avatar.AVATAR_FACES.forEachIndexed { v, face ->
@@ -460,9 +472,27 @@ fun SettingsScreen(
                 }
             }
             // a textured character names its author (its licence asks for it); the skin, cap and lip settings do not apply to it
-            val chosenCredit = com.jarvis.android.avatar.avatarFace(faceModel).credit
-            if (chosenCredit.isNotEmpty()) {
-                Text(chosenCredit, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
+            val chosenFace = com.jarvis.android.avatar.avatarFace(faceModel)
+            if (chosenFace.credit.isNotEmpty()) {
+                Text(chosenFace.credit, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
+            }
+            androidx.compose.material3.OutlinedButton(onClick = { pickAvatar.launch(arrayOf("*/*")) }, modifier = Modifier.padding(bottom = 8.dp)) {
+                Text(tr("Importer un avatar (.glb ou .zip Sketchfab)"))
+            }
+            if (chosenFace.imported) {
+                androidx.compose.material3.OutlinedButton(onClick = {
+                    chosenFace.character?.let { com.jarvis.android.avatar.importer.CharacterImport.remove(context0, it) }
+                    scope.launch { configStore.setAvatarModel(0) }
+                }, modifier = Modifier.padding(bottom = 8.dp)) { Text(tr("Supprimer cet avatar")) }
+            }
+            avatarImport?.let { uri ->
+                AvatarImportDialog(uri) { folder ->
+                    avatarImport = null
+                    if (folder != null) {
+                        val index = com.jarvis.android.avatar.AVATAR_FACES.indexOfFirst { it.character == folder }
+                        if (index >= 0) scope.launch { configStore.setAvatarModel(index) }
+                    }
+                }
             }
             Text(tr("Peau"), style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).horizontalScroll(rememberScrollState())) {

@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.22 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.23 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1024,8 +1024,24 @@ also shown in the settings.
   *Checked:* `CharacterMeshTest` (the public characters are well formed, within the triangle budget, credited, and only publishable ones
   are in the public assets), all the characters on the emulator from the front and three-quarters, eyes closed and mouth open (debug
   override), and the frame time (22 to 34 ms a frame on the emulator, against 48 ms for Marc). *Not checked:* the lip-sync on a real voice
-  (the emulator has no Gemini key; the characters take the same mouth value as the heads), the frame rate on a real phone, and phones
+  (it was checked with the synthetic voice of the debug `speak` command, quoted whole: `adb shell "am broadcast ... --es speak 'Bonjour'"`), the frame rate on a real phone, and phones
   before Android 10, which draw them untextured, in grey.
+- **Characters look and frown** (since 0.9.23). Eyes that are meshes of their own (the anime characters', a real eyeball) slide towards
+  where the face looks (`eye_parts` in the config, the JCH2 flag); the skin round the brows (the painted brow moves with it) and a brow
+  mesh lift with the phrase and the mood (`brow` weights, `brow_lift`), so the characters raise and knit their brows as the heads do.
+  Painted eyes (the scans, most models) keep their own gaze.
+- **Import your own avatar** (since 0.9.23; Settings > Appearance > *Importer un avatar*). A `.glb`, or a Sketchfab download as it comes
+  (the `.zip` with `scene.gltf`, `scene.bin` and the textures), up to 150 MB. The phone does what `export_character.py` does
+  (`importer/Gltf.kt` reads the scene in its rest pose, `importer/CharacterBuilder.kt` cuts, frames, simplifies and rigs the bust,
+  `importer/CharacterImport.kt` draws the atlas and writes the files): the model is shown from the front with a first guess of where its
+  head is, the user drags four markers onto the eyes, the mouth and the chin (a *Tourner d'un quart de tour* button turns a model that
+  faces another way), names it, and it is built at full detail into `files/characters/<id>` and added to the faces. The credit is the first
+  line of the download's `license.txt` when there is one. *Supprimer cet avatar* removes it. Imported characters are the user's own: they
+  never leave the phone. *Checked:* `CharacterImportTest` (a GLB built in the test, with a scaling node: read in world space, framed from the
+  markers, built, simplified under a budget with its uvs intact, the jaw only under the mouth), and on the emulator the whole path with a
+  real Sketchfab zip (picker, preview, markers, save, the new face speaking and blinking, removal).
+- **Light mode** (Settings > Appearance). The face is drawn at half the rate and without the fine hair strands, for a phone that stutters
+  or to save battery.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.

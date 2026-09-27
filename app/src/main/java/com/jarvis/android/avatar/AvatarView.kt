@@ -28,7 +28,13 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     val avatar = controller.avatar
     val renderer = remember(controller, model) { AvatarRenderer(controller.mesh) }
     val cartoon = remember { CartoonRenderer() }
-    val character = remember(controller, model) { controller.character()?.let { CharacterRenderer(it) } }
+    // a character's files (its mesh and its atlas image) are read off the main thread: the face appears when they are
+    val characterFolder = avatarFace(model).character
+    val character by androidx.compose.runtime.produceState<CharacterRenderer?>(null, controller, model, characterFolder) {
+        value = if (characterFolder == null) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            controller.character()?.let { CharacterRenderer(it) }
+        }
+    }
     val currentState by rememberUpdatedState(state)
     val currentLevel by rememberUpdatedState(outputLevel)
     var frame by remember { mutableLongStateOf(0L) }
@@ -40,7 +46,8 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
             androidx.compose.runtime.withFrameNanos { nanos ->
                 // A sleeping face only breathes and blinks: half the frame rate is plenty and saves battery.
                 val sleeping = currentState == JarvisState.ASLEEP || currentState == JarvisState.ERROR
-                if (nanos - lastDraw < (if (sleeping) SLEEP_FRAME_NS else FRAME_NS)) return@withFrameNanos
+                // the light mode draws at half the rate (a phone that struggles, or battery to spare)
+                if (nanos - lastDraw < (if (sleeping || controller.light) SLEEP_FRAME_NS else FRAME_NS)) return@withFrameNanos
                 lastDraw = nanos
                 val now = SystemClock.elapsedRealtimeNanos()
                 val dt = (now - last) / 1e9f
@@ -67,8 +74,8 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     Canvas(modifier.fillMaxWidth().aspectRatio(1f)) {
         @Suppress("UNUSED_VARIABLE") val tick = frame // reading it makes the canvas redraw with every animation step
         val r = size.minDimension * 0.36f // head half-height: the head fills about 72 % of the square, the neck fades below it
-        if (character != null) {
-            character.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, bg)
+        if (characterFolder != null) {
+            character?.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, bg)
             return@Canvas
         }
         if (avatarFace(model).cartoon) {
@@ -94,7 +101,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         renderer.androidLook = avatarFace(model).androidLook
         renderer.halo = avatarFace(model).halo
         renderer.lipTint = avatarFace(model).lipTint
-        renderer.fibreOverlay = avatarFace(model).fibres
+        renderer.fibreOverlay = avatarFace(model).fibres && !controller.light
         renderer.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, accent, bg, stroke)
     }
 }

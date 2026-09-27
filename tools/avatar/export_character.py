@@ -1,15 +1,16 @@
-"""Builds a textured character for the avatar (format JCH1) from a glTF scene downloaded from Sketchfab.
+"""Builds a textured character for the avatar (format JCH2) from a glTF scene downloaded from Sketchfab.
 
 Usage: python export_character.py <config.json> <folder with scene.gltf> [--measure] [--out <assets folder>]
 Needs numpy, scipy and Pillow. The configs are in tools/avatar/characters/; see README "Textured characters".
 
-What is built, in the units of the other heads (crown y +1, chin -1, the nose tip at z 0.68):
+What is built, in the units of the other heads (the chin at y -1, the eyes at -0.05, the nose tip at z 0.68):
   * the bust: the head and what is above the config's cut (a little of the shoulders), the arms beyond |x| = cut_x left out;
   * simplified when it is heavy, by clustering on a grid (finer on the face), per UV island so the texture never smears across a seam,
     one shared position per cell so the islands stay stitched;
   * one texture atlas: the part of each material's texture the bust uses, packed together (with the material's colour factor);
   * per vertex: normal, atlas uv, head weight (how much it turns with the head: the head and the hair, not the shoulders), jaw weight
-    (the chin and the lower lip drop with the mouth), and whether it is lit (unlit anime materials keep their painted shading);
+    (the chin and the lower lip drop with the mouth), brow weight (the skin of the brows lifts, and a brow mesh), whether it is an eye
+    mesh (it follows the gaze), and whether it is lit (unlit anime materials keep their painted shading);
   * meta.json: the label, the credit, where the eyes and the mouth are (the app draws the lids and the open mouth over the texture).
 Written to <assets>/avatar/characters/<id>/ (mesh.bin, atlas.webp, meta.json). The public ones go to app/src/main/assets, the others
 (config "public": false) to app/src/debug/assets, which git ignores: they are only in a local debug build.
@@ -322,6 +323,24 @@ unlit = np.zeros(len(V), bool)
 for mi, m in enumerate(mats):
     if cfg.get("unlit_all") or any(k in m["name"] for k in cfg.get("unlit", [])):
         unlit |= VM == mi
+# the eyes that are meshes of their own (the anime ones, a real eyeball) follow the gaze; painted eyes cannot
+gazing = np.zeros(len(V), bool)
+for mi, m in enumerate(mats):
+    if any(k in m["name"] for k in cfg.get("eye_parts", [])):
+        gazing |= VM == mi
+# the brows lift: the skin round each brow (the painted brow moves with it), or the brow's own mesh
+brow = np.zeros(len(V))
+brows = cfg.get("brows") or [[e[0], e[1] + e[3] + 0.12, e[2]] for e in cfg["eyes"]]
+for bx, by, bhw in brows:
+    near = np.exp(-((x - bx) / (1.3 * bhw)) ** 2 - ((y - by) / 0.11) ** 2)
+    brow = np.maximum(brow, near * (z > NOSE_Z - 0.75))
+for mi, m in enumerate(mats):
+    if any(k in m["name"] for k in cfg.get("head_parts", [])):
+        brow[VM == mi] = 0.0                       # the hair over the brows stays where it is
+    if any(k in m["name"] for k in cfg.get("brow_parts", [])):
+        brow[VM == mi] = 1.0
+brow[gazing] = 0.0
+brow *= smoothstep(0.02, 0.2, y - max(e[1] for e in cfg["eyes"]))        # not the eyes under them
 
 # where the features are on the surface (the frontmost hit), and the colour of the skin over the eyes, for the lids
 Fc = V[F]
@@ -371,11 +390,11 @@ if "--out" in sys.argv:
     dest = os.path.join(sys.argv[sys.argv.index("--out") + 1], cfg["id"])
 os.makedirs(dest, exist_ok=True)
 nV, nF = len(V), len(F)
-buf = bytearray(b"JCH1") + struct.pack("<II", nV, nF)
+buf = bytearray(b"JCH2") + struct.pack("<II", nV, nF)
 for arr in (V, N, AUV):
     buf += np.asarray(arr, np.float32).tobytes()
-buf += headW.astype(np.float32).tobytes() + jaw.astype(np.float32).tobytes()
-flags = unlit.astype(np.uint8).tobytes()
+buf += headW.astype(np.float32).tobytes() + jaw.astype(np.float32).tobytes() + brow.astype(np.float32).tobytes()
+flags = (unlit.astype(np.uint8) | (gazing.astype(np.uint8) << 1)).tobytes()
 buf += flags + b"\x00" * ((4 - len(flags) % 4) % 4)
 buf += F.astype(np.uint32).tobytes()
 open(os.path.join(dest, "mesh.bin"), "wb").write(bytes(buf))
@@ -384,10 +403,11 @@ meta = dict(label=cfg["label"], order=cfg.get("order", 50), credit=cfg["credit"]
             cut=cut, top=float(cfg.get("fit_top", V[:, 1].max())), pivot=cfg.get("pivot", [0.0, -1.0, -0.15]), jaw_pivot=cfg.get("jaw_pivot", [0.0, 0.06, -0.34]),
             eyes=eyes, mouth=dict(points=mouth_pts, inner=int(cfg.get("mouth_colour", "FF2A1014"), 16), teeth=cfg.get("teeth", True),
                                   lip=cfg.get("lip_line")),
-            lash=int(cfg.get("lash_colour", "FF1A1210"), 16), ambient=cfg.get("ambient", 0.55))
+            lash=int(cfg.get("lash_colour", "FF1A1210"), 16), ambient=cfg.get("ambient", 0.55),
+            gaze=cfg.get("gaze", 0.035 if cfg.get("eye_parts") else 0.0), brow_lift=cfg.get("brow_lift", 0.06))
 json.dump(meta, open(os.path.join(dest, "meta.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print("written", dest, "vertices", nV, "triangles", nF, "atlas", S, "x", atlas.shape[0],
       "bytes", os.path.getsize(os.path.join(dest, "mesh.bin")), os.path.getsize(os.path.join(dest, "atlas.webp")))
 if os.environ.get("JCH_DEBUG"):
-    np.savez(os.environ["JCH_DEBUG"], V=V, F=F, AUV=AUV, headW=headW, jaw=jaw, unlit=unlit, N=N)
+    np.savez(os.environ["JCH_DEBUG"], V=V, F=F, AUV=AUV, headW=headW, jaw=jaw, unlit=unlit, N=N, brow=brow, gazing=gazing)
     Image.fromarray((atlas.clip(0, 1) * 255).astype(np.uint8), "RGBA").save(os.environ["JCH_DEBUG"] + ".png")

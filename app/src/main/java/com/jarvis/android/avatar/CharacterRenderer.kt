@@ -63,13 +63,44 @@ internal class CharacterRenderer(private val ch: CharacterMesh) {
     private var cr = 1f; private var sr = 0f
     private var k = 1f; private var ox = 0f; private var oy = 0f
 
-    fun draw(scope: DrawScope, a: HoloAvatar, cx: Float, cy: Float, r: Float, primary: Int, bg: Int) {
-        // the frame: the face as large as a head's when the bust allows it, the top of the head at the same height
+    /** What the animation says this frame (from [HoloAvatar], or a still pose for the import screen). */
+    class Pose {
+        var yaw = 0f; var pitch = 0f; var roll = 0f; var mouth = 0f; var blink = 0f; var lids = 1f; var glow = 0f; var brow = 0f
+        var gazeX = 0f; var gazeY = 0f
+
+        fun from(a: HoloAvatar): Pose {
+            yaw = a.yaw; pitch = a.pitch; roll = a.roll; mouth = a.mouth; blink = a.blink; lids = a.lids; glow = a.glow; brow = a.brow
+            gazeX = a.gaze[0]; gazeY = a.gaze[1]
+            return this
+        }
+    }
+
+    private val live = Pose()
+
+    fun draw(scope: DrawScope, a: HoloAvatar, cx: Float, cy: Float, r: Float, primary: Int, bg: Int) = draw(scope, live.from(a), cx, cy, r, primary, bg)
+
+    /** Where the frame puts the character: set by [frame], used by [toScreen] and [fromScreen]. */
+    fun frame(cx: Float, cy: Float, r: Float) {
+        // the face as large as a head's when the bust allows it, the top of the head at the same height
         k = r * ch.scale * min(1f, 2.12f / (ch.top + 1f))
         ox = cx
         oy = cy - 1.12f * r + ch.top * k
+    }
 
-        scope.drawCircle(
+    /** A point of the face at rest (depth [z]) on the screen, and back: for the markers of the import screen. */
+    fun toScreen(x: Float, y: Float, z: Float = 0.45f): Offset {
+        val kk = CAM / (CAM - z) * k
+        return Offset(ox + x * kk, oy - y * kk)
+    }
+
+    fun fromScreen(p: Offset, z: Float = 0.45f): Offset {
+        val kk = CAM / (CAM - z) * k
+        return Offset((p.x - ox) / kk, (oy - p.y) / kk)
+    }
+
+    fun draw(scope: DrawScope, a: Pose, cx: Float, cy: Float, r: Float, primary: Int, bg: Int, aura: Boolean = true) {
+        frame(cx, cy, r)
+        if (aura) scope.drawCircle(
             brush = Brush.radialGradient(
                 0f to Color(primary).copy(alpha = 0.22f + 0.30f * a.glow), 0.45f to Color(primary).copy(alpha = 0.10f), 1f to Color(primary).copy(alpha = 0f),
                 center = Offset(cx, cy), radius = r * 1.9f,
@@ -98,7 +129,7 @@ internal class CharacterRenderer(private val ch: CharacterMesh) {
         }
     }
 
-    private fun pose(a: HoloAvatar) {
+    private fun pose(a: Pose) {
         val yaw = a.yaw; val pitch = a.pitch
         val cy = cos(yaw); val sy = sin(yaw); val cp = cos(pitch); val sp = sin(pitch)
         m00 = cy; m01 = 0f; m02 = sy
@@ -111,8 +142,14 @@ internal class CharacterRenderer(private val ch: CharacterMesh) {
         val v = ch.verts; val n = ch.normals
         val lx = -0.45f; val ly = 0.50f; val lz = 0.75f
         val ll = sqrt(lx * lx + ly * ly + lz * lz)
+        // the brows lift with the phrase and the mood; the eye meshes slide towards where the eyes look
+        val lift = a.brow.coerceIn(-0.4f, 1.2f) * ch.browLift
+        val gx = a.gazeX.coerceIn(-1f, 1f) * ch.gazeReach
+        val gy = a.gazeY.coerceIn(-1f, 1f) * ch.gazeReach * 0.6f
         for (i in 0 until nV) {
             var x = v[3 * i]; var y = v[3 * i + 1]; var z = v[3 * i + 2]
+            if (ch.brow[i] != 0f) y += ch.brow[i] * lift
+            if (ch.gazing[i]) { x += gx; y += gy }
             val w = ch.jaw[i]
             if (w > 0f && jawAng > 0f) {
                 val ang = w * jawAng
@@ -204,7 +241,7 @@ internal class CharacterRenderer(private val ch: CharacterMesh) {
         out[0] = ox + x * kk; out[1] = oy - y * kk
     }
 
-    private fun drawMouth(nc: Canvas, a: HoloAvatar) {
+    private fun drawMouth(nc: Canvas, a: Pose) {
         val open = a.mouth.coerceIn(0f, 1f)
         if (open < 0.03f) return
         val m = ch.mouth
@@ -243,7 +280,7 @@ internal class CharacterRenderer(private val ch: CharacterMesh) {
         }
     }
 
-    private fun drawLids(nc: Canvas, a: HoloAvatar) {
+    private fun drawLids(nc: Canvas, a: Pose) {
         val close = (1f - (1f - a.blink) * a.lids.coerceIn(0f, 1f)).coerceIn(0f, 1f)
         if (close < 0.04f) return
         val seg = 14

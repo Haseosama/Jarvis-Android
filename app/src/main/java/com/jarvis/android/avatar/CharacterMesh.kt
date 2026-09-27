@@ -8,7 +8,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * A textured character (format JCH1, built by tools/avatar/export_character.py): a bust in the units of the other heads (chin at y -1,
+ * A textured character (format JCH2, or the older JCH1 without brows, built by tools/avatar/export_character.py): a bust in the units of the other heads (chin at y -1,
  * eyes near 0, nose tip at z 0.68), its texture atlas, and where its eyes and mouth are, for the lids and the open mouth the renderer
  * draws over the painted face.
  */
@@ -20,7 +20,11 @@ internal class CharacterMesh(
     val uv: FloatArray,
     val headW: FloatArray,
     val jaw: FloatArray,
+    /** How much each vertex lifts with the brows. */
+    val brow: FloatArray,
     val unlit: BooleanArray,
+    /** The vertices of an eye mesh, which follow the gaze. */
+    val gazing: BooleanArray,
     val faces: IntArray,
     val atlas: Bitmap?,
     val eyes: List<Eye>,
@@ -35,6 +39,9 @@ internal class CharacterMesh(
     val scale: Float,
     val pivot: FloatArray,
     val jawPivot: FloatArray,
+    /** How far an eye mesh slides at the gaze's full reach, and how far the brows lift at their highest. */
+    val gazeReach: Float,
+    val browLift: Float,
 ) {
     class Eye(val x: Float, val y: Float, val z: Float, val hw: Float, val hh: Float, val tilt: Float, val lid: Int)
 
@@ -46,7 +53,7 @@ internal class CharacterMesh(
         fun parse(bin: ByteArray, meta: JSONObject, atlas: Bitmap?): CharacterMesh {
             val b = ByteBuffer.wrap(bin).order(ByteOrder.LITTLE_ENDIAN)
             val magic = String(bin, 0, 4, Charsets.US_ASCII)
-            require(magic == "JCH1") { "not a character mesh: $magic" }
+            require(magic == "JCH1" || magic == "JCH2") { "not a character mesh: $magic" }
             b.position(4)
             val nV = b.int
             val nF = b.int
@@ -56,7 +63,9 @@ internal class CharacterMesh(
             val uv = floats(2 * nV)
             val headW = floats(nV)
             val jaw = floats(nV)
-            val unlit = BooleanArray(nV) { bin[b.position() + it].toInt() != 0 }
+            val brow = if (magic == "JCH2") floats(nV) else FloatArray(nV)
+            val unlit = BooleanArray(nV) { (bin[b.position() + it].toInt() and 1) != 0 }
+            val gazing = BooleanArray(nV) { (bin[b.position() + it].toInt() and 2) != 0 }
             b.position(b.position() + nV + (4 - nV % 4) % 4)
             val faces = IntArray(3 * nF).also { b.asIntBuffer().get(it) }
             val eyesJ = meta.getJSONArray("eyes")
@@ -78,39 +87,64 @@ internal class CharacterMesh(
             }
             return CharacterMesh(
                 label = meta.getString("label"), credit = meta.optString("credit"),
-                verts = verts, normals = normals, uv = uv, headW = headW, jaw = jaw, unlit = unlit, faces = faces, atlas = atlas,
+                verts = verts, normals = normals, uv = uv, headW = headW, jaw = jaw, brow = brow, unlit = unlit, gazing = gazing, faces = faces, atlas = atlas,
                 eyes = eyes, mouth = mouth, mouthColour = m.optLong("inner", 0xFF2A1014).toInt(), teeth = m.optBoolean("teeth", true),
                 lashColour = meta.optLong("lash", 0xFF1A1210).toInt(), ambient = meta.optDouble("ambient", 0.55).toFloat(),
                 cut = meta.optDouble("cut", -1.9).toFloat(), top = meta.optDouble("top", 1.0).toFloat(), scale = meta.optDouble("scale", 1.0).toFloat(),
                 pivot = vec("pivot", floatArrayOf(0f, -1f, -0.15f)), jawPivot = vec("jaw_pivot", JAW_PIVOT),
+                gazeReach = meta.optDouble("gaze", 0.0).toFloat(), browLift = meta.optDouble("brow_lift", 0.06).toFloat(),
             )
         }
 
+        /** A character of the assets, or one imported on the phone (the folder then starts with "file:"). */
         fun load(assets: AssetManager, folder: String): CharacterMesh {
+            if (folder.startsWith(FILE)) {
+                val dir = java.io.File(folder.removePrefix(FILE))
+                val atlas = BitmapFactory.decodeFile(java.io.File(dir, "atlas.webp").path)
+                return parse(java.io.File(dir, "mesh.bin").readBytes(), JSONObject(java.io.File(dir, "meta.json").readText()), atlas)
+            }
             val meta = JSONObject(assets.open("$folder/meta.json").use { String(it.readBytes(), Charsets.UTF_8) })
             val bin = assets.open("$folder/mesh.bin").use { it.readBytes() }
             val atlas = assets.open("$folder/atlas.webp").use { BitmapFactory.decodeStream(it) }
             return parse(bin, meta, atlas)
         }
+
+        const val FILE = "file:"
     }
 }
 
-/** The characters found in the assets (avatar/characters/<id>/meta.json): the public ones, and in a local debug build the others. */
+/**
+ * The characters: those of the assets (avatar/characters/<id>/meta.json: the public ones, and in a local debug build the others), then
+ * those imported on the phone (files/characters/<id>, see importer.CharacterImport).
+ */
 internal object CharacterCatalog {
     private const val DIR = "avatar/characters"
 
-    fun faces(assets: AssetManager): List<AvatarFace> {
+    fun importedDir(context: android.content.Context) = java.io.File(context.filesDir, "characters")
+
+    fun faces(context: android.content.Context): List<AvatarFace> {
+        val assets = context.assets
         val ids = try { assets.list(DIR)?.toList().orEmpty() } catch (_: Exception) { emptyList() }
-        return ids.mapNotNull { id ->
+        val bundled = ids.mapNotNull { id ->
             try {
-                val meta = JSONObject(assets.open("$DIR/$id/meta.json").use { String(it.readBytes(), Charsets.UTF_8) })
-                meta.optInt("order", 50) to AvatarFace(
-                    meta.getString("label"), "avatar/head_mesh.bin", 0xFF1F1614.toInt(), fibres = false, character = "$DIR/$id",
-                    credit = meta.optString("credit"),
-                )
+                face(JSONObject(assets.open("$DIR/$id/meta.json").use { String(it.readBytes(), Charsets.UTF_8) }), "$DIR/$id", false)
             } catch (_: Exception) {
                 null
             }
-        }.sortedWith(compareBy({ it.first }, { it.second.label })).map { it.second }
+        }
+        val imported = importedDir(context).listFiles()?.filter { java.io.File(it, "meta.json").exists() }.orEmpty().mapNotNull { dir ->
+            try { face(JSONObject(java.io.File(dir, "meta.json").readText()), CharacterMesh.FILE + dir.path, true) } catch (_: Exception) { null }
+        }
+        return (bundled + imported).sortedWith(compareBy({ it.first }, { it.second.label })).map { it.second }
+    }
+
+    private fun face(meta: JSONObject, folder: String, imported: Boolean) = meta.optInt("order", if (imported) 100 else 50) to AvatarFace(
+        meta.getString("label"), "avatar/head_mesh.bin", 0xFF1F1614.toInt(), fibres = false, character = folder,
+        credit = meta.optString("credit"), imported = imported,
+    )
+
+    /** Reads the list again (after an import or a removal). */
+    fun refresh(context: android.content.Context) {
+        characterFaces = try { faces(context) } catch (_: Exception) { characterFaces }
     }
 }

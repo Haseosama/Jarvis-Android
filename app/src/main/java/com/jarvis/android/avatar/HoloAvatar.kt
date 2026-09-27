@@ -37,6 +37,7 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
     @Volatile var pitchOverride: Float? = null
     @Volatile var rollOverride: Float? = null
     @Volatile var mouthOverride: Float? = null   // for looking at the mouth wide open (debug builds set it)
+    @Volatile var browOverride: Float? = null    // for looking at the brows raised (debug builds set it)
     var pitch = 0f; private set
     var roll = 0f; private set
     var mouth = 0f; private set
@@ -169,6 +170,7 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
 
         val browT = 0.55f * ampSlow + 0.60f * expr + browBias
         brow += (browT.coerceIn(-0.4f, 1.2f) - brow) * rate(dt, 0.15f)
+        browOverride?.let { brow = it }
 
         // What the state does to the face: eyes off to the side while thinking, on the user while listening, lids low asleep.
         val thinking = mood == Mood.THINKING

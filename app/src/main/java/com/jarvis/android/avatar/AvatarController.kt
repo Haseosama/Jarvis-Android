@@ -22,6 +22,9 @@ internal class AvatarController(private val context: Context) {
     /** Set from the settings: when off, nothing is analysed and nothing is drawn. */
     @Volatile var enabled = true
 
+    /** The light mode (see ConfigStore.avatarLight). */
+    @Volatile var light = false
+
     /** How the head is dressed: 0 = the glowing web, 1..4 = a skin tone, 5 = the hologram over the skin (the default), 6 = the same with hair of optical fibres, 7 = the blue hologram (light blue with deep blue accents); lip colour 0 = natural, 1..4 = rose, red, plum, coral. */
     @Volatile var skin = 7   // the blue hologram by default (avatar.BLUE_HOLO_SKIN)
     @Volatile var lips = 0
@@ -53,7 +56,7 @@ internal class AvatarController(private val context: Context) {
     val avatar: HoloAvatar get() = current().second
 
     init {
-        characterFaces = try { CharacterCatalog.faces(context.assets) } catch (_: Exception) { emptyList() }
+        CharacterCatalog.refresh(context)
     }
 
     private val characters = HashMap<String, CharacterMesh?>()

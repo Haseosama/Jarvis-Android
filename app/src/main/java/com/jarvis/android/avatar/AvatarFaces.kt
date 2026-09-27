@@ -15,6 +15,8 @@ internal data class AvatarFace(
     val character: String? = null,
     /** Who made the character, shown under the choice (their licence asks for it). */
     val credit: String = "",
+    /** A character the user imported on the phone (it can be removed). */
+    val imported: Boolean = false,
 )
 
 /**
