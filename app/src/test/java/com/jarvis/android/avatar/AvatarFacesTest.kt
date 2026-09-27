@@ -22,7 +22,8 @@ class AvatarFacesTest {
             assertTrue(name, mesh.crown > mesh.bottom)
             assertEquals(name, mesh.vertexCount * 3, mesh.verts.size)
             assertTrue("$name has hair", mesh.faceGroup.count { it > 1.5f } > 5_000)
-            assertTrue("$name has locks", mesh.lockCount > 300 && mesh.lockRows >= 2)
+            // slicked-back hair (Léa) is mostly the smooth cap, with a few flat locks and a bun; the other styles have hundreds
+            assertTrue("$name has locks", mesh.lockCount > 100 && mesh.lockRows >= 2)
         }
     }
 
@@ -52,8 +53,10 @@ class AvatarFacesTest {
             return near.maxOf { m.verts[3 * it] } - near.minOf { m.verts[3 * it] }
         }
         val widths = meshes.map { jawWidth(it) }
-        // the original was slimmed to about Léa's width (a squarer jaw, though); Marc's is clearly the widest
-        assertTrue("Marc's jaw is the widest, and Léa's is not wider than the original's: $widths", widths[2] > widths[0] + 0.1f && widths[1] <= widths[0] + 0.05f)
+        // Léa is another head (a woman's sculpt, whose cheeks reach lower than the scan's), the other two are the scan reshaped: the
+        // three differ, and Marc's square jaw stays clearly the widest
+        assertTrue("Marc's jaw is the widest, and the three differ: $widths",
+            widths[2] > widths[0] + 0.1f && widths[2] > widths[1] + 0.05f && kotlin.math.abs(widths[1] - widths[0]) > 0.05f)
     }
 
     @Test fun `each face has its own eyebrow colour and an index outside the list is clamped`() {

@@ -28,7 +28,8 @@ DEFAULT_STYLE = dict(
     part=None, fringe=0, fringe_len=(0.22, 0.10), side_trim=0.0, grey=0.0, grey_rgb=(0x8E, 0x8B, 0x86), fade_pow=0.85,
     tone_lo=0.70, tone_hi=1.12, face_frame=0.0, cap_streaks=0.0, len_floor=0.60, len_span=0.62,
     burn_e0=0.44, burn_e1=0.62, crown_w=0.0,
-    cut_y=None, cut_front=0.0, cut_min=0.08, hug=0.0, hug_gap=0.04, roll=1.3, scatter=0.55,
+    ear=((0.72, 0.07, -0.14), (0.11, 0.22, 0.22)), ridge=0.95,
+    cut_y=None, cut_front=0.0, cut_min=0.08, hug=0.0, hug_gap=0.04, hug_all=False, hug_surface=False, roll=1.3, scatter=0.55, bun=None,
 )
 
 DOWN = np.array([0.0, -1.0, 0.0])
@@ -117,14 +118,15 @@ def hair_field(P, x0, st=DEFAULT_STYLE):
     hl = st["nape"] + (st["temple"] - st["nape"]) * smoothstep(-0.40, -0.05, hz)                       # the nape, then above the ears
     hl = hl + (front - hl) * smoothstep(0.02, 0.36, hz)
     d = hy - hl
-    ear = ear_distance(P, x0)
+    ear = ear_distance(P, x0, st)
     return np.minimum(d, 0.2 * (ear - 1.0)) if st["ears_bare"] else d
 
 
-def ear_distance(P, x0):
+def ear_distance(P, x0, st=DEFAULT_STYLE):
     """1.0 on the edge of the region kept bare around each ear, smaller inside it, larger away from it."""
     hx, hy, hz = P[:, 0] - x0, P[:, 1], P[:, 2]
-    return np.sqrt(((np.abs(hx) - 0.72) / 0.11) ** 2 + ((hy - 0.07) / 0.22) ** 2 + ((hz + 0.14) / 0.22) ** 2)
+    (ex, ey, ez), (rx, ry, rz) = st["ear"]
+    return np.sqrt(((np.abs(hx) - ex) / rx) ** 2 + ((hy - ey) / ry) ** 2 + ((hz - ez) / rz) ** 2)
 
 
 def flow_direction(p, n, x0, rng, scatter=0.20, st=DEFAULT_STYLE):
@@ -191,10 +193,10 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=None, rng_extra=None)
     kappa = st["kappa"]                                        # the scalp curves away: the lock follows it
     grav, fdown, tip_in = st["gravity"], st["flow_down"], st["tip_in"]
     cut_y, cut_front, cut_min = st["cut_y"], st["cut_front"], st["cut_min"]
-    hug, hug_gap = st["hug"], st["hug_gap"]
+    hug, hug_gap, hug_all, hug_surface = st["hug"], st["hug_gap"], st["hug_all"], st["hug_surface"]
     hanging = grav != 0.0 or fdown != 0.0 or tip_in != 0.0
     ell_c, ell_r = np.zeros(3), np.ones(3)
-    if hug > 0.0:
+    if hug > 0.0 or st["bun"] is not None:
         # the skull as an axis-aligned ellipsoid fitted to the scalp (least squares on a x² + b y² + c z² + d x + e y + f z = 1)
         top = Cp[Cp[:, 1] > 0.05]                          # the vault only: the nape and the sideburns would stretch it
         A = np.column_stack([top[:, 0] ** 2, top[:, 1] ** 2, top[:, 2] ** 2, top[:, 0], top[:, 1], top[:, 2]])
@@ -226,7 +228,7 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=None, rng_extra=None)
             length = ((st["len_top"][0] + st["len_top"][1] * rl.random(n)) * (1 - side) + (st["len_side"][0] + st["len_side"][1] * rl.random(n)) * side + st["len_front"] * front) * len_mul
         if st["ears_bare"]:
             # a lock rooted near an ear is kept short, so that it does not hang into it
-            length = length * (0.35 + 0.65 * smoothstep(1.0, 2.2, ear_distance(root, x0)))
+            length = length * (0.35 + 0.65 * smoothstep(1.0, 2.2, ear_distance(root, x0, st)))
         if st["face_frame"] > 0.0:
             # the locks in front of the ears are kept short: they frame the face instead of hanging across it
             length = length * (1.0 - st["face_frame"] * smoothstep(0.15, 0.45, rz) * smoothstep(0.30, 0.55, np.abs(rx)))
@@ -275,13 +277,21 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=None, rng_extra=None)
                             f_row = unit(dir_ * (1.0 - w_d) + DOWN * w_d)
                             prev = pos
                             pos = pos + f_row * step
-                            if hug > 0.0:
+                            if hug_surface:
+                                # slicked hair: kept at a set height over the real scalp (the nearest point of the cap, along its normal)
+                                j_ = int(np.argmin(np.sum((cap_p - pos) ** 2, axis=1)))
+                                h_ = float(np.dot(pos - cap_p[j_], Cn[j_]))
+                                lo_ = hug_gap * (0.6 + 0.4 * t)
+                                pos = pos + Cn[j_] * (np.clip(h_, lo_, lo_ + hug) - h_)
+                                dir_ = unit(pos - prev)
+                            elif hug > 0.0:
                                 # the lock lies on the skull: kept within a thin layer over it down to the widest part of the head,
                                 # then free to fall; it carries on in the direction it was bent to
                                 q = (pos - ell_c) / ell_r
                                 e = np.linalg.norm(q)
                                 lo = 1.0 + hug_gap * (0.4 + 0.6 * t)
-                                hi = lo + hug * smoothstep(ell_c[1] - 0.15, ell_c[1] + 0.25, pos[1]) + 9.0 * (1.0 - smoothstep(ell_c[1] - 0.15, ell_c[1] + 0.25, pos[1]))
+                                free = 0.0 if hug_all else 9.0 * (1.0 - smoothstep(ell_c[1] - 0.15, ell_c[1] + 0.25, pos[1]))
+                                hi = lo + hug * (1.0 if hug_all else smoothstep(ell_c[1] - 0.15, ell_c[1] + 0.25, pos[1])) + free
                                 if e < lo or e > hi:
                                     pos = ell_c + q / e * np.clip(e, lo, hi) * ell_r
                                 dir_ = unit(pos - prev)
@@ -319,7 +329,7 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=None, rng_extra=None)
                 if grey[k] > 0.0:
                     c = c * (1.0 - grey[k]) + greyc * grey[k] * (0.45 + 0.55 * t)   # salt and pepper, lighter towards the tip
                 for sign in (-1.0, 0.0, 1.0):
-                    verts.append(centre[s_i] + perp * half * sign + (n_r * 0.95 * half if sign == 0.0 else 0.0))
+                    verts.append(centre[s_i] + perp * half * sign + (n_r * st["ridge"] * half if sign == 0.0 else 0.0))
                     norms.append(unit(n_r * 0.8 + perp * 0.75 * sign))
                     colours.append(c * (1.35 if sign == 0.0 else 0.72))       # the highlight runs along the middle of the lock
             for s_i in range(samples - 1):
@@ -334,7 +344,7 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=None, rng_extra=None)
                                                         * np.maximum(smoothstep(0.0, 0.40, tri_c[:, 2]), st["crown_w"] * smoothstep(0.45, 0.80, tri_c[:, 1])))
     w_main = w_main * (1.0 + st["side_boost"] * (1.0 - smoothstep(0.10, 0.45, tri_c[:, 1])))                     # long hair: more locks at the sides and the back
     if st["ears_bare"]:
-        near_ear = smoothstep(1.0, 1.4, ear_distance(tri_c, x0))                 # no lock is rooted close to an ear
+        near_ear = smoothstep(1.0, 1.4, ear_distance(tri_c, x0, st))                 # no lock is rooted close to an ear
         w_main = w_main * near_ear
     mv, mn, mc, mf = make_locks(locks, w_main, 1.0, 1.0, 1.0, scatter=st["scatter"])
     # the edge locks: short ones rooted exactly on the hairline, rising over the strip of cap above it, so the edge is made of hair
@@ -350,6 +360,46 @@ def build_hair(P, N, F, x0, rng, st=DEFAULT_STYLE, samples=None, rng_extra=None)
         fv, fn_, fc_, ff = make_locks(st["fringe"], w_f, 1.0, 0.85, 0.7, scatter=0.30, fringe=True, rng_l=rng_extra)
         lock_p.append(fv); lock_n.append(fn_); lock_paint_l.append(fc_); lock_f.append(ff + n_locks * 3 * samples)
         n_locks += st["fringe"]
+    # a bun: locks wound round a ball at the back of the head, where the slicked-back hair is gathered
+    if st["bun"] is not None:
+        bun_y, bun_r, bun_n = st["bun"]
+
+        # the back of the skull at that height: along -z from the ellipsoid's centre
+        q = np.array([0.0, (bun_y - ell_c[1]) / ell_r[1], 0.0])
+        zb = ell_c[2] - ell_r[2] * np.sqrt(max(1.0 - q[1] ** 2, 0.05))
+        centre = np.array([x0, bun_y, zb - bun_r * 0.55])
+        axis = unit(np.array([0.0, 0.15, -1.0]))
+        e1 = unit(np.cross(axis, np.array([0.0, 1.0, 0.0])))
+        e2 = np.cross(axis, e1)
+        bv, bn, bc, bf = [], [], [], []
+        base = 0
+        rng_b = np.random.default_rng(1234)
+        for k in range(bun_n):
+            lat = -1.1 + 2.2 * (k + rng_b.random()) / bun_n          # from the side against the head to the far side, around the axis
+            a0 = rng_b.random() * 2 * np.pi
+            span = 2.6 + 0.8 * rng_b.random()
+            w_k = 0.10 * bun_r * (0.8 + 0.4 * rng_b.random())
+            tone = st["tone_lo"] + (st["tone_hi"] - st["tone_lo"]) * rng_b.random()
+            for s_i, t in enumerate(ts):
+                a = a0 + span * t
+                ring = np.cos(lat * 0.95)
+                dirv = unit(np.cos(a) * ring * e1 + np.sin(a) * ring * e2 + np.sin(lat * 0.95) * axis)
+                p_ = centre + dirv * bun_r
+                tang = unit(-np.sin(a) * e1 + np.cos(a) * e2)
+                perp = unit(np.cross(tang, dirv))
+                c = (body + (goldc - body) * 0.25 * np.sin(np.pi * t)) * tone
+                for sign in (-1.0, 0.0, 1.0):
+                    bv.append(p_ + perp * w_k * sign + dirv * (0.6 * w_k if sign == 0.0 else 0.0))
+                    bn.append(unit(dirv * 0.8 + perp * 0.6 * sign))
+                    bc.append(c * (1.3 if sign == 0.0 else 0.75))
+            for s_i in range(samples - 1):
+                l0, c0, r0 = base + 3 * s_i, base + 3 * s_i + 1, base + 3 * s_i + 2
+                l1, c1, r1 = base + 3 * s_i + 3, base + 3 * s_i + 4, base + 3 * s_i + 5
+                bf += [(l0, c0, c1), (l0, c1, l1), (c0, r0, r1), (c0, r1, c1)]
+            base += 3 * samples
+        lock_p.append(np.array(bv)); lock_n.append(np.array(bn)); lock_paint_l.append(np.array(bc))
+        lock_f.append(np.array(bf, dtype=np.int64) + n_locks * 3 * samples)
+        n_locks += bun_n
     lock_p = np.vstack(lock_p); lock_n = np.vstack(lock_n)
     lock_paint = argb(np.full(len(lock_p), 254.0), np.vstack(lock_paint_l))
     lock_f = np.vstack(lock_f)

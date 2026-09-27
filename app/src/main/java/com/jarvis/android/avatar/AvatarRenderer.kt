@@ -43,6 +43,10 @@ internal fun blend(bg: Int, col: Int, a: Float): Int {
     return argb(255, ch(16), ch(8), ch(0))
 }
 
+/** The android look: a cool silver porcelain, and the cyan of its light. */
+private val ANDROID_SKIN = 0xFFCDD2D8.toInt()
+private val ANDROID_GLOW = 0xFF35C9FF.toInt()
+
 private val SKIN_TONES = intArrayOf(0xF1C9A8, 0xD9A47C, 0xB07A54, 0x7A4E36, 0x69B4F0)   // the fifth is the light blue of the blue hologram
 internal const val DEEP_BLUE = 0xFF0C2160.toInt()   // the hologram's ink: brows, lashes, lid crease and lip line, for contrast against the warm or blue skin
 private val LIP_TONES = intArrayOf(0xD9707F, 0xC02836, 0x8E3A6B, 0xE8735A)
@@ -101,6 +105,12 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
 
     /** How long the lashes are, against the default: over 1 opens the eye up. */
     var lashScale = 1f
+
+    /** An android: a cool silver porcelain skin instead of the chosen tone, grey-mauve lips, and circuits etched in the skin. */
+    var androidLook = false
+
+    /** A ring of cyan light behind the head. */
+    var halo = false
     /** 0 = natural lips; 1..4 = rose, red, plum, coral. */
     var lips = 0
     private var bgColor = 0
@@ -135,6 +145,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             radius = ar, center = Offset(cx, cy),
         )
 
+        if (halo) drawHalo(scope, cx, cy, r, amp, avatar.time)
+
         // a few drifting points of light in the dark, as in the reference photos
         for (k in 0 until 26) {
             val h = ((k * -1640531535) ushr 8) and 0xFFFF
@@ -161,6 +173,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             drawSurface(nc, visible)
             drawWeb(nc, n, amp, primary, strokePx, avatar.time)
             if (holo) drawCircuits(nc, n, amp, primary, bg, strokePx, avatar.time)
+            else if (androidLook && skin > 0) drawEtched(nc, n, amp, strokePx, avatar.time)
             if (holoHair) fibres3.draw(nc, xs, ys, n, primary, 0xFFFFB640.toInt(), avatar.time, strokePx, linePaint, if (cap > 0) capGeo.hiddenLock else null)
             if (cap > 0) drawCap(nc, v, n, cx, cy, r, strokePx)
             if (fibreOverlay) drawFibres(nc, v, n, strokePx, r)
@@ -250,7 +263,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             var hair = argb(255, (((hairLit shr 16) and 0xFF) + sheen).coerceAtMost(255), (((hairLit shr 8) and 0xFF) + sheen).coerceAtMost(255), ((hairLit and 0xFF) + (sheen * 0.9f).toInt()).coerceAtMost(255))
             if (holoHair) hair = lit(0xFF0D1B2B.toInt(), 0.55f + 0.9f * vlam)
             if (cover > 0.995f) return hair
-            val skinRgb = 0xFF000000.toInt() or SKIN_TONES[skin - 1]
+            val skinRgb = if (androidLook && !holo) ANDROID_SKIN else 0xFF000000.toInt() or SKIN_TONES[skin - 1]
             val ks = (0.30f + 0.85f * vlam + 0.10f * vz.coerceIn(0f, 1f)).coerceIn(0.15f, 1.15f) * (0.94f + 0.12f * amp)
             return mix(lit(skinRgb, ks), hair, cover)
         }
@@ -262,13 +275,13 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         val lipW = mesh.lipMask[vi]
         if (skin == 0) return if (lipW > 0.02f && lips > 0) mix(flat, lit(0xFF000000.toInt() or LIP_TONES[lips - 1], 0.75f + 0.3f * vlam), lipW) else flat
         val k = (0.30f + 0.85f * vlam + 0.10f * vz.coerceIn(0f, 1f)).coerceIn(0.15f, 1.15f) * (0.94f + 0.12f * amp)
-        val skinRgb = 0xFF000000.toInt() or SKIN_TONES[skin - 1]
+        val skinRgb = if (androidLook && !holo) ANDROID_SKIN else 0xFF000000.toInt() or SKIN_TONES[skin - 1]
         var c = lit(skinRgb, k)
         if (!holo) {
             // a faint natural sheen (skin is not matte) and a touch of warmth where the light lands most, like blood under thin skin
             val spec = Math.pow((vx * -0.22f + vy * 0.28f + vz * 0.93f).coerceIn(0f, 1f).toDouble(), 30.0).toFloat()
             val sheen = (spec * 26f).toInt()
-            val blush = (vlam * vlam * 9f).toInt()
+            val blush = if (androidLook) 0 else (vlam * vlam * 9f).toInt()        // porcelain: no warmth under the skin
             c = argb(
                 255,
                 (((c shr 16) and 0xFF) + sheen + blush).coerceAtMost(255),
@@ -277,7 +290,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             )
         }
         if (lipW > 0.02f) {
-            val lipRgb = if (lips > 0) 0xFF000000.toInt() or LIP_TONES[lips - 1] else mix(skinRgb, 0xFFB04A5A.toInt(), 0.7f)
+            val lipRgb = if (lips > 0) 0xFF000000.toInt() or LIP_TONES[lips - 1] else if (androidLook) 0xFF8E7C87.toInt() else mix(skinRgb, 0xFFB04A5A.toInt(), 0.7f)
             // the lips are lit less unevenly than the skin: the upper one faces the light and would otherwise come out pale
             c = mix(c, lit(lipRgb, 0.80f + 0.30f * vlam), lipW)
         }
@@ -628,6 +641,123 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             }
         }
         linePaint.strokeCap = Paint.Cap.BUTT
+    }
+
+    /** The circuit points on screen (and how much they face the viewer), for the etched tracks. */
+    private fun projectCircuits(nrm: FloatArray): CircuitTraces? {
+        val c = circuits
+        if (c.count == 0) return null
+        if (cx.size != c.count) {
+            cx = FloatArray(c.count); cy = FloatArray(c.count); cz = FloatArray(c.count)
+            for (b in 0 until 6) circuitLines[b] = FloatArray(c.segments.size * 2)
+        }
+        for (i in 0 until c.count) {
+            val a = c.triA[i]; val b = c.triB[i]; val d = c.triC[i]
+            val u = c.wu[i]; val q = c.wv[i]; val w = 1f - u - q
+            cx[i] = w * xs[a] + u * xs[b] + q * xs[d]
+            cy[i] = w * ys[a] + u * ys[b] + q * ys[d]
+            cz[i] = w * nrm[3 * a + 2] + u * nrm[3 * b + 2] + q * nrm[3 * d + 2]
+        }
+        return c
+    }
+
+    /**
+     * The android look's circuits: the same tracks as the hologram's, but etched in the skin — fine lines a little darker than it
+     * with a pale edge under them, small silver pads at their ends, and now and then a faint cyan light running along a track.
+     */
+    private fun drawEtched(nc: Canvas, nrm: FloatArray, amp: Float, strokePx: Float, t: Float) {
+        val c = projectCircuits(nrm) ?: return
+        val keep = etchZone(c)
+        circuitLineCounts.fill(0)
+        for (k in 0 until c.segments.size / 2) {
+            val i = c.segments[2 * k]; val j = c.segments[2 * k + 1]
+            if (!keep[i] || !keep[j]) continue
+            val face = smooth01(0.15f, 0.50f, min(cz[i], cz[j])) * (c.fade[i] + c.fade[j]) * 0.5f
+            if (face <= 0.05f) continue
+            val phase = (t * 0.22f + c.segTrack[k] * 0.211f) % 1.6f
+            val d = (c.segAlong[k] - phase) / 0.06f
+            val bk = if (kotlin.math.exp(-d * d) > 0.35f) 1 else 0                  // 1: under the running light
+            val arr = circuitLines[bk]; val o = circuitLineCounts[bk]
+            arr[o] = cx[i]; arr[o + 1] = cy[i]; arr[o + 2] = cx[j]; arr[o + 3] = cy[j]
+            circuitLineCounts[bk] = o + 4
+        }
+        linePaint.strokeCap = Paint.Cap.ROUND
+        for (bk in 0..1) {
+            if (circuitLineCounts[bk] == 0) continue
+            // the groove: a pale edge just under a darker line, as if cut into the porcelain
+            linePaint.strokeWidth = max(1.6f, strokePx * 1.05f)
+            linePaint.color = withAlpha(0xFFF4F7FA.toInt(), 120f)
+            nc.save(); nc.translate(0f, max(0.8f, strokePx * 0.35f))
+            nc.drawLines(circuitLines[bk], 0, circuitLineCounts[bk], linePaint)
+            nc.restore()
+            linePaint.strokeWidth = max(1.1f, strokePx * 0.62f)
+            linePaint.color = withAlpha(0xFF7D848E.toInt(), 215f)
+            nc.drawLines(circuitLines[bk], 0, circuitLineCounts[bk], linePaint)
+        }
+        if (circuitLineCounts[1] > 0) {
+            linePaint.strokeWidth = max(2.4f, strokePx * 1.6f)
+            linePaint.color = withAlpha(ANDROID_GLOW, 70f + 60f * amp)
+            nc.drawLines(circuitLines[1], 0, circuitLineCounts[1], linePaint)
+            linePaint.strokeWidth = max(1.0f, strokePx * 0.55f)
+            linePaint.color = withAlpha(0xFFE9FBFF.toInt(), 220f)
+            nc.drawLines(circuitLines[1], 0, circuitLineCounts[1], linePaint)
+        }
+        var m = 0
+        for (p in c.pads) {
+            if (!keep[p] || smooth01(0.15f, 0.50f, cz[p]) <= 0.1f) continue
+            if (m + 2 > padBuf.size) break
+            padBuf[m++] = cx[p]; padBuf[m++] = cy[p]
+        }
+        if (m > 0) {
+            linePaint.strokeWidth = max(3.0f, strokePx * 1.9f)
+            linePaint.color = withAlpha(0xFF6F7680.toInt(), 230f)
+            nc.drawPoints(padBuf, 0, m, linePaint)
+            linePaint.strokeWidth = max(1.5f, strokePx * 0.95f)
+            linePaint.color = withAlpha(0xFFF2F5F8.toInt(), 255f)
+            nc.drawPoints(padBuf, 0, m, linePaint)
+        }
+        linePaint.strokeCap = Paint.Cap.BUTT
+    }
+
+    private var etchKeep: BooleanArray? = null
+
+    /**
+     * Where the etched circuits go, from the rest pose: a few patterns on the forehead under the hairline, the temples and the
+     * cheeks, as in the reference — not on the hair, the nose and the middle of the face, nor the chin; and one track in two.
+     */
+    private fun etchZone(c: CircuitTraces): BooleanArray {
+        etchKeep?.let { if (it.size == c.count) return it }
+        val v = mesh.verts
+        var mid = 0f; var n = 0
+        for (name in listOf("eye_l", "eye_r")) for (i in mesh.landmarks[name] ?: IntArray(0)) { mid += v[3 * i]; n++ }
+        mid = if (n > 0) mid / n else 0f
+        val trackOf = IntArray(c.count) { -1 }
+        for (k in 0 until c.segments.size / 2) { trackOf[c.segments[2 * k]] = c.segTrack[k]; trackOf[c.segments[2 * k + 1]] = c.segTrack[k] }
+        val keep = BooleanArray(c.count) { i ->
+            val a = c.triA[i]; val b = c.triB[i]; val d = c.triC[i]
+            val u = c.wu[i]; val q = c.wv[i]; val w = 1f - u - q
+            val x = w * v[3 * a] + u * v[3 * b] + q * v[3 * d] - mid
+            val y = w * v[3 * a + 1] + u * v[3 * b + 1] + q * v[3 * d + 1]
+            val ax = kotlin.math.abs(x)
+            val forehead = y in 0.16f..0.40f && ax in 0.06f..0.46f
+            val cheek = y in -0.62f..0.05f && ax in 0.30f..0.62f
+            (forehead || cheek) && trackOf[i] % 2 == 0
+        }
+        etchKeep = keep
+        return keep
+    }
+
+    /** A ring of cyan light behind the head, fainter rings further out, breathing a little with the voice. */
+    private fun drawHalo(scope: DrawScope, cx: Float, cy: Float, r: Float, amp: Float, t: Float) {
+        val centre = Offset(cx, cy - r * 0.10f)
+        val rr = r * 1.30f
+        val breath = 0.85f + 0.15f * kotlin.math.sin(t * 1.3f) + 0.25f * amp
+        scope.drawCircle(Color(withAlpha(ANDROID_GLOW, 30f * breath)), radius = rr, center = centre, style = Stroke(width = r * 0.20f))
+        scope.drawCircle(Color(withAlpha(ANDROID_GLOW, 70f * breath)), radius = rr, center = centre, style = Stroke(width = r * 0.07f))
+        scope.drawCircle(Color(withAlpha(ANDROID_GLOW, 200f)), radius = rr, center = centre, style = Stroke(width = r * 0.022f))
+        scope.drawCircle(Color(withAlpha(0xFFE9FBFF.toInt(), 235f)), radius = rr, center = centre, style = Stroke(width = r * 0.008f))
+        scope.drawCircle(Color(withAlpha(ANDROID_GLOW, 55f)), radius = r * 1.62f, center = centre, style = Stroke(width = r * 0.010f))
+        scope.drawCircle(Color(withAlpha(0xFF9A6BFF.toInt(), 45f)), radius = r * 1.88f, center = centre, style = Stroke(width = r * 0.008f))
     }
 
     private val padBuf = FloatArray(12_000)

@@ -21,6 +21,11 @@ import numpy as np
 
 MARK_LIV, GLB = sys.argv[1], sys.argv[2]
 FACE_NAME = os.environ.get("JHM_FACE", "classic")     # classic | lea | marc: which head to build (see FACES below)
+# The head the face is built from: Lee Perry-Smith's scan (a man, eyes closed), or "Female Head Sculpt" by Aconear (CC BY 4.0,
+# https://sketchfab.com/3d-models/female-head-sculpt-ae24c33594a046519014fdc78758a8ec), a woman with open eyes, prepared by
+# tools/avatar/prepare_sculpt.py (turned to face +z, welded and simplified). Its features were measured on it once normalised
+# (see SOURCES below); the scan keeps the measurements it always had, so its faces come out byte for byte the same.
+SOURCE = "sculpt" if "sculpt" in os.path.basename(GLB).lower() else "lee"
 sys.path.insert(0, os.path.join(MARK_LIV, "core"))
 import avatar_mesh as am
 
@@ -60,17 +65,17 @@ def vertex_normals(V, F):
 
 HAIR_STYLES = {
     "classic": None,
-    # a long bob ("carré plongeant") with a curtain fringe, auburn: the locks lie on the skull (hug) down to the widest part of the
-    # head, then fall straight and are all cut on one line at the chin (cut_y), a little lower at the front; broad flat locks, few
-    # twists and an even tone, so the mass reads smooth; the tips turn under; the fringe parts in the middle and sweeps to the sides.
-    "lea": dict(front=0.50, m=0.02, left_temple=0.05, temple=-0.05, nape=-0.90, burn_y=0.12, ears_bare=False,
-                len_top=(0.95, 0.08), len_side=(0.90, 0.08), len_front=0.10, lift=0.30, lift_side_damp=0.85, wave=0.25, wave_side_damp=0.15,
-                width=1.6, width_side=0.95, side_boost=3.6, kappa=0.40, face_frame=0.45, cap_streaks=80.0, burn_e0=0.34, burn_e1=0.52, crown_w=1.4,
-                len_floor=0.97, len_span=0.06, body=(0x5C, 0x2C, 0x1C), root=(0x24, 0x10, 0x09), gold=(0x96, 0x5C, 0x36), cap=(0x38, 0x1A, 0x10),
-                flow_front=(0.40, 0.45, -0.50), flow_top=(0.35, -0.05, -0.85), flow_side=(0.0, -1.0, -0.15), locks=660, edge_locks=80,
-                rows=7, gravity=0.38, flow_down=0.60, tip_in=0.22, taper=0.35, tip_w=0.020, margin=0.03, fade_pow=1.0,
-                part=0.05, fringe=85, fringe_len=(0.40, 0.04), tone_lo=0.88, tone_hi=1.05,
-                cut_y=-1.0, cut_front=0.08, hug=0.05, hug_gap=0.03, roll=0.4, scatter=0.25),
+    # the android look (after the reference image the user gave): the hair slicked straight back, lying on the real scalp
+    # (hug_surface) from a high, clean hairline to a small bun low at the back; blue-black with a cool sheen, no fringe.
+    "lea": dict(front=0.50, m=0.02, left_temple=0.05, temple=0.05, nape=-0.35, burn_y=0.30, ears_bare=True,
+                len_top=(1.6, 0.1), len_side=(1.2, 0.1), len_front=0.4, lift=0.0, lift_side_damp=0.85, wave=0.0, wave_side_damp=0.15,
+                width=1.25, width_side=0.5, side_boost=1.0, kappa=0.0, face_frame=0.0, cap_streaks=200.0, burn_e0=0.34, burn_e1=0.52, crown_w=1.0,
+                len_floor=0.98, len_span=0.04, body=(31, 37, 51), root=(11, 13, 19), gold=(91, 116, 150), cap=(20, 24, 34),
+                flow_front=(0.0, 0.15, -1.0), flow_top=(0.0, -0.15, -1.0), flow_side=(0.0, 0.30, -1.0), locks=45, edge_locks=8,
+                rows=7, gravity=0.001, flow_down=0.0, tip_in=0.0, taper=0.6, tip_w=0.006, margin=0.03, fade_pow=1.0,
+                part=None, fringe=0, tone_lo=0.90, tone_hi=1.04,
+                cut_y=-0.15, hug=0.010, hug_gap=0.010, hug_surface=True, roll=0.15, scatter=0.10, bun=(0.0, 0.22, 70),
+                ear=((0.64, -0.17, -0.24), (0.12, 0.34, 0.23)), ridge=0.15),
     # short, dark and touched with grey, a higher hairline; the cap fades out over a band at the temples and the nape (a trimmed
     # taper instead of a cut line), the sides are cut shorter than the top, and about a third of the locks are grey
     "marc": dict(front=0.54, m=0.05, left_temple=0.0, temple=0.36, nape=0.05, burn_y=0.02, ears_bare=True,
@@ -112,16 +117,38 @@ ring_xy = {}
 # (the mask has -0.55). Placing them by the mask's own coordinates put the eyes and the mouth about 0.06 too high and too low.
 FACE_X0, FACE_SX = -0.035, 0.85
 FEATURE_DY = {"eye_l": -0.062, "eye_r": -0.062, "brow_l": -0.062, "brow_r": -0.062, "lips_out": 0.057, "lips_in": 0.057}
+# On the sculpt each feature is placed on its own: its centre, its scale across and up, and a tilt (degrees). Measured on the
+# normalised sculpt: the eye openings run from x 0.17 to 0.42 and y -0.025 to -0.11, their outer corners a little higher; the
+# mouth spans x -0.21 to 0.21 with the lips meeting at y -0.615, from -0.555 at the top of the upper lip to -0.70 under the lower.
+SCULPT_FEATURES = {
+    "eye_l": (-0.295, -0.066, 1.08, 1.42, -8.0), "eye_r": (0.295, -0.066, 1.08, 1.42, 8.0),
+    "brow_l": (-0.315, 0.075, 0.95, 0.9, 0.0), "brow_r": (0.315, 0.075, 0.95, 0.9, 0.0),
+    "lips_out": (0.0, -0.628, 0.95, 0.80, 0.0), "lips_in": (0.0, -0.615, 0.95, 0.80, 0.0),
+}
+if SOURCE == "sculpt":
+    FACE_X0 = 0.0
+
+
+def feature_xy(name, i, centre):
+    if SOURCE != "sculpt":
+        return FACE_X0 + FACE_SX * Vm[i, 0], Vm[i, 1] + FEATURE_DY[name]
+    cx, cy, sx, sy, ang = SCULPT_FEATURES[name]
+    dx, dy = (Vm[i, 0] - centre[0]) * sx, (Vm[i, 1] - centre[1]) * sy
+    a = np.radians(ang)
+    return cx + dx * np.cos(a) - dy * np.sin(a), cy + dx * np.sin(a) + dy * np.cos(a)
+
+
 front_ids = np.flatnonzero(V[:, 2] > 0.25)
 for name, idx in mask["landmarks"].items():
     out = []
+    ctr_m = Vm[idx, :2].mean(axis=0)
     for i in idx:
-        x, y = FACE_X0 + FACE_SX * Vm[i, 0], Vm[i, 1] + FEATURE_DY[name]
+        x, y = feature_xy(name, i, ctr_m)
         d2 = (V[front_ids, 0] - x) ** 2 + (V[front_ids, 1] - y) ** 2
         near = front_ids[np.argsort(d2)[:4]]
         out.append(int(near[np.argmax(V[near, 2])]))  # the outermost of the closest
     rings[name] = np.array(out, dtype=np.int32)
-    ring_xy[name] = np.array([[FACE_X0 + FACE_SX * Vm[i, 0], Vm[i, 1] + FEATURE_DY[name]] for i in idx])
+    ring_xy[name] = np.array([feature_xy(name, i, ctr_m) for i in idx])
 lips_out_c = V[rings["lips_out"]].mean(axis=0)
 lip_centre = lips_out_c
 mouth_y = lips_out_c[1]
@@ -169,7 +196,8 @@ def concavity(nb):
 c1 = concavity(adj) / edge_len
 c2 = concavity(ring2) / (2.2 * edge_len)
 occ = np.clip(1.3 * c1 + 2.2 * c2, 0.0, 1.0)
-for _ in range(2):
+# the sculpt carries fine detail (pores, small bumps) that reads as tiny hollows: more smoothing, so only real folds darken
+for _ in range(8 if SOURCE == "sculpt" else 2):
     occ = 0.5 * occ + 0.5 * np.array([occ[adj[i]].mean() for i in range(n_base)])
 ao = np.clip(1.0 - 0.85 * occ, 0.45, 1.0)
 
@@ -557,7 +585,8 @@ for k, x in enumerate(xs_col):
     yc = seam_centre(x)
     cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (np.abs(V[:scan_count, 1] - yc) < 0.035) & (V[:scan_count, 2] > 0.3))
     cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (V[:scan_count, 1] > yc - 0.05) & (V[:scan_count, 1] < yc + 0.02) & (V[:scan_count, 2] > 0.3))
-    ys_col[k] = -0.488 - 0.55 * (x - FACE_X0) ** 2     # the scan's own mouth line (a thin sheet where the lips meet), curving down at the corners
+    # the head's own mouth line (a thin sheet where the lips meet), curving down at the corners
+    ys_col[k] = (-0.612 - 0.25 * (x - FACE_X0) ** 2) if SOURCE == "sculpt" else (-0.488 - 0.55 * (x - FACE_X0) ** 2)
 ys_col = np.convolve(np.pad(ys_col, 3, mode="edge"), np.ones(7) / 7, mode="valid")
 print("mouth line: mean y", float(ys_col.mean()), "(ring centre", float(np.mean([seam_centre(x) for x in xs_col])), ")")
 def yseam(x):
@@ -626,7 +655,7 @@ def shade_colour(c, k):
 # shade of white varies a little from one tooth to the next and dulls slightly towards the corners, as real teeth are not perfectly
 # uniform or perfectly white.
 N_TEETH = 8
-teeth_span = 1.56 * hwi
+teeth_span = (1.30 if SOURCE == "sculpt" else 1.56) * hwi      # the sculpt's full lips curve back fast at the corners
 GAP_FRAC = 0.12
 tooth_w = teeth_span / (N_TEETH + (N_TEETH - 1) * GAP_FRAC)
 gap_w = tooth_w * GAP_FRAC
@@ -653,6 +682,10 @@ print("teeth:", N_TEETH, "upper and lower, span", round(teeth_span, 3))
 # -- the eyes -------------------------------------------------------------------------------------------------------------
 IRIS_RINGS = [(0, 0xFF05070A), (6, 0xFF05070A), (12, 0xFF16324F), (18, 0xFF3F7CA6), (25, 0xFF1F4560), (31, 0xFFD9D3CA), (42, 0xFFE3DED5),
               (60, 0xFFDDD6CC), (85, 0xFFCFC7BC), (110, 0xFFC2B9AD), (140, 0xFFB5AB9E)]
+if FACE_NAME == "lea":
+    # the android look of Léa: a vivid green iris with a darker ring round it, and a cool white
+    IRIS_RINGS = [(0, 0xFF05070A), (6, 0xFF05070A), (12, 0xFF0E4A36), (18, 0xFF3DBE8C), (25, 0xFF16553F), (31, 0xFFDDE2E6), (42, 0xFFE6EAEE),
+                  (60, 0xFFE0E4E8), (85, 0xFFD2D7DC), (110, 0xFFC5CBD1), (140, 0xFFB8BEC5)]
 SEG = 20
 eye_info = []
 removed = np.zeros(len(F), dtype=bool)
@@ -665,7 +698,7 @@ for name in ("eye_l", "eye_r"):
     hole = ctr + (poly - ctr) * 1.0
     cf = fc
     corner_in = np.stack([point_in_poly(V[F0[:, c], 0], V[F0[:, c], 1], hole) for c in range(3)], axis=1)
-    removed |= ((corner_in.sum(axis=1) >= 2) | point_in_poly(cf[:, 0], cf[:, 1], hole)) & (cf[:, 2] > 0.3)
+    removed |= ((corner_in.sum(axis=1) >= 2) | point_in_poly(cf[:, 0], cf[:, 1], hole)) & (cf[:, 2] > (0.15 if SOURCE == "sculpt" else 0.3))
     # lid weights (on the scan's vertices, and on the ring vertices that are laid on it)
     dist = dist_to_poly(V[:, 0], V[:, 1], hole)
     inside_v = point_in_poly(V[:, 0], V[:, 1], hole)
@@ -675,7 +708,8 @@ for name in ("eye_l", "eye_r"):
     lid += (V[:, 1] - ctr[1]) * f_ * (np.abs(V[:, 0] - ctr[0]) < w_eye * 0.95)
     # the eyeball, behind the hole
     rad = 0.5 * w_eye * 1.0
-    zc = surface_z(ctr[0], ctr[1]) - 1.7 * rad         # well behind the lids, so a lid always draws over the eyeball
+    # well behind the lids, so a lid always draws over the eyeball; the sculpt's eyes are open, its sculpted eyeball already set back
+    zc = surface_z(ctr[0], ctr[1]) - (0.75 if SOURCE == "sculpt" else 1.7) * rad
     centre = np.array([ctr[0], ctr[1], zc])
     first = len(V) + len(added["V"])
     back_c = add_vertex(centre + np.array([0.0, 0.0, -0.1 * rad]), np.array([0, 0, 1.0]), 0.0, 0xFF2B1F1C)
@@ -752,6 +786,8 @@ lo_centre = lo.mean(axis=0)
 # is the ring's full height, centred on that span
 lip_c = np.array([lo_centre[0], float(np.mean(ys_col)) - 0.004])
 lo_fit = lip_c + (lo - lo_centre) * np.array([1.0, 0.55])   # the lips span about 0.05 above and 0.055 below the mouth line   # the ring is taller and wider than the scan's own lips
+if SOURCE == "sculpt":
+    lo_fit = lo            # the ring was fitted to the sculpt's own lips (full ones), it is the mask as it is
 inside_lip = point_in_poly(V[:, 0], V[:, 1], lo_fit) & front
 d_lip = dist_to_poly(V[:, 0], V[:, 1], lo_fit)
 lip_mask = np.where(inside_lip, 1.0, np.clip(1.0 - d_lip / 0.010, 0.0, 1.0) * front)
@@ -801,8 +837,13 @@ WARPS = {
 }
 
 
+if os.environ.get("JHM_WARP"):
+    # trying a face shape out: JHM_WARP='{"elong": 0.15}' overrides some of the face's warp for one build
+    WARPS[FACE_NAME] = {**WARPS.get(FACE_NAME, {}), **json.loads(os.environ["JHM_WARP"])}
+
+
 def make_warp(name, eye_centres, lip_centre=None):
-    if name not in WARPS:
+    if name not in WARPS or SOURCE == "sculpt":      # the warps reshape the man's scan; the sculpt is a woman's face already
         return lambda P: P
     k = WARPS[name]
     lc = lip_centre if lip_centre is not None else np.array([FACE_X0, -0.49, 0.5])
@@ -820,6 +861,10 @@ def make_warp(name, eye_centres, lip_centre=None):
         nx = hx * k["width"] * (1.0 - k["jaw"] * lower) * (1.0 - k["nose_w"] * nose) * (1.0 + k["square"] * chin_w)
         nz = z - k["nose_z"] * nose * np.clip(z - 0.30, 0.0, None) / 0.4 + k["cheek"] * cheek_w + k["brow"] * brow_w
         ny = y + (y + 0.35) * k["chin"] * smooth(-0.35, -0.55, y)
+        # a longer face: everything under the eyes stretched down (a straight ramp from the eye line: no seam, the features stay in line)
+        elong = k.get("elong", 0.0)
+        if elong:
+            ny = ny - elong * np.maximum(0.05 - y, 0.0)
         nx = nx + FACE_X0
         # the eyes grow or shrink about their own centres, with everything around them (lids, eyeballs)
         best = np.zeros(len(P))

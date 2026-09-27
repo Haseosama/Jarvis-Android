@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.19 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.20 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -973,28 +973,30 @@ starts the answer again. Changes:
 
 The centre of the main screen shows an animated human head instead of the reactor core (Settings > Appearance turns it off).
 It is an Android adaptation of the avatar of [Mark-LIV](https://github.com/FatihMakes/Mark-LIV) by FatihMakes. **That
-work is licensed CC BY-NC 4.0: this avatar, and any app that includes it, may not be used commercially.** The head is a 3D head scan by Lee Perry-Smith (CC BY 3.0) and the face landmarks are MediaPipe's (Apache-2.0). Details and credits: `app/src/main/assets/avatar/NOTICE.txt`; the credit is
+work is licensed CC BY-NC 4.0: this avatar, and any app that includes it, may not be used commercially.** The head is a 3D head scan by Lee Perry-Smith (CC BY 3.0), Léa's head is "Female Head Sculpt" by [Aconear](https://sketchfab.com/Aconear) (CC BY 4.0), and the face landmarks are MediaPipe's (Apache-2.0). Details and credits: `app/src/main/assets/avatar/NOTICE.txt`; the credit is
 also shown in the settings.
 
 - **Face.** A real 3D head scan (about 26,000 vertices once the eyes, the mouth and the hair are built), stored as an asset (`head_mesh.bin`, 1.9 MB)
   by `tools/avatar/export_head.py`. Drawn on Android's canvas: no OpenGL, no extra library.
-- **Three faces** (Settings > Appearance > Visage). *Classique* is the original. *Léa* and *Marc* are **the same scan reshaped**, not other
-  people scanned: `export_head.py` bends the finished geometry with a smooth warp (a narrower jaw, a smaller nose, bigger eyes and higher cheekbones
-  for Léa; a wider square jaw, a heavier brow ridge, a bigger nose and smaller eyes for Marc), on every vertex so the eyes, the lids, the teeth and the
-  lips stay lined up, and gives each its own hair (`groom.py`) and matching eyebrows. The two haircuts were re-groomed in this pass: a lock is now
-  integrated row by row so it falls with gravity, follows the head and curls in at the tip instead of sticking out as a straight spike, and carries more
-  rows (7 or 8 against 6) so the curves read smooth instead of faceted; the cap under the locks carries streaks of its own and melts into the skin at the
-  hairline instead of ending on a cut line. Léa is a long bob with a curtain fringe ("carré plongeant"), re-groomed a second time: the locks lie on the skull (`hug`: kept
-  within a thin layer over an ellipsoid fitted to the scalp, down to the widest part of the head) instead of standing out in wings, then fall straight
-  and are all cut on one line at the chin (`cut_y`, a little lower at the front, `cut_front`) instead of hanging to the shoulders; the locks are broad and
-  flat with few twists and an even tone (`roll`, `scatter`), so the mass reads smooth instead of stringy, and the fringe parts in the middle and sweeps to
-  the sides. Marc is a
-  short crop: the sides and the nape trimmed shorter than the top with a clipper-like taper, and about four locks in ten grey, more of them at the
-  temples. Léa's face itself was made more feminine in the same pass: her warp now narrows the jaw and the whole oval, tapers the chin to a point, enlarges the eyes, raises the cheekbones, fine-points the nose, fills the lips out and slims and lengthens the neck, and the renderer draws her brows finer and her lashes longer than the other faces' (`AvatarFaces.browScale` / `lashScale`, 0.8 and 1.35 for her). `JHM_FACE=lea python export_head.py …` rebuilds one (`head_mesh_lea.bin`, `head_mesh_marc.bin`); every new style parameter defaults to the old
-  behaviour, so *Classique* still rebuilds byte for byte identical. *Checked:* the pipeline reproduces the original byte for byte, the mesh invariants and
-  the face differences asserted by `AvatarFacesTest` replayed offline on the rebuilt assets (rings, eye and lip placement, jaw widths, hair present,
-  triangle budget), and before/after renders from four angles with the app's own shading. *Not checked:* the frame rate on a real phone — Léa and Marc
-  now carry about a quarter more triangles than the original, which is the ceiling that unit test enforces.
+- **Three faces** (Settings > Appearance > Visage). *Classique* is the original scan. *Marc* is **the same scan reshaped**, not another
+  person scanned: `export_head.py` bends the finished geometry with a smooth warp (a wider square jaw, a heavier brow ridge, a bigger nose and smaller
+  eyes), on every vertex so the eyes, the lids, the teeth and the lips stay lined up, and gives him his own hair (`groom.py`, a short crop: the sides
+  and the nape trimmed shorter than the top with a clipper-like taper, about four locks in ten grey, more of them at the temples) and matching eyebrows.
+- **Léa, an android woman** (since 0.9.20). Reshaping the man's scan never gave a convincing woman's face, so Léa is built from another head:
+  ["Female Head Sculpt"](https://sketchfab.com/3d-models/female-head-sculpt-ae24c33594a046519014fdc78758a8ec) by Aconear (CC BY 4.0), a
+  sculpted woman's head with open eyes. `tools/avatar/prepare_sculpt.py` welds its 1.36 million triangles, turns it to face forward and simplifies it
+  to about 22,000 by quadric vertex clustering, with a finer grid on the face than on the skull the hair covers; `export_head.py` then builds it like
+  the scan (neck cut, eye openings with eyeballs, the mouth and teeth, the rig and landmark rings, placed with measurements taken on the sculpt,
+  `SCULPT_FEATURES`), and the result keeps within the triangle budget (28,571 against 37,161 for *Classique*). The look follows a reference picture
+  the user gave: a silver skin, green eyes, fine dark brows and long lashes, mauve lips, grooved circuit lines etched on the forehead and the cheeks
+  with a cyan light running along them, a cyan halo behind the head (`AvatarFaces.androidLook` / `halo`, drawn by `AvatarRenderer`), and slicked-back
+  blue-black hair gathered in a bun (`groom.py`: `hug_surface` lays the locks on the scalp itself, `bun` winds them round a sphere at the back,
+  `ridge` flattens each lock). To rebuild her: download the sculpt as glTF from Sketchfab (free account), then
+  `python tools/avatar/prepare_sculpt.py <folder with scene.gltf> FemaleHeadSculpt.glb` and
+  `JHM_FACE=lea python tools/avatar/export_head.py <Mark-LIV> FemaleHeadSculpt.glb`; both steps are deterministic. The builder picks the sculpt's
+  measurements when the file name contains "sculpt", and every new parameter defaults to the old behaviour, so *Classique* and *Marc* still rebuild byte
+  for byte identical from the scan. *Checked:* that byte-for-byte rebuild, `AvatarFacesTest` (rings, eye and lip placement, jaw widths, hair, triangle
+  budget), and Léa on the emulator from the front, three-quarters and profile. *Not checked:* the frame rate on a real phone.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.

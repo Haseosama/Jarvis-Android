@@ -5,6 +5,10 @@ package com.jarvis.android.avatar
 internal data class AvatarFace(
     val label: String, val asset: String, val browColour: Int, val fibres: Boolean = true, val cartoon: Boolean = false,
     val browScale: Float = 1f, val lashScale: Float = 1f,
+    /** An android: a silver porcelain skin with circuits etched in it, whatever skin tone is chosen (see AvatarRenderer.androidLook). */
+    val androidLook: Boolean = false,
+    /** A ring of light behind the head. */
+    val halo: Boolean = false,
 )
 
 /**
@@ -13,7 +17,7 @@ internal data class AvatarFace(
  */
 internal val AVATAR_FACES = listOf(
     AvatarFace("Classique", "avatar/head_mesh.bin", 0xFF34241C.toInt()),
-    AvatarFace("Léa", "avatar/head_mesh_lea.bin", 0xFF40201A.toInt(), fibres = false, browScale = 0.8f, lashScale = 1.35f),
+    AvatarFace("Léa", "avatar/head_mesh_lea.bin", 0xFF1A1E27.toInt(), fibres = false, browScale = 0.65f, lashScale = 1.35f, androidLook = true, halo = true),
     AvatarFace("Marc", "avatar/head_mesh_marc.bin", 0xFF2B2928.toInt()),
     // a drawn character, not a mesh: the file is only what gives the animation its object (see CartoonAvatar.kt)
     AvatarFace("Dessin animé", "avatar/head_mesh.bin", 0xFF1F1614.toInt(), fibres = false, cartoon = true),

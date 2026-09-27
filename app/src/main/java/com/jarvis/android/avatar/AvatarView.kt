@@ -86,6 +86,8 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         renderer.browColour = if (renderer.holo) DEEP_BLUE else avatarFace(model).browColour
         renderer.browScale = avatarFace(model).browScale
         renderer.lashScale = avatarFace(model).lashScale
+        renderer.androidLook = avatarFace(model).androidLook
+        renderer.halo = avatarFace(model).halo
         renderer.fibreOverlay = avatarFace(model).fibres
         renderer.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, accent, bg, stroke)
     }

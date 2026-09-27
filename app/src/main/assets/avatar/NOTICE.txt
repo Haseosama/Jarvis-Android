@@ -17,6 +17,13 @@ three.js examples (https://github.com/mrdoob/three.js). It was resampled, normal
 tools/avatar/export_head.py; the eyes and lips are placed with the landmark positions of MediaPipe's canonical face model
 (https://github.com/google-ai-edge/mediapipe), Apache License 2.0, Copyright 2019-2023 The MediaPipe Authors.
 
-The faces "Léa" and "Marc" (head_mesh_lea.bin, head_mesh_marc.bin) are the same scan, changed: reshaped by a smooth deformation of the
-jaw, chin, nose, brows and eyes, and given other hair (tools/avatar/export_head.py, tools/avatar/groom.py). The original head is unchanged
-in head_mesh.bin. The credit above applies to all three.
+The face "Marc" (head_mesh_marc.bin) is the same scan, changed: reshaped by a smooth deformation of the jaw, chin, nose, brows and eyes,
+and given other hair (tools/avatar/export_head.py, tools/avatar/groom.py). The original head is unchanged in head_mesh.bin. The credit
+above applies to both.
+
+The face "Léa" (head_mesh_lea.bin) is based on "Female Head Sculpt"
+(https://sketchfab.com/3d-models/female-head-sculpt-ae24c33594a046519014fdc78758a8ec) by Aconear (https://sketchfab.com/Aconear),
+licensed under Creative Commons Attribution 4.0 (CC BY 4.0, http://creativecommons.org/licenses/by/4.0/). Changes: turned to face
+forward, welded and simplified from 1.36 million to about 22,000 triangles (tools/avatar/prepare_sculpt.py), normalised, cut at the neck,
+given eye openings with eyeballs, a mouth with teeth, the rig and the landmark rings of Mark-LIV's builder, and hair
+(tools/avatar/export_head.py, tools/avatar/groom.py); the renderer gives her a silver "android" skin, etched circuits and a halo.
