@@ -16,7 +16,9 @@ class JarvisNotificationListener : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         try {
-            activeNotifications?.forEach { keep(it) }
+            // Already on screen when Jarvis (re)connects — after an update, a restart, a reboot: kept for reading, but they
+            // are not news, so they must not fire a reminder, an automatic answer or a parcel offer a second time.
+            activeNotifications?.forEach { keep(it, fresh = false) }
         } catch (_: Exception) {
         }
     }
@@ -28,14 +30,14 @@ class JarvisNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        if (sbn != null) keep(sbn)
+        if (sbn != null) keep(sbn, fresh = true)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         if (sbn != null) LOG.remove(sbn.key)
     }
 
-    private fun keep(sbn: StatusBarNotification) {
+    private fun keep(sbn: StatusBarNotification, fresh: Boolean) {
         if (sbn.packageName == packageName) return
         val n = sbn.notification ?: return
         // Not interesting: media players, downloads and other persistent entries, and group summaries that only repeat the children.
@@ -54,6 +56,7 @@ class JarvisNotificationListener : NotificationListenerService() {
         val seen = SeenNotification(sbn.key, clean(app, 60), sbn.packageName, sbn.postTime, safeTitle, safeText)
         LOG.add(seen)
         HISTORY.add(seen)
+        if (!fresh) return
         // A tracking number in a message or a mail ("votre colis … est expédié"): offered for tracking, once.
         try { com.jarvis.android.parcels.ParcelTracking.offerFromMessage(this, clean(app, 60), "$safeTitle $safeText") } catch (_: Exception) { }
         // A message from someone with a reminder tied to them ("quand Paul m'écrit…"), and what driving mode reads out.

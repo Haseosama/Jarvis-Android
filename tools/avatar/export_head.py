@@ -60,16 +60,17 @@ def vertex_normals(V, F):
 
 HAIR_STYLES = {
     "classic": None,
-    # shoulder-length, wavy, auburn: covers the ears, hangs down the sides and the back. The locks are integrated row by row so they
-    # fall with gravity, turn down along the head and curl in at the tips instead of sticking out in spikes; more rows per lock keep
-    # the curves smooth, a parting and a curtain fringe frame the face, and the cap fades into the skin at the hairline.
-    "lea": dict(front=0.50, m=0.02, left_temple=0.05, temple=-0.05, nape=-1.42, burn_y=0.12, ears_bare=False,
-                len_top=(0.40, 0.10), len_side=(0.66, 0.10), len_front=0.10, lift=0.75, lift_side_damp=0.85, wave=0.8, wave_side_damp=0.15,
-                width=1.05, width_side=0.9, side_boost=3.6, kappa=0.40, face_frame=0.30, cap_streaks=80.0, burn_e0=0.34, burn_e1=0.52, crown_w=1.4,
-                len_floor=0.82, len_span=0.28, body=(0x5C, 0x2C, 0x1C), root=(0x24, 0x10, 0x09), gold=(0x96, 0x5C, 0x36), cap=(0x38, 0x1A, 0x10),
-                flow_front=(0.40, 0.45, -0.50), flow_top=(0.35, -0.05, -0.85), flow_side=(0.0, -1.0, -0.15), locks=620, edge_locks=140,
-                rows=7, gravity=0.40, flow_down=0.50, tip_in=0.14, taper=1.1, tip_w=0.010, margin=0.03, fade_pow=1.0,
-                part=0.05, fringe=130, fringe_len=(0.26, 0.03), tone_lo=0.78, tone_hi=1.08),
+    # a long bob ("carré plongeant") with a curtain fringe, auburn: the locks lie on the skull (hug) down to the widest part of the
+    # head, then fall straight and are all cut on one line at the chin (cut_y), a little lower at the front; broad flat locks, few
+    # twists and an even tone, so the mass reads smooth; the tips turn under; the fringe parts in the middle and sweeps to the sides.
+    "lea": dict(front=0.50, m=0.02, left_temple=0.05, temple=-0.05, nape=-0.90, burn_y=0.12, ears_bare=False,
+                len_top=(0.95, 0.08), len_side=(0.90, 0.08), len_front=0.10, lift=0.30, lift_side_damp=0.85, wave=0.25, wave_side_damp=0.15,
+                width=1.6, width_side=0.95, side_boost=3.6, kappa=0.40, face_frame=0.45, cap_streaks=80.0, burn_e0=0.34, burn_e1=0.52, crown_w=1.4,
+                len_floor=0.97, len_span=0.06, body=(0x5C, 0x2C, 0x1C), root=(0x24, 0x10, 0x09), gold=(0x96, 0x5C, 0x36), cap=(0x38, 0x1A, 0x10),
+                flow_front=(0.40, 0.45, -0.50), flow_top=(0.35, -0.05, -0.85), flow_side=(0.0, -1.0, -0.15), locks=660, edge_locks=80,
+                rows=7, gravity=0.38, flow_down=0.60, tip_in=0.22, taper=0.35, tip_w=0.020, margin=0.03, fade_pow=1.0,
+                part=0.05, fringe=85, fringe_len=(0.40, 0.04), tone_lo=0.88, tone_hi=1.05,
+                cut_y=-1.0, cut_front=0.08, hug=0.05, hug_gap=0.03, roll=0.4, scatter=0.25),
     # short, dark and touched with grey, a higher hairline; the cap fades out over a band at the temples and the nape (a trimmed
     # taper instead of a cut line), the sides are cut shorter than the top, and about a third of the locks are grey
     "marc": dict(front=0.54, m=0.05, left_temple=0.0, temple=0.36, nape=0.05, burn_y=0.02, ears_bare=True,
@@ -724,7 +725,11 @@ print("eyes: faces removed", int(removed.sum()))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import groom
 Fscan = F0[F0.max(axis=1) < scan_count]
-hair = groom.build(V[:scan_count], N[:scan_count], Fscan, FACE_X0, style=HAIR_STYLES.get(FACE_NAME))
+hair_style = HAIR_STYLES.get(FACE_NAME)
+if os.environ.get("JHM_STYLE"):
+    # trying a style out: JHM_STYLE='{"cut_y": -1.0}' overrides some of the face's settings for one build
+    hair_style = {**(hair_style or {}), **json.loads(os.environ["JHM_STYLE"])}
+hair = groom.build(V[:scan_count], N[:scan_count], Fscan, FACE_X0, style=hair_style)
 
 
 def push(pos, nrm, jaw_w, paint_v, tris):

@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.17 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.18 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -984,8 +984,11 @@ also shown in the settings.
   lips stay lined up, and gives each its own hair (`groom.py`) and matching eyebrows. The two haircuts were re-groomed in this pass: a lock is now
   integrated row by row so it falls with gravity, follows the head and curls in at the tip instead of sticking out as a straight spike, and carries more
   rows (7 or 8 against 6) so the curves read smooth instead of faceted; the cap under the locks carries streaks of its own and melts into the skin at the
-  hairline instead of ending on a cut line. Léa is a shoulder-length bob: a curtain fringe from a slight parting, the locks in front of the ears kept
-  short so they frame the face, blunt tips and a nearly even bottom edge, and the cap carried down the nape so no skin shows through the mass. Marc is a
+  hairline instead of ending on a cut line. Léa is a long bob with a curtain fringe ("carré plongeant"), re-groomed a second time: the locks lie on the skull (`hug`: kept
+  within a thin layer over an ellipsoid fitted to the scalp, down to the widest part of the head) instead of standing out in wings, then fall straight
+  and are all cut on one line at the chin (`cut_y`, a little lower at the front, `cut_front`) instead of hanging to the shoulders; the locks are broad and
+  flat with few twists and an even tone (`roll`, `scatter`), so the mass reads smooth instead of stringy, and the fringe parts in the middle and sweeps to
+  the sides. Marc is a
   short crop: the sides and the nape trimmed shorter than the top with a clipper-like taper, and about four locks in ten grey, more of them at the
   temples. `JHM_FACE=lea python export_head.py …` rebuilds one (`head_mesh_lea.bin`, `head_mesh_marc.bin`); every new style parameter defaults to the old
   behaviour, so *Classique* still rebuilds byte for byte identical. *Checked:* the pipeline reproduces the original byte for byte, the mesh invariants and
