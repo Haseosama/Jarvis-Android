@@ -41,3 +41,10 @@ its textures packed into one atlas, and rigged for the head's turn and the jaw; 
 
 "Mei" is based on "Girl Wearing Traditional Clothing V4" (https://sketchfab.com/3d-models/girl-wearing-traditional-clothing-v4-8b96140388014154b7439ca0233c42c6)
 by Fadly.W (https://sketchfab.com/Fadly.W), licensed under Creative Commons Attribution 4.0 (CC BY 4.0, http://creativecommons.org/licenses/by/4.0/).
+
+Hairstyles (assets/avatar/hair, chosen in Settings > Appearance > Hairstyle): taken out of two collections by Vincent Page
+(https://sketchfab.com/vincentpage), both licensed under Creative Commons Attribution 4.0 (CC BY 4.0, http://creativecommons.org/licenses/by/4.0/):
+"FREE Male Fashion Hair collection 01 lowpoly" (https://sketchfab.com/3d-models/free-male-fashion-hair-collection-01-lowpoly-2735370f6f764078a18f5d80651050a2)
+and "12 Real-time woman Hairstyles collection 09" (https://sketchfab.com/3d-models/12-real-time-woman-hairstyles-collection-09-a2464050ef6f447dbff9ecde1fdb36ca).
+Changes: each style taken off its head (tools/avatar/prepare_hair.py), the parts hidden inside the head left out, the heaviest thinned by
+leaving out some strands (tools/avatar/export_hair.py), fitted onto the chosen face and coloured in the app (avatar/HairStyle.kt).

@@ -27,8 +27,9 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     val model = controller.model
     // The head (its mesh read, about a second on a phone, and its renderer built) is made off the main thread: the screen shows at
     // once and the face appears when it is ready, instead of the whole first frame waiting for it.
-    val head by androidx.compose.runtime.produceState<Pair<AvatarRenderer, HoloAvatar>?>(null, controller, model) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { AvatarRenderer(controller.mesh) to controller.avatar }
+    val hair = controller.hair
+    val head by androidx.compose.runtime.produceState<Pair<AvatarRenderer, HoloAvatar>?>(null, controller, model, hair) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { controller.head().let { (m, a) -> AvatarRenderer(m) to a } }
     }
     val cartoon = remember { CartoonRenderer() }
     // a character's files (its mesh and its atlas image) are read off the main thread: the face appears when they are
@@ -42,8 +43,9 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     val currentLevel by rememberUpdatedState(outputLevel)
     var frame by remember { mutableLongStateOf(0L) }
 
-    LaunchedEffect(controller, model) {
-        val avatar = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { controller.avatar }
+    LaunchedEffect(controller, model, hair, head) {
+        // the animation of the very head being drawn
+        val avatar = head?.second ?: return@LaunchedEffect
         var last = SystemClock.elapsedRealtimeNanos()
         var lastDraw = 0L
         while (true) {

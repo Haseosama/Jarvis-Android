@@ -210,6 +210,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val ry = nrm[3 * a + 1] + nrm[3 * b + 1] + nrm[3 * c + 1]
             val rz = nrm[3 * a + 2] + nrm[3 * b + 2] + nrm[3 * c + 2]
             if (nx * rx + ny * ry + nz * rz < 0f) { nx = -nx; ny = -ny; nz = -nz }
+            // a chosen hairstyle (faceGroup 2.5) is thin single sheets: seen from behind, a strand is still hair
+            if (nz < 0f && mesh.faceGroup[t] > 2.25f) { nx = -nx; ny = -ny; nz = -nz }
             faceFront[t] = nz > 0.015f
             if (nz <= 0.015f) continue
             val area = abs((xs[b] - xs[a]) * (ys[c] - ys[a]) - (xs[c] - xs[a]) * (ys[b] - ys[a]))

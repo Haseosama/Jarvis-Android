@@ -116,6 +116,7 @@ fun SettingsScreen(
     val faceOn by configStore.avatarFace.collectAsState(initial = true)
     val faceModel by configStore.avatarModel.collectAsState(initial = 0)
     val faceLight by configStore.avatarLight.collectAsState(initial = false)
+    val hairChosen by configStore.avatarHair.collectAsState(initial = emptyMap())
     var avatarImport by remember { mutableStateOf<android.net.Uri?>(null) }
     val pickAvatar = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) avatarImport = uri
@@ -528,6 +529,24 @@ fun SettingsScreen(
             val chosenFace = com.jarvis.android.avatar.avatarFace(faceModel)
             if (chosenFace.credit.isNotEmpty()) {
                 Text(chosenFace.credit, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
+            }
+            // the hairstyle, for the faces made of a head (a textured character or the cartoon wears its own)
+            if (chosenFace.character == null && !chosenFace.cartoon) {
+                val hairStyles = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.avatar.hairChoices }
+                val current = hairChosen[chosenFace.label].orEmpty()
+                val english = com.jarvis.android.i18n.Lang.isEnglish
+                // the styles made for women first on Léa, those made for men first on the others
+                val ordered = hairStyles.sortedBy { if (chosenFace.label == "Léa") !it.women else it.women }
+                Text(tr("Coiffure"), style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).horizontalScroll(rememberScrollState())) {
+                    FilterChip(selected = current.isEmpty(), onClick = { scope.launch { configStore.setAvatarHair(chosenFace.label, "") } }, label = { Text(tr("D’origine")) })
+                    ordered.forEach { h ->
+                        FilterChip(selected = current == h.id, onClick = { scope.launch { configStore.setAvatarHair(chosenFace.label, h.id) } }, label = { Text(h.label(english)) })
+                    }
+                }
+                if (current.isNotEmpty()) {
+                    Text(tr("Coiffures : collections de Vincent Page sur Sketchfab (CC BY 4.0)."), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
+                }
             }
             androidx.compose.material3.OutlinedButton(onClick = { pickAvatar.launch(arrayOf("*/*")) }, modifier = Modifier.padding(bottom = 8.dp)) {
                 Text(tr("Importer un avatar (.glb ou .zip Sketchfab)"))

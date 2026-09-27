@@ -25,6 +25,7 @@ class DebugAvatarReceiver : BroadcastReceiver() {
         val controller = (context.applicationContext as JarvisApp).container.avatar
         intent.getStringExtra("model")?.toIntOrNull()?.let { controller.model = it }
         intent.getStringExtra("skin")?.toIntOrNull()?.let { controller.skin = it }
+        intent.getStringExtra("hair")?.let { controller.hair = if (it == "off") "" else it }       // a hairstyle id (assets/avatar/hair)
         intent.getStringExtra("cap")?.toIntOrNull()?.let { controller.cap = it }
         intent.getStringExtra("yaw")?.let { controller.debugYaw = if (it == "off") null else it.toFloatOrNull() }
         intent.getStringExtra("pitch")?.let { controller.debugPitch = if (it == "off") null else it.toFloatOrNull() }

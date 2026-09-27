@@ -1,0 +1,140 @@
+[
+ {
+  "id": "women09_00",
+  "fr": "Carré court",
+  "en": "Short bob",
+  "women": true
+ },
+ {
+  "id": "women09_05",
+  "fr": "Carré frange",
+  "en": "Bob with bangs",
+  "women": true
+ },
+ {
+  "id": "women09_02",
+  "fr": "Dégradé à frange",
+  "en": "Layered with bangs",
+  "women": true
+ },
+ {
+  "id": "women09_01",
+  "fr": "Longs lisses",
+  "en": "Long and straight",
+  "women": true
+ },
+ {
+  "id": "women09_04",
+  "fr": "Longs ondulés",
+  "en": "Long and wavy",
+  "women": true
+ },
+ {
+  "id": "women09_03",
+  "fr": "Longs tressés",
+  "en": "Long with braids",
+  "women": true
+ },
+ {
+  "id": "women09_07",
+  "fr": "Frange de côté",
+  "en": "Side fringe",
+  "women": true
+ },
+ {
+  "id": "women09_10",
+  "fr": "Carré plongeant",
+  "en": "Long bob",
+  "women": true
+ },
+ {
+  "id": "women09_09",
+  "fr": "Chignon",
+  "en": "Bun",
+  "women": true
+ },
+ {
+  "id": "women09_08",
+  "fr": "Tirés en arrière",
+  "en": "Pulled back",
+  "women": true
+ },
+ {
+  "id": "women09_11",
+  "fr": "Couettes",
+  "en": "Pigtails",
+  "women": true
+ },
+ {
+  "id": "men09_05",
+  "fr": "Courte dégradée",
+  "en": "Short fade",
+  "women": false
+ },
+ {
+  "id": "men09_02",
+  "fr": "Courte texturée",
+  "en": "Short textured",
+  "women": false
+ },
+ {
+  "id": "men09_00",
+  "fr": "Bouclée",
+  "en": "Curly",
+  "women": false
+ },
+ {
+  "id": "men09_03",
+  "fr": "Banane",
+  "en": "Quiff",
+  "women": false
+ },
+ {
+  "id": "men09_04",
+  "fr": "Mèche sur le côté",
+  "en": "Side swept",
+  "women": false
+ },
+ {
+  "id": "men09_11",
+  "fr": "Coiffée en arrière",
+  "en": "Slicked back",
+  "women": false
+ },
+ {
+  "id": "men09_06",
+  "fr": "Mèche décoiffée",
+  "en": "Tousled",
+  "women": false
+ },
+ {
+  "id": "men09_08",
+  "fr": "Raie au milieu",
+  "en": "Middle part",
+  "women": false
+ },
+ {
+  "id": "men09_10",
+  "fr": "Mi-longue",
+  "en": "Medium length",
+  "women": false
+ },
+ {
+  "id": "men09_09",
+  "fr": "Frange arrondie",
+  "en": "Rounded fringe",
+  "women": false
+ },
+ {
+  "id": "men09_12",
+  "fr": "Frange longue",
+  "en": "Long fringe",
+  "women": false
+ },
+ {
+  "id": "men09_07",
+  "fr": "Queue de cheval",
+  "en": "Ponytail",
+  "women": false
+ }
+]

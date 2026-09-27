@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.28 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.29 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1110,6 +1110,27 @@ also shown in the settings.
   real Sketchfab zip (picker, preview, markers, save, the new face speaking and blinking, removal).
 - **Light mode** (Settings > Appearance). The face is drawn at half the rate and without the fine hair strands, for a phone that stutters
   or to save battery.
+- **Choose the hairstyle** (since 0.9.29; Settings > Appearance > *Coiffure*, for Classique, Léa and Marc). Besides each face's own hair,
+  24 hand-made hairstyles from two Sketchfab collections by Vincent Page (CC BY 4.0): short fade, textured, curly, quiff, side swept,
+  slicked back, tousled, middle part, medium length, rounded or long fringe, ponytail for the men's collection; short bob, bob with bangs,
+  layered, long straight, wavy or braided, side fringe, long bob, bun, pulled back and pigtails for the women's. Any style goes on any
+  face; the list shows the women's first on Léa. The choice is kept per face.
+  How: `tools/avatar/prepare_hair.py` takes each style off its head in the collection (the scene welded and cut in connected pieces; the
+  heads stand on a grid; the largest piece near a head is the head, the others its hair, except the eyeballs, brows and lashes, small
+  pieces round the eyes), framed as the avatar's heads (crown, nose tip, and the chin a height under the crown measured once per
+  collection). `tools/avatar/export_hair.py` leaves out what lies inside the head, thins the heaviest (whole strands at random) under
+  20 500 triangles so that any head with any style stays within the avatar's budget of 46 451, and writes each style once (JHR1: the
+  strands in 16-bit positions, a key per strand, and the source skull as its radius in 96 x 48 directions), 3.9 MB for the 24.
+  In the app, `avatar/HairStyle.kt` fits the chosen style onto the chosen head when it loads: along every direction from the skull's
+  centre a point keeps its height over the scalp (the target skull read from its skin, the eye and mouth openings filled from around
+  them), so a strand lying on the source scalp lies on the new one and a lock standing out still stands out. The head's own locks are
+  left out and its cap (the coloured scalp) stays under the strands; the strands take the face's hair colours (darker at the roots,
+  lighter at long tips, a shade per strand, some grey for Marc), normals leaning outwards, and are drawn from both sides
+  (faceGroup 2.5: they are single sheets). The head and its animation are now taken together from the controller, so a change of face
+  or hair can never pair one head's animation with another's geometry.
+  *Checked:* `HairStyleTest` (every style on every head: within the budget, the skin intact, the head's locks gone, no strand over the
+  eyes, colours), the styles on the emulator on the three faces, choosing one in the settings. *Not checked:* the frame rate on a real
+  phone with the heavier styles.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.
