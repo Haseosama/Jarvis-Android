@@ -289,17 +289,17 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 8.dp),
             ) {
                 OutlinedTextField(
-                    value = voice,
+                    value = ConfigStore.VOICES.firstOrNull { it.name == voice }?.label(com.jarvis.android.i18n.Lang.isEnglish) ?: voice,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text(tr("Voix Gemini")) },
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                 )
                 ExposedDropdownMenu(expanded = voiceMenuOpen, onDismissRequest = { voiceMenuOpen = false }) {
-                    ConfigStore.AVAILABLE_VOICES.forEach { v ->
-                        DropdownMenuItem(text = { Text(v) }, onClick = {
+                    ConfigStore.VOICES.forEach { v ->
+                        DropdownMenuItem(text = { Text(v.label(com.jarvis.android.i18n.Lang.isEnglish)) }, onClick = {
                             voiceMenuOpen = false
-                            scope.launch { configStore.setVoice(v) }
+                            scope.launch { configStore.setVoice(v.name) }
                         })
                     }
                 }

@@ -357,6 +357,31 @@ class ConfigStore(private val context: Context) {
 
         /** Model for the text chat, over plain generateContent (not the Live WebSocket). */
         const val DEFAULT_REST_MODEL = "models/gemini-3.6-flash"
-        val AVAILABLE_VOICES = listOf("Puck", "Charon", "Kore", "Fenrir", "Aoede")
+        /**
+         * Gemini's prebuilt voices (the same for the Live API and the speech endpoint), women's voices first, each with the character
+         * Google gives it. There were only five here, two of them women's; these are all thirty.
+         */
+        val VOICES = listOf(
+            Voice("Kore", true, "ferme", "firm"), Voice("Aoede", true, "légère", "breezy"), Voice("Leda", true, "jeune", "youthful"),
+            Voice("Zephyr", true, "lumineuse", "bright"), Voice("Autonoe", true, "lumineuse", "bright"),
+            Voice("Callirrhoe", true, "décontractée", "easy-going"), Voice("Despina", true, "douce", "smooth"),
+            Voice("Erinome", true, "claire", "clear"), Voice("Laomedeia", true, "enjouée", "upbeat"), Voice("Achernar", true, "tendre", "soft"),
+            Voice("Gacrux", true, "mûre", "mature"), Voice("Pulcherrima", true, "assurée", "forward"),
+            Voice("Vindemiatrix", true, "délicate", "gentle"), Voice("Sulafat", true, "chaleureuse", "warm"),
+            Voice("Puck", false, "enjouée", "upbeat"), Voice("Charon", false, "posée", "informative"), Voice("Fenrir", false, "vive", "excitable"),
+            Voice("Orus", false, "ferme", "firm"), Voice("Enceladus", false, "soufflée", "breathy"), Voice("Iapetus", false, "claire", "clear"),
+            Voice("Umbriel", false, "décontractée", "easy-going"), Voice("Algieba", false, "douce", "smooth"),
+            Voice("Algenib", false, "rocailleuse", "gravelly"), Voice("Rasalgethi", false, "posée", "informative"),
+            Voice("Alnilam", false, "ferme", "firm"), Voice("Schedar", false, "égale", "even"), Voice("Achird", false, "amicale", "friendly"),
+            Voice("Zubenelgenubi", false, "détendue", "casual"), Voice("Sadachbia", false, "vive", "lively"),
+            Voice("Sadaltager", false, "savante", "knowledgeable"),
+        )
+        val AVAILABLE_VOICES = VOICES.map { it.name }
     }
+}
+
+/** One of Gemini's voices: a woman's or a man's, and its character in French and in English. */
+data class Voice(val name: String, val female: Boolean, val styleFr: String, val styleEn: String) {
+    fun label(english: Boolean): String =
+        if (english) "$name · " + (if (female) "female" else "male") + ", $styleEn" else "$name · " + (if (female) "féminine" else "masculine") + ", $styleFr"
 }
