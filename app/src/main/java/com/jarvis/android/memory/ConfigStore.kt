@@ -217,6 +217,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_PROACTIVE = booleanPreferencesKey("proactive_enabled")
     private val KEY_WAKE_SENSITIVITY = intPreferencesKey("wake_sensitivity")
     private val KEY_WORK_FOLDER = stringPreferencesKey("work_folder_uri")
+    private val KEY_OBSIDIAN_VAULT = stringPreferencesKey("obsidian_vault_uri")
     private val KEY_HOME_ASSISTANT_URL = stringPreferencesKey("home_assistant_url")
     private val KEY_AUDIO_IN = stringPreferencesKey("audio_input_device")
     private val KEY_AUDIO_OUT = stringPreferencesKey("audio_output_device")
@@ -236,6 +237,8 @@ class ConfigStore(private val context: Context) {
     val deviceControlEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_DEVICE_CONTROL] ?: true }
     /** The folder (a Storage Access Framework tree URI) the file manager may work in; empty when none was chosen. */
     val workFolder: Flow<String> = context.dataStore.data.map { it[KEY_WORK_FOLDER].orEmpty() }
+    /** The folder of the user's Obsidian vault (a tree URI they picked), empty when none. */
+    val obsidianVault: Flow<String> = context.dataStore.data.map { it[KEY_OBSIDIAN_VAULT].orEmpty() }
     /** The user's own Home Assistant server address (e.g. "http://192.168.1.50:8123"); empty when not configured. Not a secret, kept in plain DataStore like the work folder. */
     val homeAssistantUrl: Flow<String> = context.dataStore.data.map { it[KEY_HOME_ASSISTANT_URL].orEmpty() }
     val wakeSensitivity: Flow<Int> = context.dataStore.data.map { it[KEY_WAKE_SENSITIVITY] ?: 1 }
@@ -298,6 +301,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setThemeHue(v: Float) = context.dataStore.edit { it[KEY_THEME_HUE] = v }
     suspend fun setDeviceControlEnabled(v: Boolean) = context.dataStore.edit { it[KEY_DEVICE_CONTROL] = v }
     suspend fun setWorkFolder(v: String) = context.dataStore.edit { it[KEY_WORK_FOLDER] = v }
+    suspend fun setObsidianVault(v: String) = context.dataStore.edit { it[KEY_OBSIDIAN_VAULT] = v }
     suspend fun setHomeAssistantUrl(v: String) = context.dataStore.edit { it[KEY_HOME_ASSISTANT_URL] = v.trim() }
     suspend fun setWakeSensitivity(v: Int) = context.dataStore.edit { it[KEY_WAKE_SENSITIVITY] = v.coerceIn(0, 2) }
     suspend fun setProactiveEnabled(v: Boolean) = context.dataStore.edit { it[KEY_PROACTIVE] = v }

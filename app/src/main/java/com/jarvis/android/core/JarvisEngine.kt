@@ -516,6 +516,7 @@ class JarvisEngine(
             var consecutiveDrops = 0
             var tuneDetection = true
             while (true) {
+                LiveModels.ladder.answered(model)
                 val drop = try {
                     runConnection(apiKey, model, voice, instruction, handleToSend, language.ifBlank { null }, tuneDetection, muteWhileSpeaking)
                 } catch (d: ConnectionDropped) {

@@ -40,7 +40,7 @@ class JarvisContainer(val appContext: Context) {
         onLog(message)
     }
 
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    internal val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     /** Mirrors the wake-word setting so that non-suspending code can read it. */
     @Volatile var wakeEnabled: Boolean = false

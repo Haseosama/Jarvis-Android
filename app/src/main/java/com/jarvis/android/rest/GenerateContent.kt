@@ -224,6 +224,7 @@ internal class OkHttpGenerateTransport(
         for ((i, m) in models.withIndex()) {
             try {
                 val result = call(m)
+                ladder?.answered(m)
                 if (i > 0) log("Modèle de secours : $m a répondu (${models.take(i).joinToString()} indisponible)")
                 return result
             } catch (e: RestChatException) {

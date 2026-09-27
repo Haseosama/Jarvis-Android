@@ -77,6 +77,19 @@ class ModelLadderTest {
         assertTrue(ladder.candidates("models/gemini-3.6-flash").containsAll(listOf("gemini-3.6-flash", "b", "c")))
     }
 
+    @Test fun `the settings see what is resting and why, and can put it all back`() = runBlocking {
+        val calls = mutableListOf<String>()
+        val t = transport(client({ if (it == "a") 429 else 200 }, calls = calls))
+        t.generate("a", req)
+        assertEquals("b", ladder.lastAnswered)
+        assertEquals(listOf(ModelLadder.Resting("a", ModelLadder.Failure.QUOTA, 5)), ladder.resting())
+        clock += 2 * 60_000L
+        assertEquals(3L, ladder.resting().single().minutesLeft)
+        ladder.reset()
+        assertTrue(ladder.resting().isEmpty())
+        assertEquals("a", ladder.candidates("a").first())
+    }
+
     @Test fun `every model resting still leaves the chosen one to try`() {
         ladder.rest("a", ModelLadder.Failure.QUOTA); ladder.rest("b", ModelLadder.Failure.QUOTA); ladder.rest("c", ModelLadder.Failure.QUOTA)
         assertEquals(listOf("a"), ladder.candidates("a"))

@@ -45,7 +45,30 @@ internal class ModelLadder(
     @Synchronized
     fun rest(model: String, why: Failure) {
         restingUntil[key(model)] = now() + why.restMs
+        reasons[key(model)] = why
     }
+
+    private val reasons = HashMap<String, Failure>()
+
+    /** The model that last answered (for the settings), null before the first call. */
+    @Volatile var lastAnswered: String? = null
+        private set
+
+    fun answered(model: String) { lastAnswered = key(model) }
+
+    /** A model set aside: why, and for how many more minutes. */
+    data class Resting(val model: String, val why: Failure, val minutesLeft: Long)
+
+    @Synchronized
+    fun resting(): List<Resting> {
+        val t = now()
+        return restingUntil.filter { it.value > t }.map { (m, until) -> Resting(m, reasons[m] ?: Failure.UNAVAILABLE, (until - t + 59_999) / 60_000) }
+            .sortedBy { it.minutesLeft }
+    }
+
+    /** Every model back in the running (the user fixed their key or their quota). */
+    @Synchronized
+    fun reset() { restingUntil.clear(); reasons.clear() }
 
     companion object {
         /**

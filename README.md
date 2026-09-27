@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.27 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.28 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -187,6 +187,28 @@ Since 0.9.27, after [Mark LV](https://github.com/FatihMakes/Mark-LV) (CC BY-NC 4
   429 and a 400 naming the model rest 5 minutes and 6 hours; a refused key or a bad request do not move; speech models stay; all
   resting still leaves the chosen one), `LiveModelsTest` (which endings move the session and which do not), the whole suite, the app
   started on the emulator. *Not checked:* a real quota or outage (the emulator's key is not valid, so every call stops at the key).
+
+### Faster start, a voice by voice, models in view, Obsidian notes (0.9.28)
+
+- **Faster start.** The first frame waited for the avatar's head to be read (about a second on a phone: `HeadMesh.parse` of a 2 MB
+  asset, and the renderer built on it) because `AvatarView` did it while composing. It is now made off the main thread
+  (`produceState` on `Dispatchers.Default`, the animation loop too), the screen shows at once and the face appears when ready.
+  Measured on the emulator: a cold start of the debug build 3.0–3.7 s → 2.3–3.0 s (frames skipped at the first frame 150–170 → ~90);
+  the release build (compiled ahead with its baseline profile) starts in 1.2 s, the second start skipping no frame.
+- **Change the voice by voice** (`change_voice`): "prends une voix féminine", "essaie la voix Leda", "une voix plus douce", "une
+  autre" (the next matching voice after the current one, so asking again goes through them), "quelles voix as-tu ?". A voice session
+  takes its voice when it opens, so the tool saves the voice, the assistant says one short sentence, the session closes and opens
+  again at once, and the new voice introduces itself. Out of a session the voice is simply saved. *Checked:* `ChangeVoiceTest`,
+  the tool on the emulator. *Not checked:* the restart in a real session (no valid key on the emulator).
+- **Models in view** (Settings > API keys and models > *Modèles en service*): the text and voice models answering now, the ones set
+  aside by the ladders (why, and for how many more minutes), and a button to put them all back after fixing a key or a quota.
+- **Obsidian notes** (`obsidian_notes`, Settings > *Notes Obsidian*). The user picks the vault's folder once (the one holding
+  `.obsidian`); Jarvis searches its notes (every word, in titles and texts, a title first, with the matching line), reads one by its
+  title (case and accents aside, or the start of it), adds to a note or to today's note (`YYYY-MM-DD.md`, created if missing),
+  creates a note (in a folder if asked, never over an existing one) and lists the recent ones. It deletes and renames nothing
+  (Obsidian keeps its links by the names), leaves `.obsidian` and `.trash` alone, and hands a note's text to the model as the user's
+  writing, never as instructions. *Checked:* `ObsidianVaultTest` (a vault in memory), the card and the "no vault" answer on the
+  emulator. *Not checked:* a real vault (granting a folder is the user's to do).
 
 ### Connection drops and stored key
 

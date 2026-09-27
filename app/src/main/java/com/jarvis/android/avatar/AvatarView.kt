@@ -25,8 +25,11 @@ import com.jarvis.android.core.JarvisState
 @Composable
 internal fun AvatarView(controller: AvatarController, state: JarvisState, outputLevel: Float, modifier: Modifier = Modifier) {
     val model = controller.model
-    val avatar = controller.avatar
-    val renderer = remember(controller, model) { AvatarRenderer(controller.mesh) }
+    // The head (its mesh read, about a second on a phone, and its renderer built) is made off the main thread: the screen shows at
+    // once and the face appears when it is ready, instead of the whole first frame waiting for it.
+    val head by androidx.compose.runtime.produceState<Pair<AvatarRenderer, HoloAvatar>?>(null, controller, model) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { AvatarRenderer(controller.mesh) to controller.avatar }
+    }
     val cartoon = remember { CartoonRenderer() }
     // a character's files (its mesh and its atlas image) are read off the main thread: the face appears when they are
     val characterFolder = avatarFace(model).character
@@ -40,6 +43,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     var frame by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(controller, model) {
+        val avatar = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { controller.avatar }
         var last = SystemClock.elapsedRealtimeNanos()
         var lastDraw = 0L
         while (true) {
@@ -73,6 +77,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
 
     Canvas(modifier.fillMaxWidth().aspectRatio(1f)) {
         @Suppress("UNUSED_VARIABLE") val tick = frame // reading it makes the canvas redraw with every animation step
+        val (renderer, avatar) = head ?: return@Canvas
         val r = size.minDimension * 0.36f // head half-height: the head fills about 72 % of the square, the neck fades below it
         if (characterFolder != null) {
             character?.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, bg)

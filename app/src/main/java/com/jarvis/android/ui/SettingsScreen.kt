@@ -126,6 +126,16 @@ fun SettingsScreen(
     val speechLanguage by configStore.speechLanguage.collectAsState(initial = "")
     var langMenuOpen by remember { mutableStateOf(false) }
     val workFolder by configStore.workFolder.collectAsState(initial = "")
+    val obsidianVault by configStore.obsidianVault.collectAsState(initial = "")
+    val pickVault = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            try {
+                context0.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                scope.launch { configStore.setObsidianVault(uri.toString()) }
+            } catch (_: Exception) {
+            }
+        }
+    }
     val homeAssistantUrl by configStore.homeAssistantUrl.collectAsState(initial = "")
     var haUrlField by remember(homeAssistantUrl) { mutableStateOf(homeAssistantUrl) }
     val pluginStore = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.pluginStore }
@@ -1007,6 +1017,34 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
             }
+            SettingsCard(tr("Notes Obsidian"), Icons.Filled.Folder, initiallyExpanded = false) {
+            Text(
+                if (obsidianVault.isBlank()) tr("Aucun coffre choisi.")
+                else trf("Coffre : {0}", android.net.Uri.decode(obsidianVault.substringAfterLast("tree/"))),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                OutlinedButton(onClick = { pickVault.launch(null) }) { Text(if (obsidianVault.isBlank()) tr("Choisir le coffre") else tr("Changer de coffre")) }
+                if (obsidianVault.isNotBlank()) {
+                    OutlinedButton(onClick = {
+                        try {
+                            context0.contentResolver.releasePersistableUriPermission(
+                                android.net.Uri.parse(obsidianVault),
+                                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                            )
+                        } catch (_: Exception) {
+                        }
+                        scope.launch { configStore.setObsidianVault("") }
+                    }) { Text(tr("Retirer l’accès")) }
+                }
+            }
+            Text(
+                tr("Choisissez le dossier de votre coffre Obsidian (celui qui contient le dossier .obsidian). Jarvis peut y chercher, lire, ajouter à une note ou à la note du jour, et créer des notes ; il ne supprime ni ne renomme rien. Exemples : « note dans Obsidian d’acheter du pain », « qu’est-ce que j’ai noté sur le projet ? »."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            }
             MessageSendCard(configStore)
             SosCard()
             PhotosCard()
@@ -1264,6 +1302,7 @@ fun SettingsScreen(
                 supportingText = { Text(tr("Laissez vide pour détecter automatiquement un modèle de synthèse vocale disponible avec votre clé. La voix suit le réglage de voix ci-dessus.")) },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
+            ModelStatus()
             Text(
                 trf("Clés API Gemini : jusqu’à {0}. Jarvis utilise la clé 1 ; si Gemini la refuse (quota atteint, clé invalide ou accès refusé), il passe seul à la suivante pour le chat texte et la voix du chat.", ConfigStore.MAX_API_KEYS),
                 style = MaterialTheme.typography.bodySmall,

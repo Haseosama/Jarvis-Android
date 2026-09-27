@@ -42,6 +42,8 @@ object ToolRegistry {
         ForgetMemoryTool,
         UndoTool,
         EndSessionTool,
+        ChangeVoiceTool,
+        ObsidianTool,
         ScreenReadTool,
         ScreenLookTool,
         ScreenTapTool,
