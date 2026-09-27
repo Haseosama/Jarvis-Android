@@ -1,0 +1,45 @@
+{
+ "id": "adam",
+ "source": "casualconfi",
+ "eye_y": 0.781,
+ "chin": 0.672,
+ "centre_x": 0.0,
+ "label": "Adam",
+ "order": 10,
+ "public": true,
+ "ambient": 0.72,
+ "credit": "This work is based on \"Casual Confidence\" (https://sketchfab.com/3d-models/casual-confidence-c3b18c51cb4647139efa24eeb98c7ab1) by restore50 (https://sketchfab.com/restore50) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+ "eyes": [
+  [
+   -0.28,
+   -0.015,
+   0.165,
+   0.05,
+   5
+  ],
+  [
+   0.27,
+   0.03,
+   0.085,
+   0.05,
+   5
+  ]
+ ],
+ "mouth": [
+  0.04,
+  -0.665,
+  0.24,
+  0.0,
+  0.094
+ ],
+ "cells": [
+  0.016,
+  0.05
+ ],
+ "max_tris": 30000,
+ "cut": -1.9,
+ "neck": [
+  -1.45,
+  -1.05
+ ]
+}

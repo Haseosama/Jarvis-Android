@@ -459,6 +459,11 @@ fun SettingsScreen(
                     FilterChip(selected = faceModel == v, onClick = { scope.launch { configStore.setAvatarModel(v) } }, label = { Text(tr(face.label)) })
                 }
             }
+            // a textured character names its author (its licence asks for it); the skin, cap and lip settings do not apply to it
+            val chosenCredit = com.jarvis.android.avatar.avatarFace(faceModel).credit
+            if (chosenCredit.isNotEmpty()) {
+                Text(chosenCredit, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
+            }
             Text(tr("Peau"), style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).horizontalScroll(rememberScrollState())) {
                 listOf(0 to "Réseau lumineux", 5 to "Hologramme", 6 to "Hologramme + cheveux", 7 to "Hologramme bleu", 1 to "Claire", 2 to "Mate", 3 to "Bronzée", 4 to "Foncée").forEach { (v, label) ->

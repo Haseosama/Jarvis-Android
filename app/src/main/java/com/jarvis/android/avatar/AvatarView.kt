@@ -28,6 +28,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     val avatar = controller.avatar
     val renderer = remember(controller, model) { AvatarRenderer(controller.mesh) }
     val cartoon = remember { CartoonRenderer() }
+    val character = remember(controller, model) { controller.character()?.let { CharacterRenderer(it) } }
     val currentState by rememberUpdatedState(state)
     val currentLevel by rememberUpdatedState(outputLevel)
     var frame by remember { mutableLongStateOf(0L) }
@@ -66,6 +67,10 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     Canvas(modifier.fillMaxWidth().aspectRatio(1f)) {
         @Suppress("UNUSED_VARIABLE") val tick = frame // reading it makes the canvas redraw with every animation step
         val r = size.minDimension * 0.36f // head half-height: the head fills about 72 % of the square, the neck fades below it
+        if (character != null) {
+            character.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, bg)
+            return@Canvas
+        }
         if (avatarFace(model).cartoon) {
             cartoon.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, if (controller.skin >= HOLO_SKIN) 1 else controller.skin, controller.lips)
             return@Canvas

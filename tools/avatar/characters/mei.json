@@ -1,0 +1,45 @@
+{
+ "id": "mei",
+ "source": "girlwearing",
+ "eye_y": 0.4185,
+ "chin": 0.3545,
+ "centre_x": 0.052,
+ "label": "Mei",
+ "order": 11,
+ "public": true,
+ "ambient": 0.8,
+ "credit": "This work is based on \"Girl Wearing Traditional Clothing V4\" (https://sketchfab.com/3d-models/girl-wearing-traditional-clothing-v4-8b96140388014154b7439ca0233c42c6) by Fadly.W (https://sketchfab.com/Fadly.W) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+ "eyes": [
+  [
+   -0.325,
+   -0.052,
+   0.17,
+   0.055,
+   0
+  ],
+  [
+   0.295,
+   -0.055,
+   0.13,
+   0.05,
+   0
+  ]
+ ],
+ "mouth": [
+  0.01,
+  -0.667,
+  0.235,
+  0.0,
+  0.03
+ ],
+ "cells": [
+  0.016,
+  0.05
+ ],
+ "max_tris": 30000,
+ "cut": -1.9,
+ "neck": [
+  -1.45,
+  -1.05
+ ]
+}

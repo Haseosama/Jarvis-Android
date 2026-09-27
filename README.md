@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.21 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.22 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1005,6 +1005,27 @@ also shown in the settings.
   measurements when the file name contains "sculpt" ("female" or not), and every new parameter defaults to the old behaviour, so *Classique*
   still rebuilds byte for byte identical from the scan. *Checked:* that byte-for-byte rebuild, `AvatarFacesTest` (rings, eye and lip placement, jaw widths, hair, triangle
   budget), and Léa on the emulator from the front, three-quarters and profile. *Not checked:* the frame rate on a real phone.
+- **Textured characters** (since 0.9.22; Settings > Appearance > Visage, after the heads). Whole characters from Sketchfab, drawn with
+  their own textures: *Adam* ("Casual Confidence" by restore50) and *Mei* ("Girl Wearing Traditional Clothing V4" by Fadly.W), both CC BY 4.0,
+  credited under the choice and in `NOTICE.txt`. `tools/avatar/export_character.py <config> <glTF folder>` reads the model (`gltf_scene.py`:
+  node transforms, the rest pose of rigged ones, the specular-glossiness materials, `KHR_texture_transform`), frames it as the heads (the
+  chin at y -1, the eyes near 0, from the eye line and chin measured once in the config, `tools/avatar/characters/*.json`), keeps the bust
+  above the shoulders, simplifies it when it is heavy (clustering per UV island, so the texture never smears across a seam, one shared
+  position per cell so the islands stay stitched), packs the part of each texture it uses into one atlas (`atlas.webp`), and weights each
+  vertex for the head's turn and the jaw. `--measure` renders the model with its textures and a grid (`raster.py`) to read where the eyes
+  and the mouth are. In the app `CharacterRenderer` poses the bust with the same animation as the heads (the head turns on the neck, the
+  shoulders follow a little, the jaw drops), draws it with `Canvas.drawVertices` and a `BitmapShader` (the vertex colours carry the light),
+  and since the eyes and the mouth are painted in the texture, draws over them what moves: the inside of the mouth between the parted
+  lips (with the upper teeth), and the lids when the eyes blink or sleep, in the colour of the skin next to them. The bust melts away below
+  the shoulders through a layer erased along a gradient. The skin, cap and lip settings do not apply to them.
+  Models whose rights are not ours to publish can be added the same way for a personal build: their config says `"public": false`, and they
+  are written to `app/src/debug/assets/avatar/characters/`, which git ignores, so they are only in a local debug build, never in the
+  repository nor in a release. The faces list is built at start-up from the characters present (`CharacterCatalog`).
+  *Checked:* `CharacterMeshTest` (the public characters are well formed, within the triangle budget, credited, and only publishable ones
+  are in the public assets), all the characters on the emulator from the front and three-quarters, eyes closed and mouth open (debug
+  override), and the frame time (22 to 34 ms a frame on the emulator, against 48 ms for Marc). *Not checked:* the lip-sync on a real voice
+  (the emulator has no Gemini key; the characters take the same mouth value as the heads), the frame rate on a real phone, and phones
+  before Android 10, which draw them untextured, in grey.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.

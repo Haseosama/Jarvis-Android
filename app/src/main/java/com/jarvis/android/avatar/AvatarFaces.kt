@@ -11,13 +11,17 @@ internal data class AvatarFace(
     val halo: Boolean = false,
     /** The natural lip colour, from the skin (0) towards a rose (1), when no lip tone is chosen. */
     val lipTint: Float = 0.7f,
+    /** A textured character (see CharacterMesh): the folder of its files in the assets; the head asset then only drives the animation. */
+    val character: String? = null,
+    /** Who made the character, shown under the choice (their licence asks for it). */
+    val credit: String = "",
 )
 
 /**
  * The faces, in the order of the setting. Classique is a head scan, Léa and Marc are sculpted heads (see tools/avatar/export_head.py and
  * assets/avatar/NOTICE.txt), each with a hair style and a colour of its own.
  */
-internal val AVATAR_FACES = listOf(
+internal val BUILT_IN_FACES = listOf(
     AvatarFace("Classique", "avatar/head_mesh.bin", 0xFF34241C.toInt()),
     AvatarFace("Léa", "avatar/head_mesh_lea.bin", 0xFF1A1E27.toInt(), fibres = false, browScale = 0.65f, lashScale = 1.35f, androidLook = true, halo = true),
     AvatarFace("Marc", "avatar/head_mesh_marc.bin", 0xFF2B2928.toInt(), lipTint = 0.3f),
@@ -25,4 +29,9 @@ internal val AVATAR_FACES = listOf(
     AvatarFace("Dessin animé", "avatar/head_mesh.bin", 0xFF1F1614.toInt(), fibres = false, cartoon = true),
 )
 
-internal fun avatarFace(index: Int): AvatarFace = AVATAR_FACES[index.coerceIn(0, AVATAR_FACES.lastIndex)]
+/** The built-in faces, then the textured characters found in the assets (set once at start-up, see [CharacterCatalog]). */
+@Volatile internal var characterFaces: List<AvatarFace> = emptyList()
+
+internal val AVATAR_FACES: List<AvatarFace> get() = BUILT_IN_FACES + characterFaces
+
+internal fun avatarFace(index: Int): AvatarFace = AVATAR_FACES.let { it[index.coerceIn(0, it.lastIndex)] }

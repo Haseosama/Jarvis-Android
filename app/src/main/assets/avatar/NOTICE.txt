@@ -32,3 +32,12 @@ licensed under Creative Commons Attribution 4.0 (CC BY 4.0, http://creativecommo
 from 2.26 million to about 20,000 triangles (tools/avatar/prepare_sculpt.py), normalised, cut at the neck on a tilted plane, given eye
 openings with eyeballs, a mouth with teeth, the rig and the landmark rings of Mark-LIV's builder, and short hair (tools/avatar/export_head.py,
 tools/avatar/groom.py).
+
+Textured characters (assets/avatar/characters, built by tools/avatar/export_character.py: the bust cut from the model, simplified,
+its textures packed into one atlas, and rigged for the head's turn and the jaw; the renderer draws the lids and the open mouth over them):
+
+"Adam" is based on "Casual Confidence" (https://sketchfab.com/3d-models/casual-confidence-c3b18c51cb4647139efa24eeb98c7ab1) by restore50
+(https://sketchfab.com/restore50), licensed under Creative Commons Attribution 4.0 (CC BY 4.0, http://creativecommons.org/licenses/by/4.0/).
+
+"Mei" is based on "Girl Wearing Traditional Clothing V4" (https://sketchfab.com/3d-models/girl-wearing-traditional-clothing-v4-8b96140388014154b7439ca0233c42c6)
+by Fadly.W (https://sketchfab.com/Fadly.W), licensed under Creative Commons Attribution 4.0 (CC BY 4.0, http://creativecommons.org/licenses/by/4.0/).

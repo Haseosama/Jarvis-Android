@@ -52,6 +52,22 @@ internal class AvatarController(private val context: Context) {
     val mesh: HeadMesh get() = current().first
     val avatar: HoloAvatar get() = current().second
 
+    init {
+        characterFaces = try { CharacterCatalog.faces(context.assets) } catch (_: Exception) { emptyList() }
+    }
+
+    private val characters = HashMap<String, CharacterMesh?>()
+
+    /** The textured character of the chosen face, or null when it is a head (or its files could not be read). */
+    @Synchronized
+    fun character(): CharacterMesh? {
+        val folder = avatarFace(model).character ?: return null
+        return characters.getOrPut(folder) {
+            characters.keys.toList().forEach { characters.remove(it) }          // one atlas in memory at a time
+            try { CharacterMesh.load(context.assets, folder) } catch (_: Exception) { null }
+        }
+    }
+
     /** Called with each chunk of the assistant's voice (16-bit PCM, 24 kHz), just before it goes to the speaker. */
     fun onSpeech(pcm16: ByteArray) {
         if (!enabled) return
