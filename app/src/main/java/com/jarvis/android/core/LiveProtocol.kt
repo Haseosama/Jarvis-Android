@@ -137,7 +137,8 @@ sealed class LiveEvent {
     object Interrupted : LiveEvent()
     data class ToolCall(val calls: List<FunctionCall>) : LiveEvent()
     data class ResumptionUpdate(val handle: String) : LiveEvent()
-    data class Error(val message: String) : LiveEvent()
+    /** [httpCode]: the HTTP status when the connection was refused at the handshake (404 for a model this key cannot use...). */
+    data class Error(val message: String, val httpCode: Int? = null) : LiveEvent()
     data class Closed(val code: Int, val reason: String) : LiveEvent()
 }
 

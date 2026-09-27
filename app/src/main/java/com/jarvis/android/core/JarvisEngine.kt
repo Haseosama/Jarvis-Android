@@ -500,7 +500,11 @@ class JarvisEngine(
             if (container.configStore.wakeWordEnabled.first()) {
                 log(tr("Session démarrée : détection du mot d’activation en pause jusqu’à la mise en veille."))
             }
-            val model = container.configStore.snapshotModel()
+            val chosenModel = container.configStore.snapshotModel()
+            // the first Live model that is not resting (one out of quota or missing for this key is stepped over, see LiveModels)
+            fun liveModel() = LiveModels.ladder.candidates(chosenModel).first().let { if (it.startsWith("models/")) it else "models/$it" }
+            var model = liveModel()
+            if (model != chosenModel) log(trf("Modèle vocal de secours : {0}.", model.removePrefix("models/")))
             val voice = container.configStore.snapshotVoice()
             val instruction = withContext(Dispatchers.IO) { buildSystemInstruction(container) }
             currentCoroutineContext().ensureActive()
@@ -516,6 +520,21 @@ class JarvisEngine(
                     runConnection(apiKey, model, voice, instruction, handleToSend, language.ifBlank { null }, tuneDetection, muteWhileSpeaking)
                 } catch (d: ConnectionDropped) {
                     d
+                }
+                // out of quota, or this model is not there for this key: the next Live model, at once (not the model's fault: as before)
+                LiveModels.failure(drop.detail)?.let { why ->
+                    LiveModels.ladder.rest(model, why)
+                    val next = liveModel()
+                    if (next != model) {
+                        log(trf("Modèle vocal {0} indisponible ({1}) : passage à {2}.", model.removePrefix("models/"),
+                            if (why == com.jarvis.android.rest.ModelLadder.Failure.QUOTA) tr("quota atteint") else tr("inaccessible avec cette clé"),
+                            next.removePrefix("models/")))
+                        model = next
+                        resumeHandle = null
+                        handleToSend = null
+                        _state.value = JarvisState.CONNECTING
+                        continue
+                    }
                 }
                 if (tuneDetection && !drop.wasReady && drop.detail.contains("(1007)")) {
                     // The server refused the setup: most likely the voice-detection tuning. Retry once without it.
@@ -753,7 +772,7 @@ class JarvisEngine(
                             is LiveEvent.ResumptionUpdate -> {
                                 resumeHandle = event.handle
                             }
-                            is LiveEvent.Error -> throw dropped(tr("Erreur réseau."))
+                            is LiveEvent.Error -> throw dropped(tr("Erreur réseau.") + (event.httpCode?.let { " (HTTP $it)" } ?: ""))
                             is LiveEvent.Closed -> throw dropped(trf("Session fermée ({0}) : {1}", event.code, event.reason.take(160)), serverClosed = true)
                             else -> if (ready.isCompleted) handleEvent(event, connection)
                         }

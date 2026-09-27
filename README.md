@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.26 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.27 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -159,6 +159,34 @@ bidiGenerateContent` means the model id is not Live-capable. A generic `1007 Req
 contains an invalid argument` that repeats for every model, while the REST test passes,
 was fixed here by creating a fresh key at aistudio.google.com/apikey (cause not
 established).
+
+### Models that fail: a ladder (from Mark LV)
+
+Since 0.9.27, after [Mark LV](https://github.com/FatihMakes/Mark-LV) (CC BY-NC 4.0, the same licence as Mark LIV):
+
+- **Text models** (`rest/ModelLadder.kt`). Every one-shot Gemini call — the text chat, web search, looking at the screen or a file,
+  the agent, meeting notes, the memory's extraction — goes through one transport, and so through one ladder: the model chosen in the
+  settings first, then `gemini-3.5-flash`, `gemini-2.5-flash`, `gemini-flash-latest`, the light ones, and last the two Mark LV measured
+  as the least reliable. A model that fails for its own reasons is set aside for a time that depends on why: out of quota on every key
+  (429) 5 minutes, not answering (500–504, or a time-out) 30 minutes, not there for this key (404, or a 400 naming the model)
+  6 hours; the next one answers the same call. A refused key, a bad request or the phone's network are not the model's fault and end
+  the call as before (walking the ladder would hit the same wall each time). Speech models are never replaced by a text one, and a
+  streamed answer moves to another model only before anything of it was handed on. Every call also has a deadline (180 s in all,
+  90 s without a byte), so a model that holds the line is let go. Before this, one model answered everything: Mark LV measured
+  `gemini-3.6-flash`, this app's default, answering 504 after 12 s.
+- **Live models** (`core/LiveModels.kt`). A voice session opens on the model chosen in the settings; if it is out of quota or not
+  there for this key, it reconnects at once on `gemini-3.1-flash-live-preview`, then `gemini-2.5-flash-native-audio-preview-12-2025`
+  (the two Mark LV checked in September 2026), and says so in the activity log. Deliberately a short list, and only for the model's
+  own failures: Live models differ in what they accept, and a network drop or a refused key never moves it.
+- **Several requests at once**: the system prompt now asks for every task of a turn to be done, in the order given, then one answer
+  covering each result.
+- **"Sent" means sent**: a message sent by pressing the app's Send button (SMS or WhatsApp through the screen) counted as sent even when
+  the compose field could not be read, so there was nothing to check it had emptied. Such a press is now reported as not confirmed
+  ("check in the app"), and the assistant is told not to say it was sent (Mark LV fixed the same fault in its WhatsApp driver).
+- *Checked:* `ModelLadderTest` (a fake Gemini answering per model: 504 → the next answers and the first is skipped for half an hour;
+  429 and a 400 naming the model rest 5 minutes and 6 hours; a refused key or a bad request do not move; speech models stay; all
+  resting still leaves the chosen one), `LiveModelsTest` (which endings move the session and which do not), the whole suite, the app
+  started on the emulator. *Not checked:* a real quota or outage (the emulator's key is not valid, so every call stops at the key).
 
 ### Connection drops and stored key
 

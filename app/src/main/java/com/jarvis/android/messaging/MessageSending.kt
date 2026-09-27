@@ -174,7 +174,12 @@ internal suspend fun sendThroughScreen(ctx: JarvisContainer, intent: Intent, app
         val button = snapshot.elements.firstOrNull { it.clickable && isSendLabel(it.label) } ?: continue
         // Pressed, then checked: the message has left the compose field (or pressed again with a real tap) — see device/SendPress.kt.
         return when (val press = service.pressSend(button.index)) {
-            is com.jarvis.android.device.SendPress.Sent -> SendOutcome.Sent(appName)
+            // "sent" only when the compose field was seen to empty; a press nothing could be checked against is not a message that
+            // left (Mark LV: a message reported as delivered that never went is the one failure that matters)
+            is com.jarvis.android.device.SendPress.Sent -> if (press.verified) SendOutcome.Sent(appName) else SendOutcome.Failed(
+                trf("J’ai appuyé sur Envoyer dans {0}, mais son champ de saisie n’était pas lisible : impossible de vérifier que le message est parti. Vérifiez dans l’application.", appName),
+                mayHaveGone = true,
+            )
             is com.jarvis.android.device.SendPress.NotSent -> SendOutcome.Failed(
                 trf("{0} n’a pas envoyé le message ({1}) : il est prêt dans l’application, appuyez vous-même sur envoyer.", appName, press.reason),
             )

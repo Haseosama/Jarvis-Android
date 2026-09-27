@@ -104,7 +104,7 @@ class GeminiLiveClient(
                     ready = false
                     closed = true
                 }
-                trySend(LiveEvent.Error("Connexion Gemini interrompue. Vérifiez le réseau puis réessayez."))
+                trySend(LiveEvent.Error("Connexion Gemini interrompue. Vérifiez le réseau puis réessayez.", response?.code))
                 close()
             }
         }

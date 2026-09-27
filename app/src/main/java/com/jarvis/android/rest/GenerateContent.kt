@@ -58,6 +58,13 @@ internal const val ERROR_BLOCKED = "La réponse a été bloquée par les filtres
 internal const val ERROR_MALFORMED = "Réponse illisible du service Gemini."
 internal const val ERROR_INVALID_MODEL = "Nom de modèle texte invalide. Corrigez-le dans les paramètres."
 internal const val ERROR_TOO_MANY_TOOLS = "Trop d’actions enchaînées : la demande a été interrompue."
+internal const val ERROR_TIMEOUT = "Gemini n’a pas répondu à temps. Réessayez."
+
+/** True when a 400 is about the model itself (a name that does not exist, or a model that cannot do this), not the request. */
+internal fun isModelMissing(body: String): Boolean {
+    val b = body.lowercase()
+    return b.contains("model") && (b.contains("not found") || b.contains("is not supported") || b.contains("unsupported") || b.contains("does not exist"))
+}
 
 internal fun httpErrorMessage(code: Int): String = when (code) {
     400 -> tr("Requête refusée par Gemini (400). Clé API invalide ou modèle texte incorrect : vérifiez les deux dans les paramètres.")
@@ -195,12 +202,39 @@ internal class OkHttpGenerateTransport(
     private val apiKey: () -> String?,
     /** Called with a key that was refused; returns another key to try, or null. */
     private val nextKey: (rejected: String) -> String? = { null },
+    /** The text models to fall back on when one is out of quota, not answering or not there (see [ModelLadder]); null: none. */
+    private val ladder: ModelLadder? = null,
+    private val log: (String) -> Unit = {},
 ) : GenerateTransport {
     override suspend fun generate(model: String, request: JsonObject): JsonObject =
-        withKeys(model) { path, key -> send(path, key, request) }
+        viaLadder(model, { true }) { m -> withKeys(m) { path, key -> send(path, key, request) } }
 
     override suspend fun stream(model: String, request: JsonObject, onEvent: suspend (JsonObject) -> Unit) {
-        withKeys(model) { path, key -> receiveStream(path, key, request, onEvent) }
+        // another model can take over only while nothing has been handed on: half an answer from one and the rest from another is worse
+        var delivered = false
+        viaLadder(model, { !delivered }) { m ->
+            withKeys(m) { path, key -> receiveStream(path, key, request) { delivered = true; onEvent(it) } }
+        }
+    }
+
+    /** Runs [call] on [model], then on the next models of the ladder while a failure is the model's own. */
+    private suspend fun <T> viaLadder(model: String, mayMove: () -> Boolean, call: suspend (String) -> T): T {
+        val models = ladder?.candidates(model) ?: listOf(model)
+        var first: RestChatException? = null
+        for ((i, m) in models.withIndex()) {
+            try {
+                val result = call(m)
+                if (i > 0) log("Modèle de secours : $m a répondu (${models.take(i).joinToString()} indisponible)")
+                return result
+            } catch (e: RestChatException) {
+                val why = ladder?.let { ModelLadder.classify(e) } ?: throw e
+                ladder.rest(m, why)
+                log("Modèle $m mis de côté ($why, ${e.httpCode})")
+                if (first == null) first = e
+                if (!mayMove()) throw e
+            }
+        }
+        throw first ?: RestChatException(ERROR_EMPTY)
     }
 
     /** Runs [attempt] with the current key, moving to the next key when one is refused before any data. */
@@ -239,8 +273,15 @@ internal class OkHttpGenerateTransport(
         if (response.isSuccessful) return
         val body = response.body?.string().orEmpty()
         if (isKeyProblem(response.code, body)) throw KeyRefused(response.code)
+        // a 400 about the model (unknown name, or it cannot do this) is the model's failure, as a 404 is
+        if (response.code == 400 && isModelMissing(body)) throw RestChatException(httpErrorMessage(404), 404)
         throw RestChatException(httpErrorMessage(response.code), response.code)
     }
+
+    /** A time-out is a model not answering (the ladder moves on); any other network failure is the phone's. */
+    private fun networkFailure(e: IOException): RestChatException =
+        if (e is java.io.InterruptedIOException && e !is java.nio.channels.ClosedByInterruptException) RestChatException(ERROR_TIMEOUT, 504)
+        else RestChatException(ERROR_NETWORK)
 
     private suspend fun send(path: String, key: String, request: JsonObject): JsonObject {
         val http = buildRequest("https://generativelanguage.googleapis.com/v1beta/$path:generateContent", key, request)
@@ -254,7 +295,7 @@ internal class OkHttpGenerateTransport(
                 }
             }
         } catch (e: IOException) {
-            throw RestChatException(ERROR_NETWORK)
+            throw networkFailure(e)
         }
     }
 
@@ -294,7 +335,7 @@ internal class OkHttpGenerateTransport(
             }
         } catch (e: IOException) {
             currentCoroutineContext().ensureActive()
-            throw RestChatException(ERROR_NETWORK)
+            throw networkFailure(e)
         }
     }
 }

@@ -87,12 +87,16 @@ class RestChat internal constructor(
 ) {
     private val lock = Mutex()
 
-    private val httpClient = container.http.newBuilder().readTimeout(90, TimeUnit.SECONDS).build()
+    // a deadline for the whole call as well as for each read: a model that holds the line without answering is let go (and the
+    // ladder moves on to the next one) instead of being waited for without end
+    private val httpClient = container.http.newBuilder().readTimeout(90, TimeUnit.SECONDS).callTimeout(180, TimeUnit.SECONDS).build()
 
     internal val transport: GenerateTransport = transport ?: OkHttpGenerateTransport(
         client = httpClient,
         apiKey = { container.configStore.getApiKey() },
         nextKey = { container.configStore.keyRejected(it) },
+        ladder = ModelLadder.shared,
+        log = { android.util.Log.i("JarvisModels", it) },
     )
 
     private val session = RestChatSession(
