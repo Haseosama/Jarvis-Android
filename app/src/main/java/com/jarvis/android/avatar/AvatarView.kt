@@ -88,6 +88,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         renderer.lashScale = avatarFace(model).lashScale
         renderer.androidLook = avatarFace(model).androidLook
         renderer.halo = avatarFace(model).halo
+        renderer.lipTint = avatarFace(model).lipTint
         renderer.fibreOverlay = avatarFace(model).fibres
         renderer.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, accent, bg, stroke)
     }

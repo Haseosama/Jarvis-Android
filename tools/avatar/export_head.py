@@ -21,11 +21,15 @@ import numpy as np
 
 MARK_LIV, GLB = sys.argv[1], sys.argv[2]
 FACE_NAME = os.environ.get("JHM_FACE", "classic")     # classic | lea | marc: which head to build (see FACES below)
-# The head the face is built from: Lee Perry-Smith's scan (a man, eyes closed), or "Female Head Sculpt" by Aconear (CC BY 4.0,
-# https://sketchfab.com/3d-models/female-head-sculpt-ae24c33594a046519014fdc78758a8ec), a woman with open eyes, prepared by
-# tools/avatar/prepare_sculpt.py (turned to face +z, welded and simplified). Its features were measured on it once normalised
-# (see SOURCES below); the scan keeps the measurements it always had, so its faces come out byte for byte the same.
-SOURCE = "sculpt" if "sculpt" in os.path.basename(GLB).lower() else "lee"
+# The head the face is built from: Lee Perry-Smith's scan (a man, eyes closed), "Female Head Sculpt" by Aconear (CC BY 4.0,
+# https://sketchfab.com/3d-models/female-head-sculpt-ae24c33594a046519014fdc78758a8ec), a woman with open eyes, or "Realistic Male
+# head" by Ouail (CC BY 4.0, https://sketchfab.com/3d-models/realistic-male-head-8935543c732c454c932af6101ae5a190), a man with open
+# eyes, both prepared by tools/avatar/prepare_sculpt.py (turned to face +z, welded and simplified). Their features were measured on
+# them once normalised (see SCULPT_FEATURES below); the scan keeps the measurements it always had, so its faces come out byte for byte
+# the same. The file name tells them apart: FemaleHeadSculpt.glb, MaleHeadSculpt.glb, anything else is the scan.
+_base = os.path.basename(GLB).lower()
+SOURCE = ("sculpt" if "female" in _base else "msculpt") if "sculpt" in _base else "lee"
+SCULPTED = SOURCE != "lee"
 sys.path.insert(0, os.path.join(MARK_LIV, "core"))
 import avatar_mesh as am
 
@@ -97,7 +101,13 @@ V[:, 0] *= scale
 V[:, 1] = (V[:, 1] - (crown + chin_y) / 2) * scale
 V[:, 2] = V[:, 2] * scale - (nose_tip[2] * scale - 0.6796)
 CUT = -1.45
-keep_v = V[:, 1] > CUT
+# the male sculpt's neck ends in a ragged edge that runs from about y -1.23 under the chin (a spike down to -1.47) up to -0.97 at the
+# nape: it is cut on a plane tilted the same way, just above the rag (the others are cut level, below where their necks end)
+def cut_y(z):
+    return -1.19 - 0.19 * z if SOURCE == "msculpt" else np.full_like(z, CUT)
+
+
+keep_v = V[:, 1] > cut_y(V[:, 2])
 keep_f = keep_v[F].all(axis=1)
 used = np.unique(F[keep_f].ravel())
 remap = -np.ones(len(V), dtype=np.int64)
@@ -125,14 +135,22 @@ SCULPT_FEATURES = {
     "brow_l": (-0.315, 0.075, 0.95, 0.9, 0.0), "brow_r": (0.315, 0.075, 0.95, 0.9, 0.0),
     "lips_out": (0.0, -0.628, 0.95, 0.80, 0.0), "lips_in": (0.0, -0.615, 0.95, 0.80, 0.0),
 }
-if SOURCE == "sculpt":
+# The male sculpt, measured on the full-resolution model: the eye openings (where the eyeball shows, with the inner corner) run from
+# x 0.165 to 0.355 and y 0 to -0.075, the outer corner a little higher, round eyeballs of radius 0.111 centred at x 0.251, y -0.028;
+# the lips meet at y -0.606 and span x -0.245 to 0.245, from -0.545 at the top of the upper lip to -0.675 under the lower one.
+MALE_FEATURES = {
+    "eye_l": (-0.26, -0.038, 0.82, 1.25, -4.0), "eye_r": (0.26, -0.038, 0.82, 1.25, 4.0),
+    "brow_l": (-0.285, 0.068, 0.92, 0.8, 0.0), "brow_r": (0.285, 0.068, 0.92, 0.8, 0.0),
+    "lips_out": (0.0, -0.610, 1.11, 0.72, 0.0), "lips_in": (0.0, -0.607, 1.11, 0.72, 0.0),
+}
+if SCULPTED:
     FACE_X0 = 0.0
 
 
 def feature_xy(name, i, centre):
-    if SOURCE != "sculpt":
+    if not SCULPTED:
         return FACE_X0 + FACE_SX * Vm[i, 0], Vm[i, 1] + FEATURE_DY[name]
-    cx, cy, sx, sy, ang = SCULPT_FEATURES[name]
+    cx, cy, sx, sy, ang = (SCULPT_FEATURES if SOURCE == "sculpt" else MALE_FEATURES)[name]
     dx, dy = (Vm[i, 0] - centre[0]) * sx, (Vm[i, 1] - centre[1]) * sy
     a = np.radians(ang)
     return cx + dx * np.cos(a) - dy * np.sin(a), cy + dx * np.sin(a) + dy * np.cos(a)
@@ -169,7 +187,7 @@ neck = (cent[:, 1] < -1.10) | ((cent[:, 1] < -0.90) & (cent[:, 2] < 0.15))
 cranium = (cent[:, 1] > 0.55) | (cent[:, 2] < -0.45)
 group[cranium] = 1.2
 group[neck] = 0.0
-fade = 1.0 - 0.80 * smoothstep(-1.02, CUT, V[:, 1])
+fade = 1.0 - 0.80 * smoothstep(-1.02, CUT, V[:, 1]) if SOURCE != "msculpt" else 1.0 - 0.80 * smoothstep(0.43, 0.0, V[:, 1] - cut_y(V[:, 2]))
 
 # ---- 4. ambient occlusion from the curvature -------------------------------------------------------------------------------
 adj = [set() for _ in range(n_base)]
@@ -197,7 +215,7 @@ c1 = concavity(adj) / edge_len
 c2 = concavity(ring2) / (2.2 * edge_len)
 occ = np.clip(1.3 * c1 + 2.2 * c2, 0.0, 1.0)
 # the sculpt carries fine detail (pores, small bumps) that reads as tiny hollows: more smoothing, so only real folds darken
-for _ in range(8 if SOURCE == "sculpt" else 2):
+for _ in range(8 if SCULPTED else 2):
     occ = 0.5 * occ + 0.5 * np.array([occ[adj[i]].mean() for i in range(n_base)])
 ao = np.clip(1.0 - 0.85 * occ, 0.45, 1.0)
 
@@ -424,7 +442,7 @@ C_pts, C_nrm = np.array(C_pts), np.array(C_nrm)
 # ---- 6b. the network: nodes spread evenly over the surface (closer together on the features), joined to their neighbours --------
 n_scan = len(V)
 rng3 = np.random.default_rng(31)
-cand = np.flatnonzero(head_vert & (V[:, 1] > CUT + 0.03))
+cand = np.flatnonzero(head_vert & (V[:, 1] > cut_y(V[:, 2]) + 0.03))
 zone = np.ones(n_scan)
 ax, ay, az = np.abs(V[:, 0]), V[:, 1], V[:, 2]
 zone[(ax > 0.10) & (ax < 0.52) & (ay > -0.08) & (ay < 0.26) & (az > 0.2)] = 0.60           # the eyes and brows
@@ -586,7 +604,7 @@ for k, x in enumerate(xs_col):
     cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (np.abs(V[:scan_count, 1] - yc) < 0.035) & (V[:scan_count, 2] > 0.3))
     cand = np.flatnonzero((np.abs(V[:scan_count, 0] - x) < 0.014) & (V[:scan_count, 1] > yc - 0.05) & (V[:scan_count, 1] < yc + 0.02) & (V[:scan_count, 2] > 0.3))
     # the head's own mouth line (a thin sheet where the lips meet), curving down at the corners
-    ys_col[k] = (-0.612 - 0.25 * (x - FACE_X0) ** 2) if SOURCE == "sculpt" else (-0.488 - 0.55 * (x - FACE_X0) ** 2)
+    ys_col[k] = {"sculpt": -0.612 - 0.25 * (x - FACE_X0) ** 2, "msculpt": -0.606 - 0.10 * (x - FACE_X0) ** 2}.get(SOURCE, -0.488 - 0.55 * (x - FACE_X0) ** 2)
 ys_col = np.convolve(np.pad(ys_col, 3, mode="edge"), np.ones(7) / 7, mode="valid")
 print("mouth line: mean y", float(ys_col.mean()), "(ring centre", float(np.mean([seam_centre(x) for x in xs_col])), ")")
 def yseam(x):
@@ -655,7 +673,7 @@ def shade_colour(c, k):
 # shade of white varies a little from one tooth to the next and dulls slightly towards the corners, as real teeth are not perfectly
 # uniform or perfectly white.
 N_TEETH = 8
-teeth_span = (1.30 if SOURCE == "sculpt" else 1.56) * hwi      # the sculpt's full lips curve back fast at the corners
+teeth_span = (1.30 if SCULPTED else 1.56) * hwi      # the sculpts' full lips curve back fast at the corners
 GAP_FRAC = 0.12
 tooth_w = teeth_span / (N_TEETH + (N_TEETH - 1) * GAP_FRAC)
 gap_w = tooth_w * GAP_FRAC
@@ -698,7 +716,7 @@ for name in ("eye_l", "eye_r"):
     hole = ctr + (poly - ctr) * 1.0
     cf = fc
     corner_in = np.stack([point_in_poly(V[F0[:, c], 0], V[F0[:, c], 1], hole) for c in range(3)], axis=1)
-    removed |= ((corner_in.sum(axis=1) >= 2) | point_in_poly(cf[:, 0], cf[:, 1], hole)) & (cf[:, 2] > (0.15 if SOURCE == "sculpt" else 0.3))
+    removed |= ((corner_in.sum(axis=1) >= 2) | point_in_poly(cf[:, 0], cf[:, 1], hole)) & (cf[:, 2] > (0.15 if SCULPTED else 0.3))
     # lid weights (on the scan's vertices, and on the ring vertices that are laid on it)
     dist = dist_to_poly(V[:, 0], V[:, 1], hole)
     inside_v = point_in_poly(V[:, 0], V[:, 1], hole)
@@ -708,8 +726,13 @@ for name in ("eye_l", "eye_r"):
     lid += (V[:, 1] - ctr[1]) * f_ * (np.abs(V[:, 0] - ctr[0]) < w_eye * 0.95)
     # the eyeball, behind the hole
     rad = 0.5 * w_eye * 1.0
-    # well behind the lids, so a lid always draws over the eyeball; the sculpt's eyes are open, its sculpted eyeball already set back
-    zc = surface_z(ctr[0], ctr[1]) - (0.75 if SOURCE == "sculpt" else 1.7) * rad
+    # well behind the lids, so a lid always draws over the eyeball; the sculpts' eyes are open, their eyeballs already set back
+    zc = surface_z(ctr[0], ctr[1]) - (0.75 if SCULPTED else 1.7) * rad
+    if SOURCE == "msculpt":
+        # the male sculpt has real eyeballs (radius 0.111, their front where the surface is at the opening's centre): the same ball, so
+        # the iris has its natural size in the opening instead of a smaller one staring out of it
+        rad = 0.111
+        zc = surface_z(ctr[0], ctr[1]) - rad
     centre = np.array([ctr[0], ctr[1], zc])
     first = len(V) + len(added["V"])
     back_c = add_vertex(centre + np.array([0.0, 0.0, -0.1 * rad]), np.array([0, 0, 1.0]), 0.0, 0xFF2B1F1C)
@@ -760,6 +783,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import groom
 Fscan = F0[F0.max(axis=1) < scan_count]
 hair_style = HAIR_STYLES.get(FACE_NAME)
+if SOURCE == "msculpt" and hair_style is not None:
+    # the same cut on the male sculpt, whose head is deeper than the scan's (its ears sit further back, its skull reaches lower at the
+    # back): the ears kept bare where they are, the nape hairline low at the back, the hair above the ears level with their tops; six
+    # rows and a few less locks keep it within the triangle budget (the head itself carries more detail than the scan)
+    hair_style = {**hair_style, "rows": 6, "locks": 600, "nape": -0.45, "temple": 0.10, "nape_z": (-0.85, -0.45), "len_top": (0.13, 0.05),
+                  "ear": ((0.66, -0.16, -0.55), (0.14, 0.36, 0.24))}
 if os.environ.get("JHM_STYLE"):
     # trying a style out: JHM_STYLE='{"cut_y": -1.0}' overrides some of the face's settings for one build
     hair_style = {**(hair_style or {}), **json.loads(os.environ["JHM_STYLE"])}
@@ -786,8 +815,8 @@ lo_centre = lo.mean(axis=0)
 # is the ring's full height, centred on that span
 lip_c = np.array([lo_centre[0], float(np.mean(ys_col)) - 0.004])
 lo_fit = lip_c + (lo - lo_centre) * np.array([1.0, 0.55])   # the lips span about 0.05 above and 0.055 below the mouth line   # the ring is taller and wider than the scan's own lips
-if SOURCE == "sculpt":
-    lo_fit = lo            # the ring was fitted to the sculpt's own lips (full ones), it is the mask as it is
+if SCULPTED:
+    lo_fit = lo            # the ring was fitted to the sculpt's own lips, it is the mask as it is
 inside_lip = point_in_poly(V[:, 0], V[:, 1], lo_fit) & front
 d_lip = dist_to_poly(V[:, 0], V[:, 1], lo_fit)
 lip_mask = np.where(inside_lip, 1.0, np.clip(1.0 - d_lip / 0.010, 0.0, 1.0) * front)
@@ -843,7 +872,7 @@ if os.environ.get("JHM_WARP"):
 
 
 def make_warp(name, eye_centres, lip_centre=None):
-    if name not in WARPS or SOURCE == "sculpt":      # the warps reshape the man's scan; the sculpt is a woman's face already
+    if name not in WARPS or SCULPTED:      # the warps reshape the man's scan; a sculpt is its own face already
         return lambda P: P
     k = WARPS[name]
     lc = lip_centre if lip_centre is not None else np.array([FACE_X0, -0.49, 0.5])

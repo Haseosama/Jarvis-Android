@@ -17,9 +17,7 @@ three.js examples (https://github.com/mrdoob/three.js). It was resampled, normal
 tools/avatar/export_head.py; the eyes and lips are placed with the landmark positions of MediaPipe's canonical face model
 (https://github.com/google-ai-edge/mediapipe), Apache License 2.0, Copyright 2019-2023 The MediaPipe Authors.
 
-The face "Marc" (head_mesh_marc.bin) is the same scan, changed: reshaped by a smooth deformation of the jaw, chin, nose, brows and eyes,
-and given other hair (tools/avatar/export_head.py, tools/avatar/groom.py). The original head is unchanged in head_mesh.bin. The credit
-above applies to both.
+The original head is unchanged in head_mesh.bin (tools/avatar/export_head.py).
 
 The face "Léa" (head_mesh_lea.bin) is based on "Female Head Sculpt"
 (https://sketchfab.com/3d-models/female-head-sculpt-ae24c33594a046519014fdc78758a8ec) by Aconear (https://sketchfab.com/Aconear),
@@ -27,3 +25,10 @@ licensed under Creative Commons Attribution 4.0 (CC BY 4.0, http://creativecommo
 forward, welded and simplified from 1.36 million to about 22,000 triangles (tools/avatar/prepare_sculpt.py), normalised, cut at the neck,
 given eye openings with eyeballs, a mouth with teeth, the rig and the landmark rings of Mark-LIV's builder, and hair
 (tools/avatar/export_head.py, tools/avatar/groom.py); the renderer gives her a silver "android" skin, etched circuits and a halo.
+
+The face "Marc" (head_mesh_marc.bin) is based on "Realistic Male head"
+(https://sketchfab.com/3d-models/realistic-male-head-8935543c732c454c932af6101ae5a190) by Ouail (https://sketchfab.com/OuailArt),
+licensed under Creative Commons Attribution 4.0 (CC BY 4.0, http://creativecommons.org/licenses/by/4.0/). Changes: welded and simplified
+from 2.26 million to about 20,000 triangles (tools/avatar/prepare_sculpt.py), normalised, cut at the neck on a tilted plane, given eye
+openings with eyeballs, a mouth with teeth, the rig and the landmark rings of Mark-LIV's builder, and short hair (tools/avatar/export_head.py,
+tools/avatar/groom.py).

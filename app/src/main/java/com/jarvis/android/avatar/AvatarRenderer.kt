@@ -109,6 +109,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     /** An android: a cool silver porcelain skin instead of the chosen tone, grey-mauve lips, and circuits etched in the skin. */
     var androidLook = false
 
+    /** How far the natural lip colour goes from the skin towards a rose (when no lip tone is chosen): a man's lips are closer to his skin. */
+    var lipTint = 0.7f
+
     /** A ring of cyan light behind the head. */
     var halo = false
     /** 0 = natural lips; 1..4 = rose, red, plum, coral. */
@@ -290,7 +293,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             )
         }
         if (lipW > 0.02f) {
-            val lipRgb = if (lips > 0) 0xFF000000.toInt() or LIP_TONES[lips - 1] else if (androidLook) 0xFF8E7C87.toInt() else mix(skinRgb, 0xFFB04A5A.toInt(), 0.7f)
+            val lipRgb = if (lips > 0) 0xFF000000.toInt() or LIP_TONES[lips - 1] else if (androidLook) 0xFF8E7C87.toInt() else mix(skinRgb, 0xFFB04A5A.toInt(), lipTint)
             // the lips are lit less unevenly than the skin: the upper one faces the light and would otherwise come out pale
             c = mix(c, lit(lipRgb, 0.80f + 0.30f * vlam), lipW)
         }
@@ -327,10 +330,17 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         for (k in 0 until count) {
             val t = (keys[k] and 0x7fffffffL).toInt()
             val col = faceColor[t]
+            val a = f[3 * t]; val b = f[3 * t + 1]; val d = f[3 * t + 2]
+            val cx = (xs[a] + xs[b] + xs[d]) / 3f
+            val cy = (ys[a] + ys[b] + ys[d]) / 3f
             for (corner in 0..2) {
                 val vi = f[3 * t + corner]
-                triPos[p++] = xs[vi]
-                triPos[p++] = ys[vi]
+                // each triangle grows by about half a pixel round its centre: where several meet at one vertex the rasteriser can
+                // otherwise leave a pixel uncovered, a dark speck of the background on the skin (a cheap length, |dx| + |dy|)
+                val dx = xs[vi] - cx; val dy = ys[vi] - cy
+                val grow = 0.6f / max(abs(dx) + abs(dy), 0.6f)
+                triPos[p++] = xs[vi] + dx * grow
+                triPos[p++] = ys[vi] + dy * grow
                 triCol[c++] = if (perVertex[t]) cornerCol[3 * t + corner] else col
             }
         }

@@ -9,16 +9,18 @@ internal data class AvatarFace(
     val androidLook: Boolean = false,
     /** A ring of light behind the head. */
     val halo: Boolean = false,
+    /** The natural lip colour, from the skin (0) towards a rose (1), when no lip tone is chosen. */
+    val lipTint: Float = 0.7f,
 )
 
 /**
- * The faces, in the order of the setting. They all come from the same scan (see tools/avatar/export_head.py): the others are that scan
- * reshaped (jaw, chin, nose, brows, eyes), with a hair style and a colour of their own.
+ * The faces, in the order of the setting. Classique is a head scan, Léa and Marc are sculpted heads (see tools/avatar/export_head.py and
+ * assets/avatar/NOTICE.txt), each with a hair style and a colour of its own.
  */
 internal val AVATAR_FACES = listOf(
     AvatarFace("Classique", "avatar/head_mesh.bin", 0xFF34241C.toInt()),
     AvatarFace("Léa", "avatar/head_mesh_lea.bin", 0xFF1A1E27.toInt(), fibres = false, browScale = 0.65f, lashScale = 1.35f, androidLook = true, halo = true),
-    AvatarFace("Marc", "avatar/head_mesh_marc.bin", 0xFF2B2928.toInt()),
+    AvatarFace("Marc", "avatar/head_mesh_marc.bin", 0xFF2B2928.toInt(), lipTint = 0.3f),
     // a drawn character, not a mesh: the file is only what gives the animation its object (see CartoonAvatar.kt)
     AvatarFace("Dessin animé", "avatar/head_mesh.bin", 0xFF1F1614.toInt(), fibres = false, cartoon = true),
 )

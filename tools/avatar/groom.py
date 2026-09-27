@@ -30,6 +30,7 @@ DEFAULT_STYLE = dict(
     burn_e0=0.44, burn_e1=0.62, crown_w=0.0,
     ear=((0.72, 0.07, -0.14), (0.11, 0.22, 0.22)), ridge=0.95,
     cut_y=None, cut_front=0.0, cut_min=0.08, hug=0.0, hug_gap=0.04, hug_all=False, hug_surface=False, roll=1.3, scatter=0.55, bun=None,
+    nape_z=(-0.40, -0.05),
 )
 
 DOWN = np.array([0.0, -1.0, 0.0])
@@ -115,7 +116,7 @@ def hair_field(P, x0, st=DEFAULT_STYLE):
     front = st["front"] + st["m"] * np.cos(np.pi * hx / 0.42) + st["left_temple"] * smoothstep(0.05, 0.40, -hx)
     front = front + 0.011 * np.sin(23.0 * hx + 1.3) + 0.007 * np.sin(41.0 * hx + 0.4) + 0.004 * np.sin(67.0 * hx + 2.1)   # not a ruled line
     front = front + (st["burn_y"] - front) * smoothstep(st["burn_e0"], st["burn_e1"], np.abs(hx))   # the sideburns come down in front of the ears
-    hl = st["nape"] + (st["temple"] - st["nape"]) * smoothstep(-0.40, -0.05, hz)                       # the nape, then above the ears
+    hl = st["nape"] + (st["temple"] - st["nape"]) * smoothstep(st["nape_z"][0], st["nape_z"][1], hz)   # the nape, then above the ears
     hl = hl + (front - hl) * smoothstep(0.02, 0.36, hz)
     d = hy - hl
     ear = ear_distance(P, x0, st)

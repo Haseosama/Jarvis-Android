@@ -42,9 +42,10 @@ class AvatarFacesTest {
 
     @Test fun `the faces are different heads`() {
         assertEquals(faces.size, meshes.map { it.vertexCount }.toSet().size)
-        // the nose sticks out by a different amount, the jaw is not the same width
-        val noseTip = meshes.map { m -> (0 until m.vertexCount).maxOf { m.verts[3 * it + 2] } }
-        assertEquals(faces.size, noseTip.map { "%.3f".format(it) }.toSet().size)
+        // the depth of the head from the nose back differs (the nose tip itself is where each head is placed, the same for all), and the
+        // jaw is not the same width
+        val depth = meshes.map { m -> (0 until m.vertexCount).maxOf { m.verts[3 * it + 2] } - (0 until m.vertexCount).minOf { m.verts[3 * it + 2] } }
+        assertEquals("$depth", faces.size, depth.map { "%.2f".format(it) }.toSet().size)
         fun jawWidth(m: HeadMesh): Float {
             // the skin only: the hair of a long style hangs across this height
             val skin = HashSet<Int>()
@@ -53,10 +54,11 @@ class AvatarFacesTest {
             return near.maxOf { m.verts[3 * it] } - near.minOf { m.verts[3 * it] }
         }
         val widths = meshes.map { jawWidth(it) }
-        // Léa is another head (a woman's sculpt, whose cheeks reach lower than the scan's), the other two are the scan reshaped: the
-        // three differ, and Marc's square jaw stays clearly the widest
-        assertTrue("Marc's jaw is the widest, and the three differ: $widths",
-            widths[2] > widths[0] + 0.1f && widths[2] > widths[1] + 0.05f && kotlin.math.abs(widths[1] - widths[0]) > 0.05f)
+        // three different heads (the scan, a woman's sculpt whose cheeks reach lower, a man's sculpt): at this height, just under the
+        // mouth, their widths are clearly apart
+        for (i in widths.indices) for (j in i + 1 until widths.size) {
+            assertTrue("jaw widths $widths", kotlin.math.abs(widths[i] - widths[j]) > 0.04f)
+        }
     }
 
     @Test fun `each face has its own eyebrow colour and an index outside the list is clamped`() {

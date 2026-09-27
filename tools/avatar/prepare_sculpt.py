@@ -1,12 +1,16 @@
-"""Prepares the head Léa is built from: "Female Head Sculpt" by Aconear (CC BY 4.0,
-https://sketchfab.com/3d-models/female-head-sculpt-ae24c33594a046519014fdc78758a8ec), downloaded from Sketchfab as glTF.
+"""Prepares the sculpted heads two of the faces are built from, both downloaded from Sketchfab as glTF (CC BY 4.0):
+  * female: "Female Head Sculpt" by Aconear (https://sketchfab.com/3d-models/female-head-sculpt-ae24c33594a046519014fdc78758a8ec), for Léa;
+  * male: "Realistic Male head" by Ouail (https://sketchfab.com/3d-models/realistic-male-head-8935543c732c454c932af6101ae5a190), for Marc.
 
-Usage: python prepare_sculpt.py <folder with scene.gltf and scene.bin> <out FemaleHeadSculpt.glb>
-then:  JHM_FACE=lea python export_head.py <Mark-LIV> <out FemaleHeadSculpt.glb>
+Usage: python prepare_sculpt.py female <folder with scene.gltf and scene.bin> FemaleHeadSculpt.glb
+       python prepare_sculpt.py male <folder with scene.gltf and scene.bin> MaleHeadSculpt.glb
+then:  JHM_FACE=lea python export_head.py <Mark-LIV> FemaleHeadSculpt.glb   (or JHM_FACE=marc … MaleHeadSculpt.glb)
 Needs numpy.
 
-The sculpt is one surface of 1.36 million triangles in 42 pieces (the three small props of the file are left out), looking along +x.
-It is welded, turned to look along +z like the scan, and simplified to about 22 000 triangles by vertex clustering with quadric error
+The female sculpt is one surface of 1.36 million triangles in 42 pieces (the three small props of the file are left out), looking
+along +x; the male one is 2.26 million triangles, looking along +z already, with two separate eyeballs (kept: they fill the eye
+openings as the female sculpt's own sculpted eyes do). Each is welded, turned to look along +z like the scan if needed, and simplified
+to about 22 000 triangles by vertex clustering with quadric error
 metrics (Lindstrom 2000): the vertices of each cell of a grid merge into one, placed where the planes of their faces meet best, with a
 finer grid on the face (eyes, nose, mouth) than on the skull, which the hair covers. Each new triangle is turned the way the original
 surface faced. The simplified head is written as a minimal GLB (positions and indices), which export_head.py reads like the scan.
@@ -14,8 +18,19 @@ surface faced. The simplified head is written as a minimal GLB (positions and in
 import json, struct, sys
 import numpy as np
 
-SRC, OUT = sys.argv[1], sys.argv[2]
-CELL, FACE_CELL = 0.06, 0.017            # the grid on the skull and on the face, in the sculpt's own units (about 2.8 tall with the neck)
+HEAD, SRC, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+# per head, in its own units: the meshes left out, whether it looks along +x, the grid on the skull and on the face, and the box the
+# face is in (depth behind the nose tip, height). The male head is 1.62 times the female one (crown to chin 2.86 against 1.76): its
+# box is hers scaled by that; his cells are a little coarser (the face 0.022 once normalised against her 0.019), so that with his
+# short hair he stays within the triangle budget.
+PRESETS = {
+    "female": dict(skip=lambda m: m > 41, turn=True, cell=0.06, face_cell=0.017, depth=0.42, face_y=(1.40, 2.85)),
+    # his ears show under the short hair: they get the face's grid too (|x|, y and z ranges)
+    "male": dict(skip=lambda m: False, turn=False, cell=0.13, face_cell=0.032, depth=0.68, face_y=(-1.58, 0.66),
+                 ears=((0.78, 1.2), (-0.75, 0.25), (-0.40, 0.60))),
+}
+P_ = PRESETS[HEAD]
+CELL, FACE_CELL = P_["cell"], P_["face_cell"]
 
 j = json.load(open(SRC + "/scene.gltf"))
 bin_ = open(SRC + "/scene.bin", "rb").read()
@@ -56,7 +71,7 @@ for s in j["scenes"][j.get("scene", 0)]["nodes"]:
 # ---- the surface, welded -----------------------------------------------------------------------------------------------------
 Vs, Fs, off = [], [], 0
 for ni, node in enumerate(j["nodes"]):
-    if "mesh" not in node or node["mesh"] > 41:        # 42..44: a sphere and two planes, props of the file, not the head
+    if "mesh" not in node or P_["skip"](node["mesh"]):   # the female file's 42..44: a sphere and two planes, props, not the head
         continue
     p = j["meshes"][node["mesh"]]["primitives"][0]
     P = acc(p["attributes"]["POSITION"]).astype(np.float64)
@@ -66,12 +81,16 @@ V = np.vstack(Vs); F = np.vstack(Fs)
 _, idx, inv = np.unique(np.round(V / 1e-5).astype(np.int64), axis=0, return_index=True, return_inverse=True)
 V = V[idx]; F = inv.reshape(-1)[F]
 F = F[(F[:, 0] != F[:, 1]) & (F[:, 1] != F[:, 2]) & (F[:, 0] != F[:, 2])]
-V = np.c_[-V[:, 2], V[:, 1], V[:, 0]]                  # it looks along +x: turned to look along +z
+if P_["turn"]:
+    V = np.c_[-V[:, 2], V[:, 1], V[:, 0]]              # it looks along +x: turned to look along +z
 print("sculpt", len(V), "vertices", len(F), "triangles")
 
 # ---- quadric clustering ------------------------------------------------------------------------------------------------------
 lo = V.min(0)
-on_face = (V[:, 2] > V[:, 2].max() - 0.42) & (V[:, 1] > 1.40) & (V[:, 1] < 2.85)
+on_face = (V[:, 2] > V[:, 2].max() - P_["depth"]) & (V[:, 1] > P_["face_y"][0]) & (V[:, 1] < P_["face_y"][1])
+if "ears" in P_:
+    (ax0, ax1), (ay0, ay1), (az0, az1) = P_["ears"]
+    on_face |= (np.abs(V[:, 0]) > ax0) & (np.abs(V[:, 0]) < ax1) & (V[:, 1] > ay0) & (V[:, 1] < ay1) & (V[:, 2] > az0) & (V[:, 2] < az1)
 g = np.floor((V - lo) / np.where(on_face[:, None], FACE_CELL, CELL)).astype(np.int64)
 key = g[:, 0] * 1_000_003 ** 2 + g[:, 1] * 1_000_003 + g[:, 2]
 key = np.where(on_face, -key - 1, key)                  # the two grids never share a cell
