@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.24 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.25 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -316,6 +316,12 @@ by the `DUMP` permission so only adb can call it; it is not in the release build
   now the fourteen women's voices come first (Kore, Aoede, Leda, Zephyr, Autonoe, Callirrhoe, Despina, Erinome, Laomedeia, Achernar,
   Gacrux, Pulcherrima, Vindemiatrix, Sulafat), then the sixteen men's, each shown with its character ("Leda · féminine, jeune",
   `ConfigStore.VOICES`). The voice serves the live sessions and the spoken replies of the text chat alike, and applies from the next session.
+  Each voice can be heard before it is chosen (since 0.9.25): the ▶ beside it in the list plays a sentence in that voice, spoken as the
+  assistant ("Bonjour, je suis Jarvis…", in the interface language) by the same speech endpoint as the chat's spoken replies
+  (`rest/VoicePreview.kt`). A sample is kept on the phone once heard (in the cache, a few hundred kilobytes a voice), so it plays again at
+  once and is paid for once; a failure (no key, no speech model) shows Gemini's message under the list. *Checked:* `VoicePreviewTest`
+  (fetched once then played from the phone, one sample per voice and language, failures kept out of the cache), the buttons and the error
+  on the emulator. *Not checked:* a real sample heard (the emulator's key is not valid).
   *Checked:* `VoicesTest`, the list on the emulator. *Not checked:* each voice heard in a real session (no Gemini key on the emulator);
   the names are Google's list of prebuilt voices for its native-audio models.
 - **Session summary and morning briefing** (`memory/Briefing*.kt`). When a voice session with at least two

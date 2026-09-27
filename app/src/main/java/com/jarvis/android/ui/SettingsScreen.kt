@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
@@ -78,6 +80,26 @@ fun SettingsScreen(
     val assistantName by configStore.assistantName.collectAsState(initial = "JARVIS")
     val userName by configStore.userName.collectAsState(initial = "")
     val voice by configStore.voice.collectAsState(initial = "Puck")
+    // the voice samples: which voice is playing (and still being fetched), and what went wrong
+    var samplePlaying by remember { mutableStateOf<String?>(null) }
+    var sampleError by remember { mutableStateOf<String?>(null) }
+    var sampleJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val context00 = androidx.compose.ui.platform.LocalContext.current
+    val preview = remember { (context00.applicationContext as com.jarvis.android.JarvisApp).container.restChat.voicePreview }
+    val assistantNameForSample by configStore.assistantName.collectAsState(initial = "JARVIS")
+    fun stopVoiceSample() {
+        sampleJob?.cancel(); preview.stop(); samplePlaying = null
+    }
+    fun playVoiceSample(name: String) {
+        stopVoiceSample()
+        sampleError = null
+        samplePlaying = name
+        sampleJob = scope.launch {
+            val error = preview.play(name, com.jarvis.android.i18n.Lang.isEnglish, assistantNameForSample)
+            if (samplePlaying == name) samplePlaying = null
+            error?.let { sampleError = it }
+        }
+    }
     val model by configStore.model.collectAsState(initial = ConfigStore.DEFAULT_MODEL)
     val hue by configStore.themeHue.collectAsState(initial = 190f)
     val wakeWordEnabled by configStore.wakeWordEnabled.collectAsState(initial = false)
@@ -295,15 +317,28 @@ fun SettingsScreen(
                     label = { Text(tr("Voix Gemini")) },
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                 )
-                ExposedDropdownMenu(expanded = voiceMenuOpen, onDismissRequest = { voiceMenuOpen = false }) {
+                ExposedDropdownMenu(expanded = voiceMenuOpen, onDismissRequest = { voiceMenuOpen = false; stopVoiceSample() }) {
                     ConfigStore.VOICES.forEach { v ->
-                        DropdownMenuItem(text = { Text(v.label(com.jarvis.android.i18n.Lang.isEnglish)) }, onClick = {
-                            voiceMenuOpen = false
-                            scope.launch { configStore.setVoice(v.name) }
-                        })
+                        DropdownMenuItem(
+                            text = { Text(v.label(com.jarvis.android.i18n.Lang.isEnglish)) },
+                            onClick = {
+                                voiceMenuOpen = false
+                                stopVoiceSample()
+                                scope.launch { configStore.setVoice(v.name) }
+                            },
+                            // hear the voice before choosing it
+                            trailingIcon = {
+                                IconButton(onClick = { if (samplePlaying == v.name) stopVoiceSample() else playVoiceSample(v.name) }) {
+                                    if (samplePlaying == v.name) Icon(Icons.Filled.Stop, contentDescription = tr("Arrêter l’échantillon"))
+                                    else Icon(Icons.Filled.PlayArrow, contentDescription = tr("Écouter cette voix"))
+                                }
+                            },
+                        )
                     }
                 }
             }
+            sampleError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) }
+            Text(tr("Touchez ▶ pour écouter une voix avant de la choisir."), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
             val languages = listOf("" to tr("Automatique (peut changer sur demande)"), "fr-FR" to "Français", "en-US" to "English", "fil-PH" to "Filipino")
             ExposedDropdownMenuBox(
                 expanded = langMenuOpen,

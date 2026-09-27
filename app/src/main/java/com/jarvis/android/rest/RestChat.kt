@@ -125,6 +125,16 @@ class RestChat internal constructor(
         )
     }
 
+    /** Samples of the voices, for choosing one in the settings. */
+    internal val voicePreview: VoicePreview by lazy {
+        VoicePreview(
+            transport = this.transport,
+            speechModel = { container.configStore.snapshotTtsModel().trim().ifEmpty { speechModels.resolve() } },
+            output = AudioPlayer(container.appContext),
+            cacheDir = container.appContext.cacheDir,
+        )
+    }
+
     private val history = ChatHistoryStore(java.io.File(container.appContext.filesDir, "chat_history.json"))
     private val historyScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
 
