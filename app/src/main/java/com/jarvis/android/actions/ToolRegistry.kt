@@ -45,6 +45,7 @@ object ToolRegistry {
         ChangeVoiceTool,
         ObsidianTool,
         PlayVideoTool,
+        RadioTool,
         ScreenReadTool,
         ScreenLookTool,
         ScreenTapTool,

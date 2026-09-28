@@ -1,0 +1,29 @@
+{
+  "name": "mode_cinema",
+  "description": "Prépare le téléphone pour une séance : plus de notifications pendant la durée du film, luminosité basse. Pour « mode cinéma », « je suis au cinéma ».",
+  "parameters": [
+    {
+      "name": "minutes",
+      "description": "Durée en minutes (60 par défaut)",
+      "required": false
+    }
+  ],
+  "type": "routine",
+  "steps": [
+    {
+      "tool": "quiet_mode",
+      "args": {
+        "action": "start",
+        "minutes": "{minutes}",
+        "reason": "cinéma"
+      }
+    },
+    {
+      "tool": "device_settings",
+      "args": {
+        "action": "set_brightness",
+        "value": "10"
+      }
+    }
+  ]
+}

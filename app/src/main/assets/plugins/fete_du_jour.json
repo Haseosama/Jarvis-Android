@@ -1,0 +1,19 @@
+{
+  "name": "fete_du_jour",
+  "description": "Les prénoms fêtés un jour donné en France (la fête du jour). Pour « c'est la fête de qui aujourd'hui ? », « quand est la Saint-… » ne marche pas : seulement par date.",
+  "parameters": [
+    {
+      "name": "jour",
+      "description": "Jour du mois (1 à 31)",
+      "required": true
+    },
+    {
+      "name": "mois",
+      "description": "Mois (1 à 12)",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://nameday.abalin.net/api/V2/date?day={jour}&month={mois}&country=fr",
+  "result_path": "data.fr"
+}

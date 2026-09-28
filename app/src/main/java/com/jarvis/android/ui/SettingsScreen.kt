@@ -939,17 +939,62 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            val installed = remember(pluginTick) { com.jarvis.android.actions.ToolRegistry.pluginTools().filterIsInstance<com.jarvis.android.plugins.PluginTool>() }
+            val installed = remember(pluginTick) { com.jarvis.android.actions.ToolRegistry.pluginTools().filterIsInstance<com.jarvis.android.plugins.PluginTool>().sortedBy { it.name } }
             if (installed.isEmpty()) {
                 Text(tr("Aucun plugin installé."), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
-            }
-            installed.forEach { plugin ->
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text(plugin.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                        Text(plugin.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                // the installed plugins, folded into one list that opens on a tap (with a search when there are many)
+                var installedExpanded by rememberSaveable { mutableStateOf(false) }
+                var installedQuery by rememberSaveable { mutableStateOf("") }
+                val installedArrow by animateFloatAsState(if (installedExpanded) 180f else 0f, label = "installedArrow")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp).clickable { installedExpanded = !installedExpanded },
+                ) {
+                    Text(trf("Plugins installés ({0})", installed.size), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                    Icon(
+                        Icons.Filled.ExpandMore,
+                        contentDescription = if (installedExpanded) tr("Replier") else tr("Déplier"),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.rotate(installedArrow),
+                    )
+                }
+                if (!installedExpanded) {
+                    Text(
+                        installed.joinToString(", ") { it.name },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+                AnimatedVisibility(visible = installedExpanded) {
+                    Column(Modifier.fillMaxWidth()) {
+                        if (installed.size > 6) {
+                            OutlinedTextField(
+                                value = installedQuery,
+                                onValueChange = { installedQuery = it },
+                                label = { Text(tr("Chercher parmi les plugins installés")) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            )
+                        }
+                        val shown = installed.filter { p ->
+                            val q = installedQuery.trim()
+                            q.isEmpty() || p.name.contains(q, ignoreCase = true) || p.summary.contains(q, ignoreCase = true)
+                        }
+                        if (shown.isEmpty()) Text(tr("Aucun plugin ne correspond."), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                        shown.forEach { plugin ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(plugin.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                                    Text(plugin.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                OutlinedButton(onClick = { pluginToRemove = plugin.name }) { Text(tr("Désinstaller")) }
+                            }
+                        }
                     }
-                    OutlinedButton(onClick = { pluginToRemove = plugin.name }) { Text(tr("Désinstaller")) }
                 }
             }
             val catalog = remember { com.jarvis.android.plugins.readCatalog(context0, com.jarvis.android.actions.ToolRegistry.builtInNames()) }

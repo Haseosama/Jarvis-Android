@@ -35,11 +35,13 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
         val startAt: Int = 0,
         /** YouTube's subtitles in this language (a code: "fr", "en"…), none when null. */
         val subtitles: String? = null,
+        /** A radio station live ([url] is its stream): sound only, no place to come back to. */
+        val radio: Boolean = false,
     ) {
         val isSlideshow: Boolean get() = photos.isNotEmpty()
 
-        /** What names it for "where was it left": its YouTube id or its address; none for a slideshow. */
-        val key: String? get() = youtubeId?.let { "yt:$it" } ?: url
+        /** What names it for "where was it left": its YouTube id or its address; none for a slideshow or a radio. */
+        val key: String? get() = if (radio) null else youtubeId?.let { "yt:$it" } ?: url
     }
 
     /** When the video stops by itself: at a time ([at], on the panel's clock), or at the end of the one playing ([atEnd]). */
@@ -140,7 +142,7 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
     /** The player says where it is ([position] and [duration] in seconds, 0 when not known). */
     fun progress(position: Int, duration: Int) {
         val v = _video.value ?: return
-        if (v.isSlideshow) return
+        if (v.isSlideshow || v.radio) return
         positionS = position
         onProgress(v, position, duration)
     }

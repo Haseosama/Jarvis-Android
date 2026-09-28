@@ -1,0 +1,35 @@
+{
+  "name": "mode_sieste",
+  "description": "Une sieste : pas de dérangement et un minuteur pour se réveiller. Pour « je fais une sieste de 20 minutes », « réveille-moi dans une demi-heure ».",
+  "parameters": [
+    {
+      "name": "duree",
+      "description": "Durée de la sieste, par exemple « 20 minutes »",
+      "required": true
+    },
+    {
+      "name": "minutes",
+      "description": "La même durée, en minutes",
+      "required": true
+    }
+  ],
+  "type": "routine",
+  "steps": [
+    {
+      "tool": "quiet_mode",
+      "args": {
+        "action": "start",
+        "minutes": "{minutes}",
+        "reason": "sieste"
+      }
+    },
+    {
+      "tool": "timer",
+      "args": {
+        "action": "create",
+        "duration": "{duree}",
+        "label": "Fin de la sieste"
+      }
+    }
+  ]
+}

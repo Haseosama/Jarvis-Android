@@ -1,0 +1,17 @@
+{
+  "name": "tempo_edf",
+  "description": "Couleur du jour Tempo d'EDF (bleu, blanc ou rouge : le prix de l'électricité pour les abonnés Tempo), aujourd'hui ou demain. Pour « c'est quelle couleur Tempo demain ? », « jour rouge ? ».",
+  "parameters": [
+    {
+      "name": "jour",
+      "description": "today pour aujourd'hui, tomorrow pour demain",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://www.api-couleur-tempo.fr/api/jourTempo/{jour}",
+  "result_fields": [
+    "dateJour",
+    "libCouleur"
+  ]
+}

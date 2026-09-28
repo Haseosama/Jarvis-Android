@@ -1,0 +1,18 @@
+{
+  "name": "covoiturage",
+  "description": "Ouvre une recherche de covoiturage BlaBlaCar entre deux villes. Pour « un covoiturage Lyon Marseille ».",
+  "parameters": [
+    {
+      "name": "depart",
+      "description": "Ville de départ",
+      "required": true
+    },
+    {
+      "name": "arrivee",
+      "description": "Ville d'arrivée",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.blablacar.fr/search?fn={depart}&tn={arrivee}"
+}

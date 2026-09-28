@@ -1,0 +1,13 @@
+{
+  "name": "offres_emploi",
+  "description": "Ouvre les offres d'emploi de France Travail pour un métier. Pour « des offres de boulanger », « cherche un emploi de … ».",
+  "parameters": [
+    {
+      "name": "metier",
+      "description": "Le métier ou les mots-clés",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://candidat.francetravail.fr/offres/recherche?motsCles={metier}"
+}

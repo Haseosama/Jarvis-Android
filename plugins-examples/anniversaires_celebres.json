@@ -1,0 +1,24 @@
+{
+  "name": "anniversaires_celebres",
+  "description": "Les personnalités nées un jour donné (Wikipédia). Pour « qui est né le même jour que moi ? », « quelles célébrités sont nées aujourd'hui ? ». Mois et jour sur deux chiffres.",
+  "parameters": [
+    {
+      "name": "mois",
+      "description": "Mois sur deux chiffres (01 à 12)",
+      "required": true
+    },
+    {
+      "name": "jour",
+      "description": "Jour sur deux chiffres (01 à 31)",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://api.wikimedia.org/feed/v1/wikipedia/fr/onthisday/births/{mois}/{jour}",
+  "result_items": "births",
+  "result_fields": [
+    "year",
+    "text"
+  ],
+  "result_max": 12
+}

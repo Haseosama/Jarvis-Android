@@ -1,0 +1,24 @@
+{
+  "name": "ce_jour_la",
+  "description": "Ce qui s'est passé un jour donné dans l'histoire (Wikipédia). Pour « que s'est-il passé un 14 juillet ? », « un jour comme aujourd'hui dans l'histoire ». Mois et jour sur deux chiffres.",
+  "parameters": [
+    {
+      "name": "mois",
+      "description": "Mois sur deux chiffres (01 à 12)",
+      "required": true
+    },
+    {
+      "name": "jour",
+      "description": "Jour sur deux chiffres (01 à 31)",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://api.wikimedia.org/feed/v1/wikipedia/fr/onthisday/selected/{mois}/{jour}",
+  "result_items": "selected",
+  "result_fields": [
+    "year",
+    "text"
+  ],
+  "result_max": 8
+}

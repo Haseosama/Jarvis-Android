@@ -1,0 +1,21 @@
+{
+  "name": "podcast_recherche",
+  "description": "Cherche des podcasts par sujet ou par nom (Apple Podcasts) : titre, auteur, nombre d'épisodes et lien. Pour « un podcast sur l'histoire », « trouve le podcast de … ».",
+  "parameters": [
+    {
+      "name": "recherche",
+      "description": "Sujet ou nom du podcast",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://itunes.apple.com/search?term={recherche}&media=podcast&limit=5&country=fr",
+  "result_items": "results",
+  "result_fields": [
+    "collectionName",
+    "artistName",
+    "trackCount",
+    "collectionViewUrl"
+  ],
+  "result_max": 5
+}

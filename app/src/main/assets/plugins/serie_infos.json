@@ -1,0 +1,23 @@
+{
+  "name": "serie_infos",
+  "description": "Infos sur une série télé : statut (en cours ou terminée), début, note, chaîne, et le prochain épisode s'il est annoncé. Pour « quand sort la prochaine saison de … ? », « la série … est finie ? ».",
+  "parameters": [
+    {
+      "name": "titre",
+      "description": "Titre de la série (souvent le titre original)",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://api.tvmaze.com/singlesearch/shows?q={titre}&embed=nextepisode",
+  "result_fields": [
+    "name",
+    "status",
+    "premiered",
+    "ended",
+    "rating.average",
+    "network.name",
+    "_embedded.nextepisode.airdate",
+    "_embedded.nextepisode.name"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "vinted_recherche",
+  "description": "Ouvre une recherche d'articles sur Vinted. Pour « cherche une veste … sur Vinted ».",
+  "parameters": [
+    {
+      "name": "recherche",
+      "description": "Ce que l'on cherche",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.vinted.fr/catalog?search_text={recherche}"
+}

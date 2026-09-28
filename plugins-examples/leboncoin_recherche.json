@@ -1,0 +1,13 @@
+{
+  "name": "leboncoin_recherche",
+  "description": "Ouvre une recherche d'annonces sur leboncoin. Pour « cherche un vélo d'occasion sur leboncoin », « des annonces de … ».",
+  "parameters": [
+    {
+      "name": "recherche",
+      "description": "Ce que l'on cherche",
+      "required": true
+    }
+  ],
+  "type": "open",
+  "url": "https://www.leboncoin.fr/recherche?text={recherche}"
+}

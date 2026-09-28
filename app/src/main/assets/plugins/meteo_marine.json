@@ -1,0 +1,24 @@
+{
+  "name": "meteo_marine",
+  "description": "État de la mer à un endroit de la côte : hauteur des vagues (m), période (s), direction (degrés), température de l'eau (°C). Pour « la mer est comment à Biarritz ? », « l'eau est à combien ? ». Donner la latitude et la longitude du lieu (connues pour les villes côtières).",
+  "parameters": [
+    {
+      "name": "latitude",
+      "description": "Latitude du lieu, en degrés décimaux (ex. 43.48)",
+      "required": true
+    },
+    {
+      "name": "longitude",
+      "description": "Longitude du lieu, en degrés décimaux (ex. -1.56)",
+      "required": true
+    }
+  ],
+  "type": "http",
+  "url": "https://marine-api.open-meteo.com/v1/marine?latitude={latitude}&longitude={longitude}&current=wave_height,wave_period,wave_direction,sea_surface_temperature",
+  "result_fields": [
+    "current.wave_height",
+    "current.wave_period",
+    "current.wave_direction",
+    "current.sea_surface_temperature"
+  ]
+}

@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
@@ -114,6 +115,8 @@ internal fun VideoPlayerView(
                 video.youtubeId != null -> YoutubePlayer(panel, video)
                 video.url != null -> FilePlayer(panel, video.url, volumeOf(video), video.startAt)
             }
+            // a radio has no picture: its name over the black, drawn above the player (never under it)
+            if (video.radio) RadioCard(video, Modifier.fillMaxSize())
             if (big && !pip) {
                 CompositionLocalProvider(LocalContentColor provides Color.White) {
                     Row(
@@ -499,5 +502,16 @@ private suspend fun jpeg(b: android.graphics.Bitmap): ByteArray = withContext(Di
     java.io.ByteArrayOutputStream().use { out ->
         b.compress(android.graphics.Bitmap.CompressFormat.JPEG, 75, out)
         out.toByteArray()
+    }
+}
+
+/** A live radio's picture: its name and "En direct" (or "En pause"). */
+@Composable
+private fun RadioCard(video: VideoPanel.Video, modifier: Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
+        Icon(androidx.compose.material.icons.Icons.Filled.Radio, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(56.dp))
+        Text(video.title, style = MaterialTheme.typography.titleLarge, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+        Text(if (video.paused) tr("En pause") else tr("En direct"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
     }
 }

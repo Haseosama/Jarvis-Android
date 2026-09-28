@@ -18,6 +18,10 @@ internal const val MAX_PLUGIN_BYTES = 20_000
 internal const val MAX_PARAMS = 5
 internal const val MAX_STEPS = 10
 internal const val MAX_RESULT_CHARS = 1_500
+internal const val MAX_RESULT_FIELDS = 8
+internal const val DEFAULT_RESULT_ITEMS = 10
+internal const val MAX_RESULT_ITEMS = 30
+private val FIELD_PATTERN = Regex("^[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*$")
 
 private val NAME_PATTERN = Regex("^[a-z][a-z0-9_]{1,40}$")
 private val PARAM_PATTERN = Regex("^[a-z][a-z0-9_]{0,30}$")
@@ -30,8 +34,14 @@ internal data class PluginParam(val name: String, val description: String, val r
 internal data class RoutineStep(val tool: String, val args: Map<String, String>)
 
 internal sealed interface PluginAction {
-    /** Calls a web address (HTTPS only) and returns the answer, or one value of it when [resultPath] is set. */
-    data class Http(val method: String, val url: String, val body: String?, val resultPath: String?) : PluginAction
+    /**
+     * Calls a web address (HTTPS only) and returns the answer, or one value of it when [resultPath] is set. [fields]: only these
+     * values (dotted paths), of each of the first [max] elements of the list at [items] when it is set, else of the answer itself.
+     */
+    data class Http(
+        val method: String, val url: String, val body: String?, val resultPath: String?,
+        val items: String? = null, val fields: List<String> = emptyList(), val max: Int = DEFAULT_RESULT_ITEMS,
+    ) : PluginAction
 
     /** Opens a web address or app link in the browser or the app that handles it. */
     data class Open(val url: String) : PluginAction
@@ -124,7 +134,18 @@ internal fun parsePlugin(text: String, builtInTools: Set<String>): PluginParse {
             val body = root["body"]?.jsonPrimitive?.contentOrNull
             if (method == "GET" && body != null) return fail("Un GET n’a pas de corps.")
             checkPlaceholders(url, body)?.let { return fail(it) }
-            PluginAction.Http(method, url, body, root["result_path"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() })
+            val items = root["result_items"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() }
+            val fields = try {
+                root["result_fields"]?.jsonArray?.map { it.jsonPrimitive.content.trim() } ?: emptyList()
+            } catch (_: Exception) {
+                return fail("« result_fields » est une liste de chemins, par exemple [\"year\", \"text\"].")
+            }
+            if (fields.size > MAX_RESULT_FIELDS) return fail("$MAX_RESULT_FIELDS champs au maximum dans « result_fields ».")
+            if ((fields + listOfNotNull(items)).any { !FIELD_PATTERN.matches(it) }) return fail("Chemin invalide dans « result_items » ou « result_fields » (lettres, chiffres, _ et points).")
+            if (items != null && fields.isEmpty()) return fail("« result_items » va avec « result_fields » : les valeurs à garder de chaque élément.")
+            val max = root["result_max"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: DEFAULT_RESULT_ITEMS
+            if (max !in 1..MAX_RESULT_ITEMS) return fail("« result_max » va de 1 à $MAX_RESULT_ITEMS.")
+            PluginAction.Http(method, url, body, root["result_path"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }, items, fields, max)
         }
         "open" -> {
             val url = str("url")
@@ -170,6 +191,42 @@ internal fun render(template: String, args: Map<String, String>, urlEncode: Bool
             else -> value
         }
     }
+
+/**
+ * Only [fields] of the answer [json]: one line per element of the list at [items] (its values joined by " — ", at most [max]),
+ * or, without [items], one "name : value" line per field. Missing values are left out; null when nothing is found.
+ */
+internal fun pickFields(json: String, items: String?, fields: List<String>, max: Int): String? {
+    val root = try { Json.parseToJsonElement(json) } catch (_: Exception) { return null }
+    fun text(e: JsonElement?): String? = when (e) {
+        null -> null
+        is JsonPrimitive -> e.contentOrNull?.takeIf { it.isNotBlank() }
+        is JsonArray -> e.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.joinToString(", ").ifBlank { null }
+        else -> null
+    }
+    if (items == null) {
+        // each value named by the end of its path, or by more of it when two ends are the same ("name" of the show and of its network)
+        val ends = fields.groupingBy { it.substringAfterLast('.') }.eachCount()
+        fun label(f: String) =
+            if ((ends[f.substringAfterLast('.')] ?: 0) > 1) f.removePrefix("_embedded.").split('.').takeLast(2).joinToString(".") else f.substringAfterLast('.')
+        return fields.mapNotNull { f -> text(elementAt(root, f))?.let { "${label(f)} : $it" } }.joinToString("\n").ifBlank { null }
+    }
+    val list = elementAt(root, items) as? JsonArray ?: return null
+    return list.take(max).mapNotNull { item -> fields.mapNotNull { text(elementAt(item, it)) }.joinToString(" — ").ifBlank { null } }
+        .joinToString("\n") { "- $it" }.ifBlank { null }
+}
+
+private fun elementAt(root: JsonElement, path: String): JsonElement? {
+    var current: JsonElement = root
+    for (part in path.split('.').filter { it.isNotEmpty() }) {
+        current = when (current) {
+            is JsonObject -> current[part] ?: return null
+            is JsonArray -> part.toIntOrNull()?.let { current.getOrNull(it) } ?: return null
+            else -> return null
+        }
+    }
+    return current
+}
 
 /** The value at a dotted path such as "current.temp" or "items.0.name", or null when absent. */
 internal fun jsonPath(json: String, path: String): String? {

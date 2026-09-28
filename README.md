@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.34 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.35 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -835,7 +835,10 @@ a plugin only describes one of three declarative actions, and the file is checke
 ```
 
 - `"type": "http"`: GET or POST (`"method"`, `"body"` as a JSON template) to an **https** address, optional `"result_path"`
-  (dotted path such as `current.temp`) to return one value. Localhost, private networks and `.local`/`.internal`
+  (dotted path such as `current.temp`) to return one value, or `"result_fields"` (up to 8 dotted paths) to return only those values,
+  one "name : value" line each; with `"result_items"` (the path of a list) they are taken from each of its first `"result_max"`
+  elements (10 by default, 30 at most), one line per element (`["year", "text"]` → "- 1928 — …"). A plugin that picks fields may read an
+  answer of up to 1 MB (100 KB otherwise); what it hands on stays capped. Localhost, private networks and `.local`/`.internal`
   names are refused, and a parameter cannot be in the host. Values are URL-encoded (or JSON-escaped in a body), the
   answer is capped, and it is handed to the model marked as data, never as instructions.
 - `"type": "open"`: opens `https://`, `geo:`, `tel:`, `mailto:` or `sms:` links, parameters URL-encoded.
@@ -843,8 +846,8 @@ a plugin only describes one of three declarative actions, and the file is checke
   not `agent_task` or `end_session`), with `{parameter}` filled in. Sensitive taps still ask for confirmation.
 
 Limits: 100 plugins, 5 parameters each, 20 000 characters per file, a name that is not a built-in tool's.
-Settings: the catalogue (68 built-in plugins) is a dropdown, folded by default, with a search field on the name and description; the
-installed ones stay listed above it.
+Settings: the installed plugins and the catalogue (82 built-in plugins) are two dropdowns, folded by default (the installed ones show
+their names in a line meanwhile), each with a search field on the name and description (the installed ones' from 7 plugins on).
 **Many plugins.** Every installed plugin is usable, but only the first 25 (by file name) are declared to the model as tools of their own: a long list
 of tool declarations weighs on every session, and one the service refuses would break the whole session, and Gemini's documentation gives no
 figure to rely on. From the 26th, a single tool, `plugin_run` (a name and a JSON object of parameters), reaches the others, and its description
@@ -869,7 +872,7 @@ not real time, files only in the work folder). Something switched off is reporte
   position*); the position is used for that one request and never stored. Android may refuse location to an app that is
   not in front, so it is most reliable with Jarvis open; the tool then says how to fix it or asks for a city. Checked
   on an emulator (position → town → weather, named city unchanged); not on the real phone.
-- **Plugin catalogue.** Settings → *Plugins* lists 68 bundled plugins with an *Installer* button (up to 100 can be installed).
+- **Plugin catalogue.** Settings → *Plugins* lists 82 bundled plugins with an *Installer* button (up to 100 can be installed).
   The first 16: crypto prices, exchange rates, Wikipedia summary, public holidays, Maps search and directions, YouTube, translation, news,
   recipes, calendar event, night, meeting and car routines. Added later (13): the position of the International Space Station, a random
   French Wikipedia article, sunrise and sunset, the phase of the moon, NASA's astronomy picture of the day (its explanation, in English), a
@@ -890,6 +893,12 @@ not real time, files only in the work folder). Something switched off is reporte
   the links were run through the plugin runner on the emulator. Limits seen: the address service knows addresses, not monuments ("Tour Eiffel" landed
   in the North), the company search returns the best match of the name given, and the school-holiday dates are in UTC. Tried and left out: the
   MyAnimeList API (time-out), Project Gutenberg's (unreachable) and a name-day calendar (not found).
+  A fifth batch (14, with the new `result_fields` / `result_items`): EDF's Tempo colour of today or tomorrow, the names celebrated on a date,
+  the sea at a place (waves, water temperature; Open-Meteo marine), a TV series' status and next episode (TVmaze), podcasts on a subject (Apple
+  Podcasts search), what happened on a date and who was born on it (Wikipedia's "on this day", tried before and dropped when its long answer
+  was cut: fields now pick it apart), a French joke (JokeAPI, flagged ones left out), links to leboncoin, Vinted, France Travail's job offers
+  and BlaBlaCar, and two routines: cinema (do not disturb for the film, low brightness) and nap (do not disturb, and a timer to wake up). All
+  run through the plugin runner on the emulator with the real services (the nap's do-not-disturb and timer undone afterwards).
   Each is checked like an imported file, and the same files are in `plugins-examples/`. Their web services need no key and were called for
   real while writing them; the seven web ones and both routines were also run through the app's own plugin runner on the emulator (the
   brightness step of the reading mode stops at the system-settings permission, as the night routine does). Not tried: the tap on *Installer*
@@ -1211,6 +1220,14 @@ also shown in the settings.
   timer (closed between 53 and 68 s), the header's "arrêt dans 1 min", the notification and the media session, a headset's pause and
   play keys. *Not checked:* the assistant's answer about the picture (no valid key on the emulator), the lock screen's player, on a
   real phone.
+- **Radio** (since 0.9.35; `radio`). "Mets FIP", "une radio de jazz", "France Inter": the station is looked for in Radio Browser (a free, open
+  directory: by name, then by genre, in France unless asked otherwise, the most listened first; three of its servers in turn), and plays live
+  where the face is, in the video player, with its sound on at once (a radio is asked for to be heard; the microphone then waits for "Jarvis",
+  as over a video). Only stations streamed over https (Android refuses plain http, and it would travel in the clear); the names come from the
+  web and are marked as data. Its card shows the station and "En direct"; the video's pause, "la suivante" (the next station found, 8
+  kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
+  "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
+  (the player started, the card shown), then stopped.
 - **Newsletters and spam** (since 0.9.34; `mail_cleanup`, Google connected). "Qui m'envoie le plus de mails ?", "désabonne-moi de
   Zalando", "nettoie mon spam". *subscriptions:* the list senders of the last 60 days (the 120 newest mails in the promotions, updates,
   social and forums tabs, or saying unsubscribe / désabonner / newsletter), grouped by address, the busiest first, with how to leave
