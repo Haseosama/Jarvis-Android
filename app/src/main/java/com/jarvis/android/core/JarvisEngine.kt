@@ -743,6 +743,9 @@ class JarvisEngine(
                                 connectionReadyAt = android.os.SystemClock.elapsedRealtime()
                                 _sessionReady.value = true
                                 _state.value = JarvisState.LISTENING
+                                // woken over the radio or a video with its sound on: the user wants to talk now, so the floor is open at once
+                                // (the sound turned down) instead of the microphone waiting for the wake word a second time
+                                if (container.videoPanel.soundOn) container.videoPanel.openFloor()
                                 launch { if (container.briefing.consumeTrigger()) announce(BRIEFING_TRIGGER) }
                                 log(
                                     if (handle != null) tr("Session reprise. Microphone actif.")
@@ -767,10 +770,10 @@ class JarvisEngine(
                                                 if (!open) {
                                                     if (videoWake.feed(frame)) {
                                                         panel.openFloor()
-                                                        log(tr("« Jarvis » entendu : le son de la vidéo baisse, je vous écoute."))
+                                                        log(trf("{0} entendu : le son baisse, je vous écoute.", panel.wakePhrase() ?: tr("Le mot d’activation")))
                                                     } else if (!videoWake.available && !toldTap) {
                                                         toldTap = true
-                                                        log(tr("Pour parler pendant la vidéo, touchez le petit visage : le mot d’activation hors ligne n’est pas installé."))
+                                                        log(tr("Pour parler pendant la radio ou une vidéo : touchez le petit visage ou mettez en pause (le mot d’activation hors ligne n’est pas installé)."))
                                                     }
                                                 }
                                                 open

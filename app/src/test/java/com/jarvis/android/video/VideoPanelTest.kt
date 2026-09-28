@@ -177,5 +177,20 @@ class VideoPanelTest {
         assertTrue(youtubePage("Way9Dexny3w", 0, "e\"n<").contains("cc_lang_pref=en&"))
     }
 
+    @Test fun `a paused sound gives the microphone back, and the words say how to talk over the sound`() {
+        val p = VideoPanel()
+        p.show(VideoPanel.Video(url = "https://radio.example/live", radio = true))
+        p.setSound(true)
+        assertTrue(p.soundOn); assertFalse(p.micOpen())
+        p.command(VideoPanel.Command.Pause)
+        assertFalse(p.soundOn); assertTrue(p.micOpen())
+        assertFalse(p.openFloor())                                // nothing to talk over while paused
+        p.command(VideoPanel.Command.Resume)
+        assertFalse(p.micOpen())
+        assertTrue(p.talkOverWords().contains("visage"))           // no wake word installed: the tap or a pause
+        p.wakePhrase = { "« Hey Jarvis »" }
+        assertTrue(p.talkOverWords().contains("« Hey Jarvis »"))
+    }
+
     private companion object { const val DUCK_CHECK = 12 }
 }

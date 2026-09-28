@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.36 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.37 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,17 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Talking to Jarvis over the radio or a video** (fixed in 0.9.37, reported on a phone and in the car with Android Auto: once the radio was
+  on, Jarvis no longer answered). While a sound plays, the microphone only reaches the assistant when the floor is open, so that it does
+  not answer the radio; but a session woken over the sound (by the wake word, the button, the assistant gesture) started with the floor
+  shut, so the request that followed was never heard, and a paused radio kept the microphone shut. Now: a session that starts while a
+  sound plays opens the floor at once (the sound turned down); a paused sound gives the microphone back; the assistant button (a
+  steering wheel's, a long press) during a session over a sound opens the floor; and what is said to the user names the real wake word
+  (« Hey Jarvis » by default, not « Jarvis »), or says to tap the small face or pause when the offline wake word is not installed. The
+  video's header shows it: "🎤 « Hey Jarvis »". *Checked:* `VideoPanelTest` (a pause gives the microphone back, no floor to open while
+  paused, the words with and without a wake word); on the emulator the header with and without the pause. *Not checked:* in a car
+  (Android Auto sends its steering wheel's voice button to Google's assistant, and its media buttons to the media apps it knows, which
+  Jarvis is not yet).
 - **Waking up to the radio, falling asleep to it** (since 0.9.36; `radio_alarm`, `radio` sleep; `wakeup/RadioAlarm.kt`). "Réveille-moi avec
   FIP à 7 h", "en semaine à 6 h 45 avec France Inter": the station is found once when set; at the time, a foreground service plays it at the
   alarm's volume (the alarm usage), from 12 % to full over a minute, with « Arrêter » and « 10 min de plus » in its notification, and stops by

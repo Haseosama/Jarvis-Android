@@ -218,6 +218,7 @@ class JarvisContainer(val appContext: Context) {
         }
         // the user is heard over the video: the small face looks up, once
         videoPanel.onFloor = { appScope.launch(kotlinx.coroutines.Dispatchers.Main) { avatar.reactions++ } }
+        videoPanel.wakePhrase = { if (wakeModel.installed()) wakeModel.label(wakeModel.selected()) else null }
         appScope.launch {
             kotlinx.coroutines.flow.combine(configStore.avatarModel, configStore.avatarHair) { m, h -> h[com.jarvis.android.avatar.avatarFace(m).label].orEmpty() }
                 .collect { avatar.hair = it }

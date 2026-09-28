@@ -99,7 +99,18 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
     @Volatile private var floorUntil = 0L
 
     /** True while a video plays with its sound on. */
-    val soundOn: Boolean get() = _video.value?.sound == true
+    val soundOn: Boolean get() = _video.value?.let { it.sound && !it.paused } == true
+
+    /**
+     * The wake word the user can say over the sound ("« Hey Jarvis »"), or null when the offline wake word is not installed (then only
+     * a tap on the small face, or a pause, gives the microphone back). Set by the container.
+     */
+    @Volatile var wakePhrase: () -> String? = { null }
+
+    /** How the user talks over the sound, in words for them: the wake word if there is one, a tap on the face, or a pause. */
+    fun talkOverWords(): String = wakePhrase()?.let {
+        com.jarvis.android.i18n.trf("dites {0}, touchez le petit visage ou mettez en pause", it)
+    } ?: com.jarvis.android.i18n.tr("touchez le petit visage ou mettez en pause (installez le mot d’activation hors ligne pour le faire à la voix)")
 
     fun show(v: Video) = showList(listOf(v), 0)
 
@@ -197,7 +208,7 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
         if (v.sound == on) return true
         if (!on) floorUntil = 0L
         _video.update { it?.copy(sound = on, ducked = false) }
-        log(if (on) com.jarvis.android.i18n.tr("Son de la vidéo activé : le micro n’écoute plus que « Jarvis » (ou touchez le petit visage) tant qu’il reste allumé.")
+        log(if (on) com.jarvis.android.i18n.trf("Son activé : pour parler à Jarvis pendant ce temps, {0}.", talkOverWords())
         else com.jarvis.android.i18n.tr("Son de la vidéo coupé : le micro écoute de nouveau."))
         return true
     }
@@ -232,7 +243,8 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
      */
     fun micOpen(): Boolean {
         val v = _video.value
-        if (v?.sound != true) return true
+        // nothing to answer by mistake: no sound, or the sound paused
+        if (v?.sound != true || v.paused) return true
         val open = clock() < floorUntil
         if (!open && v.ducked) _video.update { it?.copy(ducked = false) }
         return open

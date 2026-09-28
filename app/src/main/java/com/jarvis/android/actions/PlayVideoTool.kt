@@ -20,7 +20,7 @@ object PlayVideoTool : Tool {
             "avec query (des mots de son nom ou de son album) et/ou date (AAAA-MM-JJ, ou from et to). Pendant la lecture : « pause », « resume », " +
             "« forward » ou « back » (seconds : de combien, 30 et 10 par défaut), « restart », « next » / « previous » (la vidéo suivante ou " +
             "précédente parmi celles trouvées, ou la photo suivante d’un diaporama), « fullscreen » / « exit_fullscreen ». Avec le son allumé, " +
-            "l’utilisateur vous parle en disant « Jarvis » (ou en touchant le petit visage) : le son de la vidéo baisse le temps de l’échange. " +
+            "l’utilisateur vous parle en disant le mot d’activation, en touchant le petit visage ou en mettant en pause : le son de la vidéo baisse le temps de l’échange. " +
             "« look » quand l’utilisateur demande ce qu’on voit dans la vidéo (« c’est qui ? », « qu’est-ce qu’il fait ? ») : une image de la " +
             "vidéo vous est envoyée, décrivez-la. « subtitles » avec language (fr, en…) ou off pour les sous-titres YouTube. « timer » avec " +
             "minutes, ou at_end (« à la fin de celle-ci »), ou off : la vidéo s’arrête d’elle-même. « resume_last » : la dernière vidéo " +
@@ -42,8 +42,7 @@ object PlayVideoTool : Tool {
         val panel = ctx.videoPanel
         return when (args.stringArg("action").trim().lowercase()) {
             "stop", "close", "fermer" -> if (panel.close()) "Vidéo fermée : le visage est revenu." else "Aucune vidéo n’est affichée."
-            "sound_on", "son" -> if (panel.setSound(true)) "Le son de la vidéo est allumé. Le micro n’écoute plus que « Jarvis » tant qu’il l’est : " +
-                "pour vous reparler, l’utilisateur dit « Jarvis » (le son baisse le temps de l’échange) ou touche le petit visage. Dites-le-lui en une phrase courte."
+            "sound_on", "son" -> if (panel.setSound(true)) "Le son de la vidéo est allumé. Pour vous reparler pendant ce temps, l’utilisateur : ${panel.talkOverWords()}. Dites-le-lui en une phrase courte."
             else "Aucune vidéo n’est affichée (ou c’est un diaporama, sans son)."
             "sound_off", "muet" -> if (panel.setSound(false)) "Le son de la vidéo est coupé." else "Aucune vidéo n’est affichée."
             "pause" -> if (panel.command(VideoPanel.Command.Pause)) "Vidéo en pause." else "Aucune vidéo n’est affichée."

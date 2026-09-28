@@ -131,6 +131,11 @@ class MainActivity : ComponentActivity() {
         intent.action = null
         val container = (application as JarvisApp).container
         if (!container.configStore.hasApiKey()) return
+        // the assistant button (a steering wheel's, a long press) while a session listens over the radio or a video: the user wants to talk
+        if (container.engine.sessionReady.value && container.videoPanel.soundOn) {
+            container.videoPanel.openFloor()
+            return
+        }
         if (hasMicPermission()) {
             startJarvisService()
         } else {

@@ -161,6 +161,8 @@ private fun Header(panel: VideoPanel, video: VideoPanel.Video, face: (@Composabl
             val more = listOfNotNull(
                 if (video.count > 1) "${video.position}/${video.count}" else null,
                 if (video.ducked) tr("je vous écoute…") else null,
+                // with the sound on, how to be heard: the wake word, or a tap on the face
+                if (video.sound && !video.paused && !video.ducked) "🎤 " + (panel.wakePhrase() ?: tr("touchez le visage")) else null,
                 when {
                     timer?.atEnd == true -> tr("arrêt à la fin")
                     left != null -> trf("arrêt dans {0} min", ((left!! + 59_999) / 60_000).toString())
