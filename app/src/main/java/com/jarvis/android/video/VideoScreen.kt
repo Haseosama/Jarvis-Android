@@ -53,10 +53,21 @@ internal fun VideoScreenEffects(panel: VideoPanel?, video: VideoPanel.Video?, la
         onDispose { if (full && window != null) WindowCompat.getInsetsController(window, view).show(WindowInsetsCompat.Type.systemBars()) }
     }
 
-    val playing = video != null && !video.paused
+    // the screen stays on while something plays, except while falling asleep to it
+    val playing = video != null && !video.paused && !video.sleep
     DisposableEffect(playing) {
         view.keepScreenOn = playing
         onDispose { view.keepScreenOn = false }
+    }
+
+    // falling asleep: the app's own screen as dim as it goes (the phone's brightness setting is left alone)
+    val sleep = video?.sleep == true
+    DisposableEffect(sleep, activity) {
+        val window = activity?.window
+        if (sleep && window != null) window.attributes = window.attributes.apply { screenBrightness = 0.01f }
+        onDispose {
+            if (sleep && window != null) window.attributes = window.attributes.apply { screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
+        }
     }
 
     BackHandler(enabled = video?.fullscreen == true) { panel?.setFullscreen(false) }

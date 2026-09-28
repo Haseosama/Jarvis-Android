@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.35 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.36 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,38 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Waking up to the radio, falling asleep to it** (since 0.9.36; `radio_alarm`, `radio` sleep; `wakeup/RadioAlarm.kt`). "Réveille-moi avec
+  FIP à 7 h", "en semaine à 6 h 45 avec France Inter": the station is found once when set; at the time, a foreground service plays it at the
+  alarm's volume (the alarm usage), from 12 % to full over a minute, with « Arrêter » and « 10 min de plus » in its notification, and stops by
+  itself after an hour. It is set as an alarm clock (shown by the phone, it rings in Doze, and Android lets a service start from it), so the
+  wake briefing, which watches the phone's next alarm and speaks once an alarm stops sounding, follows it by itself. A stream that fails is
+  looked for again by the station's name, then the phone's own alarm sound rings: an alarm must. One radio alarm at a time; kept across a
+  reboot. Without the "Alarms and reminders" permission it is only approximate and the tool says how to allow it. *Sleep:* "endors-moi",
+  "mets la pluie pour dormir": rain, nature sounds or calm music (three streams chosen and tried by hand) or a station, a timer (30 min by
+  default), the app's screen as dim as it goes and no longer kept on, the sound fading out over the last three minutes. The radio's genre
+  search now asks for the exact tag ("rain" had found "Bahrain"). *Checked:* `PodcastFeedTest` (the next ring once, later today, on its
+  days; the days in words); on the emulator an alarm two minutes ahead, the app in the background: the service started at the second as an
+  alarm clock, playing as an alarm, its notification with the station, « 10 min de plus » (stopped, set again ten minutes on); an earlier
+  run showed that a one-time alarm forgot its station before the service read it (it rang the phone's sound): fixed, the station now goes
+  with the ring, and a rung alarm is kept, inactive, for the snooze. Sleep: the window brightness at 0.01, no keep-screen-on, and after 5
+  minutes the player, the dimming and the notification gone. *Not checked:* on a real phone locked overnight, the briefing after it.
+- **Podcasts and the news** (since 0.9.36; `podcast`, `podcasts/`). "Mets le dernier épisode de Secrets d'Histoire": the podcast is found in
+  Apple's directory, its RSS feed read on the phone (up to 3 MB, by a tolerant reader: a feed cut at the limit still gives its first episodes;
+  https audio only) and the episode plays in the video player with its sound, its card showing the title and the podcast, where it was left
+  if it was (as a video). "episodes" lists the latest ones; "subscribe" / "unsubscribe" / "subscriptions" keep the ones the user follows (on
+  the phone), and "new" says what came out since last asked. *The news* ("mets les infos", "le journal de France Inter"): the freshest
+  bulletin among France Inter's (6 h, 19 h), France Culture's (7 h, 8 h, 12 h 30, 18 h, 22 h), Europe 1's (every hour) and RFI's feeds (Radio
+  France's are not in Apple's directory: their feed numbers were found by hand). *Checked:* `PodcastFeedTest` (title, author, CDATA and
+  entities, http left out, a cut feed, dates and lengths, the freshest, the source from the words, https feeds only); on the emulator the
+  news (Europe 1's 22 h bulletin), a podcast's episodes and one playing, then started again at 34 s after being stopped.
+- **Plugins by voice and from a link** (since 0.9.36; `plugin_manage`). "Crée un plugin qui me dit l'âge moyen des Kevin": the assistant
+  writes the plugin file itself (the tool's description carries the format), with parameters to try it; it is checked like an imported file,
+  an http one is run for real (a link or a routine is only shown: it would act at once), and the user sees its summary and the test's answer
+  and confirms before it is installed (whatever the confirmation setting); a failed test installs nothing and says what to fix. "Installe le
+  plugin de ce lien": an https link (a GitHub page gives its raw file; the local network is refused), at most 20 000 characters, checked,
+  confirmed, installed; also in Settings > Plugins, with a link field. "list" and "remove" (confirmed). *Checked:* `PodcastFeedTest` (the link
+  rules); on the emulator a plugin created (agify.io: Kevin, 34 years, 52 709 people), confirmed and installed, one imported from this
+  repository's GitHub page, and removed.
 - **Newsletters and spam** (since 0.9.34; `mail_cleanup`, Google connected). "Qui m'envoie le plus de mails ?", "désabonne-moi de
   Zalando", "nettoie mon spam". *subscriptions:* the list senders of the last 60 days (the 120 newest mails in the promotions, updates,
   social and forums tabs, or saying unsubscribe / désabonner / newsletter), grouped by address, the busiest first, with how to leave

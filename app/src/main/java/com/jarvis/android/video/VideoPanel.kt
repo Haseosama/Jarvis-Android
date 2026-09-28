@@ -37,7 +37,16 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
         val subtitles: String? = null,
         /** A radio station live ([url] is its stream): sound only, no place to come back to. */
         val radio: Boolean = false,
+        /** A podcast's episode ([url] is its audio): sound only, [artist] is the podcast. */
+        val podcast: Boolean = false,
+        /** Who it is from (a podcast's name), shown under the title and on the lock screen. */
+        val artist: String = "",
+        /** Falling asleep to it: the screen dims and does not stay on, the sound fades out before the timer stops it. */
+        val sleep: Boolean = false,
     ) {
+        /** Sound without a picture: a radio or a podcast. */
+        val audioOnly: Boolean get() = radio || podcast
+
         val isSlideshow: Boolean get() = photos.isNotEmpty()
 
         /** What names it for "where was it left": its YouTube id or its address; none for a slideshow or a radio. */

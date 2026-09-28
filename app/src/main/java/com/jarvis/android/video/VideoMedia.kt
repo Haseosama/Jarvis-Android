@@ -67,7 +67,7 @@ internal class VideoMedia(private val context: Context, private val panel: Video
         session.setMetadata(
             MediaMetadata.Builder()
                 .putString(MediaMetadata.METADATA_KEY_TITLE, v.title.ifBlank { tr("Vidéo") })
-                .putString(MediaMetadata.METADATA_KEY_ARTIST, "Jarvis")
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, v.artist.ifBlank { "Jarvis" })
                 .putLong(MediaMetadata.METADATA_KEY_DURATION, if (v.isSlideshow) -1L else duration * 1000L)
                 .build(),
         )

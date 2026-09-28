@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
@@ -92,6 +93,14 @@ internal fun VideoPlayerView(
 ) {
     // the floor closes by itself when its time is up, even with no session listening (the microphone's loop also checks it)
     if (video.ducked) LaunchedEffect(Unit) { while (true) { delay(500); panel.micOpen() } }
+    // falling asleep: the sound fades out over the last minutes before the timer stops it
+    val fade by produceState(1f, video.sleep) {
+        value = 1f
+        while (video.sleep) {
+            value = panel.timerLeftMs()?.let { (it / SLEEP_FADE_MS.toFloat()).coerceIn(0.05f, 1f) } ?: 1f
+            delay(3_000)
+        }
+    }
     Column(if (big) modifier.fillMaxSize() else modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
         if (!big) Header(panel, video, face)
         // No clip and no background here: the web view may show YouTube's picture on a surface of its own behind the window, seen
@@ -113,10 +122,10 @@ internal fun VideoPlayerView(
                 // one player for all the videos of a search, the next one loaded into it: a player made anew while the app is its small
                 // video window got no picture until the app came back
                 video.youtubeId != null -> YoutubePlayer(panel, video)
-                video.url != null -> FilePlayer(panel, video.url, volumeOf(video), video.startAt)
+                video.url != null -> FilePlayer(panel, video.url, (volumeOf(video) * fade).toInt(), video.startAt)
             }
-            // a radio has no picture: its name over the black, drawn above the player (never under it)
-            if (video.radio) RadioCard(video, Modifier.fillMaxSize())
+            // a radio or a podcast has no picture: its name over the black, drawn above the player (never under it)
+            if (video.audioOnly) RadioCard(video, Modifier.fillMaxSize())
             if (big && !pip) {
                 CompositionLocalProvider(LocalContentColor provides Color.White) {
                     Row(
@@ -505,13 +514,27 @@ private suspend fun jpeg(b: android.graphics.Bitmap): ByteArray = withContext(Di
     }
 }
 
-/** A live radio's picture: its name and "En direct" (or "En pause"). */
+/** How long the sound takes to fade out before a sleep timer stops it. */
+private const val SLEEP_FADE_MS = 180_000L
+
+/** The picture of sound without one: a radio's name and "En direct", or a podcast episode's title and the podcast's name. */
 @Composable
 private fun RadioCard(video: VideoPanel.Video, modifier: Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
-        Icon(androidx.compose.material.icons.Icons.Filled.Radio, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(56.dp))
+        Icon(
+            if (video.podcast) androidx.compose.material.icons.Icons.Filled.Podcasts else androidx.compose.material.icons.Icons.Filled.Radio,
+            contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(56.dp),
+        )
         Text(video.title, style = MaterialTheme.typography.titleLarge, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
-        Text(if (video.paused) tr("En pause") else tr("En direct"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Text(
+            when {
+                video.paused -> tr("En pause")
+                video.podcast -> video.artist.ifBlank { tr("Podcast") }
+                video.sleep -> tr("Bonne nuit")
+                else -> tr("En direct")
+            },
+            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        )
     }
 }

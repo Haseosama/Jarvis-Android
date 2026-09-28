@@ -1069,6 +1069,41 @@ fun SettingsScreen(
             OutlinedButton(onClick = { pickPlugin.launch(arrayOf("application/json", "text/plain", "*/*")) }, modifier = Modifier.padding(top = 12.dp)) {
                 Text(tr("Importer un plugin (JSON)"))
             }
+            // a plugin from a link (a GitHub page works: its raw file is taken), checked like a file
+            var pluginLink by rememberSaveable { mutableStateOf("") }
+            var linkBusy by remember { mutableStateOf(false) }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                OutlinedTextField(
+                    value = pluginLink,
+                    onValueChange = { pluginLink = it.trim() },
+                    label = { Text(tr("Lien d’un plugin (https)")) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                FilledTonalButton(
+                    enabled = pluginLink.isNotBlank() && !linkBusy,
+                    onClick = {
+                        linkBusy = true
+                        scope.launch {
+                            val container = (context0.applicationContext as com.jarvis.android.JarvisApp).container
+                            pluginMessage = withContext(Dispatchers.IO) {
+                                val url = com.jarvis.android.plugins.pluginDownloadUrl(pluginLink)
+                                if (url == null) tr("Adresse refusée : un lien https vers un fichier de plugin (pas le réseau local).")
+                                else try {
+                                    val text = com.jarvis.android.plugins.PluginManageTool.download(container, url)
+                                    if (text == null) tr("Fichier trop gros pour un plugin.")
+                                    else pluginStore.install(text) ?: tr("Plugin installé. Il est actif dès la prochaine session vocale.")
+                                } catch (_: java.io.IOException) {
+                                    tr("Le fichier est inaccessible à cette adresse.")
+                                }
+                            }
+                            pluginTick++
+                            linkBusy = false
+                        }
+                    },
+                    modifier = Modifier.padding(start = 8.dp),
+                ) { Text(tr("Importer")) }
+            }
             pluginMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
             }
             SettingsCard(tr("Dossier de travail (fichiers)"), Icons.Filled.Folder, initiallyExpanded = false) {

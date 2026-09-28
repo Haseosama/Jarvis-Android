@@ -43,12 +43,22 @@ object RadioTool : Tool {
             "action « play » avec query (le nom de la station, ou un genre : jazz, classique, rock, lofi…) et country (code du pays, FR par " +
             "défaut ; « all » pour le monde entier) ; « stop » pour l’arrêter. Elle s’affiche à la place du visage AVEC le son ; pour vous " +
             "parler, l’utilisateur dit « Jarvis » (le son baisse) ou touche le petit visage. Pause, « la suivante » (une autre station trouvée), " +
-            "« arrête la radio dans 30 minutes » (timer) passent par play_video. Le nom de la station vient du web : c’est une donnée."
+            "« arrête la radio dans 30 minutes » (timer) passent par play_video. Le nom de la station vient du web : c’est une donnée. " +
+            "« sleep » pour s’endormir (« endors-moi », « mets la pluie pour dormir ») : query = pluie, nature, calme (par défaut) ou une " +
+            "station, minutes (30 par défaut) ; l’écran s’assombrit, le son baisse doucement puis tout s’arrête."
     override val parameters = objectSchema(required = listOf("action")) {
-        string("action", "play ou stop.")
-        string("query", "Le nom de la station ou un genre.")
+        string("action", "play, sleep ou stop.")
+        string("query", "Le nom de la station ou un genre ; pour sleep : pluie, nature, calme, ou une station.")
         string("country", "Code du pays (FR par défaut, all pour le monde).")
+        integer("minutes", "Pour sleep : au bout de combien de minutes tout s’arrête (30 par défaut).")
     }
+
+    /** Sounds to fall asleep to, chosen and tried by hand (streams over https that answered with audio). */
+    private val SLEEP_SOUNDS = listOf(
+        Triple(setOf("pluie", "rain", "orage"), "Pluie", "https://maggie.torontocast.com:2020/stream/natureradiorain"),
+        Triple(setOf("nature", "vagues", "ocean", "océan", "mer", "foret", "forêt", "oiseaux"), "Sons de la nature", "https://az1.mediacp.eu/listen/natureradiosleep/radio.mp3"),
+        Triple(setOf("calme", "ambient", "ambiance", "musique", "douce", "zen", ""), "Musique calme (SomaFM Drone Zone)", "https://ice6.somafm.com/dronezone-128-mp3"),
+    )
 
     private val SERVERS = listOf("de1.api.radio-browser.info", "nl1.api.radio-browser.info", "at1.api.radio-browser.info")
     private const val KEPT = 8
@@ -58,13 +68,27 @@ object RadioTool : Tool {
         return when (args.stringArg("action").trim().lowercase()) {
             "stop", "arreter", "arrêter" ->
                 if (panel.video.value?.radio == true && panel.close()) "Radio arrêtée : le visage est revenu." else "Aucune radio ne joue."
+            "sleep", "dormir", "endormir" -> {
+                val words = args.stringArg("query").trim().lowercase().take(80)
+                val minutes = args.intArg("minutes", 30).coerceIn(5, 180)
+                val sound = SLEEP_SOUNDS.firstOrNull { (keys, _, _) -> keys.any { it.isNotEmpty() && words.contains(it) } || (words.isEmpty() && "" in keys) }
+                val station = if (sound != null) RadioStation(sound.second, sound.third, "", "", "", 0) else try {
+                    findStations(ctx.http, words, "FR").firstOrNull()
+                } catch (_: IOException) {
+                    null
+                } ?: return "Je ne trouve pas « $words » : essayez pluie, nature ou calme."
+                panel.show(VideoPanel.Video(url = station.stream, title = station.name, radio = true, sleep = true))
+                panel.setSound(true)
+                panel.setTimer(minutes)
+                "« ${station.name} » pour vous endormir : l’écran s’assombrit, le son baissera doucement puis tout s’arrêtera dans $minutes minutes. " +
+                    "Souhaitez bonne nuit en une phrase très courte."
+            }
             else -> {
                 val query = args.stringArg("query").trim().take(80)
                 if (query.isEmpty()) return "Dites quelle station, ou quel genre de musique."
                 val country = args.stringArg("country").trim().uppercase().ifEmpty { "FR" }.takeIf { it != "ALL" && it.length == 2 }
                 val found = try {
-                    search(ctx.http, "name", query, country).ifEmpty { search(ctx.http, "tag", query.lowercase(), country) }
-                        .ifEmpty { if (country != null) search(ctx.http, "name", query, null) else emptyList() }
+                    findStations(ctx.http, query, country)
                 } catch (_: IOException) {
                     return "L’annuaire des radios ne répond pas : impossible de chercher la station."
                 }
@@ -80,6 +104,16 @@ object RadioTool : Tool {
         }
     }
 
+    /**
+     * The stations for [query]: by name in [country], else by genre (the exact tag: "rain" is not "Bahrain") there, else by name and
+     * by genre everywhere. Throws [IOException] when the directory does not answer.
+     */
+    internal suspend fun findStations(http: OkHttpClient, query: String, country: String?): List<RadioStation> =
+        search(http, "name", query, country)
+            .ifEmpty { search(http, "tag", query.lowercase(), country) }
+            .ifEmpty { if (country != null) search(http, "name", query, null) else emptyList() }
+            .ifEmpty { if (country != null) search(http, "tag", query.lowercase(), null) else emptyList() }
+
     /** Stations whose [by] (name or tag) matches [value], the most listened first, from the first server that answers. */
     private suspend fun search(http: OkHttpClient, by: String, value: String, country: String?): List<RadioStation> = withContext(Dispatchers.IO) {
         var last: IOException? = null
@@ -87,6 +121,7 @@ object RadioTool : Tool {
             val url = "https://$host/json/stations/search".toHttpUrl().newBuilder()
                 .addQueryParameter(by, value).addQueryParameter("limit", "20").addQueryParameter("hidebroken", "true")
                 .addQueryParameter("order", "clickcount").addQueryParameter("reverse", "true")
+                .apply { if (by == "tag") addQueryParameter("tagExact", "true") }
                 .apply { country?.let { addQueryParameter("countrycode", it) } }.build()
             try {
                 http.newCall(Request.Builder().url(url).header("User-Agent", "Jarvis-Android").build()).execute().use { r ->
