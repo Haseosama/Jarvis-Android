@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -89,6 +90,13 @@ class JarvisContainer(val appContext: Context) {
 
     /** A video shown in place of the avatar (play_video). */
     val videoPanel: com.jarvis.android.video.VideoPanel by lazy { com.jarvis.android.video.VideoPanel(log = { log(it) }) }
+
+    /** Where each video was left (on the phone only). */
+    val videoHistory: com.jarvis.android.video.VideoHistory by lazy {
+        val prefs = appContext.getSharedPreferences("video_history", Context.MODE_PRIVATE)
+        com.jarvis.android.video.VideoHistory({ prefs.getString("entries", null) }, { prefs.edit().putString("entries", it).apply() })
+    }
+    private val videoMedia by lazy { com.jarvis.android.video.VideoMedia(appContext, videoPanel, appScope) }
 
     internal val briefing: com.jarvis.android.memory.BriefingCoordinator by lazy { com.jarvis.android.memory.BriefingCoordinator(this) }
 
@@ -193,7 +201,21 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch { configStore.avatarLight.collect { avatar.light = it } }
         // a video: the face watches it (its small face in the video's header) and reacts when it starts and when it goes
         videoPanel.onShown = { appScope.launch(kotlinx.coroutines.Dispatchers.Main) { avatar.watching = true; avatar.reactions++ } }
-        videoPanel.onClosed = { appScope.launch(kotlinx.coroutines.Dispatchers.Main) { avatar.watching = false; avatar.reactions++ } }
+        videoPanel.onClosed = {
+            videoHistory.save()
+            appScope.launch(kotlinx.coroutines.Dispatchers.Main) { avatar.watching = false; avatar.reactions++ }
+        }
+        // where it is: kept for coming back to it, and shown on the lock screen
+        videoPanel.onProgress = { v, p, d -> videoHistory.record(v, p, d, System.currentTimeMillis()); videoMedia.progress(d) }
+        appScope.launch(kotlinx.coroutines.Dispatchers.Main) { videoMedia }
+        // "arrête la vidéo dans 20 minutes"
+        appScope.launch {
+            videoPanel.timer.collectLatest {
+                val left = videoPanel.timerLeftMs() ?: return@collectLatest
+                kotlinx.coroutines.delay(left)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { videoPanel.checkTimer() }
+            }
+        }
         // the user is heard over the video: the small face looks up, once
         videoPanel.onFloor = { appScope.launch(kotlinx.coroutines.Dispatchers.Main) { avatar.reactions++ } }
         appScope.launch {

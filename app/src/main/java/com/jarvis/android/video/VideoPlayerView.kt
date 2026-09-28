@@ -67,6 +67,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.jarvis.android.i18n.tr
+import com.jarvis.android.i18n.trf
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -92,13 +96,23 @@ internal fun VideoPlayerView(
         // No clip and no background here: the web view may show YouTube's picture on a surface of its own behind the window, seen
         // through a hole it punches in it. A rounded clip draws the box into a layer of its own (the hole is punched in that layer, not
         // in the window) and a background paints over the hole: either way the sound plays and the picture stays black.
-        Box(if (big) Modifier.fillMaxSize() else Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
+        val where = remember { arrayOfNulls<androidx.compose.ui.geometry.Rect>(1) }
+        val view = androidx.compose.ui.platform.LocalView.current
+        DisposableEffect(panel, view) {
+            // "qu'est-ce qu'on voit ?": a picture of the player, copied from the window as it is on screen
+            panel.grabFrame = { maxSide -> where[0]?.let { r -> grabWindow(view, r, maxSide) } }
+            onDispose { panel.grabFrame = null }
+        }
+        Box(
+            (if (big) Modifier.fillMaxSize() else Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+                .onGloballyPositioned { where[0] = it.boundsInWindow() },
+        ) {
             when {
                 video.isSlideshow -> key(video.photos) { Slideshow(panel, video) }
                 // one player for all the videos of a search, the next one loaded into it: a player made anew while the app is its small
                 // video window got no picture until the app came back
-                video.youtubeId != null -> YoutubePlayer(panel, video.youtubeId, volumeOf(video))
-                video.url != null -> FilePlayer(panel, video.url, volumeOf(video)) { if (!panel.step(1)) panel.close() }
+                video.youtubeId != null -> YoutubePlayer(panel, video)
+                video.url != null -> FilePlayer(panel, video.url, volumeOf(video), video.startAt)
             }
             if (big && !pip) {
                 CompositionLocalProvider(LocalContentColor provides Color.White) {
@@ -129,9 +143,17 @@ private fun Header(panel: VideoPanel, video: VideoPanel.Video, face: (@Composabl
         }
         Column(Modifier.weight(1f).padding(start = 4.dp)) {
             Text(video.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val timer by panel.timer.collectAsState()
+            // the minutes left, counted again every few seconds
+            val left by produceState<Long?>(null, timer) { while (true) { value = panel.timerLeftMs(); delay(5_000) } }
             val more = listOfNotNull(
                 if (video.count > 1) "${video.position}/${video.count}" else null,
                 if (video.ducked) tr("je vous écoute…") else null,
+                when {
+                    timer?.atEnd == true -> tr("arrêt à la fin")
+                    left != null -> trf("arrêt dans {0} min", ((left!! + 59_999) / 60_000).toString())
+                    else -> null
+                },
             )
             if (more.isNotEmpty()) {
                 Text(more.joinToString(" · "), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
@@ -177,8 +199,11 @@ private fun RowScope.Controls(panel: VideoPanel, video: VideoPanel.Video, previo
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun YoutubePlayer(panel: VideoPanel, id: String, volume: Int) {
+private fun YoutubePlayer(panel: VideoPanel, video: VideoPanel.Video) {
+    val id = video.youtubeId ?: return
+    val volume = volumeOf(video)
     val web = remember { arrayOfNulls<WebView>(1) }
+    val current by androidx.compose.runtime.rememberUpdatedState(video)
     AndroidView(
         factory = { ctx ->
             // a debug build can be inspected from a computer (chrome://inspect)
@@ -202,7 +227,22 @@ private fun YoutubePlayer(panel: VideoPanel, id: String, volume: Int) {
         },
         modifier = Modifier.fillMaxSize(),
     )
-    LaunchedEffect(id) { web[0]?.loadDataWithBaseURL("https://jarvis.android.local/", youtubePage(id), "text/html", "utf-8", null) }
+    LaunchedEffect(id) {
+        web[0]?.loadDataWithBaseURL("https://jarvis.android.local/", youtubePage(id, current.startAt, current.subtitles), "text/html", "utf-8", null)
+        // where it is, every few seconds (kept to come back to it), and its end
+        var over = false
+        while (true) {
+            delay(PROGRESS_MS)
+            web[0]?.evaluateJavascript("JSON.stringify([cur,dur,st])") { r ->
+                val parts = r.trim('"').removePrefix("[").removeSuffix("]").split(',').map { it.trim().toDoubleOrNull() ?: -1.0 }
+                if (parts.size == 3 && parts[0] >= 0) {
+                    panel.progress(parts[0].toInt(), maxOf(0, parts[1].toInt()))
+                    if (parts[2] == 0.0 && !over) { over = true; panel.ended() }
+                    if (parts[2] == 1.0) over = false
+                }
+            }
+        }
+    }
     LaunchedEffect(volume, id) {
         // the player may still be loading: the command is sent a few times
         repeat(6) {
@@ -217,6 +257,7 @@ private fun YoutubePlayer(panel: VideoPanel, id: String, volume: Int) {
                 VideoPanel.Command.Resume -> "cmd('playVideo')"
                 VideoPanel.Command.Restart -> "cmd('seekTo',[0,true]);cmd('playVideo')"
                 is VideoPanel.Command.SeekBy -> "seekBy(${c.seconds})"
+                is VideoPanel.Command.Subtitles -> "subs(${c.language?.let { "'" + it.filter { ch -> ch.isLetter() || ch == '-' }.take(8) + "'" } ?: "null"})"
                 is VideoPanel.Command.Step -> null
             }
             if (js != null) web[0]?.evaluateJavascript(js, null)
@@ -225,18 +266,30 @@ private fun YoutubePlayer(panel: VideoPanel, id: String, volume: Int) {
     DisposableEffect(Unit) { onDispose { web[0]?.apply { loadUrl("about:blank"); destroy() }; web[0] = null } }
 }
 
-internal fun youtubePage(id: String): String = """
+/** How often a player says where it is. */
+private const val PROGRESS_MS = 5_000L
+
+/** YouTube's page for video [id], started at [start] seconds, with subtitles in [subtitles] (a language code) when set. */
+internal fun youtubePage(id: String, start: Int = 0, subtitles: String? = null): String {
+    val lang = subtitles?.filter { it.isLetter() || it == '-' }?.take(8)
+    val extra = (if (start > 0) "&start=$start" else "") + (if (!lang.isNullOrEmpty()) "&cc_load_policy=1&cc_lang_pref=$lang&hl=$lang" else "")
+    return youtubePageFor(id, extra)
+}
+
+private fun youtubePageFor(id: String, extra: String): String = """
 <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>html,body{margin:0;height:100%;background:#000}iframe{position:absolute;inset:0;width:100%;height:100%;border:0}</style></head>
 <body><iframe id="p" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen
- src="https://www.youtube-nocookie.com/embed/$id?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&origin=https%3A%2F%2Fjarvis.android.local"></iframe>
+ src="https://www.youtube-nocookie.com/embed/$id?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&origin=https%3A%2F%2Fjarvis.android.local$extra"></iframe>
 <script>
-var cur=0;
+var cur=0, dur=0, st=-1;
 function cmd(f,a){document.getElementById('p').contentWindow.postMessage(JSON.stringify({event:'command',func:f,args:a||[]}),'*');}
 function setVol(v){ if(v<=0){cmd('mute');} else {cmd('unMute');cmd('setVolume',[v]);} }
 function seekBy(s){ cmd('seekTo',[Math.max(0,cur+s),true]); }
+function subs(l){ if(l){ cmd('loadModule',['captions']); cmd('setOption',['captions','track',{languageCode:l}]); } else { cmd('unloadModule',['captions']); } }
 // the player reports where it is once asked to talk to this page
-window.addEventListener('message',function(e){ try{ var m=JSON.parse(e.data); if(m.info&&typeof m.info.currentTime==='number') cur=m.info.currentTime; }catch(x){} });
+window.addEventListener('message',function(e){ try{ var m=JSON.parse(e.data); if(!m.info) return; if(typeof m.info.currentTime==='number') cur=m.info.currentTime;
+ if(typeof m.info.duration==='number') dur=m.info.duration; if(typeof m.info.playerState==='number') st=m.info.playerState; }catch(x){} });
 setInterval(function(){ document.getElementById('p').contentWindow.postMessage(JSON.stringify({event:'listening',id:1}),'*'); },1000);
 // YouTube stops a player smaller than 200 by 200 (the app's small video window): it is laid out larger, then shrunk to fit
 function fit(){ var k=Math.max(1,220/Math.max(1,Math.min(innerWidth,innerHeight))); var f=document.getElementById('p');
@@ -253,9 +306,10 @@ window.addEventListener('resize',fit); fit();
  * shrunk to its video window). Here the player lives as long as the view, whatever happens to its surface.
  */
 @Composable
-private fun FilePlayer(panel: VideoPanel, url: String, volume: Int, onEnd: () -> Unit) {
+private fun FilePlayer(panel: VideoPanel, url: String, volume: Int, startAt: Int) {
     val context = LocalContext.current
-    val ended by androidx.compose.runtime.rememberUpdatedState(onEnd)
+    val start by androidx.compose.runtime.rememberUpdatedState(startAt)
+    val ended = { panel.ended() }
     val mp = remember { MediaPlayer() }
     val prepared = remember { booleanArrayOf(false) }
     val texture = remember { arrayOfNulls<TextureView>(1) }
@@ -306,20 +360,28 @@ private fun FilePlayer(panel: VideoPanel, url: String, volume: Int, onEnd: () ->
                 val v = panel.video.value?.let { volumeOf(it) / 100f } ?: 0f
                 it.setVolume(v, v)
                 fit()
+                if (start > 0) it.seekTo(start * 1000L, MediaPlayer.SEEK_CLOSEST)
                 if (panel.video.value?.paused != true) it.start()
             }
             mp.setOnVideoSizeChangedListener { _, _, _ -> fit() }
             mp.setOnCompletionListener { ended() }
-            mp.setOnErrorListener { _, _, _ -> ended(); true }
+            mp.setOnErrorListener { _, what, extra -> android.util.Log.w("JarvisVideo", "player error $what/$extra"); ended(); true }
             mp.setDataSource(context, Uri.parse(url))
             mp.prepareAsync()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.w("JarvisVideo", "cannot open the video", e)
             ended()
         }
     }
     LaunchedEffect(volume) {
         val v = volume / 100f
         try { if (prepared[0]) mp.setVolume(v, v) } catch (_: IllegalStateException) {}
+    }
+    LaunchedEffect(url) {
+        while (true) {
+            delay(PROGRESS_MS)
+            try { if (prepared[0] && mp.isPlaying) panel.progress(mp.currentPosition / 1000, maxOf(0, mp.duration / 1000)) } catch (_: IllegalStateException) {}
+        }
     }
     LaunchedEffect(panel) {
         panel.commands.collect { c ->
@@ -331,10 +393,21 @@ private fun FilePlayer(panel: VideoPanel, url: String, volume: Int, onEnd: () ->
                     VideoPanel.Command.Restart -> { mp.seekTo(0); mp.start() }
                     is VideoPanel.Command.SeekBy ->
                         mp.seekTo((mp.currentPosition + c.seconds * 1000L).coerceIn(0L, maxOf(mp.duration, 0).toLong()), MediaPlayer.SEEK_CLOSEST)
-                    is VideoPanel.Command.Step -> {}
+                    is VideoPanel.Command.Step, is VideoPanel.Command.Subtitles -> {}
                 }
             } catch (_: IllegalStateException) {}
         }
+    }
+    DisposableEffect(panel) {
+        // its picture, taken from the texture view itself (a copy of the window leaves it out)
+        val before = panel.grabFrame
+        panel.grabFrame = { maxSide ->
+            texture[0]?.takeIf { it.width > 0 && it.height > 0 }?.let { tv ->
+                val scale = minOf(1f, maxSide.toFloat() / maxOf(tv.width, tv.height))
+                tv.getBitmap((tv.width * scale).toInt(), (tv.height * scale).toInt())
+            }?.let { jpeg(it) }
+        }
+        onDispose { panel.grabFrame = before }
     }
     DisposableEffect(Unit) { onDispose { prepared[0] = false; mp.release(); texture[0] = null } }
 }
@@ -394,5 +467,37 @@ private fun Slideshow(panel: VideoPanel, video: VideoPanel.Video) {
             modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
                 .padding(horizontal = 6.dp, vertical = 2.dp),
         )
+    }
+}
+
+/**
+ * The part [r] of the window (in its pixels) as a JPEG at most [maxSide] pixels on a side, or null: what the screen shows there,
+ * the web view's video and the texture view's included (a copy of the window's own picture, Android 8 and later).
+ */
+private suspend fun grabWindow(view: android.view.View, r: androidx.compose.ui.geometry.Rect, maxSide: Int): ByteArray? {
+    val window = view.context.findActivity()?.window ?: return null
+    val w = r.width.toInt()
+    val h = r.height.toInt()
+    if (w <= 0 || h <= 0) return null
+    val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+    val ok = kotlinx.coroutines.suspendCancellableCoroutine { k ->
+        try {
+            android.view.PixelCopy.request(
+                window, android.graphics.Rect(r.left.toInt(), r.top.toInt(), r.left.toInt() + w, r.top.toInt() + h), bitmap,
+                { result -> k.resume(result == android.view.PixelCopy.SUCCESS) {} }, android.os.Handler(android.os.Looper.getMainLooper()),
+            )
+        } catch (_: Exception) {
+            k.resume(false) {}
+        }
+    }
+    if (!ok) return null
+    val scale = minOf(1f, maxSide.toFloat() / maxOf(w, h))
+    return jpeg(if (scale < 1f) android.graphics.Bitmap.createScaledBitmap(bitmap, (w * scale).toInt(), (h * scale).toInt(), true) else bitmap)
+}
+
+private suspend fun jpeg(b: android.graphics.Bitmap): ByteArray = withContext(Dispatchers.Default) {
+    java.io.ByteArrayOutputStream().use { out ->
+        b.compress(android.graphics.Bitmap.CompressFormat.JPEG, 75, out)
+        out.toByteArray()
     }
 }

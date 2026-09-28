@@ -225,6 +225,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".video.VideoControlReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".actions.ReminderReceiver"
             android:exported="false" />
 

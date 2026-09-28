@@ -128,5 +128,54 @@ class VideoPanelTest {
         assertEquals(0, volumeOf(p.video.value!!))
     }
 
+    @Test fun `a timer stops the video at its time, or at the end of the one playing`() {
+        var now = 0L
+        val p = VideoPanel(clock = { now })
+        assertFalse(p.setTimer(20))                              // no video
+        p.showList(listOf(VideoPanel.Video(url = "content://1"), VideoPanel.Video(url = "content://2")))
+        assertTrue(p.setTimer(20))
+        assertEquals(20 * 60_000L, p.timerLeftMs())
+        now = 20 * 60_000L - 1
+        assertFalse(p.checkTimer())
+        now += 1
+        assertTrue(p.checkTimer()); assertNull(p.video.value); assertNull(p.timer.value)
+
+        // at the end: a video file would go on to the next one, the timer closes instead
+        p.showList(listOf(VideoPanel.Video(url = "content://1"), VideoPanel.Video(url = "content://2")))
+        p.ended(); assertEquals("content://2", p.video.value!!.url)
+        p.setTimer(null, atEnd = true)
+        assertNull(p.timerLeftMs())
+        p.ended(); assertNull(p.video.value)
+
+        // YouTube stays on its end screen; a timer set to nothing is none
+        p.show(VideoPanel.Video(youtubeId = "Way9Dexny3w"))
+        p.ended(); assertEquals("Way9Dexny3w", p.video.value!!.youtubeId)
+        p.setTimer(0); assertNull(p.timer.value)
+    }
+
+    @Test fun `the players say where they are, and a new search starts where the video was left, with the same subtitles`() {
+        val p = VideoPanel()
+        val heard = mutableListOf<Pair<Int, Int>>()
+        p.onProgress = { _, pos, dur -> heard += pos to dur }
+        p.show(VideoPanel.Video(youtubeId = "Way9Dexny3w", startAt = 42))
+        assertEquals(42, p.positionS)
+        p.progress(50, 600)
+        assertEquals(50, p.positionS); assertEquals(listOf(50 to 600), heard)
+        assertTrue(p.command(VideoPanel.Command.Subtitles("fr")))
+        assertEquals("fr", p.video.value!!.subtitles)
+        p.show(VideoPanel.Video(youtubeId = "aqz-KE-bpKQ"))
+        assertEquals("fr", p.video.value!!.subtitles)
+        p.show(VideoPanel.Video(title = "Photos", photos = listOf("content://1")))
+        p.progress(3, 0)
+        assertEquals(1, heard.size)                               // a slideshow has no place to come back to
+    }
+
+    @Test fun `the page starts YouTube where asked, with subtitles in a clean language code`() {
+        val html = youtubePage("Way9Dexny3w", 75, "fr")
+        assertTrue(html.contains("&start=75") && html.contains("cc_load_policy=1&cc_lang_pref=fr"))
+        assertFalse(youtubePage("Way9Dexny3w").contains("start="))
+        assertTrue(youtubePage("Way9Dexny3w", 0, "e\"n<").contains("cc_lang_pref=en&"))
+    }
+
     private companion object { const val DUCK_CHECK = 12 }
 }

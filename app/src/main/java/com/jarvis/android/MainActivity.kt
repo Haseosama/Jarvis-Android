@@ -87,11 +87,7 @@ class MainActivity : ComponentActivity() {
         val action = android.app.RemoteAction(
             android.graphics.drawable.Icon.createWithResource(this, if (paused) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause),
             com.jarvis.android.i18n.tr(if (paused) "Lecture" else "Pause"), com.jarvis.android.i18n.tr(if (paused) "Lecture" else "Pause"),
-            android.app.PendingIntent.getBroadcast(
-                this, if (paused) 1 else 2,
-                Intent(ACTION_VIDEO_WINDOW).setPackage(packageName).putExtra("do", if (paused) "play" else "pause"),
-                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
-            ),
+            com.jarvis.android.video.VideoMedia.controlIntent(this, if (paused) com.jarvis.android.video.VideoMedia.DO_PLAY else com.jarvis.android.video.VideoMedia.DO_PAUSE),
         )
         return android.app.PictureInPictureParams.Builder()
             .setAspectRatio(android.util.Rational(16, 9))
@@ -103,16 +99,6 @@ class MainActivity : ComponentActivity() {
     private fun updateVideoWindow() {
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return
         try { setPictureInPictureParams(videoWindowParams()) } catch (e: Exception) { android.util.Log.w("JarvisPip", "params", e) }
-    }
-
-    private val videoWindowReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: android.content.Context, intent: Intent) {
-            val panel = (application as JarvisApp).container.videoPanel
-            when (intent.getStringExtra("do")) {
-                "pause" -> panel.command(com.jarvis.android.video.VideoPanel.Command.Pause)
-                "play" -> panel.command(com.jarvis.android.video.VideoPanel.Command.Resume)
-            }
-        }
     }
 
     override fun onUserLeaveHint() {
@@ -130,11 +116,6 @@ class MainActivity : ComponentActivity() {
         if (!isInPictureInPictureMode && !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
             (application as JarvisApp).container.videoPanel.close()
         }
-    }
-
-    override fun onDestroy() {
-        try { unregisterReceiver(videoWindowReceiver) } catch (_: Exception) {}
-        super.onDestroy()
     }
 
     /** A launcher shortcut or the home-screen widget asks for a session: start it once a key and the mic permission exist. */
@@ -187,7 +168,6 @@ class MainActivity : ComponentActivity() {
         com.jarvis.android.i18n.Lang.load(this)
         if (savedInstanceState == null) handleLaunchIntent(intent)
         publishShortcut()
-        ContextCompat.registerReceiver(this, videoWindowReceiver, android.content.IntentFilter(ACTION_VIDEO_WINDOW), ContextCompat.RECEIVER_NOT_EXPORTED)
 
         setContent {
             val hue by container.configStore.themeHue.collectAsState(initial = 190f)
@@ -322,6 +302,5 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_START_SESSION = "com.jarvis.android.START_SESSION"
         const val ACTION_OPEN_CHAT = "com.jarvis.android.OPEN_CHAT"
-        private const val ACTION_VIDEO_WINDOW = "com.jarvis.android.VIDEO_WINDOW"
     }
 }

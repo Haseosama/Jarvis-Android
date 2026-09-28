@@ -31,9 +31,19 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
         val count: Int = 1,
         /** The sound turned down while the user talks over it. */
         val ducked: Boolean = false,
+        /** Where to start, in seconds (where it was left last time). */
+        val startAt: Int = 0,
+        /** YouTube's subtitles in this language (a code: "fr", "en"…), none when null. */
+        val subtitles: String? = null,
     ) {
         val isSlideshow: Boolean get() = photos.isNotEmpty()
+
+        /** What names it for "where was it left": its YouTube id or its address; none for a slideshow. */
+        val key: String? get() = youtubeId?.let { "yt:$it" } ?: url
     }
+
+    /** When the video stops by itself: at a time ([at], on the panel's clock), or at the end of the one playing ([atEnd]). */
+    data class Timer(val at: Long? = null, val atEnd: Boolean = false)
 
     /** What the player is asked to do (by voice, or its buttons), carried out by the one on screen. */
     sealed interface Command {
@@ -43,6 +53,8 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
         data object Restart : Command
         /** A slideshow: [by] photos further (back when negative). */
         data class Step(val by: Int) : Command
+        /** YouTube's subtitles in [language], or none (null). */
+        data class Subtitles(val language: String?) : Command
     }
 
     private val _commands = kotlinx.coroutines.flow.MutableSharedFlow<Command>(extraBufferCapacity = 8)
@@ -52,6 +64,19 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
     @Volatile var onShown: () -> Unit = {}
     @Volatile var onClosed: () -> Unit = {}
     @Volatile var onFloor: () -> Unit = {}
+
+    /** Called every few seconds while a video plays: where it is and how long it is, in seconds (0: not known). */
+    @Volatile var onProgress: (Video, Int, Int) -> Unit = { _, _, _ -> }
+
+    /** Set by the screen while a player is shown: a picture of what it shows now, as a JPEG at most so many pixels on a side. */
+    @Volatile var grabFrame: (suspend (Int) -> ByteArray?)? = null
+
+    /** Where the video on screen is, in seconds, as its player last said. */
+    @Volatile var positionS: Int = 0
+        private set
+
+    private val _timer = MutableStateFlow<Timer?>(null)
+    val timer: StateFlow<Timer?> = _timer.asStateFlow()
 
     private val _video = MutableStateFlow<Video?>(null)
     val video: StateFlow<Video?> = _video.asStateFlow()
@@ -72,10 +97,14 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
     fun showList(videos: List<Video>, start: Int = 0) {
         if (videos.isEmpty()) return
         val wasFull = _video.value?.fullscreen == true
+        val subtitles = _video.value?.subtitles
         list = videos.mapIndexed { i, v -> v.copy(position = i + 1, count = videos.size) }
         at = start.coerceIn(list.indices)
         floorUntil = 0L
-        _video.value = list[at].let { it.copy(sound = false, paused = false, ducked = false, fullscreen = it.fullscreen || wasFull) }
+        positionS = list[at].startAt
+        _video.value = list[at].let {
+            it.copy(sound = false, paused = false, ducked = false, fullscreen = it.fullscreen || wasFull, subtitles = it.subtitles ?: subtitles)
+        }
         onShown()
     }
 
@@ -90,7 +119,8 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
         val next = at + by
         if (next !in list.indices) return false
         at = next
-        _video.value = list[at].copy(sound = cur.sound, fullscreen = cur.fullscreen, ducked = cur.ducked)
+        positionS = list[at].startAt
+        _video.value = list[at].copy(sound = cur.sound, fullscreen = cur.fullscreen, ducked = cur.ducked, subtitles = cur.subtitles)
         onShown()
         return true
     }
@@ -101,9 +131,53 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
         when (c) {
             Command.Pause -> _video.update { it?.copy(paused = true) }
             Command.Resume, Command.Restart -> _video.update { it?.copy(paused = false) }
+            is Command.Subtitles -> _video.update { it?.copy(subtitles = c.language) }
             is Command.SeekBy, is Command.Step -> {}
         }
         return _commands.tryEmit(c)
+    }
+
+    /** The player says where it is ([position] and [duration] in seconds, 0 when not known). */
+    fun progress(position: Int, duration: Int) {
+        val v = _video.value ?: return
+        if (v.isSlideshow) return
+        positionS = position
+        onProgress(v, position, duration)
+    }
+
+    /**
+     * The video on screen came to its end: the panel closes if the timer asked for that, a video file goes on to the next one found
+     * (or closes after the last), YouTube stays on its end screen.
+     */
+    fun ended() {
+        val v = _video.value ?: return
+        when {
+            _timer.value?.atEnd == true -> { log(com.jarvis.android.i18n.tr("Minuterie : la vidéo est finie, elle se ferme.")); close() }
+            v.url != null -> if (!step(1)) close()
+        }
+    }
+
+    /** Stops the video in [minutes], or at the end of the one playing ([atEnd]); no timer when both are unset. False with no video. */
+    fun setTimer(minutes: Int?, atEnd: Boolean = false): Boolean {
+        if (_video.value == null) return false
+        _timer.value = when {
+            atEnd -> Timer(atEnd = true)
+            minutes != null && minutes > 0 -> Timer(at = clock() + minutes * 60_000L)
+            else -> null
+        }
+        return true
+    }
+
+    /** How long before the timer stops the video, in milliseconds; null with no timer at a time. */
+    fun timerLeftMs(): Long? = _timer.value?.at?.let { maxOf(0L, it - clock()) }
+
+    /** Closes the video when its timer is up; true when it did. */
+    fun checkTimer(): Boolean {
+        val at = _timer.value?.at ?: return false
+        if (clock() < at) return false
+        log(com.jarvis.android.i18n.tr("Minuterie : la vidéo s’arrête."))
+        close()
+        return true
     }
 
     fun setSound(on: Boolean): Boolean {
@@ -159,6 +233,7 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
         _video.value = null
         list = emptyList()
         floorUntil = 0L
+        _timer.value = null
         if (had) onClosed()
         return had
     }

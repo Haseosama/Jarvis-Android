@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.32 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.33 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1193,6 +1193,24 @@ also shown in the settings.
   wake word over a real film's sound (no microphone on the emulator), the pause button of the window with YouTube (the system showed
   none), on a real phone. The test videos made on the computer (MPEG-4 part 2, no sound track) froze on their first frame in the
   emulator's player whatever the view: real phone videos are H.264 or HEVC.
+- **The assistant looks at the video, media buttons, coming back to a video, subtitles, a timer** (since 0.9.33; `play_video`).
+  *Looking:* "qu'est-ce qu'on voit ?", "c'est qui, lui ?" → action `look`: a picture of the video as it is on screen (YouTube: a copy of
+  the window at the player's place; a phone video: its texture view's own picture) goes to the voice session as a video frame, and the
+  assistant answers from it (what it shows is data, never instructions). Only during a voice session, with the app on screen.
+  *Media buttons:* while a video is shown it has a media session and a notification (`video/VideoMedia.kt`): pause / play, next,
+  previous, close from the notification, the lock screen and the quick settings' player; a headset's or a car's buttons; the video
+  window's button goes through the same receiver. *Coming back:* every 5 s the player says where it is; a video left before its end
+  (after 15 s, more than 20 s before the end) is kept with its place (the last 30, on the phone only, `video/VideoHistory.kt`): the
+  same video starts again there by itself ("recommence" for the beginning), and "reprends la vidéo d'hier" → `resume_last`, the last
+  one left. *Subtitles:* "mets les sous-titres (en anglais)" → YouTube's subtitles in that language, kept for the next videos, when the
+  video has them (made by hand or automatically). *Timer:* "arrête la vidéo dans 20 minutes" or "à la fin de celle-ci": the video
+  closes by itself; the header shows the minutes left. *Checked:* `VideoHistoryTest` (kept, forgotten near the start or the end, the
+  latest, written now and then, read back, 30 kept), `VideoPanelTest` (timer at a time and at the end, the players' progress, subtitles
+  kept, the page's start and language code); on the emulator: the picture sent by `look` for YouTube (the TED talk's opening) and for
+  a phone video, French subtitles on a TED talk, the talk closed at 53 s then started again at 53 s (also by `resume_last`), a 1 min
+  timer (closed between 53 and 68 s), the header's "arrêt dans 1 min", the notification and the media session, a headset's pause and
+  play keys. *Not checked:* the assistant's answer about the picture (no valid key on the emulator), the lock screen's player, on a
+  real phone.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.
