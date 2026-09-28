@@ -19,6 +19,17 @@ class YoutubeSearchTest {
     }
 
     @Test
+    fun `several videos are read in order, each once, each with its own title`() {
+        val untitled = "{\"videoRenderer\":{\"videoId\":\"Way9Dexny3w\",\"lengthText\":{}}}"
+        val hits = parseVideos(page + page + untitled, 10)
+        assertEquals(listOf("5NV6Rdv1a3I", "CCHdMIEGaaM", "Way9Dexny3w"), hits.map { it.videoId })
+        assertEquals("Second", hits[1].title)
+        // a video without a title does not borrow the next one's
+        assertEquals("", hits[2].title)
+        assertEquals(1, parseVideos(page, 1).size)
+    }
+
+    @Test
     fun `a page without videos gives nothing`() {
         assertNull(parseFirstVideo("<html>consent</html>"))
     }

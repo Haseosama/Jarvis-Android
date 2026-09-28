@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.launch
 import org.junit.Test
 
 class VideoPanelTest {
@@ -29,7 +30,7 @@ class VideoPanelTest {
 
     @Test fun `a video starts muted, its sound silences the microphone until turned off or closed`() {
         val logged = mutableListOf<String>()
-        val p = VideoPanel { logged += it }
+        val p = VideoPanel(log = { logged += it })
         assertFalse(p.setSound(true))                      // nothing shown
         p.show(VideoPanel.Video(youtubeId = "Way9Dexny3w", title = "t", sound = true))
         assertFalse(p.video.value!!.sound)
@@ -64,4 +65,68 @@ class VideoPanelTest {
         assertTrue(html.contains("youtube-nocookie.com/embed/Way9Dexny3w?"))
         assertTrue(html.contains("mute=1") && html.contains("autoplay=1") && html.contains("playsinline=1") && html.contains("enablejsapi=1"))
     }
+
+    @Test fun `what was found is kept for the next and the previous, with the same sound and screen`() {
+        val p = VideoPanel()
+        var shown = 0
+        p.onShown = { shown++ }
+        assertFalse(p.step(1))
+        p.showList(listOf("aaaaaaaaaaa", "bbbbbbbbbbb", "ccccccccccc").map { VideoPanel.Video(youtubeId = it, title = it.take(1)) })
+        assertEquals(1, p.video.value!!.position); assertEquals(3, p.video.value!!.count)
+        p.setSound(true); p.setFullscreen(true)
+        assertTrue(p.step(1))
+        with(p.video.value!!) { assertEquals("bbbbbbbbbbb", youtubeId); assertEquals(2, position); assertTrue(sound); assertTrue(fullscreen) }
+        assertTrue(p.step(1)); assertFalse(p.step(1))
+        assertEquals("ccccccccccc", p.video.value!!.youtubeId)
+        assertTrue(p.step(-2)); assertEquals("aaaaaaaaaaa", p.video.value!!.youtubeId)
+        assertFalse(p.step(-1))
+        assertEquals(4, shown)
+        // a new search starts muted, in the screen the last one had
+        p.show(VideoPanel.Video(url = "https://example.org/a.mp4"))
+        with(p.video.value!!) { assertFalse(sound); assertTrue(fullscreen); assertEquals(1, count) }
+    }
+
+    @Test fun `a slideshow goes photo by photo and has no sound`() {
+        val p = VideoPanel()
+        p.show(VideoPanel.Video(title = "Photos", photos = listOf("content://1", "content://2")))
+        assertTrue(p.video.value!!.isSlideshow)
+        assertFalse(p.setSound(true))
+        val sent = mutableListOf<VideoPanel.Command>()
+        kotlinx.coroutines.runBlocking {
+            val job = launch(kotlinx.coroutines.Dispatchers.Unconfined) { p.commands.collect { sent += it } }
+            assertTrue(p.step(1)); assertTrue(p.step(-1))
+            job.cancel()
+        }
+        assertEquals(listOf(VideoPanel.Command.Step(1), VideoPanel.Command.Step(-1)), sent)
+    }
+
+    @Test fun `over the video's sound the microphone opens only with the floor, which closes by itself`() {
+        var now = 0L
+        val p = VideoPanel(clock = { now })
+        var floors = 0
+        p.onFloor = { floors++ }
+        assertTrue(p.micOpen())                                  // nothing shown
+        p.show(VideoPanel.Video(youtubeId = "Way9Dexny3w"))
+        assertTrue(p.micOpen())                                  // muted video
+        assertFalse(p.openFloor())                               // no sound to talk over
+        p.setSound(true)
+        assertFalse(p.micOpen())
+        assertTrue(p.openFloor()); assertEquals(1, floors)
+        assertTrue(p.micOpen()); assertTrue(p.video.value!!.ducked)
+        assertEquals(DUCK_CHECK, volumeOf(p.video.value!!))
+        now = VideoPanel.FLOOR_OPEN_MS - 1000
+        p.keepFloor()                                            // still talking: open 4 s more
+        now = VideoPanel.FLOOR_OPEN_MS + 2000
+        assertTrue(p.micOpen())
+        now += VideoPanel.FLOOR_KEEP_MS
+        assertFalse(p.micOpen()); assertFalse(p.video.value!!.ducked)
+        assertEquals(100, volumeOf(p.video.value!!))
+        p.keepFloor()                                            // a closed floor is not reopened by talk
+        assertFalse(p.micOpen())
+        p.openFloor(); p.setSound(false)
+        assertTrue(p.micOpen()); assertFalse(p.video.value!!.ducked)
+        assertEquals(0, volumeOf(p.video.value!!))
+    }
+
+    private companion object { const val DUCK_CHECK = 12 }
 }

@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.31 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.32 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1165,6 +1165,34 @@ also shown in the settings.
   pause state, the start and end hooks); on the emulator: a test video pushed to the phone found by "anniversaire" and its picture seen,
   pause, resume and forward on it (the player's own state), a YouTube video's picture seen, forward 60 s, pause (time held), restart on
   it (time read from the player). *Not checked:* on a real phone.
+- **Talking over a video, full screen, the next one, the video window, slideshows** (since 0.9.32; `play_video`, `photos`).
+  *Talking over the sound:* while a video's sound is on, the microphone still does not reach the assistant, but its sound goes to the
+  wake word's own models (`wake/VideoWakeListener.kt`, the offline "Jarvis"): the word, or a tap on the small face, opens the floor for
+  8 s: the video's sound drops to 12 %, the microphone reaches the assistant, and the floor stays open while either side talks, 4 s
+  after the last word (`VideoPanel.openFloor`). Without the offline wake word installed, the tap is the way, and the log says so.
+  *Full screen:* "plein écran" (or the button): the picture alone over the whole screen, turned on its side as YouTube does, the system
+  bars hidden, its buttons in a corner; turning the phone on its side does the same, upright again brings it back; Back leaves it. The
+  player is drawn over the page, in the place the page keeps for it, so it grows and shrinks without starting again. *The next one:*
+  a search keeps its first 8 YouTube results, the phone its matching videos (up to 50): "la suivante" / "la précédente" (or the buttons),
+  with the same sound and screen; a phone video plays the next one when it ends. *The video window:* leaving the app while a video
+  plays shrinks it to a picture-in-picture window (Android 12 and later on its own, before that on leaving), with a pause / play button;
+  the window swiped away closes the video, and a video that ends there takes the window with it. YouTube stops a player under 200 by 200,
+  so in that window its page is laid out larger and shrunk to fit. *Slideshows:* "montre-moi les photos de samedi": the photos found
+  go by in place of the face, oldest first, 5 s each with a slow zoom and a cross-fade, the next one read ahead (the system's reduced
+  copies, turned upright), "pause", "la suivante", "plein écran", "stop" as for a video; the gallery only when asked. *The small face:*
+  a close-up (the face fills its square), brighter, on a glow of the theme's colour. *The phone's video player* now draws into a
+  texture view (in the app's own views): the phone's usual video view shows its picture through a hole in the window, and restarted
+  from the beginning when the app shrank to its window. The screen stays on while something plays.
+  *Checked:* `VideoPanelTest` (the next and previous with the same sound and screen, a slideshow's steps, the floor: closed, opened,
+  kept while talking, closed by itself, the volume 0 / 12 / 100), `VideoWakeListenerTest` (80 ms steps read little endian, two high
+  scores in a row, starting afresh, no model), `YoutubeSearchTest` (several results, a title never borrowed from the next), `PhotoImageTest`;
+  on the emulator: YouTube inline then full screen (on its side, time going on from 9.6 to 10.4 s, not restarted), back (30 s and
+  going on), "la suivante" (2/8), the sound on, a tap on the face (the player's volume 100 then 12, "je vous écoute…"), a slideshow of
+  three photos (the next one by itself and by voice), the video window (a phone video going on inside it, YouTube going on once laid
+  out larger, the pause button of a file video turning to play), a real H.264 file played and fitted in the frame. *Not checked:* the
+  wake word over a real film's sound (no microphone on the emulator), the pause button of the window with YouTube (the system showed
+  none), on a real phone. The test videos made on the computer (MPEG-4 part 2, no sound track) froze on their first frame in the
+  emulator's player whatever the view: real phone videos are H.264 or HEVC.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.

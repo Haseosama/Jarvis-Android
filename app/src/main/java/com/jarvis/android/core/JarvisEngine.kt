@@ -749,14 +749,42 @@ class JarvisEngine(
                                     else tr("Session connectée. Microphone actif.")
                                 )
                                 launch(Dispatchers.IO) {
-                                    audio.micFrames().collect { frame ->
-                                        currentCoroutineContext().ensureActive()
-                                        // Half-duplex on the loudspeaker: while Jarvis talks, send silence so his own
-                                        // voice cannot make the server think we interrupted him.
-                                        // silence while the assistant speaks aloud (if asked), and while a video plays with its sound on: it must not
-                                        // answer the film
-                                        val out = if ((muteWhileSpeaking && audio.isPlaybackActive() && audio.playsOnLoudspeaker()) || container.videoPanel.soundOn) ByteArray(frame.size) else frame
-                                        if (!connection.sendAudio(out)) throw dropped(tr("Envoi audio interrompu."))
+                                    val panel = container.videoPanel
+                                    // "Jarvis" over a video's sound: the wake word's models, on the session's own microphone
+                                    val videoWake = com.jarvis.android.wake.VideoWakeListener(
+                                        open = { if (container.wakeModel.installed()) com.jarvis.android.wake.OpenWakeScorer(container.wakeModel.dir, container.wakeModel.selected()) else null },
+                                        threshold = { wakeThreshold },
+                                    )
+                                    var toldTap = false
+                                    try {
+                                        audio.micFrames().collect { frame ->
+                                            currentCoroutineContext().ensureActive()
+                                            // A video with its sound on: the assistant must not answer the film. The microphone reaches it only while
+                                            // the floor is open (the wake word, or a tap on the small face), the video's sound turned down meanwhile.
+                                            val toAssistant = if (panel.soundOn) {
+                                                if (audio.isPlaybackActive()) panel.keepFloor()
+                                                val open = panel.micOpen()
+                                                if (!open) {
+                                                    if (videoWake.feed(frame)) {
+                                                        panel.openFloor()
+                                                        log(tr("« Jarvis » entendu : le son de la vidéo baisse, je vous écoute."))
+                                                    } else if (!videoWake.available && !toldTap) {
+                                                        toldTap = true
+                                                        log(tr("Pour parler pendant la vidéo, touchez le petit visage : le mot d’activation hors ligne n’est pas installé."))
+                                                    }
+                                                }
+                                                open
+                                            } else {
+                                                videoWake.reset()
+                                                true
+                                            }
+                                            // Half-duplex on the loudspeaker: while Jarvis talks, send silence so his own
+                                            // voice cannot make the server think we interrupted him.
+                                            val out = if ((muteWhileSpeaking && audio.isPlaybackActive() && audio.playsOnLoudspeaker()) || !toAssistant) ByteArray(frame.size) else frame
+                                            if (!connection.sendAudio(out)) throw dropped(tr("Envoi audio interrompu."))
+                                        }
+                                    } finally {
+                                        videoWake.close()
                                     }
                                 }
                                 launch {
@@ -797,6 +825,8 @@ class JarvisEngine(
 
     private suspend fun handleEvent(event: LiveEvent, cl: GeminiLiveClient) {
         lastActivityAt = android.os.SystemClock.elapsedRealtime()
+        // talking over a video: the floor stays open while either side is still at it
+        container.videoPanel.keepFloor()
         when (event) {
             is LiveEvent.AudioChunk -> {
                 _state.value = JarvisState.SPEAKING

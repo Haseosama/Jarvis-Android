@@ -27,12 +27,15 @@ import java.time.ZoneId
 object PhotoSearchTool : Tool {
     private const val PLACE_SCAN_LIMIT = 400
     private const val PLACE_RADIUS_KM = 25.0
+    private const val SLIDESHOW_MAX = 300
 
     override val name = "photos"
     override val description =
         "Chercher dans les photos du téléphone : « mes photos d'août », « les photos de la semaine dernière », « mes photos à Brest », " +
             "« les photos WhatsApp d'hier », « mes photos de chien », « les photos de plage de cet été ». Donnez les jours en dates (from/to, AAAA-MM-JJ) calculées depuis la date du jour ; un lieu seulement " +
-            "si l'utilisateur en nomme un. Répond combien il y en a et sur quels jours, et ouvre la plus récente (ou la plus ancienne) dans la galerie. " +
+            "si l'utilisateur en nomme un. Répond combien il y en a et sur quels jours, et les fait défiler à la place du visage (diaporama, " +
+            "de la plus ancienne à la plus récente ; « pause », « suivante », « plein écran », « stop » passent par play_video) ; " +
+            "open 'latest' ou 'first' ouvre plutôt une photo dans la galerie. " +
             "Pour ce qu'il y a SUR les photos, donnez subject (les mots de l'utilisateur) et labels (les étiquettes anglaises du modèle d'images " +
             "du téléphone, ex. 'dog' pour chien, 'beach' pour plage, 'food' pour repas, 'cat', 'flower', 'car', 'sky', 'snow', 'cake', 'baby') ; sans dates, " +
             "la recherche par sujet couvre l'année écoulée. Aucune photo n'est envoyée : l'analyse se fait sur le téléphone."
@@ -43,7 +46,7 @@ object PhotoSearchTool : Tool {
         string("album", "Nom d'album contenu, ex. 'WhatsApp', 'Screenshots', 'Camera' (facultatif).")
         string("subject", "Ce qu'il y a sur les photos, avec les mots de l'utilisateur, ex. 'chien' (facultatif).")
         string("labels", "Le même sujet en étiquettes anglaises séparées par des virgules, ex. 'dog' ou 'beach, sea' (avec subject).")
-        string("open", "'latest' (défaut), 'first' ou 'none'.")
+        string("open", "'show' (défaut : diaporama dans l'application), 'latest' ou 'first' (une photo dans la galerie), ou 'none'.")
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String = withContext(Dispatchers.IO) {
@@ -110,6 +113,19 @@ object PhotoSearchTool : Tool {
         }
         val summary = describePhotos(photos, zone, where, subject.ifEmpty { terms.joinToString(", ") }) + note
         val open = args.stringArg("open").trim().lowercase()
+        if (open.isEmpty() || open in setOf("show", "slideshow", "diaporama")) {
+            if (photos.isEmpty()) return@withContext summary
+            // oldest first, as they were taken; a very long run is cut to its latest photos
+            val shown = photos.take(SLIDESHOW_MAX).asReversed()
+            val zoneDays = shown.map { java.time.Instant.ofEpochMilli(it.takenAt).atZone(zone).toLocalDate() }
+            val days = if (zoneDays.first() == zoneDays.last()) com.jarvis.android.photos.dayWords(zoneDays.first(), false)
+            else com.jarvis.android.photos.dayWords(zoneDays.first(), false) + " – " + com.jarvis.android.photos.dayWords(zoneDays.last(), false)
+            val title = listOf(com.jarvis.android.i18n.tr("Photos"), subject.ifEmpty { where }, days).filter { it.isNotBlank() }.joinToString(" · ")
+            ctx.videoPanel.show(com.jarvis.android.video.VideoPanel.Video(title = title, photos = shown.map { it.uri.toString() }))
+            val cut = if (photos.size > SLIDESHOW_MAX) " (les $SLIDESHOW_MAX plus récentes)" else ""
+            return@withContext summary + " Elles défilent à la place du visage$cut, de la plus ancienne à la plus récente, " +
+                "une toutes les 5 secondes. Dites-le en une phrase courte."
+        }
         val target: Photo? = when (open) {
             "none", "non" -> null
             "first", "oldest" -> photos.lastOrNull()

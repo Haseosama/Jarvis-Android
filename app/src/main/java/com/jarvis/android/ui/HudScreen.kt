@@ -72,6 +72,12 @@ import com.jarvis.android.core.MAX_MESSAGE_CHARS
 import com.jarvis.android.core.PendingConfirmation
 import com.jarvis.android.core.VideoSource
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,6 +106,8 @@ internal fun HudScreen(
     /** The last kept session, shown while no session is running, with its date. */
     previousSession: List<ConversationMessage> = emptyList(),
     previousLabel: String = "",
+    /** The app is shrunk to its picture-in-picture window: the video alone fills it. */
+    pip: Boolean = false,
 ) {
     var draft by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
@@ -116,6 +124,14 @@ internal fun HudScreen(
     LaunchedEffect(conversation) {
         if (conversation.isNotEmpty()) conversationScroll.animateScrollToItem(conversation.lastIndex)
     }
+    val playing: com.jarvis.android.video.VideoPanel.Video? = videoPanel?.video?.collectAsState()?.value
+    // where the video goes in the page, in the screen's coordinates: the player itself is drawn over the page (at the end), so that
+    // it can grow to the whole screen and back without starting again
+    var videoSlot by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val landscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val bigVideo = playing != null && (playing.fullscreen || pip)
+    com.jarvis.android.video.VideoScreenEffects(videoPanel, playing, landscape, bigVideo && !pip)
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         containerColor = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onBackground,
@@ -144,12 +160,14 @@ internal fun HudScreen(
                     else -> onToggleAwake()
                 }
             }
-            val playing: com.jarvis.android.video.VideoPanel.Video? = videoPanel?.video?.collectAsState()?.value
             if (videoPanel != null && playing != null) {
-                com.jarvis.android.video.VideoPlayerView(
-                    videoPanel, playing, Modifier.padding(top = 2.dp),
-                    face = avatar?.let { a -> { com.jarvis.android.avatar.AvatarView(a, state, outputLevel, Modifier.fillMaxSize()) } },
-                )
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 2.dp)
+                        .onGloballyPositioned { videoSlot = it.boundsInRoot() },
+                ) {
+                    Spacer(Modifier.height(com.jarvis.android.video.VIDEO_HEADER))
+                    Spacer(Modifier.fillMaxWidth().padding(horizontal = 8.dp).aspectRatio(16f / 9f))
+                }
             } else if (avatar != null) {
                 Box(
                     Modifier.padding(top = 2.dp).size(272.dp)
@@ -282,6 +300,22 @@ internal fun HudScreen(
                 }
             }
         }
+    }
+    if (videoPanel != null && playing != null) {
+        val slot = videoSlot
+        // full screen: black round the picture (a box of its own under the player: nothing may paint over the player's picture)
+        if (bigVideo) Box(Modifier.fillMaxSize().background(Color.Black))
+        if (bigVideo || slot != null) {
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            val place = if (bigVideo || slot == null) Modifier.fillMaxSize() else with(density) {
+                Modifier.offset { androidx.compose.ui.unit.IntOffset(slot.left.roundToInt(), slot.top.roundToInt()) }.size(slot.width.toDp(), slot.height.toDp())
+            }
+            com.jarvis.android.video.VideoPlayerView(
+                videoPanel, playing, place, big = bigVideo, pip = pip,
+                face = avatar?.let { a -> { com.jarvis.android.avatar.AvatarView(a, state, outputLevel, Modifier.fillMaxSize(), close = true) } },
+            )
+        }
+    }
     }
 }
 

@@ -70,6 +70,73 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    /** The app shrunk to its picture-in-picture window (a video playing when the user left). */
+    private var pip by mutableStateOf(false)
+
+    /** The main screen, where the video is, is the one shown: only then may leaving shrink the app to a video window. */
+    private var onHud = false
+
+    private fun videoWindowWanted(): Boolean =
+        onHud && (application as JarvisApp).container.videoPanel.video.value != null &&
+            packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+
+    /** The video window's shape and its pause / play button; it opens by itself on leaving the app (Android 12 and later). */
+    private fun videoWindowParams(): android.app.PictureInPictureParams {
+        val video = (application as JarvisApp).container.videoPanel.video.value
+        val paused = video?.paused == true
+        val action = android.app.RemoteAction(
+            android.graphics.drawable.Icon.createWithResource(this, if (paused) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause),
+            com.jarvis.android.i18n.tr(if (paused) "Lecture" else "Pause"), com.jarvis.android.i18n.tr(if (paused) "Lecture" else "Pause"),
+            android.app.PendingIntent.getBroadcast(
+                this, if (paused) 1 else 2,
+                Intent(ACTION_VIDEO_WINDOW).setPackage(packageName).putExtra("do", if (paused) "play" else "pause"),
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+            ),
+        )
+        return android.app.PictureInPictureParams.Builder()
+            .setAspectRatio(android.util.Rational(16, 9))
+            .setActions(listOf(action))
+            .apply { if (Build.VERSION.SDK_INT >= 31) setAutoEnterEnabled(videoWindowWanted()).setSeamlessResizeEnabled(false) }
+            .build()
+    }
+
+    private fun updateVideoWindow() {
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return
+        try { setPictureInPictureParams(videoWindowParams()) } catch (e: Exception) { android.util.Log.w("JarvisPip", "params", e) }
+    }
+
+    private val videoWindowReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: Intent) {
+            val panel = (application as JarvisApp).container.videoPanel
+            when (intent.getStringExtra("do")) {
+                "pause" -> panel.command(com.jarvis.android.video.VideoPanel.Command.Pause)
+                "play" -> panel.command(com.jarvis.android.video.VideoPanel.Command.Resume)
+            }
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // before Android 12 the window is asked for here; later, Android opens it by itself (setAutoEnterEnabled)
+        if (Build.VERSION.SDK_INT < 31 && videoWindowWanted() && !isInPictureInPictureMode) {
+            try { enterPictureInPictureMode(videoWindowParams()) } catch (_: Exception) {}
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        pip = isInPictureInPictureMode
+        // the window swiped away (the app is left stopped behind it): the video goes with it
+        if (!isInPictureInPictureMode && !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
+            (application as JarvisApp).container.videoPanel.close()
+        }
+    }
+
+    override fun onDestroy() {
+        try { unregisterReceiver(videoWindowReceiver) } catch (_: Exception) {}
+        super.onDestroy()
+    }
+
     /** A launcher shortcut or the home-screen widget asks for a session: start it once a key and the mic permission exist. */
     private var openChatRequest by mutableStateOf(0)
 
@@ -120,6 +187,7 @@ class MainActivity : ComponentActivity() {
         com.jarvis.android.i18n.Lang.load(this)
         if (savedInstanceState == null) handleLaunchIntent(intent)
         publishShortcut()
+        ContextCompat.registerReceiver(this, videoWindowReceiver, android.content.IntentFilter(ACTION_VIDEO_WINDOW), ContextCompat.RECEIVER_NOT_EXPORTED)
 
         setContent {
             val hue by container.configStore.themeHue.collectAsState(initial = 190f)
@@ -148,6 +216,17 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("hud") {
+                        val shownVideo by container.videoPanel.video.collectAsState()
+                        androidx.compose.runtime.DisposableEffect(Unit) {
+                            onHud = true
+                            updateVideoWindow()
+                            onDispose { onHud = false; updateVideoWindow() }
+                        }
+                        androidx.compose.runtime.LaunchedEffect(shownVideo?.paused, shownVideo != null) {
+                            updateVideoWindow()
+                            // the video over (or closed) while the app is its video window: the window goes, rather than showing the app tiny
+                            if (shownVideo == null && pip) moveTaskToBack(false)
+                        }
                         val state by container.engine.state.collectAsState()
                         val log by container.engine.activityLog.collectAsState()
                         val conversation by container.engine.conversation.collectAsState()
@@ -197,6 +276,7 @@ class MainActivity : ComponentActivity() {
                             conversation = conversation,
                             sessionReady = sessionReady,
                             onSendText = { container.engine.sendText(it) },
+                            pip = pip,
                         )
                     }
                     composable("settings") {
@@ -242,5 +322,6 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_START_SESSION = "com.jarvis.android.START_SESSION"
         const val ACTION_OPEN_CHAT = "com.jarvis.android.OPEN_CHAT"
+        private const val ACTION_VIDEO_WINDOW = "com.jarvis.android.VIDEO_WINDOW"
     }
 }

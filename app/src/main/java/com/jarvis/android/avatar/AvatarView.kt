@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -21,9 +22,11 @@ import com.jarvis.android.core.JarvisState
 /**
  * The holographic head. It redraws itself about 30 times a second while it is on screen, and stops when it leaves.
  * [outputLevel] is the 0..1 loudness of the assistant's voice, [onTap] is the same tap as the reactor's.
+ * [close]: a close-up for a small face (over a video): the face fills the square, the hair and the neck cut off, lit brighter on a
+ * glow of the theme's colour, since the dark looks melt into the background at that size.
  */
 @Composable
-internal fun AvatarView(controller: AvatarController, state: JarvisState, outputLevel: Float, modifier: Modifier = Modifier) {
+internal fun AvatarView(controller: AvatarController, state: JarvisState, outputLevel: Float, modifier: Modifier = Modifier, close: Boolean = false) {
     val model = controller.model
     // The head (its mesh read, about a second on a phone, and its renderer built) is made off the main thread: the screen shows at
     // once and the face appears when it is ready, instead of the whole first frame waiting for it.
@@ -81,17 +84,56 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     val bg = scheme.background.toArgb()
     val stroke = with(LocalDensity.current) { 1.1.dp.toPx() }
 
-    Canvas(modifier.fillMaxWidth().aspectRatio(1f)) {
+    Canvas(modifier.fillMaxWidth().aspectRatio(1f).then(if (close) Modifier.clipToBounds() else Modifier)) {
         @Suppress("UNUSED_VARIABLE") val tick = frame // reading it makes the canvas redraw with every animation step
         val (renderer, avatar) = head ?: return@Canvas
-        val r = size.minDimension * 0.36f // head half-height: the head fills about 72 % of the square, the neck fades below it
+        // head half-height: the head fills about 72 % of the square, the neck fades below it; a close-up: the face fills it
+        val r = size.minDimension * (if (close) 0.58f else 0.36f)
+        val cy = size.height * (if (close) 0.47f else 0.44f)
+        if (close) {
+            drawCircle(
+                androidx.compose.ui.graphics.Brush.radialGradient(
+                    listOf(androidx.compose.ui.graphics.Color(primary).copy(alpha = 0.45f), androidx.compose.ui.graphics.Color.Transparent),
+                    center = center, radius = size.minDimension * 0.62f,
+                ),
+            )
+            drawContext.canvas.saveLayer(androidx.compose.ui.geometry.Rect(androidx.compose.ui.geometry.Offset.Zero, size), CLOSE_UP_PAINT)
+        }
+        try {
+            drawHead(renderer, avatar, controller, model, hairColour, characterFolder, character, cartoon, cy, r, primary, accent, bg, stroke)
+        } finally {
+            if (close) drawContext.canvas.restore()
+        }
+    }
+}
+
+/** Brighter and a little lifted, for the small face: the dark looks otherwise melt into the background. */
+private val CLOSE_UP_PAINT = androidx.compose.ui.graphics.Paint().apply {
+    colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(
+        androidx.compose.ui.graphics.ColorMatrix(
+            floatArrayOf(
+                1.5f, 0f, 0f, 0f, 22f,
+                0f, 1.5f, 0f, 0f, 22f,
+                0f, 0f, 1.5f, 0f, 22f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        ),
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHead(
+    renderer: AvatarRenderer, avatar: HoloAvatar, controller: AvatarController, model: Int, hairColour: String,
+    characterFolder: String?, character: CharacterRenderer?, cartoon: CartoonRenderer, cy: Float, r: Float,
+    primary: Int, accent: Int, bg: Int, stroke: Float,
+) {
+    run {
         if (characterFolder != null) {
-            character?.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, bg)
-            return@Canvas
+            character?.draw(this, avatar, size.width / 2f, cy, r, primary, bg)
+            return
         }
         if (avatarFace(model).cartoon) {
-            cartoon.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, if (controller.skin >= HOLO_SKIN) 1 else controller.skin, controller.lips)
-            return@Canvas
+            cartoon.draw(this, avatar, size.width / 2f, cy, r, if (controller.skin >= HOLO_SKIN) 1 else controller.skin, controller.lips)
+            return
         }
         renderer.scanY = avatar.scan
         renderer.holo = controller.skin >= HOLO_SKIN
@@ -113,7 +155,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         renderer.halo = avatarFace(model).halo
         renderer.lipTint = avatarFace(model).lipTint
         renderer.fibreOverlay = avatarFace(model).fibres && !controller.light
-        renderer.draw(this, avatar, size.width / 2f, size.height * 0.44f, r, primary, accent, bg, stroke)
+        renderer.draw(this, avatar, size.width / 2f, cy, r, primary, accent, bg, stroke)
     }
 }
 

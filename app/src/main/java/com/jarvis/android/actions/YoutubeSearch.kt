@@ -15,20 +15,27 @@ private const val VIDEO_MARKER = "\"videoRenderer\":{\"videoId\":\""
 private const val TITLE_MARKER = "\"title\":{\"runs\":[{\"text\":\""
 
 /** Reads the first video (id and title) out of the HTML of a YouTube results page, or null when it has none. */
-internal fun parseFirstVideo(html: String): YoutubeHit? {
+internal fun parseFirstVideo(html: String): YoutubeHit? = parseVideos(html, 1).firstOrNull()
+
+/** The first [max] videos (id and title, each once) of the HTML of a YouTube results page, in the page's order. */
+internal fun parseVideos(html: String, max: Int): List<YoutubeHit> {
+    val out = ArrayList<YoutubeHit>()
     var from = 0
-    while (true) {
+    while (out.size < max) {
         val start = html.indexOf(VIDEO_MARKER, from)
-        if (start < 0) return null
+        if (start < 0) break
         val idStart = start + VIDEO_MARKER.length
         val id = html.substring(idStart, minOf(idStart + 11, html.length))
         from = idStart
-        if (!VIDEO_ID.matches(id)) continue
-        val window = html.substring(idStart, minOf(idStart + 4_000, html.length))
+        if (!VIDEO_ID.matches(id) || out.any { it.videoId == id }) continue
+        // the title is looked for before the next video begins, not in it
+        val next = html.indexOf(VIDEO_MARKER, idStart).let { if (it < 0) html.length else it }
+        val window = html.substring(idStart, minOf(idStart + 4_000, next))
         val titleStart = window.indexOf(TITLE_MARKER)
         val title = if (titleStart < 0) "" else readJsonString(window, titleStart + TITLE_MARKER.length)
-        return YoutubeHit(id, cleanTitle(title))
+        out += YoutubeHit(id, cleanTitle(title))
     }
+    return out
 }
 
 /** Reads a JSON string body starting at [start] (after the opening quote) up to the closing quote. */
@@ -67,7 +74,10 @@ internal fun youtubeVideosUrl(query: String): String =
         .build().toString()
 
 /** Searches YouTube like the website does and returns the first video, or null. Throws [IOException] when offline. */
-internal suspend fun searchFirstVideo(http: OkHttpClient, query: String): YoutubeHit? = withContext(Dispatchers.IO) {
+internal suspend fun searchFirstVideo(http: OkHttpClient, query: String): YoutubeHit? = searchVideos(http, query, 1).firstOrNull()
+
+/** Searches YouTube like the website does and returns its first [max] videos. Throws [IOException] when offline. */
+internal suspend fun searchVideos(http: OkHttpClient, query: String, max: Int): List<YoutubeHit> = withContext(Dispatchers.IO) {
     val request = Request.Builder()
         .url(youtubeVideosUrl(query))
         .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
@@ -78,8 +88,8 @@ internal suspend fun searchFirstVideo(http: OkHttpClient, query: String): Youtub
         .build()
     http.newCall(request).execute().use { response ->
         if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
-        val source = response.body?.source() ?: return@use null
+        val source = response.body?.source() ?: return@use emptyList()
         source.request(900_000)
-        parseFirstVideo(source.buffer.readUtf8(minOf(source.buffer.size, 900_000)))
+        parseVideos(source.buffer.readUtf8(minOf(source.buffer.size, 900_000)), max)
     }
 }

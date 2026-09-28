@@ -88,7 +88,7 @@ class JarvisContainer(val appContext: Context) {
     val engine: JarvisEngine by lazy { JarvisEngine(this, appScope) }
 
     /** A video shown in place of the avatar (play_video). */
-    val videoPanel: com.jarvis.android.video.VideoPanel by lazy { com.jarvis.android.video.VideoPanel { log(it) } }
+    val videoPanel: com.jarvis.android.video.VideoPanel by lazy { com.jarvis.android.video.VideoPanel(log = { log(it) }) }
 
     internal val briefing: com.jarvis.android.memory.BriefingCoordinator by lazy { com.jarvis.android.memory.BriefingCoordinator(this) }
 
@@ -194,6 +194,8 @@ class JarvisContainer(val appContext: Context) {
         // a video: the face watches it (its small face in the video's header) and reacts when it starts and when it goes
         videoPanel.onShown = { appScope.launch(kotlinx.coroutines.Dispatchers.Main) { avatar.watching = true; avatar.reactions++ } }
         videoPanel.onClosed = { appScope.launch(kotlinx.coroutines.Dispatchers.Main) { avatar.watching = false; avatar.reactions++ } }
+        // the user is heard over the video: the small face looks up, once
+        videoPanel.onFloor = { appScope.launch(kotlinx.coroutines.Dispatchers.Main) { avatar.reactions++ } }
         appScope.launch {
             kotlinx.coroutines.flow.combine(configStore.avatarModel, configStore.avatarHair) { m, h -> h[com.jarvis.android.avatar.avatarFace(m).label].orEmpty() }
                 .collect { avatar.hair = it }
