@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.39 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.40 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,21 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Satellites and the ISS** (since 0.9.40; `satellites`, `space/`). "Quels satellites au-dessus de moi ?": how many of the brightest
+  satellites (CelesTrak's "visual" list and the space stations) are above the horizon now, and how many Starlink; the highest ones with
+  their height, direction and distance, and whether one can see them now (lit by the Sun while the sky is dark). "Quand passe l'ISS ?"
+  (or Tiangong, Hubble): its passes over the next three days, 10° high or more, with the time, from where to where, how high and how
+  long, and whether it can be seen, or why not (daylight, the Earth's shadow). "Où est l'ISS ?": the point of Earth it is above, its
+  height and speed. The public orbits (two-line element sets) come from CelesTrak, no key, kept 12 hours on the phone as CelesTrak asks
+  (an older copy when offline); the positions are computed on the phone with SGP4 (`space/Sgp4.kt`, the near-Earth model the orbits are
+  made for, after Vallado et al. 2006; deep-space orbits are left out), then turned into the sky of the place (Greenwich sidereal time,
+  WGS-84), the Sun's position giving light and shadow. The phone's approximate position is used for that one question. *Checked:*
+  `Sgp4Test` (Vallado's reference positions of satellite 00005 at 0 and 360 minutes, to the metre; an element set read; straight up is
+  90°; the Sun at solar noon and midnight in Paris; shadow; the ISS's passes over Paris in order, minutes long, 90 minutes apart; the
+  directions in French); on the emulator, the ISS's computed position against wheretheiss.at at the same moment (-27.5° / 147.1°, 433 km,
+  27 544 km/h against -27.8° / 146.9°, 431 km, 27 544 km/h), the satellites above Paris, the passes of the ISS and Tiangong. *Not
+  checked:* the Starlink count (CelesTrak refused a second download from the same address within its two hours), on a real phone.
+- **The app's name** is "Jarvis" (it was "Jarvis Dev") since 0.9.39.
 - **Jarvis in Android Auto, sound off the screen** (since 0.9.38; `car/`, `video/AudioPlayer.kt`). Sound alone (a radio, a podcast, the
   news) no longer plays inside the app's screen but in `AudioPlayer`, run by a media service (`JarvisMediaService`, in the foreground
   with the player's notification while it plays): it goes on with the screen off, the app closed (swiped away from the recent apps) and the

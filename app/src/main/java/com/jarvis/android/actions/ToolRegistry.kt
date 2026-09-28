@@ -47,6 +47,7 @@ object ToolRegistry {
         PlayVideoTool,
         RadioTool,
         RadioAlarmTool,
+        com.jarvis.android.space.SatelliteTool,
         com.jarvis.android.podcasts.PodcastTool,
         com.jarvis.android.plugins.PluginManageTool,
         ScreenReadTool,
