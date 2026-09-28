@@ -47,6 +47,12 @@ internal class AvatarController(private val context: Context) {
     /** The hairstyle chosen for the current face (a HairChoice id), empty for the face's own hair. A Compose state, as [model]. */
     var hair by androidx.compose.runtime.mutableStateOf("")
 
+    /** A video plays: the face watches it (see HoloAvatar.watching). */
+    var watching by androidx.compose.runtime.mutableStateOf(false)
+
+    /** Counts the reactions asked for (a video starts or ends): each new value makes the face react once. */
+    var reactions by androidx.compose.runtime.mutableIntStateOf(0)
+
     /** The hair colour chosen for the current face (a HairShade id), empty for the face's own. A Compose state, as [model]. */
     var hairColour by androidx.compose.runtime.mutableStateOf("")
 

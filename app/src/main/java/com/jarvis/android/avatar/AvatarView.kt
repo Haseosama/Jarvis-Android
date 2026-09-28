@@ -33,6 +33,8 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { controller.head().let { (m, a) -> AvatarRenderer(m) to a } }
     }
     val cartoon = remember { CartoonRenderer() }
+    val reactions = controller.reactions
+    LaunchedEffect(reactions, head) { if (reactions > 0) head?.second?.react() }
     // a character's files (its mesh and its atlas image) are read off the main thread: the face appears when they are
     val characterFolder = avatarFace(model).character
     val character by androidx.compose.runtime.produceState<CharacterRenderer?>(null, controller, model, characterFolder) {
@@ -59,6 +61,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
                 val now = SystemClock.elapsedRealtimeNanos()
                 val dt = (now - last) / 1e9f
                 last = now
+                avatar.watching = controller.watching
                 avatar.yawOverride = controller.debugYaw; avatar.pitchOverride = controller.debugPitch
                 avatar.rollOverride = controller.debugRoll
                 avatar.mouthOverride = controller.debugMouth

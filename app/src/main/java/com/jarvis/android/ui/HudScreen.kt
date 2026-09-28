@@ -146,7 +146,10 @@ internal fun HudScreen(
             }
             val playing: com.jarvis.android.video.VideoPanel.Video? = videoPanel?.video?.collectAsState()?.value
             if (videoPanel != null && playing != null) {
-                com.jarvis.android.video.VideoPlayerView(videoPanel, playing, Modifier.padding(top = 2.dp))
+                com.jarvis.android.video.VideoPlayerView(
+                    videoPanel, playing, Modifier.padding(top = 2.dp),
+                    face = avatar?.let { a -> { com.jarvis.android.avatar.AvatarView(a, state, outputLevel, Modifier.fillMaxSize()) } },
+                )
             } else if (avatar != null) {
                 Box(
                     Modifier.padding(top = 2.dp).size(272.dp)

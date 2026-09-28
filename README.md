@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.30 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.31 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1149,9 +1149,22 @@ also shown in the settings.
   off, the sound is turned off (or the video closed) with the video's buttons, and the assistant is told to say so. "Arrête la vidéo"
   closes it. *Checked:* `VideoPanelTest` (links, files, muted start, the microphone flag), on the emulator: a search shown and playing
   (its progress read from the player through a debug web-view inspector: 40 s of 145 and counting), the sound button (the player reports
-  unmuted, volume 100), ✕, a video file played to its end and closed. The emulator's screenshots show video frames black (it does not
-  capture hardware video), so the picture itself was not seen. *Not checked:* on a real phone, and the microphone's silence in a live
-  session (no valid key on the emulator).
+  unmuted, volume 100), ✕, a video file played to its end and closed. *Not checked:* the microphone's silence in a live session (no
+  valid key on the emulator). In 0.9.30 the picture stayed black, sound only (seen on a phone), fixed in 0.9.31: see below.
+- **Videos of the phone, the video by voice, the face watching** (since 0.9.31; `play_video`). "Montre la vidéo de l'anniversaire",
+  "ma dernière vidéo", "les vidéos de samedi": action `phone` finds the phone's own videos by the words of their name or album (case,
+  accents, the extension and short words aside) and/or the day they were taken, and plays the newest in place of the face; the answer
+  gives its name, day, length and how many others match (`photos/VideoSearch.kt`, permission *vidéos* asked with the photos in the
+  Photos card; nothing leaves the phone). While a video plays: "pause", "reprends", "avance de 30 secondes", "recule", "recommence"
+  (actions `pause`, `resume`, `forward`/`back` with `seconds`, 30 and 10 by default, `restart`), also a pause button in its header.
+  The face stays, small, in the video's header, eyes lowered on the picture, and reacts (brows up, a small nod) when a video starts and
+  when it goes. **The black picture of 0.9.30:** both players draw on a surface behind the window, seen through a hole the view punches
+  in it; the rounded clip and the background round the player covered that hole (sound, no picture), and the web view, sized "wrap
+  content" by Compose, laid YouTube's page out 0 pixels high. The player box has neither now and the web view fills its box.
+  *Checked:* `VideoSearchTest` (words, accents, album, extension, lengths), `VideoPanelTest` (commands only while a video is shown, the
+  pause state, the start and end hooks); on the emulator: a test video pushed to the phone found by "anniversaire" and its picture seen,
+  pause, resume and forward on it (the player's own state), a YouTube video's picture seen, forward 60 s, pause (time held), restart on
+  it (time read from the player). *Not checked:* on a real phone.
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.

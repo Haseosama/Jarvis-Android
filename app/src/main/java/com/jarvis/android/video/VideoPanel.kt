@@ -12,7 +12,22 @@ import kotlinx.coroutines.flow.update
  */
 class VideoPanel(private val log: (String) -> Unit = {}) {
     /** What is shown: a YouTube video (by its id) or a video file (by its address), with its title. */
-    data class Video(val youtubeId: String? = null, val url: String? = null, val title: String = "", val sound: Boolean = false)
+    data class Video(val youtubeId: String? = null, val url: String? = null, val title: String = "", val sound: Boolean = false, val paused: Boolean = false)
+
+    /** What the player is asked to do (by voice, or its buttons), carried out by the one on screen. */
+    sealed interface Command {
+        data object Pause : Command
+        data object Resume : Command
+        data class SeekBy(val seconds: Int) : Command
+        data object Restart : Command
+    }
+
+    private val _commands = kotlinx.coroutines.flow.MutableSharedFlow<Command>(extraBufferCapacity = 8)
+    val commands: kotlinx.coroutines.flow.SharedFlow<Command> = _commands
+
+    /** Called when a video appears and when it goes (the avatar watches it, then comes back). */
+    @Volatile var onShown: () -> Unit = {}
+    @Volatile var onClosed: () -> Unit = {}
 
     private val _video = MutableStateFlow<Video?>(null)
     val video: StateFlow<Video?> = _video.asStateFlow()
@@ -21,7 +36,19 @@ class VideoPanel(private val log: (String) -> Unit = {}) {
     val soundOn: Boolean get() = _video.value?.sound == true
 
     fun show(v: Video) {
-        _video.value = v.copy(sound = false)
+        _video.value = v.copy(sound = false, paused = false)
+        onShown()
+    }
+
+    /** Asks the player on screen to [c]; false when no video is shown. */
+    fun command(c: Command): Boolean {
+        if (_video.value == null) return false
+        when (c) {
+            Command.Pause -> _video.update { it?.copy(paused = true) }
+            Command.Resume, Command.Restart -> _video.update { it?.copy(paused = false) }
+            is Command.SeekBy -> {}
+        }
+        return _commands.tryEmit(c)
     }
 
     fun setSound(on: Boolean): Boolean {
@@ -36,6 +63,7 @@ class VideoPanel(private val log: (String) -> Unit = {}) {
     fun close(): Boolean {
         val had = _video.value != null
         _video.value = null
+        if (had) onClosed()
         return had
     }
 

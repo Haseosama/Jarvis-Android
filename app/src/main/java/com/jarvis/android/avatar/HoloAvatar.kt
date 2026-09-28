@@ -45,6 +45,13 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
     @Volatile var rollOverride: Float? = null
     @Volatile var mouthOverride: Float? = null   // for looking at the mouth wide open (debug builds set it)
     @Volatile var browOverride: Float? = null    // for looking at the brows raised (debug builds set it)
+
+    /** While a video plays: the eyes rest on it (down, in front) instead of on the user. */
+    @Volatile var watching = false
+    private var reactAt = -10f
+
+    /** A short reaction: the brows go up and the head nods, once (a video that starts, or the face coming back after it). */
+    fun react() { reactAt = time }
     var pitch = 0f; private set
     var roll = 0f; private set
     var mouth = 0f; private set
@@ -215,6 +222,13 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
 
         val browT = 0.55f * ampSlow + 0.60f * expr + browBias
         brow += (browT.coerceIn(-0.4f, 1.2f) - brow) * rate(dt, 0.15f)
+        // a reaction: brows up and a small nod, over a little under a second
+        val sinceReact = t - reactAt
+        if (sinceReact in 0f..0.9f) {
+            val bump = sin(3.1415927f * sinceReact / 0.9f)
+            brow += 0.55f * bump
+            pitch -= 0.07f * bump
+        }
         browOverride?.let { brow = it }
 
         // What the state does to the face: eyes off to the side while thinking, on the user while listening, lids low asleep.
@@ -233,7 +247,7 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
             biasTgt[0] = 0f; biasTgt[1] = -0.25f
             browBiasTarget = -0.05f; lidTarget = 0.22f
         } else {
-            biasTgt[0] = 0f; biasTgt[1] = 0f; biasAt = 0f
+            biasTgt[0] = 0f; biasTgt[1] = if (watching) -0.6f else 0f; biasAt = 0f
             browBiasTarget = if (mood == Mood.LISTENING) 0.10f else 0f
             lidTarget = 1f
         }

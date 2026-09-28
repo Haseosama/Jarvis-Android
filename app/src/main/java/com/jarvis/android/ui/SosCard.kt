@@ -116,10 +116,12 @@ internal fun SosCard() {
 internal fun PhotosCard() {
     val context = LocalContext.current
     var photos by remember { mutableStateOf(com.jarvis.android.photos.hasPhotoPermission(context)) }
+    var videos by remember { mutableStateOf(com.jarvis.android.photos.hasVideoPermission(context)) }
     var places by remember { mutableStateOf(com.jarvis.android.photos.hasPhotoLocationPermission(context)) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         photos = com.jarvis.android.photos.hasPhotoPermission(context)
         places = com.jarvis.android.photos.hasPhotoLocationPermission(context)
+        videos = com.jarvis.android.photos.hasVideoPermission(context)
     }
     SettingsCard(tr("Photos"), Icons.Filled.Photo, initiallyExpanded = false) {
         Text(
@@ -129,6 +131,7 @@ internal fun PhotosCard() {
         )
         Text(
             when {
+                photos && places && !videos -> tr("Accès aux photos accordé ✓, mais pas aux vidéos : « montre la vidéo de… » ne les trouvera pas.")
                 photos && places -> tr("Accès aux photos et à leur position : accordé ✓")
                 photos -> tr("Accès aux photos accordé ✓, mais pas à leur position : la recherche par lieu ne marchera pas.")
                 else -> tr("Accès aux photos : non accordé.")
@@ -136,11 +139,12 @@ internal fun PhotosCard() {
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 8.dp),
         )
-        if (!photos || !places) {
+        if (!photos || !places || !videos) {
             OutlinedButton(
                 onClick = {
                     val wanted = buildList {
                         add(com.jarvis.android.photos.photoPermission())
+                        add(com.jarvis.android.photos.videoPermission())
                         if (android.os.Build.VERSION.SDK_INT >= 29) add(Manifest.permission.ACCESS_MEDIA_LOCATION)
                     }
                     ask.launch(wanted.toTypedArray())

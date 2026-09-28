@@ -42,6 +42,23 @@ class VideoPanelTest {
         assertFalse(p.close())
     }
 
+    @Test fun `commands reach the player only while a video is shown, and pause shows on its button`() {
+        val p = VideoPanel()
+        var shown = 0; var closed = 0
+        p.onShown = { shown++ }; p.onClosed = { closed++ }
+        assertFalse(p.command(VideoPanel.Command.Pause))
+        p.show(VideoPanel.Video(url = "content://media/external/video/media/3", title = "t", paused = true))
+        assertEquals(1, shown)
+        assertFalse(p.video.value!!.paused)
+        assertTrue(p.command(VideoPanel.Command.Pause)); assertTrue(p.video.value!!.paused)
+        assertTrue(p.command(VideoPanel.Command.SeekBy(30))); assertTrue(p.video.value!!.paused)
+        assertTrue(p.command(VideoPanel.Command.Resume)); assertFalse(p.video.value!!.paused)
+        p.command(VideoPanel.Command.Pause)
+        assertTrue(p.command(VideoPanel.Command.Restart)); assertFalse(p.video.value!!.paused)
+        p.close(); p.close()
+        assertEquals(1, closed)
+    }
+
     @Test fun `the embedded page asks for YouTube's muted, inline, privacy-enhanced player`() {
         val html = youtubePage("Way9Dexny3w")
         assertTrue(html.contains("youtube-nocookie.com/embed/Way9Dexny3w?"))

@@ -191,6 +191,9 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }
         appScope.launch { configStore.avatarModel.collect { avatar.model = it } }
         appScope.launch { configStore.avatarLight.collect { avatar.light = it } }
+        // a video: the face watches it (its small face in the video's header) and reacts when it starts and when it goes
+        videoPanel.onShown = { appScope.launch(kotlinx.coroutines.Dispatchers.Main) { avatar.watching = true; avatar.reactions++ } }
+        videoPanel.onClosed = { appScope.launch(kotlinx.coroutines.Dispatchers.Main) { avatar.watching = false; avatar.reactions++ } }
         appScope.launch {
             kotlinx.coroutines.flow.combine(configStore.avatarModel, configStore.avatarHair) { m, h -> h[com.jarvis.android.avatar.avatarFace(m).label].orEmpty() }
                 .collect { avatar.hair = it }
