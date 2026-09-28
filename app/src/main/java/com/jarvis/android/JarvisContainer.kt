@@ -192,6 +192,10 @@ class JarvisContainer(val appContext: Context) {
             kotlinx.coroutines.flow.combine(configStore.avatarModel, configStore.avatarHair) { m, h -> h[com.jarvis.android.avatar.avatarFace(m).label].orEmpty() }
                 .collect { avatar.hair = it }
         }
+        appScope.launch {
+            kotlinx.coroutines.flow.combine(configStore.avatarModel, configStore.avatarHairColour) { m, h -> h[com.jarvis.android.avatar.avatarFace(m).label].orEmpty() }
+                .collect { avatar.hairColour = it }
+        }
         appScope.launch { configStore.avatarSkin.collect { avatar.skin = it } }
         appScope.launch { configStore.avatarLips.collect { avatar.lips = it } }
         appScope.launch { configStore.avatarCap.collect { avatar.cap = it } }

@@ -84,10 +84,16 @@ internal class HairStyle(
             nrm[3 * i] = nx; nrm[3 * i + 1] = ny; nrm[3 * i + 2] = nz
             paint[i] = strandColour(key[i].toInt() and 0xFF, (heightOver[i] / 0.10f).coerceIn(0f, 1f), colours)
         }
-        return withHair(head, out, nrm, paint)
+        // how much a point swings: the parts hanging low swing, and more the further they stand off the scalp; what lies on the skull
+        // stays with it
+        val sway = FloatArray(n) { i ->
+            val low = smooth(0.25f, -0.85f, out[3 * i + 1])
+            low * (0.3f + 0.7f * smooth(0.02f, 0.10f, heightOver[i]))
+        }
+        return withHair(head, out, nrm, paint, sway)
     }
 
-    private fun withHair(head: HeadMesh, hv: FloatArray, hn: FloatArray, hp: IntArray): HeadMesh {
+    private fun withHair(head: HeadMesh, hv: FloatArray, hn: FloatArray, hp: IntArray, sway: FloatArray): HeadMesh {
         val base = head.vertexCount
         val lockEnd = head.lockFirst + head.lockCount * 3 * head.lockRows
         fun isLock(v: Int) = head.lockCount > 0 && v >= head.lockFirst && v < lockEnd
@@ -119,10 +125,16 @@ internal class HairStyle(
             eyeFirst = head.eyeFirst, eyeCount = head.eyeCount, eyeCentre = head.eyeCentre, eyelidRim = head.eyelidRim,
             mouthUpper = head.mouthUpper, mouthLower = head.mouthLower,
             lockFirst = 0, lockCount = 0, lockRows = 0,                  // no fine fibres drawn over hand-made strands
+            hairSway = FloatArray(n) { if (it < base) 0f else sway[it - base] },
         )
     }
 
     companion object {
+        fun smooth(e0: Float, e1: Float, x: Float): Float {
+            val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f)
+            return t * t * (3f - 2f * t)
+        }
+
         fun parse(bytes: ByteArray): HairStyle {
             val b = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
             require(String(bytes, 0, 4, Charsets.US_ASCII) == "JHR1") { "not a hairstyle" }

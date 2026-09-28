@@ -64,4 +64,21 @@ class HairStyleTest {
         val greys = (0..255).count { k -> HairStyle.strandColour(k, 0.3f, colours).let { (it shr 16 and 0xFF) > 0x50 } }
         assertTrue("$greys", greys in 20..90)
     }
+
+    @Test fun `a hair colour turns the face's own hair, and only the hair`() {
+        val marc = heads.getValue("head_mesh_marc.bin")
+        val face = avatarFace(2)
+        val blond = hairShade("blond")!!
+        val out = recolourHair(marc, face.hairColours, blond.colours)
+        var hair = 0
+        for (i in 0 until marc.vertexCount) {
+            val p = marc.paint[i]; val q = out.paint[i]
+            if (p == 0 || (p ushr 24) == 0xFF) { assertEquals(p, q); continue }       // the skin, the eyes, the mouth: as they were
+            hair++
+            assertEquals(p ushr 24, q ushr 24)                                        // the cover over the skin kept
+            assertTrue((q shr 16 and 0xFF) >= (p shr 16 and 0xFF))                     // blond is lighter than Marc's dark hair
+        }
+        assertTrue(hair > 1000)
+        assertEquals(HAIR_SHADES.size, HAIR_SHADES.map { it.id }.toSet().size)
+    }
 }

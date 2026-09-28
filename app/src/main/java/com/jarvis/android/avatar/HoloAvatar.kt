@@ -14,6 +14,13 @@ internal enum class Mood { IDLE, LISTENING, THINKING, ASLEEP }
 /** Brow travel at full lift, in head-half-heights (a third of the brow-to-eye gap). */
 private const val BROW_LIFT = 0.14f
 
+/** The hair's spring (stiffness, damping: a little overshoot) and the point it turns about, the top of the skull. */
+private const val HAIR_STIFFNESS = 38f
+private const val HAIR_DAMPING = 7.5f
+private const val HAIR_PIVOT_X = 0f
+private const val HAIR_PIVOT_Y = 0.55f
+private const val HAIR_PIVOT_Z = -0.25f
+
 // Mouth timing as time constants in seconds, so the motion is the same at 20, 30 or 60 frames a second.
 private const val TAU_OPEN = 0.022f   // jaw dropping toward a vowel
 private const val TAU_SHUT = 0.012f   // lips closing on a consonant, mid-word
@@ -64,6 +71,34 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
     private var vPeak = 0.18f
     var wide = 0f; private set
     private var lastVWide = 0f
+
+    /**
+     * How much each hair vertex swings (0..1): a chosen hairstyle's own weights, or along the head's locks (their tips more than their
+     * roots, the low ones more than those on top). Empty when the head has no hair that moves.
+     */
+    private val swayWeight: FloatArray = mesh.hairSway ?: FloatArray(mesh.vertexCount).also { w ->
+        val rows = mesh.lockRows
+        if (mesh.lockCount > 0 && rows > 1) for (l in 0 until mesh.lockCount) for (r in 0 until rows) for (k in 0..2) {
+            val i = mesh.lockFirst + (l * rows + r) * 3 + k
+            if (i >= mesh.vertexCount) continue
+            val along = r / (rows - 1f)
+            val y = mesh.verts[3 * i + 1]
+            val low = ((0.35f - y) / 1.1f).coerceIn(0f, 1f)
+            w[i] = 0.6f * along * along * (0.35f + 0.65f * low)
+        }
+    }
+    private val swaying: IntArray = swayWeight.indices.filter { swayWeight[it] > 0.01f }.toIntArray()
+
+    // the hair lags behind the head on a spring (a little overshoot, then it settles): its angles, and how fast they change
+    private var hairYaw = 0f; private var hairYawV = 0f
+    private var hairPitch = 0f; private var hairPitchV = 0f
+    private var hairRoll = 0f; private var hairRollV = 0f
+
+    private fun spring(pos: Float, vel: Float, target: Float, dt: Float): Pair<Float, Float> {
+        val acc = (target - pos) * HAIR_STIFFNESS - vel * HAIR_DAMPING
+        val v = vel + acc * dt
+        return (pos + v * dt) to v
+    }
 
     /** Posed vertices and normals of the last [pose] call. */
     val pv = FloatArray(mesh.verts.size)
@@ -152,6 +187,16 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         pitchOverride?.let { pitch = it }
         rollOverride?.let { roll = it }
         mouthOverride?.let { mouth = it }
+        if (swaying.isNotEmpty()) {
+            // in small steps: a spring stepped over a long frame overshoots wildly
+            var left = dt
+            while (left > 0f) {
+                val h = min(left, 0.016f); left -= h
+                spring(hairYaw, hairYawV, yaw, h).let { hairYaw = it.first; hairYawV = it.second }
+                spring(hairPitch, hairPitchV, pitch, h).let { hairPitch = it.first; hairPitchV = it.second }
+                spring(hairRoll, hairRollV, roll, h).let { hairRoll = it.first; hairRollV = it.second }
+            }
+        }
 
         // The loudness envelope is lazier than the mouth: brows follow the phrase, not each syllable.
         val env = if (live) amp else 0f
@@ -294,6 +339,22 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
                 val dz = v[3 * i + 2] - pz
                 v[3 * i + 1] = py + dy * ca - dz * sa
                 v[3 * i + 2] = pz + dy * sa + dz * ca
+            }
+        }
+        if (swaying.isNotEmpty()) {
+            // the hair hangs back from where the head has just turned: turned about the top of the skull by the lag, more at the tips,
+            // with a slow breath of its own
+            val lagY = (hairYaw - yaw).coerceIn(-0.35f, 0.35f) + 0.012f * sin(time * 1.3f)
+            val lagP = (hairPitch - pitch).coerceIn(-0.3f, 0.3f)
+            val lagR = (hairRoll - roll).coerceIn(-0.3f, 0.3f) + 0.008f * sin(time * 0.9f + 1f)
+            for (i in swaying) {
+                val w = swayWeight[i]
+                val ax = lagP * w; val ay = lagY * w; val az = lagR * w
+                val dx = v[3 * i] - HAIR_PIVOT_X; val dy = v[3 * i + 1] - HAIR_PIVOT_Y; val dz = v[3 * i + 2] - HAIR_PIVOT_Z
+                // a small turn: d + (a x d)
+                v[3 * i] += ay * dz - az * dy
+                v[3 * i + 1] += az * dx - ax * dz
+                v[3 * i + 2] += ax * dy - ay * dx
             }
         }
         val cy = cos(yaw); val sy = sin(yaw)

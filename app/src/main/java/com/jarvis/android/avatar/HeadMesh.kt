@@ -38,6 +38,8 @@ internal class HeadMesh(
     val lockFirst: Int,           // the hair's locks: first vertex (three per row: side, middle, side), number of locks, rows per lock
     val lockCount: Int,
     val lockRows: Int,
+    /** How much each vertex of the hair swings as the head moves (0: fixed to the head), for a chosen hairstyle; null: from the locks. */
+    val hairSway: FloatArray? = null,
 ) {
     val vertexCount: Int get() = verts.size / 3
     val faceCount: Int get() = faces.size / 3

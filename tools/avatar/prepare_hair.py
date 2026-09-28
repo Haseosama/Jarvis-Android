@@ -98,6 +98,12 @@ def style(V, F, flab, col, number):
     for p in hair_pieces:
         P = tri_n[tri_piece == p].reshape(-1, 3)
         small = (P.max(0) - P.min(0)).max() < 0.5
+        ext = P.max(0) - P.min(0)
+        # under the chin and wrapped round the body (a strap goes from the chest to the back) or as wide as it: clothes, not hair; the
+        # small pieces there are the ends of braids and pigtails
+        if P[:, 1].max() < -0.85 and (ext[2] > 1.0 or ext[0] > 1.2):
+            face_parts.add(p)
+            continue
         if small and P[:, 1].max() < 0.35 and P[:, 1].min() > -0.45 and P[:, 2].min() > 0.0 and np.abs(P[:, 0]).max() < 0.7:
             face_parts.add(p)
     hair_f = hair_f[~np.isin(flab[sel & (flab != head_piece)], list(face_parts))]

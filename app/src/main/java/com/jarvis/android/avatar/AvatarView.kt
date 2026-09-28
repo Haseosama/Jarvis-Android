@@ -28,7 +28,8 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     // The head (its mesh read, about a second on a phone, and its renderer built) is made off the main thread: the screen shows at
     // once and the face appears when it is ready, instead of the whole first frame waiting for it.
     val hair = controller.hair
-    val head by androidx.compose.runtime.produceState<Pair<AvatarRenderer, HoloAvatar>?>(null, controller, model, hair) {
+    val hairColour = controller.hairColour
+    val head by androidx.compose.runtime.produceState<Pair<AvatarRenderer, HoloAvatar>?>(null, controller, model, hair, hairColour) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { controller.head().let { (m, a) -> AvatarRenderer(m) to a } }
     }
     val cartoon = remember { CartoonRenderer() }
@@ -43,7 +44,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     val currentLevel by rememberUpdatedState(outputLevel)
     var frame by remember { mutableLongStateOf(0L) }
 
-    LaunchedEffect(controller, model, hair, head) {
+    LaunchedEffect(controller, model, hair, hairColour, head) {
         // the animation of the very head being drawn
         val avatar = head?.second ?: return@LaunchedEffect
         var last = SystemClock.elapsedRealtimeNanos()
@@ -102,7 +103,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
         renderer.lips = controller.lips
         renderer.cap = controller.cap
         // the hologram's own dark ink, not a pale theme cyan: a mood change (a lift, a lowered lid) has to read at a glance
-        renderer.browColour = if (renderer.holo) DEEP_BLUE else avatarFace(model).browColour
+        renderer.browColour = if (renderer.holo) DEEP_BLUE else hairShade(hairColour)?.browColour ?: avatarFace(model).browColour
         renderer.browScale = avatarFace(model).browScale
         renderer.lashScale = avatarFace(model).lashScale
         renderer.androidLook = avatarFace(model).androidLook

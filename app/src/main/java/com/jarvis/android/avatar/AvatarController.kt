@@ -47,6 +47,9 @@ internal class AvatarController(private val context: Context) {
     /** The hairstyle chosen for the current face (a HairChoice id), empty for the face's own hair. A Compose state, as [model]. */
     var hair by androidx.compose.runtime.mutableStateOf("")
 
+    /** The hair colour chosen for the current face (a HairShade id), empty for the face's own. A Compose state, as [model]. */
+    var hairColour by androidx.compose.runtime.mutableStateOf("")
+
     /** The hairstyles offered (assets/avatar/hair/styles.json). */
     val hairChoices: List<HairChoice> by lazy {
         try { HairChoice.parseList(context.assets.open("avatar/hair/styles.json").use { String(it.readBytes(), Charsets.UTF_8) }) }
@@ -54,23 +57,26 @@ internal class AvatarController(private val context: Context) {
     }
 
     private val heads = HashMap<Int, HeadMesh>()
-    private val loaded = HashMap<Pair<Int, String>, Pair<HeadMesh, HoloAvatar>>()
+    private val loaded = HashMap<Triple<Int, String, String>, Pair<HeadMesh, HoloAvatar>>()
 
     @Synchronized
     private fun current(): Pair<HeadMesh, HoloAvatar> {
         val m = model.coerceIn(0, AVATAR_FACES.lastIndex)
-        val h = hair
-        return loaded.getOrPut(m to h) {
-            // one head with its chosen hair kept at a time besides the plain ones: a fitted head is a few megabytes
-            loaded.keys.filter { it.second.isNotEmpty() && it != (m to h) }.forEach { loaded.remove(it) }
+        val key = Triple(m, hair, hairColour)
+        return loaded.getOrPut(key) {
+            // one head with its chosen hair or colour kept at a time besides the plain ones: a fitted head is a few megabytes
+            loaded.keys.filter { (it.second.isNotEmpty() || it.third.isNotEmpty()) && it != key }.forEach { loaded.remove(it) }
             val base = heads.getOrPut(m) { HeadMesh.parse(context.assets.open(avatarFace(m).asset).use { it.readBytes() }) }
-            val mesh = hairChoices.firstOrNull { it.id == h }?.let { choice ->
+            val face = avatarFace(m)
+            val shade = hairShade(key.third)
+            val colours = shade?.colours ?: face.hairColours
+            val mesh = hairChoices.firstOrNull { it.id == key.second }?.let { choice ->
                 try {
-                    HairStyle.parse(context.assets.open(choice.asset).use { it.readBytes() }).fitOn(base, avatarFace(m).hairColours)
+                    HairStyle.parse(context.assets.open(choice.asset).use { it.readBytes() }).fitOn(base, colours)
                 } catch (_: Exception) {
                     null
                 }
-            } ?: base
+            } ?: if (shade != null) recolourHair(base, face.hairColours, shade.colours) else base
             mesh to HoloAvatar(mesh)
         }
     }

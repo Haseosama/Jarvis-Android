@@ -47,6 +47,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
@@ -117,6 +119,7 @@ fun SettingsScreen(
     val faceModel by configStore.avatarModel.collectAsState(initial = 0)
     val faceLight by configStore.avatarLight.collectAsState(initial = false)
     val hairChosen by configStore.avatarHair.collectAsState(initial = emptyMap())
+    val hairColourChosen by configStore.avatarHairColour.collectAsState(initial = emptyMap())
     var avatarImport by remember { mutableStateOf<android.net.Uri?>(null) }
     val pickAvatar = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) avatarImport = uri
@@ -546,6 +549,21 @@ fun SettingsScreen(
                 }
                 if (current.isNotEmpty()) {
                     Text(tr("Coiffures : collections de Vincent Page sur Sketchfab (CC BY 4.0)."), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
+                }
+                val colour = hairColourChosen[chosenFace.label].orEmpty()
+                Text(tr("Couleur des cheveux"), style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).horizontalScroll(rememberScrollState())) {
+                    FilterChip(selected = colour.isEmpty(), onClick = { scope.launch { configStore.setAvatarHairColour(chosenFace.label, "") } }, label = { Text(tr("D’origine")) })
+                    com.jarvis.android.avatar.HAIR_SHADES.forEach { sh ->
+                        FilterChip(
+                            selected = colour == sh.id,
+                            onClick = { scope.launch { configStore.setAvatarHairColour(chosenFace.label, sh.id) } },
+                            label = { Text(sh.label(english)) },
+                            leadingIcon = {
+                                Box(Modifier.size(14.dp).clip(androidx.compose.foundation.shape.CircleShape).drawBehind { drawRect(androidx.compose.ui.graphics.Color(0xFF000000.toInt() or sh.colours.body)) })
+                            },
+                        )
+                    }
                 }
             }
             androidx.compose.material3.OutlinedButton(onClick = { pickAvatar.launch(arrayOf("*/*")) }, modifier = Modifier.padding(bottom = 8.dp)) {

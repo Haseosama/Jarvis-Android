@@ -198,6 +198,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_AVATAR_FACE = booleanPreferencesKey("avatar_face")
     private val KEY_AVATAR_LIGHT = booleanPreferencesKey("avatar_light")
     private val KEY_AVATAR_HAIR = stringPreferencesKey("avatar_hair")
+    private val KEY_AVATAR_HAIR_COLOUR = stringPreferencesKey("avatar_hair_colour")
     private val KEY_GOOGLE = booleanPreferencesKey("google_connected")
     private val KEY_AVATAR_SKIN = intPreferencesKey("avatar_face_skin")
     private val KEY_MESSAGE_AUTO_SEND = booleanPreferencesKey("message_auto_send")
@@ -255,6 +256,8 @@ class ConfigStore(private val context: Context) {
     val avatarLight: Flow<Boolean> = context.dataStore.data.map { it[KEY_AVATAR_LIGHT] ?: false }
     /** The hairstyle chosen for each face: face label → hairstyle id (absent: the face's own hair). */
     val avatarHair: Flow<Map<String, String>> = context.dataStore.data.map { decodeHairChoices(it[KEY_AVATAR_HAIR].orEmpty()) }
+    /** The hair colour chosen for each face: face label → HairShade id (absent: the face's own). */
+    val avatarHairColour: Flow<Map<String, String>> = context.dataStore.data.map { decodeHairChoices(it[KEY_AVATAR_HAIR_COLOUR].orEmpty()) }
     /** 0 = the glowing web, 1..4 = a skin of that tone over the face (light by default). */
     /** Which head: 0 = the original, 1 and 2 = the other faces (see avatar/AvatarFaces.kt). */
     val avatarModel: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_MODEL] ?: 0 }
@@ -315,11 +318,15 @@ class ConfigStore(private val context: Context) {
     suspend fun setGoogleConnected(v: Boolean) = context.dataStore.edit { it[KEY_GOOGLE] = v }
     suspend fun setAvatarFace(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_FACE] = v }
     suspend fun setAvatarLight(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_LIGHT] = v }
-    suspend fun setAvatarHair(face: String, hair: String) = context.dataStore.edit {
-        val m = decodeHairChoices(it[KEY_AVATAR_HAIR].orEmpty()).toMutableMap()
-        if (hair.isEmpty()) m.remove(face) else m[face] = hair
-        it[KEY_AVATAR_HAIR] = m.entries.joinToString(";") { (k, v) -> "$k=$v" }
-    }
+    suspend fun setAvatarHair(face: String, hair: String) = setPerFace(KEY_AVATAR_HAIR, face, hair)
+    suspend fun setAvatarHairColour(face: String, colour: String) = setPerFace(KEY_AVATAR_HAIR_COLOUR, face, colour)
+
+    private suspend fun setPerFace(key: androidx.datastore.preferences.core.Preferences.Key<String>, face: String, value: String) =
+        context.dataStore.edit {
+            val m = decodeHairChoices(it[key].orEmpty()).toMutableMap()
+            if (value.isEmpty()) m.remove(face) else m[face] = value
+            it[key] = m.entries.joinToString(";") { (k, v) -> "$k=$v" }
+        }
     suspend fun setAvatarModel(v: Int) = context.dataStore.edit { it[KEY_AVATAR_MODEL] = v }
     suspend fun setKeepSessionTranscripts(v: Boolean) = context.dataStore.edit { it[KEY_KEEP_TRANSCRIPTS] = v }
     suspend fun setLocalAiEnabled(v: Boolean) = context.dataStore.edit { it[KEY_LOCAL_AI] = v }
