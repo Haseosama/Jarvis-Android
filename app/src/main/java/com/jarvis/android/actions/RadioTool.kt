@@ -93,6 +93,7 @@ object RadioTool : Tool {
                     return "L’annuaire des radios ne répond pas : impossible de chercher la station."
                 }
                 val first = found.firstOrNull() ?: return "Aucune radio trouvée pour « $query »."
+                com.jarvis.android.car.CarLibrary.rememberRadio(ctx.appContext, first.name)
                 panel.showList(found.take(KEPT).map { VideoPanel.Video(url = it.stream, title = it.name, radio = true) })
                 // a radio is asked for to be heard: its sound is on at once (the microphone then waits for « Jarvis »)
                 panel.setSound(true)

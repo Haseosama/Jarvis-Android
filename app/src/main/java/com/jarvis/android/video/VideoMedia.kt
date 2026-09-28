@@ -33,8 +33,21 @@ internal class VideoMedia(private val context: Context, private val panel: Video
             override fun onRewind() { panel.command(VideoPanel.Command.SeekBy(-10)) }
             override fun onStop() { panel.close() }
             override fun onSeekTo(pos: Long) { panel.command(VideoPanel.Command.SeekBy(((pos / 1000) - panel.positionS).toInt())) }
+            // the car (Android Auto) or an assistant asks for something to play: an item of the car's list, or words
+            override fun onPlayFromMediaId(mediaId: String?, extras: android.os.Bundle?) { mediaId?.let { playRequest(it, null) } }
+            override fun onPlayFromSearch(query: String?, extras: android.os.Bundle?) { playRequest(null, query.orEmpty()) }
         }, android.os.Handler(android.os.Looper.getMainLooper()))
     }
+
+    /** What plays an item of the car's list or a search ([mediaId] or [query]); set by the container (see car/CarLibrary.kt). */
+    @Volatile var playRequest: (mediaId: String?, query: String?) -> Unit = { _, _ -> }
+
+    /** The session the car's media service hands to Android Auto. */
+    val sessionToken: MediaSession.Token get() = session.sessionToken
+
+    /** The notification of what plays now (null: nothing), for the media service to stay in the foreground with it. */
+    @Volatile var notification: Notification? = null
+        private set
     private val manager = context.getSystemService(NotificationManager::class.java)
 
     @Volatile private var duration = 0
@@ -54,8 +67,11 @@ internal class VideoMedia(private val context: Context, private val panel: Video
 
     private fun update(v: VideoPanel.Video?) {
         if (v == null) {
+            // nothing plays: the session still takes the car's requests (play an item, a search)
+            session.setPlaybackState(PlaybackState.Builder().setActions(IDLE_ACTIONS).setState(PlaybackState.STATE_STOPPED, 0L, 0f).build())
             session.isActive = false
             manager?.cancel(NOTIFICATION_ID)
+            notification = null
             lastKey = null
             return
         }
@@ -72,7 +88,7 @@ internal class VideoMedia(private val context: Context, private val panel: Video
                 .build(),
         )
         val several = v.count > 1 || v.isSlideshow
-        var actions = PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP
+        var actions = IDLE_ACTIONS or PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP
         if (several) actions = actions or PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS
         if (!v.isSlideshow) actions = actions or PlaybackState.ACTION_FAST_FORWARD or PlaybackState.ACTION_REWIND or PlaybackState.ACTION_SEEK_TO
         session.setPlaybackState(
@@ -91,9 +107,6 @@ internal class VideoMedia(private val context: Context, private val panel: Video
 
     private fun post(v: VideoPanel.Video, several: Boolean) {
         val nm = manager ?: return
-        if (Build.VERSION.SDK_INT >= 33 &&
-            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) return
         nm.createNotificationChannel(NotificationChannel(CHANNEL_ID, tr("Vidéo"), NotificationManager.IMPORTANCE_LOW))
         val open = context.packageManager.getLaunchIntentForPackage(context.packageName)
             ?.let { PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT) }
@@ -107,7 +120,14 @@ internal class VideoMedia(private val context: Context, private val panel: Video
         val n = Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle(v.title.ifBlank { tr("Vidéo") })
-            .setContentText(if (v.isSlideshow) tr("Diaporama") else tr("Vidéo dans Jarvis"))
+            .setContentText(
+                when {
+                    v.isSlideshow -> tr("Diaporama")
+                    v.radio -> tr("Radio en direct")
+                    v.podcast -> v.artist.ifBlank { tr("Podcast") }
+                    else -> tr("Vidéo dans Jarvis")
+                },
+            )
             .setContentIntent(open)
             .setOngoing(!v.paused)
             .setOnlyAlertOnce(true)
@@ -115,6 +135,11 @@ internal class VideoMedia(private val context: Context, private val panel: Video
             .setStyle(Notification.MediaStyle().setMediaSession(session.sessionToken).setShowActionsInCompactView(*compact))
             .apply { buttons.forEach { addAction(it) } }
             .build()
+        notification = n
+        // without the notification permission, nothing is shown (the media service still uses it to stay in the foreground)
+        if (Build.VERSION.SDK_INT >= 33 &&
+            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) return
         try { nm.notify(NOTIFICATION_ID, n) } catch (_: SecurityException) {}
     }
 
@@ -123,7 +148,10 @@ internal class VideoMedia(private val context: Context, private val panel: Video
 
     companion object {
         private const val CHANNEL_ID = "jarvis_video"
-        private const val NOTIFICATION_ID = 4711
+        const val NOTIFICATION_ID = 4711
+
+        /** Always offered, even with nothing playing: the car's list and a search. */
+        private const val IDLE_ACTIONS = PlaybackState.ACTION_PLAY_FROM_MEDIA_ID or PlaybackState.ACTION_PLAY_FROM_SEARCH
         const val DO_PLAY = "play"
         const val DO_PAUSE = "pause"
         const val DO_NEXT = "next"

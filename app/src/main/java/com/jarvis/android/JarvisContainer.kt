@@ -96,7 +96,10 @@ class JarvisContainer(val appContext: Context) {
         val prefs = appContext.getSharedPreferences("video_history", Context.MODE_PRIVATE)
         com.jarvis.android.video.VideoHistory({ prefs.getString("entries", null) }, { prefs.edit().putString("entries", it).apply() })
     }
-    private val videoMedia by lazy { com.jarvis.android.video.VideoMedia(appContext, videoPanel, appScope) }
+    internal val videoMedia by lazy { com.jarvis.android.video.VideoMedia(appContext, videoPanel, appScope) }
+
+    /** Sound alone (a radio, a podcast) plays here, outside the screen. */
+    private val audioPlayer by lazy { com.jarvis.android.video.AudioPlayer(appContext, videoPanel, appScope) }
 
     internal val briefing: com.jarvis.android.memory.BriefingCoordinator by lazy { com.jarvis.android.memory.BriefingCoordinator(this) }
 
@@ -207,7 +210,10 @@ class JarvisContainer(val appContext: Context) {
         }
         // where it is: kept for coming back to it, and shown on the lock screen
         videoPanel.onProgress = { v, p, d -> videoHistory.record(v, p, d, System.currentTimeMillis()); videoMedia.progress(d) }
-        appScope.launch(kotlinx.coroutines.Dispatchers.Main) { videoMedia }
+        appScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+            videoMedia.playRequest = { id, query -> appScope.launch { com.jarvis.android.car.CarLibrary.play(this@JarvisContainer, id, query) } }
+            audioPlayer
+        }
         // "arrête la vidéo dans 20 minutes"
         appScope.launch {
             videoPanel.timer.collectLatest {

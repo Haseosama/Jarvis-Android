@@ -66,6 +66,8 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
         data class Step(val by: Int) : Command
         /** YouTube's subtitles in [language], or none (null). */
         data class Subtitles(val language: String?) : Command
+        /** A slideshow's photo seen [scale] times larger (1: whole), around the point [x], [y] (0 to 1 across and down). */
+        data class Zoom(val scale: Float, val x: Float = 0.5f, val y: Float = 0.5f) : Command
     }
 
     private val _commands = kotlinx.coroutines.flow.MutableSharedFlow<Command>(extraBufferCapacity = 8)
@@ -81,6 +83,9 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
 
     /** Set by the screen while a player is shown: a picture of what it shows now, as a JPEG at most so many pixels on a side. */
     @Volatile var grabFrame: (suspend (Int) -> ByteArray?)? = null
+
+    /** How much the slideshow's photo is zoomed now (1: whole), as the slideshow last said: "zoome encore" starts from it. */
+    @Volatile var photoZoom: Float = 1f
 
     /** Where the video on screen is, in seconds, as its player last said. */
     @Volatile var positionS: Int = 0
@@ -154,7 +159,7 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
             Command.Pause -> _video.update { it?.copy(paused = true) }
             Command.Resume, Command.Restart -> _video.update { it?.copy(paused = false) }
             is Command.Subtitles -> _video.update { it?.copy(subtitles = c.language) }
-            is Command.SeekBy, is Command.Step -> {}
+            is Command.SeekBy, is Command.Step, is Command.Zoom -> {}
         }
         return _commands.tryEmit(c)
     }

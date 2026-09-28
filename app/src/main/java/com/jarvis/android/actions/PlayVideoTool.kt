@@ -24,7 +24,9 @@ object PlayVideoTool : Tool {
             "« look » quand l’utilisateur demande ce qu’on voit dans la vidéo (« c’est qui ? », « qu’est-ce qu’il fait ? ») : une image de la " +
             "vidéo vous est envoyée, décrivez-la. « subtitles » avec language (fr, en…) ou off pour les sous-titres YouTube. « timer » avec " +
             "minutes, ou at_end (« à la fin de celle-ci »), ou off : la vidéo s’arrête d’elle-même. « resume_last » : la dernière vidéo " +
-            "laissée en cours (« reprends la vidéo d’hier »), là où elle s’était arrêtée ; une vidéo déjà commencée reprend aussi d’elle-même."
+            "laissée en cours (« reprends la vidéo d’hier »), là où elle s’était arrêtée ; une vidéo déjà commencée reprend aussi d’elle-même. " +
+            "« zoom » sur une photo d’un diaporama (« zoome », « zoome en haut à gauche », « encore », « dézoome ») : level et area ; " +
+            "l’utilisateur peut aussi pincer ou toucher deux fois la photo."
     override val parameters = objectSchema(required = listOf("action")) {
         string("action", "play, phone, sound_on, sound_off, pause, resume, forward, back, restart, next, previous, fullscreen, exit_fullscreen, look, subtitles, timer, resume_last ou stop.")
         string("query", "Pour play : ce qu’il faut chercher sur YouTube.")
@@ -34,6 +36,8 @@ object PlayVideoTool : Tool {
         string("to", "Pour phone : le dernier jour d’une période (AAAA-MM-JJ).")
         integer("seconds", "Pour forward ou back : de combien de secondes.")
         string("language", "Pour subtitles : la langue (fr, en, es…), ou off.")
+        string("level", "Pour zoom : 2, 3… (fois plus grand), plus, moins ou normal (la photo entière).")
+        string("area", "Pour zoom : où regarder : centre, haut, bas, gauche, droite, haut_gauche, bas_droite…")
         integer("minutes", "Pour timer : dans combien de minutes la vidéo s’arrête (0 : plus de minuterie).")
         string("at_end", "Pour timer : « true » pour arrêter à la fin de la vidéo en cours.")
     }
@@ -65,6 +69,23 @@ object PlayVideoTool : Tool {
                 }
             }
             "look", "regarder" -> look(ctx, panel)
+            "zoom", "zoomer" -> {
+                val v = panel.video.value ?: return "Aucune photo n’est affichée."
+                if (!v.isSlideshow) return "Le zoom est pour les photos (un diaporama) : il n’y en a pas à l’écran."
+                val level = args.stringArg("level").trim().lowercase()
+                val now = panel.photoZoom
+                val scale = when {
+                    level in setOf("", "plus", "encore", "in") -> if (now <= 1.01f) 2f else now * 1.6f
+                    level in setOf("moins", "out") -> now / 1.6f
+                    level in setOf("1", "normal", "reset", "dezoom", "dézoom", "off") -> 1f
+                    else -> level.replace(',', '.').removeSuffix("x").toFloatOrNull() ?: return "Niveau de zoom illisible : un nombre (2, 3…), plus, moins ou normal."
+                }.coerceIn(1f, com.jarvis.android.video.MAX_PHOTO_ZOOM)
+                val (x, y) = zoomArea(args.stringArg("area"))
+                panel.command(VideoPanel.Command.Zoom(scale, x, y))
+                if (scale <= 1.01f) "La photo est de nouveau entière ; le diaporama reprend."
+                else "Zoom ×${"%.1f".format(scale)} sur la photo${if (args.stringArg("area").isNotBlank()) " (${args.stringArg("area")})" else ""} ; " +
+                    "le diaporama attend tant qu’elle est zoomée. Pour savoir ce qu’on y voit, action look."
+            }
             "subtitles", "sous_titres", "sous-titres" -> {
                 val v = panel.video.value ?: return "Aucune vidéo n’est affichée."
                 if (v.youtubeId == null) return "Les sous-titres ne sont proposés que pour les vidéos YouTube."
@@ -150,6 +171,14 @@ object PlayVideoTool : Tool {
         val others = if (found.size > 1) " (${found.size} vidéos correspondent : c’est la plus récente ; « la suivante » passe à la précédente en date)" else ""
         return "La vidéo « ${v.name} » du ${com.jarvis.android.photos.dayWords(day, true)}, ${com.jarvis.android.photos.durationWords(v.durationMs)}$others, " +
             "s’affiche à la place du visage, sans le son${resumedWords(videos.first())}. « Mets le son » pour l’entendre, « arrête la vidéo » pour la fermer. Dites-le en une phrase courte."
+    }
+
+    /** Where to zoom, from words: "haut_gauche", "en bas à droite", "centre"… as a point 0 to 1 across and down. */
+    internal fun zoomArea(words: String): Pair<Float, Float> {
+        val w = words.lowercase()
+        val x = when { "gauche" in w || "left" in w -> 0.2f; "droite" in w || "right" in w -> 0.8f; else -> 0.5f }
+        val y = when { "haut" in w || "top" in w -> 0.2f; "bas" in w || "bottom" in w -> 0.8f; else -> 0.5f }
+        return x to y
     }
 
     /** The video started where it was left last time, if it was. */

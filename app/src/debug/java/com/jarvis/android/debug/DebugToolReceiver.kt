@@ -22,6 +22,8 @@ import kotlinx.serialization.json.jsonObject
 class DebugToolReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val tool = intent.getStringExtra("tool") ?: return
+        // "car_browse": browse the media service as Android Auto does, and play an item of it (--es play radio:FIP)
+        if (tool == "car_browse") { carBrowse(context, intent.getStringExtra("folders")?.split(',') ?: listOf("root"), intent.getStringExtra("play")); return }
         // Simple extras (--es text Stopwatch) are easier to pass through adb than JSON.
         val simple = intent.extras?.keySet().orEmpty()
             .filter { it != "tool" && it != "args" && it != "args_file" }
@@ -42,6 +44,39 @@ class DebugToolReceiver : BroadcastReceiver() {
             val result = ToolRegistry.run(tool, args, container)
             result.chunked(900).forEachIndexed { i, part -> Log.i("DebugTool", "$tool#$i $part") }
             Log.i("DebugTool", "$tool END")
+        }
+    }
+
+    /** Connects to the media service like a car, logs the entries of [folders], then asks it to play [play] (a media id). */
+    private fun carBrowse(context: Context, folders: List<String>, play: String?) {
+        val app = context.applicationContext
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            var browser: android.media.browse.MediaBrowser? = null
+            browser = android.media.browse.MediaBrowser(
+                app, android.content.ComponentName(app, com.jarvis.android.car.JarvisMediaService::class.java),
+                object : android.media.browse.MediaBrowser.ConnectionCallback() {
+                    override fun onConnected() {
+                        val b = browser ?: return
+                        Log.i("DebugTool", "car_browse connected, root ${b.root}")
+                        folders.forEach { folder ->
+                            b.subscribe(folder.trim(), object : android.media.browse.MediaBrowser.SubscriptionCallback() {
+                                override fun onChildrenLoaded(parentId: String, children: MutableList<android.media.browse.MediaBrowser.MediaItem>) {
+                                    Log.i("DebugTool", "car_browse [$parentId] " + children.joinToString(" | ") {
+                                        "${it.mediaId} = ${it.description.title}${if (it.isBrowsable) " >" else ""}"
+                                    })
+                                }
+                            })
+                        }
+                        play?.let {
+                            android.media.session.MediaController(app, b.sessionToken).transportControls.playFromMediaId(it, null)
+                            Log.i("DebugTool", "car_browse play $it")
+                        }
+                    }
+                    override fun onConnectionFailed() = Log.i("DebugTool", "car_browse refused").let { }
+                },
+                null,
+            )
+            browser.connect()
         }
     }
 }

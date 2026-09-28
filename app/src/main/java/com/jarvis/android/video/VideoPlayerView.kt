@@ -58,6 +58,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -122,7 +128,8 @@ internal fun VideoPlayerView(
                 // one player for all the videos of a search, the next one loaded into it: a player made anew while the app is its small
                 // video window got no picture until the app came back
                 video.youtubeId != null -> YoutubePlayer(panel, video)
-                video.url != null -> FilePlayer(panel, video.url, (volumeOf(video) * fade).toInt(), video.startAt)
+                // sound alone plays outside the screen (AudioPlayer): only its card is drawn here
+                video.url != null && !video.audioOnly -> FilePlayer(panel, video.url, (volumeOf(video) * fade).toInt(), video.startAt)
             }
             // a radio or a podcast has no picture: its name over the black, drawn above the player (never under it)
             if (video.audioOnly) RadioCard(video, Modifier.fillMaxSize())
@@ -272,7 +279,7 @@ private fun YoutubePlayer(panel: VideoPanel, video: VideoPanel.Video) {
                 VideoPanel.Command.Restart -> "cmd('seekTo',[0,true]);cmd('playVideo')"
                 is VideoPanel.Command.SeekBy -> "seekBy(${c.seconds})"
                 is VideoPanel.Command.Subtitles -> "subs(${c.language?.let { "'" + it.filter { ch -> ch.isLetter() || ch == '-' }.take(8) + "'" } ?: "null"})"
-                is VideoPanel.Command.Step -> null
+                is VideoPanel.Command.Step, is VideoPanel.Command.Zoom -> null
             }
             if (js != null) web[0]?.evaluateJavascript(js, null)
         }
@@ -407,7 +414,7 @@ private fun FilePlayer(panel: VideoPanel, url: String, volume: Int, startAt: Int
                     VideoPanel.Command.Restart -> { mp.seekTo(0); mp.start() }
                     is VideoPanel.Command.SeekBy ->
                         mp.seekTo((mp.currentPosition + c.seconds * 1000L).coerceIn(0L, maxOf(mp.duration, 0).toLong()), MediaPlayer.SEEK_CLOSEST)
-                    is VideoPanel.Command.Step, is VideoPanel.Command.Subtitles -> {}
+                    is VideoPanel.Command.Step, is VideoPanel.Command.Subtitles, is VideoPanel.Command.Zoom -> {}
                 }
             } catch (_: IllegalStateException) {}
         }
@@ -428,6 +435,26 @@ private fun FilePlayer(panel: VideoPanel, url: String, volume: Int, startAt: Int
 
 /** How long each photo of a slideshow stays. */
 private const val SLIDE_MS = 5_000
+
+/** How far a photo can be zoomed. */
+internal const val MAX_PHOTO_ZOOM = 6f
+
+/**
+ * The pan that keeps the point [focus] of the box (of [box] size) where it is when the zoom goes from [s1] (with pan [t]) to [s2]:
+ * the picture is scaled about the box's middle, then moved by the pan.
+ */
+internal fun zoomAround(focus: androidx.compose.ui.geometry.Offset, box: androidx.compose.ui.geometry.Size, t: androidx.compose.ui.geometry.Offset, s1: Float, s2: Float): androidx.compose.ui.geometry.Offset {
+    val c = androidx.compose.ui.geometry.Offset(box.width / 2f, box.height / 2f)
+    return (focus - c) - (focus - c - t) * (s2 / s1)
+}
+
+/** A pan that never shows past the photo's edges at zoom [s]. */
+internal fun clampPan(t: androidx.compose.ui.geometry.Offset, s: Float, box: androidx.compose.ui.geometry.Size): androidx.compose.ui.geometry.Offset {
+    val mx = (s - 1f) * box.width / 2f
+    val my = (s - 1f) * box.height / 2f
+    // + 0f: no negative zero (-0.0 is not 0.0 to an Offset)
+    return androidx.compose.ui.geometry.Offset(t.x.coerceIn(-mx, mx) + 0f, t.y.coerceIn(-my, my) + 0f)
+}
 
 /** Photos of the phone one after the other, a slow zoom on each, a cross-fade between them; round again after the last. */
 @Composable
@@ -450,8 +477,19 @@ private fun Slideshow(panel: VideoPanel, video: VideoPanel.Video) {
         ready.keys.retainAll(setOf(i, next))
         read(next)
     }
-    LaunchedEffect(index, video.paused) {
-        if (video.paused) return@LaunchedEffect
+    // the user's zoom on the photo: pinch, double tap, or by voice; a zoomed photo stays until it is let go
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var box by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
+    fun setZoom(s: Float, t: androidx.compose.ui.geometry.Offset) {
+        scale = s.coerceIn(1f, MAX_PHOTO_ZOOM)
+        offset = clampPan(t, scale, box)
+        panel.photoZoom = scale
+    }
+    LaunchedEffect(index) { setZoom(1f, androidx.compose.ui.geometry.Offset.Zero) }
+    val zoomed = scale > 1.01f
+    LaunchedEffect(index, video.paused, zoomed) {
+        if (video.paused || zoomed) return@LaunchedEffect
         delay(SLIDE_MS.toLong())
         index = (index + 1) % photos.size
     }
@@ -461,18 +499,42 @@ private fun Slideshow(panel: VideoPanel, video: VideoPanel.Video) {
                 is VideoPanel.Command.Step -> index = Math.floorMod(index + c.by, photos.size)
                 is VideoPanel.Command.SeekBy -> index = Math.floorMod(index + (if (c.seconds < 0) -1 else 1), photos.size)
                 VideoPanel.Command.Restart -> index = 0
+                // by voice: that point of the photo brought to the middle, as large as asked
+                is VideoPanel.Command.Zoom -> {
+                    val focus = androidx.compose.ui.geometry.Offset(c.x * box.width, c.y * box.height)
+                    setZoom(c.scale, zoomAround(focus, box, androidx.compose.ui.geometry.Offset.Zero, 1f, c.scale))
+                }
                 else -> {}
             }
         }
     }
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(
+        Modifier.fillMaxSize().background(Color.Black)
+            .onSizeChanged { box = androidx.compose.ui.geometry.Size(it.width.toFloat(), it.height.toFloat()) }
+            .pointerInput(Unit) {
+                detectTapGestures(onDoubleTap = { p ->
+                    if (scale > 1.01f) setZoom(1f, androidx.compose.ui.geometry.Offset.Zero) else setZoom(2.5f, zoomAround(p, box, offset, scale, 2.5f))
+                })
+            }
+            .pointerInput(Unit) {
+                detectTransformGestures { centroid, pan, change, _ ->
+                    val s2 = (scale * change).coerceIn(1f, MAX_PHOTO_ZOOM)
+                    setZoom(s2, zoomAround(centroid, box, offset, scale, s2) + pan)
+                }
+            },
+    ) {
         Crossfade(shown, animationSpec = tween(700), label = "photo") { s ->
             if (s != null) {
                 val zoom = remember { Animatable(1f) }
                 LaunchedEffect(Unit) { zoom.animateTo(1.07f, tween(SLIDE_MS + 700, easing = LinearEasing)) }
                 Image(
                     s.second, contentDescription = null, contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize().clipToBounds().graphicsLayer { scaleX = zoom.value; scaleY = zoom.value },
+                    modifier = Modifier.fillMaxSize().clipToBounds().graphicsLayer {
+                        // the slow drift of the slideshow, then the user's zoom and where it looks
+                        val k = (if (zoomed) 1f else zoom.value) * scale
+                        scaleX = k; scaleY = k
+                        translationX = offset.x; translationY = offset.y
+                    },
                 )
             }
         }

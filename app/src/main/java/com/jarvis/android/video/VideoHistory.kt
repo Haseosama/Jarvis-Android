@@ -19,8 +19,11 @@ class VideoHistory(private val load: () -> String? = { null }, private val store
         val durationS: Int = 0,
         /** When it was last watched, in milliseconds since 1970. */
         val at: Long = 0L,
+        /** Sound alone (a podcast's episode), and who it is from: the car can play it. */
+        val audio: Boolean = false,
+        val artist: String = "",
     ) {
-        fun video(): VideoPanel.Video = VideoPanel.Video(youtubeId = youtubeId, url = url, title = title, startAt = positionS)
+        fun video(): VideoPanel.Video = VideoPanel.Video(youtubeId = youtubeId, url = url, title = title, startAt = positionS, podcast = audio, artist = artist)
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -44,7 +47,7 @@ class VideoHistory(private val load: () -> String? = { null }, private val store
         val rest = entries.filter { it.key != key }
         val finished = durationS > 0 && positionS >= durationS - END_MARGIN_S
         entries = if (positionS < MIN_POSITION_S || finished) rest
-        else (listOf(Entry(key, video.youtubeId, video.url, video.title, positionS, durationS, now)) + rest).take(MAX_KEPT)
+        else (listOf(Entry(key, video.youtubeId, video.url, video.title, positionS, durationS, now, video.podcast, video.artist)) + rest).take(MAX_KEPT)
         if (force || now - lastSaved >= SAVE_EVERY_MS) save(now)
     }
 

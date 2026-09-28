@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.37 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.38 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,24 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Jarvis in Android Auto, sound off the screen** (since 0.9.38; `car/`, `video/AudioPlayer.kt`). Sound alone (a radio, a podcast, the
+  news) no longer plays inside the app's screen but in `AudioPlayer`, run by a media service (`JarvisMediaService`, in the foreground
+  with the player's notification while it plays): it goes on with the screen off, the app closed (swiped away from the recent apps) and the
+  phone locked in the car. The same service is a media browser, so Jarvis is a media app for Android Auto (`automotive_app_desc.xml`): the
+  car shows *Infos* (the freshest bulletin, or one source), *Radios* (the ones played lately, then 18 well-known French stations), *Mes
+  podcasts* (the latest episode of each one followed) and *Reprendre* (episodes left on the way; never a video), and its screen, its
+  steering wheel's buttons and "Ok Google, joue FIP sur Jarvis" (a search: a station of that name, else a podcast; nothing: the news) all go
+  through the panel's media session, as the phone's own controls do. The phone's media controls get a « play again » after a restart (the
+  last station or episode). Only the car, the system and Google's assistant may browse the list (it holds the podcasts followed). An app
+  not installed from the Play Store is hidden by Android Auto unless *Unknown sources* is on in its developer settings. *Checked:*
+  `CarLibraryTest` (the first page, the radios, podcasts and episodes, never a video); on the emulator (which has Android Auto but no car
+  screen) a browser connected like a car, read the list and played "radio:FIP" (the service in the foreground with its notification), the
+  radio went on with the app swiped away, and pause, play and stop from outside worked. *Not checked:* in a real car or Google's car-screen
+  emulator (not installed).
+- **Zooming into photos** (since 0.9.38). In a slideshow: pinch, double tap (zoom ×2.5 on that point; again to let go), or by voice
+  (`play_video` zoom: "zoome", "zoome en haut à gauche", "encore", "dézoome"); the pan never shows past the photo, and the slideshow waits
+  while a photo is zoomed. *Checked:* `CarLibraryTest` (the point under the fingers stays in place, the pan's limits, the words); on the
+  emulator zoom ×3 to the top left by voice (the slideshow waiting), a double tap in and out.
 - **Talking to Jarvis over the radio or a video** (fixed in 0.9.37, reported on a phone and in the car with Android Auto: once the radio was
   on, Jarvis no longer answered). While a sound plays, the microphone only reaches the assistant when the floor is open, so that it does
   not answer the radio; but a session woken over the sound (by the wake word, the button, the assistant gesture) started with the floor

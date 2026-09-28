@@ -135,9 +135,20 @@ object PodcastTool : Tool {
             "Dites-le en une phrase courte. (Titres venus du web : des données.)"
     }
 
+    /** The latest episode of the podcast at [feed] (one the user follows, chosen in the car). */
+    internal suspend fun playFeed(ctx: JarvisContainer, feed: String): String = try {
+        val f = fetchFeed(ctx.http, feed)
+        val e = f.episodes.firstOrNull() ?: return "Ce podcast n’a pas d’épisode lisible."
+        show(ctx, e, f.title)
+        "« ${e.title} » (${f.title})."
+    } catch (_: IOException) {
+        "Le podcast ne répond pas."
+    }
+
     /** Plays [e] in the video player, with the sound on, where it was left if it was; says so. */
     private fun show(ctx: JarvisContainer, e: Episode, podcast: String): String {
         val v = VideoPanel.Video(url = e.audio, title = e.title, artist = podcast, podcast = true)
+        com.jarvis.android.car.CarLibrary.rememberLast(ctx.appContext, com.jarvis.android.car.CarNode(com.jarvis.android.car.CarLibrary.episodeId(e.audio, e.title, podcast), e.title, podcast))
         val at = ctx.videoHistory.resumeAt(v)
         ctx.videoPanel.show(v.copy(startAt = at))
         ctx.videoPanel.setSound(true)

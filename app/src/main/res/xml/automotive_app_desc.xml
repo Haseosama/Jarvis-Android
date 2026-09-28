@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Jarvis in Android Auto: a media app (its radio, podcasts and news, see car/JarvisMediaService.kt) -->
+<automotiveApp>
+    <uses name="media" />
+</automotiveApp>
