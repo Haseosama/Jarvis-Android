@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.33 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.34 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1211,6 +1211,23 @@ also shown in the settings.
   timer (closed between 53 and 68 s), the header's "arrêt dans 1 min", the notification and the media session, a headset's pause and
   play keys. *Not checked:* the assistant's answer about the picture (no valid key on the emulator), the lock screen's player, on a
   real phone.
+- **Newsletters and spam** (since 0.9.34; `mail_cleanup`, Google connected). "Qui m'envoie le plus de mails ?", "désabonne-moi de
+  Zalando", "nettoie mon spam". *subscriptions:* the list senders of the last 60 days (the 120 newest mails in the promotions, updates,
+  social and forums tabs, or saying unsubscribe / désabonner / newsletter), grouped by address, the busiest first, with how to leave
+  each. *unsubscribe:* the way the sender offers in its List-Unsubscribe header (`google/Unsubscribe.kt`): RFC 8058's one click (one
+  POST, https only, no cookies, no redirect followed), else a mail sent from the user's Gmail (the `gmail.send` scope already asked
+  for), else its page opened in the browser for the user to finish (Jarvis never clicks there). *Never for real spam:* answering spam
+  tells its sender the address is read, and its links can be traps; so a sender Gmail put in the spam, or whose mail does not prove
+  it comes from its domain (Gmail's own Authentication-Results: DMARC passed, or a DKIM signature of that domain), is refused, and
+  report_spam / trash / block are offered. *spam:* the senders in the spam folder. *report_spam* (its mails to the spam, as Gmail's
+  button), *trash* (to the bin: 30 days to take them back), *block* (a Gmail filter sends its next mails to the bin) need two more
+  scopes (`gmail.modify`, `gmail.settings.basic`), asked for only with Settings > Google > « Autoriser le tri des mails »: added to the
+  scopes asked at connection, they would have made every connected account look disconnected. Nothing is ever deleted for good.
+  Every action is confirmed on screen, whatever the confirmation setting (it acts on the mail and speaks for the user). If Google
+  refuses the new scopes, add them to the consent screen's "Data access" in Google Cloud. *Checked:* `UnsubscribeTest` (one click
+  only with its header and https, http / credentials / broken addresses left out, mailto decoded, Gmail's DMARC or an aligned DKIM
+  and not a header the sender wrote, senders grouped and marked); on the emulator the tool's answers without an account and with a
+  wrong address. *Not checked:* against a real Gmail account (none on the emulator).
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.

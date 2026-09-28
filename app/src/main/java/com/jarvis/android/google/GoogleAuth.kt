@@ -20,6 +20,10 @@ import kotlin.coroutines.resumeWithException
  * itself created to Drive. `gmail.send` is requested too so a mail can really be sent, but that only ever happens
  * when the user has separately switched "Envoyer les mails sans confirmation" on in Settings — see GmailTool; the
  * scope alone grants no more than the draft scopes did without that setting.
+ *
+ * Sorting the mail (spam, the bin, filters: see MailCleanupTool) needs two more scopes, asked for only when the user taps « Autoriser
+ * le tri des mails » ([CLEANUP_SCOPES]): adding them to [SCOPES] would have made every connected account look disconnected until
+ * the user consented again.
  */
 internal object GoogleAuth {
     val SCOPES = listOf(
@@ -30,21 +34,30 @@ internal object GoogleAuth {
         "https://www.googleapis.com/auth/drive.file",
     )
 
-    fun request(): AuthorizationRequest = AuthorizationRequest.builder().setRequestedScopes(SCOPES.map { Scope(it) }).build()
+    /** Moving mail to the spam or the bin ("modify", which never deletes for good) and adding filters. */
+    val CLEANUP_SCOPES = SCOPES + listOf(
+        "https://www.googleapis.com/auth/gmail.modify",
+        "https://www.googleapis.com/auth/gmail.settings.basic",
+    )
+
+    fun request(cleanup: Boolean = false): AuthorizationRequest =
+        AuthorizationRequest.builder().setRequestedScopes((if (cleanup) CLEANUP_SCOPES else SCOPES).map { Scope(it) }).build()
 
     /** Asks for authorisation. If the user has to be asked, [AuthorizationResult.hasResolution] is true and the UI must launch its pending intent. */
-    suspend fun authorize(context: Context): AuthorizationResult = suspendCancellableCoroutine { cont ->
-        Identity.getAuthorizationClient(context).authorize(request())
+    suspend fun authorize(context: Context, cleanup: Boolean = false): AuthorizationResult = suspendCancellableCoroutine { cont ->
+        Identity.getAuthorizationClient(context).authorize(request(cleanup))
             .addOnSuccessListener { cont.resume(it) }
             .addOnFailureListener { cont.resumeWithException(it) }
     }
 
     /** An access token for the API calls, or a message that says what is wrong. Never asks the user anything by itself. */
-    suspend fun accessToken(context: Context): Result<String> = try {
-        val result = authorize(context)
+    suspend fun accessToken(context: Context, cleanup: Boolean = false): Result<String> = try {
+        val result = authorize(context, cleanup)
         val token = result.accessToken
         when {
             token != null -> Result.success(token)
+            // the sorting scopes were never granted: the rest of Google still works
+            cleanup && result.hasResolution() -> Result.failure(GoogleException(NO_CLEANUP))
             // Google wants the consent again: the grant was withdrawn, or it expired (about a week in test mode)
             result.hasResolution() -> Result.failure(GoogleException(EXPIRED, needsReconnect = true))
             else -> Result.failure(GoogleException(NOT_CONNECTED, needsReconnect = true))
@@ -56,6 +69,8 @@ internal object GoogleAuth {
     }
 
     val EXPIRED: String get() = tr("L’accès Google a expiré ou a été retiré (tant que l’écran de consentement est en mode test, Google le limite à environ une semaine) : l’utilisateur doit toucher « Reconnecter Google » dans les réglages de Jarvis.")
+
+    val NO_CLEANUP: String get() = tr("Jarvis n’a pas encore le droit de trier les mails (spam, corbeille, filtres) : l’utilisateur doit toucher « Autoriser le tri des mails » dans les réglages de Jarvis (carte Google).")
 
     val NOT_CONNECTED: String get() = tr("Google n’est pas connecté : l’utilisateur doit toucher « Connecter Google » dans les réglages de Jarvis.")
 

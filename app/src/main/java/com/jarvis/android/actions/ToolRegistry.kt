@@ -67,6 +67,7 @@ object ToolRegistry {
         MeetingTool,
         WatchTool,
         GmailTool,
+        MailCleanupTool,
         DriveTool,
         TaskListTool,
         SmartHomeTool,

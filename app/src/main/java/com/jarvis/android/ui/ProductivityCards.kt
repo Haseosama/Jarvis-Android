@@ -196,6 +196,17 @@ internal fun GoogleCard(configStore: ConfigStore) {
             if (connected) OutlinedButton(onClick = { scope.launch { configStore.setGoogleConnected(false) } }) { Text(tr("Oublier")) }
         }
         checkResult?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp)) }
+        if (connected) {
+            Text(
+                tr("Tri des mails : pour que Jarvis puisse mettre un expéditeur dans le spam ou à la corbeille, et créer un filtre qui écarte ses prochains mails. Google vous demandera ces deux permissions en plus ; les désabonnements n’en ont pas besoin. Rien n’est jamais supprimé définitivement, et chaque tri vous est demandé avant."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            OutlinedButton(
+                onClick = { context.startActivity(Intent(context, GoogleConnectActivity::class.java).putExtra(GoogleConnectActivity.EXTRA_CLEANUP, true)) },
+                modifier = Modifier.padding(top = 6.dp),
+            ) { Text(tr("Autoriser le tri des mails")) }
+        }
         val sha1 = remember { com.jarvis.android.google.AppIdentity.sha1(context) }
         Text(
             trf("Nom de paquet : {0}", context.packageName) + "\n" + trf("Empreinte SHA-1 : {0}", sha1 ?: "?"),

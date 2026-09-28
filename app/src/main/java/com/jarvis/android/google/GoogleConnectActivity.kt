@@ -19,7 +19,14 @@ import kotlinx.coroutines.launch
  * account is connected. It closes itself when done.
  */
 class GoogleConnectActivity : ComponentActivity() {
-    private companion object { const val TAG = "GoogleConnect" }
+    companion object {
+        private const val TAG = "GoogleConnect"
+
+        /** true: also ask for sorting the mail (spam, the bin, filters). */
+        const val EXTRA_CLEANUP = "cleanup"
+    }
+
+    private val cleanup: Boolean get() = intent.getBooleanExtra(EXTRA_CLEANUP, false)
 
     private val consent = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         try {
@@ -34,7 +41,7 @@ class GoogleConnectActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
             try {
-                val result = GoogleAuth.authorize(this@GoogleConnectActivity)
+                val result = GoogleAuth.authorize(this@GoogleConnectActivity, cleanup)
                 val pending = result.pendingIntent
                 if (result.hasResolution() && pending != null) consent.launch(IntentSenderRequest.Builder(pending.intentSender).build()) else done(result)
             } catch (e: ApiException) {
@@ -54,7 +61,7 @@ class GoogleConnectActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             (applicationContext as JarvisApp).container.configStore.setGoogleConnected(true)
-            Toast.makeText(this@GoogleConnectActivity, tr("Google connecté."), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@GoogleConnectActivity, if (cleanup) tr("Tri des mails autorisé.") else tr("Google connecté."), Toast.LENGTH_SHORT).show()
             finish()
         }
     }

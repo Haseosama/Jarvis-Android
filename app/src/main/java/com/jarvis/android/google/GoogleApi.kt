@@ -29,11 +29,12 @@ internal const val MAX_DRIVE_BYTES = 15_000_000
 internal class GoogleApi(private val context: Context, private val http: OkHttpClient) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    private suspend fun token(): String = GoogleAuth.accessToken(context).getOrThrow()
+    private suspend fun token(cleanup: Boolean = false): String = GoogleAuth.accessToken(context, cleanup).getOrThrow()
 
-    private suspend fun <T> call(request: Request.Builder, read: (okhttp3.Response) -> T): T = withContext(Dispatchers.IO) {
+    /** [cleanup]: with the token that may also sort the mail (spam, the bin, filters). */
+    private suspend fun <T> call(request: Request.Builder, cleanup: Boolean = false, read: (okhttp3.Response) -> T): T = withContext(Dispatchers.IO) {
         try {
-            http.newCall(request.header("Authorization", "Bearer ${token()}").build()).execute().use { response ->
+            http.newCall(request.header("Authorization", "Bearer ${token(cleanup)}").build()).execute().use { response ->
                 if (!response.isSuccessful) {
                     val detail = runCatching { json.parseToJsonElement(response.body?.string().orEmpty()).jsonObject["error"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull }.getOrNull()
                     throw GoogleException(
@@ -86,6 +87,72 @@ internal class GoogleApi(private val context: Context, private val http: OkHttpC
         val payload = buildJsonObject { put("raw", buildRawMessage(to, subject, body)) }
         val request = Request.Builder().url("$GMAIL/messages/send").post(payload.toString().toRequestBody("application/json".toMediaType()))
         return call(request) { json.parseToJsonElement(it.body?.string().orEmpty()).jsonObject["id"]?.jsonPrimitive?.contentOrNull.orEmpty() }
+    }
+
+    // ── Sorting the mail (see MailCleanupTool) ──────────────────────────────────────────────────────────────────────────
+
+    /** The ids of up to [max] mails matching [query], newest first; [withSpam]: the spam and the bin are searched too. */
+    suspend fun mailIds(query: String, max: Int, withSpam: Boolean = false): List<String> {
+        val out = ArrayList<String>()
+        var page: String? = null
+        do {
+            val url = "$GMAIL/messages".toHttpUrl().newBuilder().addQueryParameter("q", query)
+                .addQueryParameter("maxResults", minOf(100, max - out.size).toString())
+                .apply { if (withSpam) addQueryParameter("includeSpamTrash", "true"); page?.let { addQueryParameter("pageToken", it) } }.build()
+            val o = getJson(url.toString())
+            out += (o["messages"] as? JsonArray).orEmpty().mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.contentOrNull }
+            page = o["nextPageToken"]?.jsonPrimitive?.contentOrNull
+        } while (page != null && out.size < max)
+        return out.take(max)
+    }
+
+    /** The headers sorting needs (sender, list headers, Gmail's authentication results) and the labels of mail [id]. */
+    suspend fun mailHeaders(id: String): MailHeaders {
+        val url = "$GMAIL/messages/${id.trim()}".toHttpUrl().newBuilder().addQueryParameter("format", "metadata").apply {
+            listOf("From", "Subject", "Date", "List-Unsubscribe", "List-Unsubscribe-Post", "Authentication-Results").forEach { addQueryParameter("metadataHeaders", it) }
+        }.build()
+        val o = getJson(url.toString())
+        val headers = (o["payload"]?.jsonObject?.get("headers") as? JsonArray).orEmpty().mapNotNull { h ->
+            val name = h.jsonObject["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            name.lowercase() to h.jsonObject["value"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        }
+        fun first(n: String) = headers.firstOrNull { it.first == n }?.second
+        return MailHeaders(
+            id = o["id"]?.jsonPrimitive?.contentOrNull ?: id,
+            from = first("from").orEmpty(), subject = first("subject").orEmpty(), date = first("date").orEmpty(),
+            listUnsubscribe = first("list-unsubscribe"), listUnsubscribePost = first("list-unsubscribe-post"),
+            authResults = headers.filter { it.first == "authentication-results" }.map { it.second },
+            labels = (o["labelIds"] as? JsonArray).orEmpty().mapNotNull { it.jsonPrimitive.contentOrNull },
+        )
+    }
+
+    /** Moves mails [ids] to the spam (out of the inbox), as Gmail's « Signaler comme spam » does. */
+    suspend fun mailToSpam(ids: List<String>) {
+        if (ids.isEmpty()) return
+        val payload = buildJsonObject {
+            put("ids", JsonArray(ids.map { kotlinx.serialization.json.JsonPrimitive(it) }))
+            put("addLabelIds", JsonArray(listOf(kotlinx.serialization.json.JsonPrimitive("SPAM"))))
+            put("removeLabelIds", JsonArray(listOf(kotlinx.serialization.json.JsonPrimitive("INBOX"))))
+        }
+        call(Request.Builder().url("$GMAIL/messages/batchModify").post(payload.toString().toRequestBody("application/json".toMediaType())), cleanup = true) {}
+    }
+
+    /** Moves mail [id] to the bin (Gmail empties it after 30 days; until then it can be taken back). */
+    suspend fun mailToTrash(id: String) {
+        call(Request.Builder().url("$GMAIL/messages/${id.trim()}/trash").post(ByteArray(0).toRequestBody(null)), cleanup = true) {}
+    }
+
+    /** A filter: the next mails from [from] skip the inbox and go to the bin. */
+    suspend fun filterToTrash(from: String): String {
+        val payload = buildJsonObject {
+            putJsonObject("criteria") { put("from", from) }
+            putJsonObject("action") {
+                put("addLabelIds", JsonArray(listOf(kotlinx.serialization.json.JsonPrimitive("TRASH"))))
+                put("removeLabelIds", JsonArray(listOf(kotlinx.serialization.json.JsonPrimitive("INBOX"))))
+            }
+        }
+        val request = Request.Builder().url("$GMAIL/settings/filters").post(payload.toString().toRequestBody("application/json".toMediaType()))
+        return call(request, cleanup = true) { json.parseToJsonElement(it.body?.string().orEmpty()).jsonObject["id"]?.jsonPrimitive?.contentOrNull.orEmpty() }
     }
 
     // ── Drive ────────────────────────────────────────────────────────────────────────────────────────────────────────────
