@@ -167,6 +167,7 @@ class MainActivity : ComponentActivity() {
                             previousSession = previous?.let { com.jarvis.android.memory.toMessages(it) } ?: emptyList(),
                             previousLabel = previous?.let { java.text.SimpleDateFormat("d MMM yyyy, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it.id)) } ?: "",
                             avatar = if (faceOn) container.avatar else null,
+                            videoPanel = container.videoPanel,
                             state = state,
                             activityLog = log,
                             confirmPending = confirm,

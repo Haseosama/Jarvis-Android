@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.29 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.30 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1131,6 +1131,27 @@ also shown in the settings.
   *Checked:* `HairStyleTest` (every style on every head: within the budget, the skin intact, the head's locks gone, no strand over the
   eyes, colours), the styles on the emulator on the three faces, choosing one in the settings. *Not checked:* the frame rate on a real
   phone with the heavier styles.
+- **Hair colour, hair that moves** (since 0.9.30; Settings > Appearance > *Couleur des cheveux*, per face). Ten shades (black, brown,
+  chestnut, blond, red, salt and pepper, white, blue, pink, purple, `avatar/HairShade.kt`). A chosen hairstyle takes them directly; the
+  face's own hair is recoloured: every hair vertex keeps how light it was against the face's colours (dark roots, lighter strands and
+  tips, its cover over the skin), in the new colours; the brows follow the roots. The hair also swings: in `HoloAvatar`, the hair lags
+  behind the head's turn, nod and tilt on an underdamped spring (a little overshoot, then it settles), turned about the top of the skull,
+  weighted per vertex (a chosen style: the parts hanging low and standing off the scalp; the face's own locks: towards their tips), with a
+  slow breath of its own; what lies on the skull and the face never move. *Checked:* `HairSwayTest` (two identical heads, one with fixed
+  hair, after the same sudden turn: the ends swing, then settle, the face and the top stay), `HairStyleTest` (recolouring changes only
+  the hair and keeps its cover), the colours on the emulator on the three faces.
+- **A video in place of the avatar** (since 0.9.30, after Mark LV; `play_video`). "Joue la bande-annonce de Dune", or a YouTube link, or
+  the address of a video file: it appears where the face is, with its title, a sound button and ✕. A search takes the first YouTube
+  result (the same search as `youtube_video`, the title treated as data). YouTube videos play in YouTube's own embedded player
+  (`youtube-nocookie.com`, in a web view given a web origin so the embed is accepted), files in the phone's player (closed at the end).
+  Every video starts **muted** — a soundtrack over the assistant is the one way this could make things worse — and while its sound is on
+  the voice session sends silence instead of the microphone, so the assistant does not answer the film; since the microphone is then
+  off, the sound is turned off (or the video closed) with the video's buttons, and the assistant is told to say so. "Arrête la vidéo"
+  closes it. *Checked:* `VideoPanelTest` (links, files, muted start, the microphone flag), on the emulator: a search shown and playing
+  (its progress read from the player through a debug web-view inspector: 40 s of 145 and counting), the sound button (the player reports
+  unmuted, volume 100), ✕, a video file played to its end and closed. The emulator's screenshots show video frames black (it does not
+  capture hardware video), so the picture itself was not seen. *Not checked:* on a real phone, and the microphone's silence in a live
+  session (no valid key on the emulator).
 - **Lip-sync.** Each chunk of Jarvis's voice is analysed (formants: openness from the first, lip spread from the second) and
   fused with the words being spoken (lips close on m, b, p; language independent). The mouth is played on a clock tied
   to the speaker, so it follows what is heard and not what has only arrived over the network. An interruption clears it.

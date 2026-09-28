@@ -87,6 +87,9 @@ class JarvisContainer(val appContext: Context) {
     /** One engine per process, shared by the foreground service and the UI. */
     val engine: JarvisEngine by lazy { JarvisEngine(this, appScope) }
 
+    /** A video shown in place of the avatar (play_video). */
+    val videoPanel: com.jarvis.android.video.VideoPanel by lazy { com.jarvis.android.video.VideoPanel { log(it) } }
+
     internal val briefing: com.jarvis.android.memory.BriefingCoordinator by lazy { com.jarvis.android.memory.BriefingCoordinator(this) }
 
     internal val attachedFiles = com.jarvis.android.files.AttachedFileStore()

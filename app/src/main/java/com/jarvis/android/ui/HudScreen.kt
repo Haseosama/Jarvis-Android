@@ -1,5 +1,6 @@
 package com.jarvis.android.ui
 
+import androidx.compose.runtime.collectAsState
 import com.jarvis.android.i18n.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -94,6 +95,8 @@ internal fun HudScreen(
     sessionReady: Boolean = false,
     onSendText: suspend (String) -> Boolean = { false },
     avatar: com.jarvis.android.avatar.AvatarController? = null,
+    /** A video to show in place of the avatar or the core, when one is asked for (play_video). */
+    videoPanel: com.jarvis.android.video.VideoPanel? = null,
     /** The last kept session, shown while no session is running, with its date. */
     previousSession: List<ConversationMessage> = emptyList(),
     previousLabel: String = "",
@@ -141,7 +144,10 @@ internal fun HudScreen(
                     else -> onToggleAwake()
                 }
             }
-            if (avatar != null) {
+            val playing: com.jarvis.android.video.VideoPanel.Video? = videoPanel?.video?.collectAsState()?.value
+            if (videoPanel != null && playing != null) {
+                com.jarvis.android.video.VideoPlayerView(videoPanel, playing, Modifier.padding(top = 2.dp))
+            } else if (avatar != null) {
                 Box(
                     Modifier.padding(top = 2.dp).size(272.dp)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onCoreTap),

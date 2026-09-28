@@ -753,7 +753,9 @@ class JarvisEngine(
                                         currentCoroutineContext().ensureActive()
                                         // Half-duplex on the loudspeaker: while Jarvis talks, send silence so his own
                                         // voice cannot make the server think we interrupted him.
-                                        val out = if (muteWhileSpeaking && audio.isPlaybackActive() && audio.playsOnLoudspeaker()) ByteArray(frame.size) else frame
+                                        // silence while the assistant speaks aloud (if asked), and while a video plays with its sound on: it must not
+                                        // answer the film
+                                        val out = if ((muteWhileSpeaking && audio.isPlaybackActive() && audio.playsOnLoudspeaker()) || container.videoPanel.soundOn) ByteArray(frame.size) else frame
                                         if (!connection.sendAudio(out)) throw dropped(tr("Envoi audio interrompu."))
                                     }
                                 }
