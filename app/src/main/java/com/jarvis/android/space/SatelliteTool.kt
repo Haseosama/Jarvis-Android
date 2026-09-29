@@ -90,9 +90,13 @@ object SatelliteTool : Tool {
             "plus brillants avec leur hauteur et leur direction, et s’ils sont visibles à l’œil nu) ; « passes » : les prochains passages " +
             "d’un satellite (name, l’ISS par défaut) sur 3 jours, avec l’heure, la hauteur, d’où vers où, et s’il sera visible ; « where » : " +
             "où il est maintenant (au-dessus de quel point, altitude, vitesse, distance). Pour « quand passe l’ISS ? », « quels satellites " +
-            "au-dessus de moi ? », « où est la station spatiale ? »."
+            "au-dessus de moi ? », « où est la station spatiale ? ». « alert » : prévenir 5 minutes avant le prochain passage VISIBLE (name, " +
+            "voice = true pour le dire à voix haute aussi, repeat = true pour chaque passage visible) ; « alert_off » : ne plus prévenir ; " +
+            "« alert_show » : l’alerte réglée."
     override val parameters = objectSchema(required = listOf("action")) {
-        string("action", "above, passes ou where.")
+        string("action", "above, passes, where, alert, alert_off ou alert_show.")
+        string("voice", "Pour alert : « true » pour aussi le dire à voix haute.")
+        string("repeat", "Pour alert : « true » pour chaque passage visible, pas seulement le prochain.")
         string("name", "Pour passes et where : le satellite (ISS par défaut, Tiangong, Hubble…).")
     }
 
@@ -105,6 +109,25 @@ object SatelliteTool : Tool {
         try {
             val bright = orbits(ctx, "stations") + orbits(ctx, "visual")
             when (action) {
+                "alert", "alerte", "prevenir" -> {
+                    val o = observer(ctx) ?: return@withContext positionMissing(ctx)
+                    val tle = find(bright, wanted) ?: return@withContext notFound(wanted)
+                    fun yes(k: String) = args.stringArg(k).trim().lowercase() in setOf("true", "oui", "yes", "1")
+                    val alert = PassAlert(tle.name, o.latDeg, o.lonDeg, yes("voice"), yes("repeat"))
+                    val (p, approximate) = PassAlerts.schedule(ctx.appContext, alert)
+                        ?: return@withContext "${friendlyName(tle.name).replaceFirstChar { it.uppercase() }} n’a pas de passage visible chez vous dans les 5 jours" +
+                            if (alert.repeat) " : je regarde de nouveau tous les 2 jours et je préviendrai au prochain." else " : rien n’est réglé."
+                    "C’est noté : je préviendrai 5 minutes avant ${if (alert.repeat) "chaque passage visible" else "le prochain passage visible"}" +
+                        (if (alert.voice) ", à voix haute et" else ",") + " par une notification. Le prochain : " + passWords(friendlyName(tle.name), p) +
+                        (if (approximate) " (Android ne permet qu’une alarme approximative : autorisez « Alarmes et rappels » pour Jarvis pour être prévenu à l’heure.)" else "")
+                }
+                "alert_off", "stop_alert" -> if (PassAlerts.get(ctx.appContext) != null) { PassAlerts.cancel(ctx.appContext); "Plus d’alerte de passage." } else "Aucune alerte de passage n’est réglée."
+                "alert_show", "alerts" -> PassAlerts.get(ctx.appContext)?.let { a ->
+                    "Alerte réglée pour ${friendlyName(a.name)}, ${if (a.repeat) "à chaque passage visible" else "le prochain passage visible"}" +
+                        (if (a.voice) ", à voix haute" else "") + ", prochaine le " + java.time.Instant.ofEpochMilli(a.alarmAt).atZone(zone()).let {
+                        com.jarvis.android.photos.dayWords(it.toLocalDate(), false) + " à " + "%02dh%02d".format(it.hour, it.minute)
+                    } + "."
+                } ?: "Aucune alerte de passage n’est réglée."
                 "where", "ou" -> where(ctx, find(bright, wanted) ?: return@withContext notFound(wanted))
                 "passes", "passages" -> {
                     val o = observer(ctx) ?: return@withContext positionMissing(ctx)
@@ -141,7 +164,7 @@ object SatelliteTool : Tool {
         (com.jarvis.android.weather.locate(ctx.appContext) as? com.jarvis.android.weather.LocationOutcome.Found)?.let { Observer(it.fix.latitude, it.fix.longitude) }
 
     /** The element set asked for among [tles] (the ISS when nothing is named). */
-    private fun find(tles: List<Tle>, name: String): Tle? {
+    internal fun find(tles: List<Tle>, name: String): Tle? {
         val w = name.lowercase()
         val key = when {
             w.isEmpty() || "iss" in w || "internationale" in w -> "ISS (ZARYA)"

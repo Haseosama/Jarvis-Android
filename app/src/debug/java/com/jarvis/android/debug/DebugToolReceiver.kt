@@ -24,6 +24,11 @@ class DebugToolReceiver : BroadcastReceiver() {
         val tool = intent.getStringExtra("tool") ?: return
         // "car_browse": browse the media service as Android Auto does, and play an item of it (--es play radio:FIP)
         if (tool == "car_browse") { carBrowse(context, intent.getStringExtra("folders")?.split(',') ?: listOf("root"), intent.getStringExtra("play")); return }
+        // "pass_ring": the satellite pass alert's alarm rung now, without waiting for it
+        if (tool == "pass_ring") {
+            CoroutineScope(Dispatchers.Default).launch { com.jarvis.android.space.PassAlerts.ring(context.applicationContext); Log.i("DebugTool", "pass_ring END") }
+            return
+        }
         // Simple extras (--es text Stopwatch) are easier to pass through adb than JSON.
         val simple = intent.extras?.keySet().orEmpty()
             .filter { it != "tool" && it != "args" && it != "args_file" }

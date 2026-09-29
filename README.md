@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.42 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.43 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,13 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Satellite pass alerts** (since 0.9.43; `satellites` alert, `space/PassAlerts.kt`). "Préviens-moi quand l'ISS passe" (or Tiangong,
+  Hubble): an alarm 5 minutes before its next pass that can be seen (lit by the Sun in a dark sky, 10° high or more) over the place the
+  user was, then a notification saying where it appears, how high it goes, where it disappears and for how long, and the same words aloud
+  with `voice`. With `repeat`, every visible pass: the next one is set when one is told, and when none comes within 5 days (they come in
+  periods of a week or two) it looks again every 2 days. `alert_show`, `alert_off`; kept across a reboot. *Checked:* on the emulator over
+  Paris, the alert set (exact alarm at 18:30:19 for a pass at 18:35:19), rung at once through a debug-only shortcut (the notification's
+  text), the next looked for (none within 5 days: a new look set 48 hours later), switched off. *Not checked:* a real pass outdoors.
 - **The Moon, the planets and the stars** (since 0.9.42; `night_sky`, `sky_view` show stars, `space/Astro.kt`, `space/NightSky.kt`). The sky
   chart now also draws the stars down to magnitude 4.5 (and fainter ones inside a figure), 17 constellations' figures (Grande Ourse, Orion,
   Cassiopée, Cygne, Lyre, Lion, Scorpion…), the names of the brightest stars, the planets in their colours, the Moon with its phase lit on

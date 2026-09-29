@@ -25,6 +25,7 @@ class BootReceiver : BroadcastReceiver() {
                     com.jarvis.android.places.Geofences.registerAll(appContext) // a reboot clears every geofence
                     com.jarvis.android.quiet.QuietMode.afterBoot(appContext) // a reboot clears the alarm that ends the quiet time
                     com.jarvis.android.wakeup.RadioAlarms.reschedule(appContext) // and the radio alarm
+                    com.jarvis.android.space.PassAlerts.afterBoot(appContext) // and the satellite pass alert
                 } catch (_: Exception) {
                     Log.e("JarvisReminders", "Reprogrammation impossible après redémarrage.")
                 } finally {
