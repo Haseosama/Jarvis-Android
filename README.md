@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.44 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.45 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,16 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **The sky through the camera** (since 0.9.45; `sky_view` show `ar`, `space/ArSkyView.kt`). In place of the face (full screen
+  advised), the back camera's picture with the names of what is there: the Sun, the Moon and the planets (marked "sous l'horizon" when
+  the Earth is in the way), the stars down to magnitude 4 (the brightest named), the ISS, Tiangong, Hubble and the bright satellites,
+  the aircraft within 40 km; the horizon and the cardinal points. The phone's rotation vector sensor gives where it points (the magnetic
+  north turned to the true one with the declination of the place), the camera's focal length and sensor size (Camera2) how wide it sees;
+  names never overlap (the Sun, the Moon, the planets, the stations and the aircraft first). What is in the middle is told in detail
+  (distance, height, direction; for a satellite its altitude and whether it is lit; for an aircraft its altitude and speed); a hint to
+  calibrate the compass when it is imprecise. *Checked:* on the emulator (its virtual room as the camera), the picture upright and not
+  stretched, the horizon and north where the sensor says, the aircraft over Paris named without overlap; the projection by unit tests
+  (ahead in the middle, higher up, east to the right, the declination, nothing behind). *Not checked:* a real phone outdoors at night.
 - **World map, followed flights, rain radar** (since 0.9.44; `space/WorldMapView.kt`, `MapData.kt`, `Flights.kt`). In place of the face,
   a world map drawn from Natural Earth (land, borders, 923 cities shown as one zooms in; pinch and drag):
   - `sky_view` show `map`: the ISS and Tiangong where they are, their ground track (the last 45 minutes and the next orbit, cut at the
