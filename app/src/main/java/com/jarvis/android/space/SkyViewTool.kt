@@ -17,12 +17,12 @@ object SkyViewTool : Tool {
             "l’utilisateur touche un objet pour tout voir (un avion : modèle, compagnie, trajet, altitude, vitesse, photo ; un satellite : " +
             "altitude, vitesse, orbite, prochain passage). Pour « montre-moi les satellites / les avions au-dessus de moi », « montre le passage " +
             "de l’ISS ». show = « map » : la carte du monde (où sont l’ISS et Tiangong, leur trace, le jour et la nuit). show = « ar » : la " +
-            "réalité augmentée (la caméra : l’utilisateur pointe le téléphone vers le ciel et voit le nom des étoiles, planètes, satellites " +
-            "et avions là où ils sont ; pour « c’est quoi cette étoile / ce point lumineux », « montre-moi où est Jupiter »). Pour savoir ce qui " +
+            "réalité augmentée (la caméra : l’utilisateur pointe le téléphone vers le ciel et voit les constellations et le nom des étoiles, planètes, satellites " +
+            "et avions là où ils sont ; pour « c’est quoi cette étoile / ce point lumineux », avec name = l’objet à trouver, une flèche guide vers lui : « montre-moi où est Jupiter », « où est la Lune », « trouve l’ISS »). Pour savoir ce qui " +
             "est à l’écran, action look de play_video."
     override val parameters = objectSchema {
         string("show", "all, stars (le ciel étoilé : Lune, planètes, étoiles, constellations), satellites, planes, pass, map (la carte du monde) ou ar (la caméra).")
-        string("name", "Pour pass : le satellite (ISS par défaut, Tiangong, Hubble).")
+        string("name", "Pour pass : le satellite (ISS par défaut, Tiangong, Hubble). Pour ar : l’objet vers lequel guider (Jupiter, la Lune, Sirius, ISS…).")
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String {
@@ -32,7 +32,9 @@ object SkyViewTool : Tool {
             "stars", "etoiles", "étoiles", "night", "nuit" -> SkyModes.STARS to "Le ciel étoilé"
             "planes", "avions", "aircraft" -> SkyModes.PLANES to "Avions autour de vous"
             "map", "carte", "monde", "world" -> SkyModes.MAP to "Carte du monde"
-            "ar", "camera", "caméra", "realite augmentee", "réalité augmentée" -> SkyModes.AR to "Le ciel par la caméra"
+            "ar", "camera", "caméra", "realite augmentee", "réalité augmentée" -> args.stringArg("name").trim().let { n ->
+                if (n.isEmpty()) SkyModes.AR to "Le ciel par la caméra" else (SkyModes.AR_TARGET + n) to "Où est ${n.take(30)} ?"
+            }
             "pass", "passage", "iss" -> {
                 val name = args.stringArg("name").trim()
                 val w = name.lowercase()
@@ -46,6 +48,11 @@ object SkyViewTool : Tool {
             else -> SkyModes.ALL to "Ciel en direct"
         }
         ctx.videoPanel.show(VideoPanel.Video(title = title, sky = mode))
+        if (mode.startsWith(SkyModes.AR_TARGET)) {
+            return "La caméra s’ouvre à la place du visage avec une flèche vers « ${mode.removePrefix(SkyModes.AR_TARGET)} » : l’utilisateur " +
+                "tourne le téléphone dans le sens indiqué (« tournez à droite de 40°, levez de 20° ») jusqu’à l’avoir dans le cercle. S’il est " +
+                "sous l’horizon, c’est dit. Dites-le en une phrase courte."
+        }
         if (mode == SkyModes.AR) {
             return "La caméra s’ouvre à la place du visage : en pointant le téléphone vers le ciel, l’utilisateur voit le nom de ce qui s’y " +
                 "trouve (Soleil, Lune, planètes, étoiles brillantes, satellites, avions) ; ce qui est au centre est détaillé. Plein écran " +

@@ -63,6 +63,7 @@ import okhttp3.Request
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.sin
 
 /**
@@ -97,7 +98,40 @@ internal fun arPointing(rotation: FloatArray, declination: Double): Pair<Double,
 }
 
 /** Something to name in the camera's picture. */
-private data class ArThing(val id: String, val label: String, val look: Look, val color: Color, val radiusDp: Float, val labelled: Boolean, val detail: String)
+private data class ArThing(
+    val id: String, val label: String, val look: Look, val color: Color, val radiusDp: Float, val labelled: Boolean, val detail: String,
+    val star: Star? = null, val drawn: Boolean = true,
+)
+
+/**
+ * How to turn the phone from where it points to a target: degrees to turn right (negative: left, the shorter way) and to raise
+ * (negative: lower).
+ */
+internal fun arGuide(pointEl: Double, pointAz: Double, targetEl: Double, targetAz: Double): Pair<Double, Double> {
+    val turn = ((targetAz - pointAz) % 360 + 540) % 360 - 180
+    return turn to targetEl - pointEl
+}
+
+/** The guide in words: "tournez à droite de 40°, levez de 20°", or "c’est au centre". */
+internal fun arGuideWords(turn: Double, raise: Double): String {
+    val parts = ArrayList<String>()
+    if (abs(turn) >= 3) parts += "tournez à ${if (turn > 0) "droite" else "gauche"} de ${abs(turn).toInt()}°"
+    if (abs(raise) >= 3) parts += "${if (raise > 0) "levez" else "baissez"} le téléphone de ${abs(raise).toInt()}°"
+    return if (parts.isEmpty()) "c’est au centre" else parts.joinToString(", ")
+}
+
+/** Whether a name in the sky is the one asked for: "Jupiter", "la Lune", "l’ISS", "Sirius", "AFR1234". */
+internal fun arNameMatches(label: String, id: String, wanted: String): Boolean {
+    fun clean(t: String) = com.jarvis.android.offline.normalize(t.substringBefore(" (")).removePrefix("la ").removePrefix("le ").removePrefix("l ").removePrefix("les ")
+    val w = clean(wanted)
+    if (w.isEmpty()) return false
+    val l = clean(label)
+    return l == w || when (id) {
+        "moon" -> w == "lune"
+        "sun" -> w == "soleil"
+        else -> id.startsWith("sat:") && l == "iss" && ("station spatiale" in w || w == "iss")
+    }
+}
 
 private val AR_SUN = Color(0xFFFFD54F)
 private val AR_MOON = Color(0xFFE8EEF5)
@@ -105,6 +139,9 @@ private val AR_STAR = Color(0xFFDDE8FF)
 private val AR_SAT = Color(0xFF7FD8FF)
 private val AR_PLANE = Color(0xFFFF9F43)
 private val AR_HORIZON = Color(0x994DFFB8)
+private val AR_FIGURE = Color(0x667FA8D8)
+private val AR_FIGURE_NAME = Color(0xAA9FC3EA)
+private val AR_TARGET = Color(0xFFFF4D8D)
 
 private fun capitalized(name: String) = name.removePrefix("la ").removePrefix("le ").replaceFirstChar { it.uppercase() }
 
@@ -135,7 +172,7 @@ private fun focalRatio(context: Context): Double = try {
  * aircraft around get their names where they are, with the horizon and the cardinal points; what is in the middle is told in detail.
  */
 @Composable
-internal fun ArSkyView(big: Boolean, modifier: Modifier = Modifier) {
+internal fun ArSkyView(big: Boolean, target: String? = null, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val container = remember(context) { (context.applicationContext as JarvisApp).container }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -221,8 +258,14 @@ internal fun ArSkyView(big: Boolean, modifier: Modifier = Modifier) {
                     "${arFmt(n.distanceKm)} km" + if (n.kind == NightObject.Kind.PLANET) " · magnitude %.1f".format(Locale.FRANCE, n.magnitude) else "",
                 )
             }
-            starsAbove(catalogue, o, now, 4.0).forEach { s ->
-                out += ArThing(s.id, s.name, s.look, AR_STAR, (3.2f - s.magnitude.toFloat() * 0.55f).coerceIn(1f, 3.5f), s.magnitude <= 1.6, "étoile, magnitude %.1f".format(Locale.FRANCE, s.magnitude))
+            val inFigures = FIGURES.flatten().toSet()
+            starsAbove(catalogue, o, now, 5.0).forEach { s ->
+                val drawn = s.magnitude <= 4.0 || s.star?.bayer in inFigures
+                val where = s.star?.let { st -> CONSTELLATIONS[st.constellation]?.let { " de $it" } }.orEmpty()
+                out += ArThing(
+                    s.id, s.name, s.look, AR_STAR, (3.2f - s.magnitude.toFloat() * 0.55f).coerceIn(1f, 3.5f), s.magnitude <= 1.6,
+                    "étoile$where, magnitude %.1f".format(Locale.FRANCE, s.magnitude), s.star, drawn,
+                )
             }
             sats.forEach { (tle, sgp) ->
                 val s = satNow(sgp, tle, o, now) ?: return@forEach
@@ -243,6 +286,9 @@ internal fun ArSkyView(big: Boolean, modifier: Modifier = Modifier) {
             out
         }
     }
+
+    // the object asked for, if any, and how to turn to it
+    val wanted = remember(things, target) { target?.takeIf { it.isNotBlank() }?.let { t -> things.firstOrNull { arNameMatches(it.label, it.id, t) } } }
 
     var previewSize by remember { mutableStateOf<Size?>(null) }
     val focal = remember { focalRatio(context) }
@@ -309,8 +355,25 @@ internal fun ArSkyView(big: Boolean, modifier: Modifier = Modifier) {
             listOf("N" to 0, "NE" to 45, "E" to 90, "SE" to 135, "S" to 180, "SO" to 225, "O" to 270, "NO" to 315).forEach { (t, az) ->
                 at(Look(0.0, az.toDouble(), 1.0))?.let { p -> arLabel(t, Offset(p.x - 6.dp.toPx(), p.y + 16.dp.toPx()), AR_HORIZON, 14, true) }
             }
+            // the constellations: their figures, their names in the middle of their stars
+            val starAt = HashMap<String, Offset>()
+            things.forEach { t -> val b = t.star?.bayer ?: return@forEach; at(t.look)?.let { starAt[b] = it } }
+            FIGURES.forEach { figure ->
+                figure.zipWithNext().forEach { (a, b) ->
+                    val pa = starAt[a]
+                    val pb = starAt[b]
+                    if (pa != null && pb != null && abs(pa.x - pb.x) < w && abs(pa.y - pb.y) < h) drawLine(AR_FIGURE, pa, pb, 1.dp.toPx())
+                }
+            }
+            FIGURES.flatten().distinct().groupBy { it.takeLast(3) }.forEach { (code, stars) ->
+                val pts = stars.mapNotNull { starAt[it] }
+                val name = CONSTELLATIONS[code] ?: return@forEach
+                if (pts.size < 2) return@forEach
+                val m = Offset(pts.map { it.x }.average().toFloat(), pts.map { it.y }.average().toFloat())
+                if (m.x in 0f..size.width && m.y in 0f..size.height) arLabel(name, Offset(m.x - arPaint(AR_FIGURE, 11, false).measureText(name) / 2, m.y), AR_FIGURE_NAME, 11, false)
+            }
             // the objects, the faintest first
-            val shown = things.mapNotNull { t -> at(t.look)?.takeIf { p -> p.x > -50 && p.y > -50 && p.x < w + 50 && p.y < h + 50 }?.let { t to it } }
+            val shown = things.filter { it.drawn }.mapNotNull { t -> at(t.look)?.takeIf { p -> p.x > -50 && p.y > -50 && p.x < w + 50 && p.y < h + 50 }?.let { t to it } }
             shown.sortedBy { it.first.radiusDp }.forEach { (t, p) ->
                 if (t.id.startsWith("ac:")) drawCircle(t.color, 5.dp.toPx(), p, style = Stroke(2.dp.toPx()))
                 else drawCircle(t.color, t.radiusDp.dp.toPx(), p)
@@ -325,8 +388,35 @@ internal fun ArSkyView(big: Boolean, modifier: Modifier = Modifier) {
                 taken += box
                 arLabel(t.label, at, t.color.copy(alpha = 1f), 12, bold)
             }
-            // the middle
+            // the middle, and the way to the object asked for
             val c = Offset(size.width / 2, size.height / 2)
+            wanted?.let { t ->
+                val p = at(t.look)
+                val margin = 40.dp.toPx()
+                if (p != null && p.x in margin..(size.width - margin) && p.y in margin..(size.height - margin)) {
+                    drawCircle(AR_TARGET, 18.dp.toPx(), p, style = Stroke(2.5.dp.toPx()))
+                    drawCircle(AR_TARGET.copy(alpha = 0.4f), 26.dp.toPx(), p, style = Stroke(1.5.dp.toPx()))
+                } else {
+                    val (el, az) = arPointing(r, declination)
+                    val (turn, raise) = arGuide(el, az, t.look.elevationDeg, t.look.azimuthDeg)
+                    var dx = if (p != null) p.x - c.x else (if (turn >= 0) 1f else -1f)
+                    var dy = if (p != null) p.y - c.y else (-raise / 45).toFloat()
+                    val len = hypot(dx, dy).coerceAtLeast(1e-3f)
+                    dx /= len; dy /= len
+                    val reach = minOf(size.width, size.height) * 0.36f
+                    val tip = Offset(c.x + dx * reach, c.y + dy * reach)
+                    val s = 16.dp.toPx()
+                    val back = Offset(tip.x - dx * s * 1.6f, tip.y - dy * s * 1.6f)
+                    val arrow = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(tip.x, tip.y)
+                        lineTo(back.x - dy * s * 0.8f, back.y + dx * s * 0.8f)
+                        lineTo(back.x + dy * s * 0.8f, back.y - dx * s * 0.8f)
+                        close()
+                    }
+                    drawPath(arrow, AR_TARGET)
+                    arLabel(t.label, Offset(back.x - dx * s - 20.dp.toPx(), back.y - dy * s), AR_TARGET, 13, true)
+                }
+            }
             drawCircle(Color(0xAAFFFFFF), 22.dp.toPx(), c, style = Stroke(1.dp.toPx()))
             drawLine(Color(0xAAFFFFFF), Offset(c.x - 30.dp.toPx(), c.y), Offset(c.x - 14.dp.toPx(), c.y), 1.dp.toPx())
             drawLine(Color(0xAAFFFFFF), Offset(c.x + 14.dp.toPx(), c.y), Offset(c.x + 30.dp.toPx(), c.y), 1.dp.toPx())
@@ -343,6 +433,15 @@ internal fun ArSkyView(big: Boolean, modifier: Modifier = Modifier) {
                 r == null -> Text("Lecture de l’orientation…", color = text, style = MaterialTheme.typography.labelMedium)
                 else -> {
                     val (el, az) = arPointing(r, declination)
+                    if (!target.isNullOrBlank()) {
+                        val t = wanted
+                        if (t == null) Text("« $target » : pas trouvé dans le ciel d’ici en ce moment", color = AR_TARGET, style = MaterialTheme.typography.labelMedium)
+                        else {
+                            val (turn, raise) = arGuide(el, az, t.look.elevationDeg, t.look.azimuthDeg)
+                            val below = if (t.look.elevationDeg < 0) " (sous l’horizon : la Terre le cache)" else ""
+                            Text("${t.label.substringBefore(" (")}$below : ${arGuideWords(turn, raise)}", color = AR_TARGET, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
                     val centre = things.filter { it.labelled || it.radiusDp >= 2.5f }.minByOrNull { skyAngle(it.look, Look(el, az, 1.0)) }?.takeIf { skyAngle(it.look, Look(el, az, 1.0)) < 6 }
                     if (centre != null) {
                         Text(centre.label, color = centre.color.copy(alpha = 1f), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)

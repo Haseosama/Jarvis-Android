@@ -124,7 +124,7 @@ internal fun VideoPlayerView(
                 .onGloballyPositioned { where[0] = it.boundsInWindow() },
         ) {
             when {
-                video.sky == com.jarvis.android.space.SkyModes.AR -> com.jarvis.android.space.ArSkyView(big)
+                video.sky != null && com.jarvis.android.space.SkyModes.isAr(video.sky) -> key(video.sky) { com.jarvis.android.space.ArSkyView(big, video.sky.substringAfter(':', "")) }
                 video.sky != null && com.jarvis.android.space.SkyModes.onMap(video.sky) -> key(video.sky) { com.jarvis.android.space.WorldMapView(video.sky, big) }
                 video.sky != null -> key(video.sky) { com.jarvis.android.space.SkyView(video.sky, big) }
                 video.isSlideshow -> key(video.photos) { Slideshow(panel, video) }
@@ -150,7 +150,7 @@ internal fun VideoPlayerView(
 
 /** The shape of the player's box under its header: 16:9 for a picture, taller for the live sky (a chart and its list). */
 internal fun panelRatio(v: VideoPanel.Video): Float = when {
-    v.sky == com.jarvis.android.space.SkyModes.AR -> 0.75f
+    v.sky != null && com.jarvis.android.space.SkyModes.isAr(v.sky) -> 0.75f
     v.sky != null && com.jarvis.android.space.SkyModes.onMap(v.sky) -> 1f
     v.sky != null -> 0.8f
     else -> 16f / 9f

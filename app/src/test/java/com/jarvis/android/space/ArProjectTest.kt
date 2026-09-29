@@ -41,6 +41,29 @@ class ArProjectTest {
         assertEquals(2.0, az, 1e-6)
     }
 
+    @Test fun `the guide turns the shorter way and says it in words`() {
+        val (turn, raise) = arGuide(10.0, 350.0, 30.0, 20.0)
+        assertEquals(30.0, turn, 1e-9) // across north, to the right
+        assertEquals(20.0, raise, 1e-9)
+        assertEquals(-90.0, arGuide(0.0, 90.0, 0.0, 0.0).first, 1e-9)
+        assertEquals("tournez à droite de 30°, levez le téléphone de 20°", arGuideWords(30.0, 20.0))
+        assertEquals("tournez à gauche de 90°", arGuideWords(-90.0, 1.0))
+        assertEquals("baissez le téléphone de 15°", arGuideWords(2.0, -15.0))
+        assertEquals("c’est au centre", arGuideWords(1.0, -2.0))
+    }
+
+    @Test fun `the object asked for is found by its name`() {
+        assertTrue(arNameMatches("Lune", "moon", "la Lune"))
+        assertTrue(arNameMatches("Lune (sous l’horizon)", "moon", "lune"))
+        assertTrue(arNameMatches("Jupiter", "pl:JUPITER", "jupiter"))
+        assertTrue(arNameMatches("Vénus", "pl:VENUS", "venus"))
+        assertTrue(arNameMatches("ISS", "sat:25544", "l’ISS"))
+        assertTrue(arNameMatches("ISS", "sat:25544", "la station spatiale internationale"))
+        assertTrue(arNameMatches("Sirius", "star:2491", "Sirius"))
+        assertTrue(!arNameMatches("Saturne", "pl:SATURN", "Jupiter"))
+        assertTrue(!arNameMatches("Lune", "moon", ""))
+    }
+
     @Test fun `lying flat the camera looks down and sees nothing of the sky`() {
         assertEquals(-90.0, arPointing(flat, 0.0).first, 1e-6)
         assertNull(arProject(flat, 0.0, 45.0, 0.0, 1000.0, 1080.0, 1920.0))

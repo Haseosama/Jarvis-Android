@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.45 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.46 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,12 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Constellations and a guide in the camera view** (since 0.9.46; `sky_view` show `ar` with `name`). The camera view now draws the
+  figures of the best-known constellations with their French names, and "où est Jupiter ?" (the Moon, a planet, a bright star, the ISS,
+  a flight by its callsign) puts a pink arrow at the edge towards it and says the way in words: "tournez à gauche de 119°, levez le
+  téléphone de 45°" (the shorter way round), then circles it once it is in view; below the horizon it says the Earth hides it.
+  *Checked:* on the emulator over Paris, Cassiopée, Céphée and Persée drawn, the arrow and the words towards Jupiter; the guide and the
+  names by unit tests.
 - **The sky through the camera** (since 0.9.45; `sky_view` show `ar`, `space/ArSkyView.kt`). In place of the face (full screen
   advised), the back camera's picture with the names of what is there: the Sun, the Moon and the planets (marked "sous l'horizon" when
   the Earth is in the way), the stars down to magnitude 4 (the brightest named), the ISS, Tiangong, Hubble and the bright satellites,

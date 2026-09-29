@@ -77,6 +77,11 @@ internal object SkyModes {
     /** The sky through the camera, with names on what is there. */
     const val AR = "ar"
 
+    /** The camera guiding to one object: "ar:<name>". */
+    const val AR_TARGET = "ar:"
+
+    fun isAr(mode: String) = mode == AR || mode.startsWith(AR_TARGET)
+
     /** Whether a mode is drawn on the world map rather than as a sky chart. */
     fun onMap(mode: String) = mode == MAP || mode == RADAR || mode.startsWith(FLIGHT)
 }
