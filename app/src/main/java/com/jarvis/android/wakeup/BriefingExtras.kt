@@ -20,7 +20,7 @@ import java.time.ZoneId
 /** The parts of the briefing, by the key the user switches off ("sans les mails"). */
 internal val BRIEFING_SECTIONS = linkedMapOf(
     "meteo" to "la météo", "pluie" to "la pluie qui arrive", "agenda" to "l’agenda", "rappels" to "les rappels", "depenses" to "les prélèvements et budgets",
-    "mails" to "les mails importants", "vols" to "vos vols", "iss" to "l’ISS ce soir", "fusees" to "les lancements de fusées", "aurores" to "les aurores", "sommeil" to "la nuit de sommeil",
+    "uv" to "les UV élevés", "mails" to "les mails importants", "vols" to "vos vols", "iss" to "l’ISS ce soir", "fusees" to "les lancements de fusées", "aurores" to "les aurores", "sommeil" to "la nuit de sommeil",
 )
 
 /** "mails" from "Mails", "e-mails", "courriels": the key of a part named in words, or null. */
@@ -39,6 +39,7 @@ internal fun sectionKey(words: String): String? {
         "fusee" in w || "lancement" in w -> "fusees"
         "aurore" in w -> "aurores"
         "sommeil" in w || "nuit" in w -> "sommeil"
+        "uv" == w || w.startsWith("uv ") || "creme" in w || "soleil" in w -> "uv"
         else -> null
     }
 }

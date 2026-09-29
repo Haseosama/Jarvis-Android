@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.54 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.55 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,17 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Is tonight good for the stars? And the Sun of the day** (since 0.9.55; `observing_weather`, `space/Observing.kt`; `sun_uv`,
+  `weather/SunUv.kt`). `observing_weather`: the next three nights hour by hour from Open-Meteo (clouds low, middle and high, humidity
+  and dew point, wind, temperature) with the darkness and the Moon computed here (the Sun's depth, the Moon up or down and how lit): a
+  score an hour (clouds first, then twilight, the Moon's light, damp, wind), the best stretch of each night told ("La nuit du jeudi 1 :
+  bon de 23h à 1h, 3 % de nuages, Lune levée éclairée à 68 %, 13 °C ; buée probable sur les optiques") and drawn in place of the face
+  (a column an hour: its colour the score, its bar the clouds, a dot when the Moon is up). `sun_uv`: the UV index of the day (its peak
+  and hour, the WHO's advice: glasses, cream, hat, shade), sunrise and sunset and the day's length, the Sun at its highest, the golden
+  hours (the Sun from 6° above to 4° under the horizon) and the blue hours (4° to 6° under), computed minute by minute from the Sun's
+  height. The morning briefing now says when the UV will be high (6 or more). *Checked:* the longest day in Paris (sunrise 05:47,
+  sunset 21:58, 64.6° at 13:52, within 3 minutes), the midnight Sun at Tromsø, the scores, the nights in words, the UV peak, by unit
+  tests; on the emulator, today's Sun (matching Open-Meteo's sunrise and sunset) and the three nights' chart.
 - **The sky's calendar, and a sharper Moon** (since 0.9.54; `sky_events`, `space/SkyEvents.kt`). What is coming in the sky, seen from
   where the user is: the lunar eclipses (at each full moon, the Moon's distance from the centre of the Earth's shadow against the umbra
   and penumbra, Meeus's radii: total, partial or penumbral, how much of the Moon is in the shadow, whether the Moon is up here), the

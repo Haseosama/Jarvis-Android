@@ -12,7 +12,7 @@ object WakeBriefingTool : Tool {
     override val name = "wake_briefing"
     override val description =
         "Briefing du matin : quand l'utilisateur arrête son réveil du matin, Jarvis dit (ou affiche) la météo, la pluie qui arrive (avec le " +
-            "radar), l'agenda, les rappels, ses vols du jour, les prélèvements, les mails importants non lus, l'ISS visible ce soir, les " +
+            "radar), les UV quand ils sont élevés, l'agenda, les rappels, ses vols du jour, les prélèvements, les mails importants non lus, l'ISS visible ce soir, les " +
             "lancements de fusées du jour, une aurore possible cette nuit et la nuit de sommeil. set (mode : 'speak' à voix haute, 'notify' " +
             "en notification, 'off') : « lis-moi le briefing quand j'arrête mon réveil » ; car ('on'/'off') : le dire aussi en montant en " +
             "voiture le matin (Android Auto ou le Bluetooth de la voiture) ; skip / include : retirer ou remettre des parties (« sans les " +

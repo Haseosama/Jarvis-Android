@@ -58,6 +58,8 @@ object ToolRegistry {
         com.jarvis.android.driving.RouteWeatherTool,
         com.jarvis.android.space.QuakeTool,
         com.jarvis.android.space.SkyEventsTool,
+        com.jarvis.android.space.ObservingTool,
+        com.jarvis.android.weather.SunUvTool,
         com.jarvis.android.podcasts.PodcastTool,
         com.jarvis.android.plugins.PluginManageTool,
         ScreenReadTool,

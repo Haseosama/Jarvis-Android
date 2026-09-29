@@ -125,6 +125,7 @@ internal fun VideoPlayerView(
         ) {
             when {
                 video.sky == com.jarvis.android.space.SkyModes.LAUNCHES -> com.jarvis.android.space.LaunchesView(big)
+                video.sky == com.jarvis.android.space.SkyModes.OBSERVE -> com.jarvis.android.space.ObservingView(big)
                 video.sky != null && com.jarvis.android.space.SkyModes.isAr(video.sky) -> key(video.sky) { com.jarvis.android.space.ArSkyView(big, video.sky.substringAfter(':', "")) }
                 video.sky != null && com.jarvis.android.space.SkyModes.onMap(video.sky) -> key(video.sky) { com.jarvis.android.space.WorldMapView(video.sky, big) }
                 video.sky != null -> key(video.sky) { com.jarvis.android.space.SkyView(video.sky, big) }

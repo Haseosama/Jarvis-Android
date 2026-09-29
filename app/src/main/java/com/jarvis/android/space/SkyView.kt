@@ -77,6 +77,9 @@ internal object SkyModes {
     /** The sky through the camera, with names on what is there. */
     const val AR = "ar"
 
+    /** Tonight's sky for observing, hour by hour. */
+    const val OBSERVE = "observe"
+
     /** The earthquakes of the day and the week. */
     const val QUAKES = "quakes"
 
