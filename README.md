@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.49 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.50 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,16 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **The weather along a drive** (since 0.9.50; `route_weather`, `driving/RouteWeather.kt`). "Quel temps sur la route de Lyon ?",
+  "la météo pour aller à Bordeaux à 18h": the route by OSRM (OpenStreetMap's router) from where the user is (or `from`) to `to`, a
+  point every 40 km or so (15 at most) with the time the car passes it (from the departure asked for: "18h30", "dans 2 h", now), and
+  Open-Meteo's hourly forecast for all the points in one question, each read at its own hour. What matters to a driver is told: storm,
+  hail, freezing rain, snow, black ice (at 1 °C or less with rain, snow or fog), fog, heavy rain, rain, showers, gusts from 70 km/h,
+  poor visibility; neighbouring points with the same trouble said once, each with its nearest town and time; the answer is short to
+  be said aloud (in the car and through Android Auto). The route is drawn on the world map, each point green (nothing), yellow (rain)
+  or pink (danger), with a card listing the troubles by time. *Checked:* on the emulator, Paris → Lyon (465 km, 4 h 57, dry, 25 to
+  27 °C), Brussels and Amsterdam, the route drawn with its points; the hazards, the points and times, the reading and the words by
+  unit tests. *Not checked:* a drive with real bad weather.
 - **My flights from my mails** (since 0.9.49; `my_flights`, `space/FlightMail.kt`). `scan` reads the travel mails of the last four
   months in Gmail (bookings, boarding passes, e-tickets; not the promotions) and keeps the flights to come: a flight number written near
   a travel word (vol, flight, Flug…; not a gate, a seat or a terminal), the date nearest to it (15/10/2026, 2026-10-15, 15 octobre, Oct 3,

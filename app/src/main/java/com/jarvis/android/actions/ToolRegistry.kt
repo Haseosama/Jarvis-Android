@@ -55,6 +55,7 @@ object ToolRegistry {
         com.jarvis.android.space.LaunchTool,
         com.jarvis.android.space.AuroraTool,
         com.jarvis.android.space.MyFlightsTool,
+        com.jarvis.android.driving.RouteWeatherTool,
         com.jarvis.android.podcasts.PodcastTool,
         com.jarvis.android.plugins.PluginManageTool,
         ScreenReadTool,

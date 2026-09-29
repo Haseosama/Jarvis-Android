@@ -120,6 +120,8 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1_000) } }
 
     // the ISS and Tiangong (the world map)
+    // a drive and its weather (the route map)
+    val routeReport = remember(mode) { if (mode == SkyModes.ROUTE) com.jarvis.android.driving.RouteWeather.last else null }
     // the aurora oval and Kp (the aurora map)
     val aurora by produceState<AuroraGrid?>(null, mode) { if (mode == SkyModes.AURORA) value = SpaceWeather.aurora(container) }
     val kpNow by produceState<Double?>(null, mode) { if (mode == SkyModes.AURORA) value = SpaceWeather.kpNow(container) }
@@ -180,6 +182,12 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 placed = true
             }
             mode == SkyModes.MAP -> placed = true
+            routeReport != null && routeReport.line.isNotEmpty() -> {
+                val xs = routeReport.line.map { mercX(it.second) }
+                val ys = routeReport.line.map { mercY(it.first) }
+                cx = (xs.min() + xs.max()) / 2; cy = (ys.min() + ys.max()) / 2 + (ys.max() - ys.min()) * 0.15
+                zoom = (0.8 / maxOf(xs.max() - xs.min(), (ys.max() - ys.min()) * 1.6, 0.002)).coerceIn(1.0, 400.0); placed = true
+            }
             mode == SkyModes.AURORA && observer != null -> {
                 val o = observer!!
                 cx = mercX(o.lonDeg); cy = mercY((o.latDeg + if (o.latDeg >= 0) 12 else -12).coerceIn(-80.0, 80.0)); zoom = 2.6; placed = true
@@ -248,6 +256,24 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 drawPath(night, NIGHT)
                 val (sLat, sLon) = subSolar(now)
                 drawCircle(ISS_COLOR, 6.dp.toPx(), geo(sLat, sLon))
+            }
+            // a drive: its line, and each point looked at by its weather (green: nothing, yellow: rain, red: danger)
+            routeReport?.let { r ->
+                val path = Path()
+                r.line.forEachIndexed { i, (lat, lon) -> val p = geo(lat, lon); if (i == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y) }
+                drawPath(path, Color(0xFF7FD8FF), style = Stroke(3.dp.toPx()))
+                r.points.forEach { w ->
+                    val p = geo(w.point.lat, w.point.lon)
+                    val h = w.hazards
+                    val color = when {
+                        h.isEmpty() -> Color(0xFF4DFFB8)
+                        h.any { it.startsWith("orage") || "neige" in it || "verglas" in it || "rafales" in it || "brouillard" in it } -> Color(0xFFFF4D8D)
+                        else -> ISS_COLOR
+                    }
+                    drawCircle(color, 6.dp.toPx(), p)
+                    drawCircle(Color.Black, 6.dp.toPx(), p, style = Stroke(1.dp.toPx()))
+                    if (h.isNotEmpty()) mapLabel(h.first(), Offset(p.x + 9.dp.toPx(), p.y + 4.dp.toPx()), color, 11, bold = true)
+                }
             }
             // the aurora oval: each degree of the Earth by its chance
             aurora?.let { g ->
@@ -319,6 +345,18 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                     Text("Radar de pluie" + (f?.let { " · " + radarTime(it, now) } ?: " · chargement…"), color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     Text("Beige : pluie faible · bleu : modérée · jaune puis rouge : forte · les 2 dernières heures en boucle", color = dim, style = MaterialTheme.typography.labelSmall)
                     Text("Radar : RainViewer · Carte : Natural Earth", color = dim, style = MaterialTheme.typography.labelSmall)
+                }
+                routeReport != null -> {
+                    val r = routeReport
+                    Text("${r.from} → ${r.to} · ${r.km.toInt()} km", color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    val bad = r.points.filter { it.hazards.isNotEmpty() }
+                    if (r.points.isEmpty()) Text("Météo du trajet indisponible", color = dim, style = MaterialTheme.typography.labelSmall)
+                    else if (bad.isEmpty()) Text("Rien de gênant annoncé sur le trajet", color = Color(0xFF4DFFB8), style = MaterialTheme.typography.labelMedium)
+                    bad.take(4).forEach { w ->
+                        val at = Instant.ofEpochMilli(w.point.etaMs).atZone(ZoneId.systemDefault()).toLocalTime()
+                        Text("%02dh%02d · %s : %s".format(at.hour, at.minute, w.place ?: "km ${w.point.km.toInt()}", w.hazards.joinToString(", ")), color = text, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Text("Points : vert = rien, jaune = pluie, rose = danger · à l’heure de passage · OSRM, Open-Meteo", color = dim, style = MaterialTheme.typography.labelSmall)
                 }
                 mode == SkyModes.AURORA -> {
                     val o = observer

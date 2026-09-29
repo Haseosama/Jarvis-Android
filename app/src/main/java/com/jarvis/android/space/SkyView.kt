@@ -77,6 +77,9 @@ internal object SkyModes {
     /** The sky through the camera, with names on what is there. */
     const val AR = "ar"
 
+    /** A drive and its weather on the world map. */
+    const val ROUTE = "route"
+
     /** The aurora oval on the world map. */
     const val AURORA = "aurora"
 
@@ -89,7 +92,7 @@ internal object SkyModes {
     fun isAr(mode: String) = mode == AR || mode.startsWith(AR_TARGET)
 
     /** Whether a mode is drawn on the world map rather than as a sky chart. */
-    fun onMap(mode: String) = mode == MAP || mode == RADAR || mode == AURORA || mode.startsWith(FLIGHT)
+    fun onMap(mode: String) = mode == MAP || mode == RADAR || mode == AURORA || mode == ROUTE || mode.startsWith(FLIGHT)
 }
 
 private val SKY_BG = Color(0xFF050B14)
