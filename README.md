@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.41 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.42 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,19 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **The Moon, the planets and the stars** (since 0.9.42; `night_sky`, `sky_view` show stars, `space/Astro.kt`, `space/NightSky.kt`). The sky
+  chart now also draws the stars down to magnitude 4.5 (and fainter ones inside a figure), 17 constellations' figures (Grande Ourse, Orion,
+  Cassiopée, Cygne, Lyre, Lion, Scorpion…), the names of the brightest stars, the planets in their colours, the Moon with its phase lit on
+  the side of the Sun, and the Sun in the day; a touch on one gives what it is, where, its distance (and how long its light took), its
+  brightness, its phase, and its rising and setting. "Qu'est-ce qu'on voit ce soir ?" (`now`: the Moon, its phase, when it rises or sets, the
+  planets up with their direction and height, when the others rise, the brightest stars) and "c'est quoi le point brillant au sud ?"
+  (`identify`: the brightest things within 25° of the direction and height said). Computed on the phone: the planets from JPL's
+  Keplerian elements and rates (Standish, 1800-2050), the Moon from the Astronomical Almanac's short series, the stars from the Yale
+  Bright Star Catalog (`assets/sky/stars.tsv`, 1 630 stars, credits in `assets/sky/NOTICE.txt`), all brought to the equinox of date by the
+  general precession, then into the sky of the place. *Checked:* `AstroTest` against JPL Horizons for 2026-09-29 00:00 UTC (the seven
+  planets within 0.25°, the Moon within 0.5°, the Sun within 0.1°, the Moon's distance within 3 000 km, its phase "gibbeuse décroissante"),
+  the stars read and named (Alp1Cen and Mu 1Sco included), the Pole Star at the latitude's height due north from Paris, every star of the
+  figures in the catalogue; on the emulator over Paris, the chart with the constellations and planets, and both spoken answers.
 - **The live sky in place of the avatar** (since 0.9.41; `sky_view`, `space/SkyView.kt`, `space/SkyData.kt`). "Montre-moi les satellites /
   les avions au-dessus de moi", "affiche le passage de l'ISS": in the video panel (its close, full screen and video window), a chart of the
   sky above the user (the horizon round, 30° and 60° rings, the zenith in the middle, north up) with the brightest satellites (yellow when

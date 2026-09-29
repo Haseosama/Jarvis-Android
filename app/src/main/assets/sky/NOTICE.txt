@@ -1,0 +1,13 @@
+Sky and map data used by Jarvis (assets/sky)
+
+stars.tsv
+  The Yale Bright Star Catalog, 5th revised edition (Hoffleit & Warren, 1991), as distributed by the Harvard-Smithsonian Center for
+  Astrophysics (http://tdc-www.harvard.edu/catalogs/bsc5.html): stars down to visual magnitude 5.0, J2000 positions.
+
+land.bin, borders.bin, cities.tsv
+  Natural Earth (https://www.naturalearthdata.com), public domain: 1:50m land, country boundary lines and populated places, simplified
+  (Douglas-Peucker, 0.02°) and stored as 1/100 degree integers; cities of 150 000 people or more, and the capitals.
+
+Computed on the phone, not bundled:
+  planets from JPL's "Approximate Positions of the Planets" (E. M. Standish), the Moon from the Astronomical Almanac's low-precision
+  formulae, satellites with SGP4 (Vallado et al., 2006) from CelesTrak's public orbits.

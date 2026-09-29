@@ -61,9 +61,10 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
 
-/** What the sky view shows: "all", "satellites", "planes", or "pass:<name>" (a satellite's next pass, the ISS by default). */
+/** What the sky view shows: "all", "satellites", "planes", "stars" (the night sky), or "pass:<name>" (a satellite's next pass). */
 internal object SkyModes {
     const val ALL = "all"
+    const val STARS = "stars"
     const val SATELLITES = "satellites"
     const val PLANES = "planes"
     const val PASS = "pass:"
@@ -77,6 +78,22 @@ private val SHADOW = Color(0xFF3E5C7A)
 private val STARLINK = Color(0x668FA9C4)
 private val PLANE = Color(0xFFFF9F43)
 private val SELECT = Color(0xFFFF4D8D)
+private val STAR = Color(0xFFEAF2FF)
+private val FIGURE = Color(0x5582A8D0)
+
+/** The colour a planet is drawn in (as it looks: Mars red, Jupiter cream…). */
+private fun planetColor(id: String): Color = when (id) {
+    "pl:MARS" -> Color(0xFFFF7A59)
+    "pl:JUPITER" -> Color(0xFFF3D9A4)
+    "pl:SATURN" -> Color(0xFFE8C872)
+    "pl:VENUS" -> Color(0xFFFFF6D5)
+    "pl:MERCURY" -> Color(0xFFBDB6AA)
+    "pl:URANUS" -> Color(0xFF9FE8E4)
+    "pl:NEPTUNE" -> Color(0xFF7FA0FF)
+    "moon" -> Color(0xFFE9E9E1)
+    "sun" -> Color(0xFFFFD54F)
+    else -> STAR
+}
 
 /** A thing in the sky, drawn and listed: its id ("sat:25544", "ac:4ca760"), where it is, and what to say about it. */
 private data class SkyItem(val id: String, val look: Look, val title: String, val line: String, val color: Color, val big: Boolean, val heading: Double? = null)
@@ -91,7 +108,8 @@ private data class SkyItem(val id: String, val look: Look, val title: String, va
 internal fun SkyView(mode: String, big: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val container = remember(context) { (context.applicationContext as JarvisApp).container }
-    val showSats = mode != SkyModes.PLANES
+    val showSats = mode != SkyModes.PLANES && mode != SkyModes.STARS
+    val showNight = mode != SkyModes.PLANES
     val showPlanes = mode == SkyModes.ALL || mode == SkyModes.PLANES
     val passTarget = mode.removePrefix(SkyModes.PASS).takeIf { mode.startsWith(SkyModes.PASS) }
 
@@ -150,6 +168,19 @@ internal fun SkyView(mode: String, big: Boolean, modifier: Modifier = Modifier) 
         }
     }
     val dark = observer?.let { sunElevation(it, now) < -6 } ?: false
+    // the night sky: the catalogue's stars (every 20 s: they move slowly), the Sun, the Moon and the planets (every 5 s)
+    val catalogue by produceState<List<Star>>(emptyList(), showNight) {
+        if (showNight) value = withContext(Dispatchers.IO) { try { SkyAssets.stars(container.appContext) } catch (_: Exception) { emptyList() } }
+    }
+    val starsNow by produceState<List<NightObject>>(emptyList(), observer, catalogue, now / 20_000) {
+        val o = observer ?: return@produceState
+        value = withContext(Dispatchers.Default) { starsAbove(catalogue, o, now, 5.0) }
+    }
+    val solarNow by produceState<List<NightObject>>(emptyList(), observer, showNight, now / 5_000) {
+        val o = observer ?: return@produceState
+        if (showNight) value = withContext(Dispatchers.Default) { solarSystem(o, now) }
+    }
+    val phase = remember(now / 600_000) { moonPhase(now) }
 
     var selected by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(passTarget, sats) {
@@ -177,7 +208,30 @@ internal fun SkyView(mode: String, big: Boolean, modifier: Modifier = Modifier) 
             if (squawkWords(a.squawk).isNotEmpty()) SELECT else PLANE, false, a.trackDeg,
         )
     }
-    val items = if (mode == SkyModes.PLANES) planeItems else if (mode == SkyModes.SATELLITES || passTarget != null) satItems else planeItems + satItems
+    val nightItems = (solarNow.filter { (it.look.elevationDeg > 0 && it.magnitude < 6) || it.id == selected } +
+        starsNow.filter { (it.magnitude < 1.6 && it.star?.name != null) || it.id == selected }).map { n ->
+        SkyItem(
+            n.id, n.look,
+            when (n.kind) {
+                NightObject.Kind.MOON -> "La Lune"
+                NightObject.Kind.SUN -> "Le Soleil"
+                else -> n.name
+            },
+            "${n.look.elevationDeg.toInt()}° ${towardDirection(n.look.azimuthDeg)} · " + when (n.kind) {
+                NightObject.Kind.MOON -> "${phase.name}, éclairée à ${(phase.lit * 100).toInt()} %"
+                NightObject.Kind.PLANET -> "planète, magnitude ${"%.1f".format(Locale.FRANCE, n.magnitude)}"
+                NightObject.Kind.STAR -> "étoile de ${CONSTELLATIONS[n.star?.constellation] ?: n.star?.constellation}, magnitude ${"%.1f".format(Locale.FRANCE, n.magnitude)}"
+                NightObject.Kind.SUN -> "ne jamais le regarder en face"
+            },
+            planetColor(n.id), n.kind != NightObject.Kind.STAR,
+        )
+    }
+    val items = when {
+        mode == SkyModes.PLANES -> planeItems
+        mode == SkyModes.STARS -> nightItems
+        mode == SkyModes.SATELLITES || passTarget != null -> satItems + nightItems
+        else -> planeItems + satItems + nightItems
+    }
 
     val selectedSat = selected?.takeIf { it.startsWith("sat:") }?.removePrefix("sat:")?.toIntOrNull()?.let { n -> sats.firstOrNull { it.first.number == n } }
     val track by produceState<List<Look>>(emptyList(), selectedSat, observer, now / 30_000) {
@@ -207,12 +261,13 @@ internal fun SkyView(mode: String, big: Boolean, modifier: Modifier = Modifier) 
             else -> BoxWithConstraints(Modifier.fillMaxSize()) {
                 val wide = maxWidth > maxHeight * 1.2f
                 val chart: @Composable (Modifier) -> Unit = { m ->
-                    SkyChart(items, starlinkNow, track, passTrack, selected, dark, { selected = if (selected == it) null else it }, m)
+                    SkyChart(items, starlinkNow, starsNow, phase, solarNow.firstOrNull { it.kind == NightObject.Kind.SUN }?.look, track, passTrack, selected, dark, { selected = if (selected == it) null else it }, m)
                 }
                 val details: @Composable (Modifier) -> Unit = { m ->
                     SkyDetails(
                         container, items, selected, { selected = if (selected == it) null else it },
                         satsNow, aircraft, starlinkNow.size, dark, nextPass, selectedSat?.first, now, big, m,
+                        solarNow + starsNow, observer, phase,
                     )
                 }
                 if (wide) Row(Modifier.fillMaxSize()) {
@@ -248,8 +303,8 @@ private fun place(l: Look, c: Offset, r: Float): Offset {
 
 @Composable
 private fun SkyChart(
-    items: List<SkyItem>, starlink: List<Look>, track: List<Look>, passTrack: List<Look>, selected: String?, dark: Boolean,
-    onSelect: (String) -> Unit, modifier: Modifier,
+    items: List<SkyItem>, starlink: List<Look>, stars: List<NightObject>, phase: MoonPhase, sun: Look?, track: List<Look>, passTrack: List<Look>,
+    selected: String?, dark: Boolean, onSelect: (String) -> Unit, modifier: Modifier,
 ) {
     val labelColor = Color(0xFFB9D3EA)
     Box(modifier, contentAlignment = Alignment.Center) {
@@ -274,6 +329,22 @@ private fun SkyChart(
             cardinal("E", Offset(c.x + r + 6.dp.toPx(), c.y), labelColor)
             cardinal("S", Offset(c.x, c.y + r + 8.dp.toPx()), labelColor)
             cardinal("O", Offset(c.x - r - 6.dp.toPx(), c.y), labelColor)
+            // the constellations' figures, then the stars by brightness (the faintest only as part of a figure), the brightest named
+            val byBayer = stars.associateBy { it.star?.bayer }
+            FIGURES.forEach { figure ->
+                figure.zipWithNext().forEach { (a, b) ->
+                    val la = byBayer[a]?.look
+                    val lb = byBayer[b]?.look
+                    if (la != null && lb != null) drawLine(FIGURE, place(la, c, r), place(lb, c, r), 1.dp.toPx())
+                }
+            }
+            val inFigures = FIGURES.flatten().toSet()
+            stars.forEach { s ->
+                if (s.magnitude > 4.5 && s.star?.bayer !in inFigures) return@forEach
+                val size = (2.6 - 0.45 * s.magnitude).coerceIn(0.5, 3.4).toFloat().dp.toPx()
+                drawCircle(STAR.copy(alpha = if (dark) 0.95f else 0.55f), size, place(s.look, c, r))
+                if (s.magnitude < 1.3 && s.star?.name != null) label(s.name, Offset(place(s.look, c, r).x + 5.dp.toPx(), place(s.look, c, r).y + 3.dp.toPx()), STAR.copy(alpha = 0.7f))
+            }
             starlink.forEach { drawCircle(STARLINK, 1.4.dp.toPx(), place(it, c, r)) }
             // a satellite's next pass (dashed) and its path around now
             if (passTrack.size > 1) drawPath(pathOf(passTrack, c, r), VISIBLE.copy(alpha = 0.8f), style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))))
@@ -281,10 +352,16 @@ private fun SkyChart(
             // below the horizon: in the list and the card, not on the chart (its rim would say "on the horizon")
             items.filter { it.look.elevationDeg > -1 }.forEach { it ->
                 val p = place(it.look, c, r)
-                if (it.id.startsWith("ac:")) plane(p, it.color, (it.heading ?: 0.0).toFloat(), it.id == selected)
-                else drawCircle(it.color, (if (it.big) 5 else 3).dp.toPx(), p)
+                when {
+                    it.id.startsWith("ac:") -> plane(p, it.color, (it.heading ?: 0.0).toFloat(), it.id == selected)
+                    it.id == "moon" -> moon(p, phase, sun?.let { s -> place(s, c, r) })
+                    it.id == "sun" -> drawCircle(it.color, 8.dp.toPx(), p)
+                    it.id.startsWith("pl:") -> { drawCircle(it.color, 4.dp.toPx(), p); label(it.title, Offset(p.x + 7.dp.toPx(), p.y + 4.dp.toPx()), it.color) }
+                    it.id.startsWith("star:") -> {}
+                    else -> drawCircle(it.color, (if (it.big) 5 else 3).dp.toPx(), p)
+                }
                 if (it.id == selected) drawCircle(SELECT, 11.dp.toPx(), p, style = Stroke(2.dp.toPx()))
-                if (it.big || it.id == selected) label(shortLabel(it.title), Offset(p.x + 8.dp.toPx(), p.y - 6.dp.toPx()), Color.White)
+                if ((it.big && !it.id.startsWith("pl:")) || it.id == selected) label(shortLabel(it.title), Offset(p.x + 8.dp.toPx(), p.y - 6.dp.toPx()), Color.White)
             }
         }
     }
@@ -300,6 +377,22 @@ internal fun shortLabel(title: String): String = when {
 
 private fun pathOf(points: List<Look>, c: Offset, r: Float): Path = Path().apply {
     points.forEachIndexed { i, l -> val p = place(l, c, r); if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) }
+}
+
+/**
+ * The Moon: a disc lit on the side of the Sun ([sun], its place on the chart, or to the right when the Sun is not drawn) as much as its
+ * phase says: a lit half, and an ellipse that adds to it (gibbous) or eats into it (crescent).
+ */
+private fun DrawScope.moon(p: Offset, phase: MoonPhase, sun: Offset?) {
+    val r = 8.dp.toPx()
+    drawCircle(Color(0xFF2E3440), r, p)
+    val toward = if (sun != null) kotlin.math.atan2(sun.y - p.y, sun.x - p.x) else 0f
+    rotate(Math.toDegrees(toward.toDouble()).toFloat(), p) {
+        val lit = Color(0xFFE9E9E1)
+        drawArc(lit, -90f, 180f, true, Offset(p.x - r, p.y - r), androidx.compose.ui.geometry.Size(2 * r, 2 * r))
+        val w = (kotlin.math.abs(1 - 2 * phase.lit) * r).toFloat()
+        drawOval(if (phase.lit > 0.5) lit else Color(0xFF2E3440), Offset(p.x - w, p.y - r), androidx.compose.ui.geometry.Size(2 * w, 2 * r))
+    }
 }
 
 /** An aircraft: an arrow pointing where it flies (its heading, north up as the chart is). */
@@ -325,7 +418,7 @@ private fun DrawScope.label(text: String, at: Offset, color: Color, bold: Boolea
 private fun SkyDetails(
     container: com.jarvis.android.JarvisContainer, items: List<SkyItem>, selected: String?, onSelect: (String) -> Unit,
     sats: List<SatNow>, aircraft: List<Pair<Aircraft, Look>>, starlinkCount: Int, dark: Boolean, nextPass: Pass?, passSat: Tle?, now: Long,
-    big: Boolean, modifier: Modifier,
+    big: Boolean, modifier: Modifier, night: List<NightObject> = emptyList(), observer: Observer? = null, phase: MoonPhase? = null,
 ) {
     val above = sats.count { it.look.elevationDeg > 0 }
     val visible = sats.count { it.look.elevationDeg > 10 && it.lit && dark }
@@ -334,8 +427,10 @@ private fun SkyDetails(
     LazyColumn(modifier.padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         item {
             Text(
-                (if (dark) "Nuit noire" else "Jour ou crépuscule") + " · $above satellites brillants au-dessus ($visible visibles à l’œil nu)" +
-                    (if (starlinkCount > 0) " · $starlinkCount Starlink" else "") + (if (aircraft.isNotEmpty()) " · ${aircraft.size} avions à 75 km" else ""),
+                (if (dark) "Nuit noire" else "Jour ou crépuscule") +
+                    (if (sats.isNotEmpty()) " · $above satellites brillants au-dessus ($visible visibles à l’œil nu)" else "") +
+                    (if (starlinkCount > 0) " · $starlinkCount Starlink" else "") + (if (aircraft.isNotEmpty()) " · ${aircraft.size} avions à 75 km" else "") +
+                    (phase?.takeIf { night.isNotEmpty() }?.let { " · Lune ${it.name}, ${(it.lit * 100).toInt()} %" } ?: ""),
                 color = dim, style = MaterialTheme.typography.labelSmall,
             )
         }
@@ -343,6 +438,7 @@ private fun SkyDetails(
         if (selected != null) item {
             Column(Modifier.fillMaxWidth().background(Color(0x3319A0FF), RoundedCornerShape(10.dp)).padding(8.dp)) {
                 if (selected.startsWith("ac:")) aircraft.firstOrNull { "ac:${it.first.hex}" == selected }?.let { (a, l) -> AircraftCard(container, a, l, text, dim) }
+                else if (!selected.startsWith("sat:")) night.firstOrNull { it.id == selected }?.let { n -> NightCard(n, observer, phase, now, text, dim) }
                 else sats.firstOrNull { "sat:${it.tle.number}" == selected }?.let { s -> SatelliteCard(s, nextPass, passSat, now, dark, text, dim) }
                     ?: sel?.let { Text(it.title, color = text) }
             }
@@ -369,6 +465,47 @@ private fun Detail(label: String, value: String, text: Color, dim: Color) {
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
         Text(label, color = dim, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(0.42f))
         Text(value, color = text, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(0.58f))
+    }
+}
+
+@Composable
+private fun NightCard(n: NightObject, observer: Observer?, phase: MoonPhase?, now: Long, text: Color, dim: Color) {
+    val zone = ZoneId.systemDefault()
+    fun hm(ms: Long?) = ms?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalTime().let { t -> "%02dh%02d".format(t.hour, t.minute) } } ?: "—"
+    val vector: ((Long) -> Triple<Double, Double, Double>)? = when {
+        n.kind == NightObject.Kind.MOON -> { t -> moonVector(t) }
+        n.kind == NightObject.Kind.SUN -> { t -> sunPosition(t) }
+        n.id.startsWith("pl:") -> Planet.values().firstOrNull { "pl:${it.name}" == n.id }?.let { p -> { t: Long -> planetVector(p, t) } }
+        else -> n.star?.let { s -> { t: Long -> starVector(s, t) } }
+    }
+    val times by produceState<Pair<Long?, Long?>?>(null, n.id, observer) {
+        val o = observer ?: return@produceState
+        val v = vector ?: return@produceState
+        value = withContext(Dispatchers.Default) { riseSet(o, System.currentTimeMillis(), 24, v) }
+    }
+    Text(
+        when (n.kind) { NightObject.Kind.MOON -> "La Lune"; NightObject.Kind.SUN -> "Le Soleil"; else -> n.name },
+        color = text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+    )
+    Detail("Nature", when (n.kind) {
+        NightObject.Kind.MOON -> "satellite naturel de la Terre"
+        NightObject.Kind.SUN -> "notre étoile (ne jamais la regarder en face)"
+        NightObject.Kind.PLANET -> "planète du système solaire"
+        NightObject.Kind.STAR -> "étoile" + (n.star?.let { " de ${CONSTELLATIONS[it.constellation] ?: it.constellation} (${it.bayer})" } ?: "")
+    }, text, dim)
+    Detail("Dans votre ciel", if (n.look.elevationDeg > 0) "${n.look.elevationDeg.toInt()}° de haut, ${towardDirection(n.look.azimuthDeg)} (${n.look.azimuthDeg.toInt()}°)" else "sous l’horizon", text, dim)
+    if (n.kind == NightObject.Kind.MOON && phase != null) {
+        Detail("Phase", "${phase.name}, éclairée à ${(phase.lit * 100).toInt()} %", text, dim)
+        Detail("Distance", "${fmt(n.distanceKm)} km", text, dim)
+    }
+    if (n.kind == NightObject.Kind.PLANET) {
+        Detail("Distance", "${"%.2f".format(Locale.FRANCE, n.distanceKm / 149_597_870.7)} UA (${fmt(n.distanceKm / 1_000_000)} millions de km)", text, dim)
+        Detail("Lumière", "partie il y a ${fmt(n.distanceKm / 299_792.458 / 60)} min", text, dim)
+    }
+    if (n.kind != NightObject.Kind.SUN) Detail("Éclat", "magnitude ${"%.1f".format(Locale.FRANCE, n.magnitude)} (plus c’est bas, plus c’est brillant)", text, dim)
+    times?.let { (rise, set) ->
+        Detail("Lever", hm(rise), text, dim)
+        Detail("Coucher", hm(set), text, dim)
     }
 }
 

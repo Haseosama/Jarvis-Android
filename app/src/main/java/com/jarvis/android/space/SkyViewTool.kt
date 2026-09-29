@@ -18,7 +18,7 @@ object SkyViewTool : Tool {
             "altitude, vitesse, orbite, prochain passage). Pour « montre-moi les satellites / les avions au-dessus de moi », « montre le passage " +
             "de l’ISS ». Pour savoir ce qui est à l’écran, action look de play_video."
     override val parameters = objectSchema {
-        string("show", "all, satellites, planes ou pass.")
+        string("show", "all, stars (le ciel étoilé : Lune, planètes, étoiles, constellations), satellites, planes ou pass.")
         string("name", "Pour pass : le satellite (ISS par défaut, Tiangong, Hubble).")
     }
 
@@ -26,6 +26,7 @@ object SkyViewTool : Tool {
         val show = args.stringArg("show").trim().lowercase()
         val (mode, title) = when (show) {
             "satellites", "sat" -> SkyModes.SATELLITES to "Satellites en direct"
+            "stars", "etoiles", "étoiles", "night", "nuit" -> SkyModes.STARS to "Le ciel étoilé"
             "planes", "avions", "aircraft" -> SkyModes.PLANES to "Avions autour de vous"
             "pass", "passage", "iss" -> {
                 val name = args.stringArg("name").trim()
