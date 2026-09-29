@@ -69,6 +69,7 @@ private val ISS_COLOR = Color(0xFFFFD54F)
 private val CSS_COLOR = Color(0xFF7FD8FF)
 private val FLIGHT_COLOR = Color(0xFFFF9F43)
 private val YOU = Color(0xFF4DFFB8)
+private val AURORA_COLOR = Color(0xFF3DFF7A)
 
 /** One picture of the rain radar: when, and where its tiles are. */
 internal data class RadarFrame(val time: Long, val path: String, val forecast: Boolean)
@@ -119,6 +120,9 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1_000) } }
 
     // the ISS and Tiangong (the world map)
+    // the aurora oval and Kp (the aurora map)
+    val aurora by produceState<AuroraGrid?>(null, mode) { if (mode == SkyModes.AURORA) value = SpaceWeather.aurora(container) }
+    val kpNow by produceState<Double?>(null, mode) { if (mode == SkyModes.AURORA) value = SpaceWeather.kpNow(container) }
     val stations by produceState<List<Pair<Tle, Sgp4>>>(emptyList(), mode) {
         if (mode != SkyModes.MAP) return@produceState
         value = withContext(Dispatchers.Default) {
@@ -176,6 +180,10 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 placed = true
             }
             mode == SkyModes.MAP -> placed = true
+            mode == SkyModes.AURORA && observer != null -> {
+                val o = observer!!
+                cx = mercX(o.lonDeg); cy = mercY((o.latDeg + if (o.latDeg >= 0) 12 else -12).coerceIn(-80.0, 80.0)); zoom = 2.6; placed = true
+            }
         }
     }
 
@@ -241,6 +249,17 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 val (sLat, sLon) = subSolar(now)
                 drawCircle(ISS_COLOR, 6.dp.toPx(), geo(sLat, sLon))
             }
+            // the aurora oval: each degree of the Earth by its chance
+            aurora?.let { g ->
+                for (lon in 0 until 360) for (lat in -84..84) {
+                    val v = g.at(lat, lon)
+                    if (v < 4) continue
+                    val l = if (lon >= 180) lon - 360 else lon
+                    val tl = geo(lat + 0.5, l - 0.5)
+                    val br = geo(lat - 0.5, l + 0.5)
+                    drawRect(AURORA_COLOR.copy(alpha = (v / 60f).coerceIn(0.06f, 0.85f)), tl, androidx.compose.ui.geometry.Size(br.x - tl.x + 0.5f, br.y - tl.y + 0.5f))
+                }
+            }
             // the cities (more as one zooms in)
             val minPop = when { zoom < 3 -> Int.MAX_VALUE; zoom < 8 -> 5_000_000; zoom < 25 -> 1_000_000; zoom < 60 -> 400_000; else -> 150_000 }
             d.cities.forEach { c ->
@@ -300,6 +319,18 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                     Text("Radar de pluie" + (f?.let { " · " + radarTime(it, now) } ?: " · chargement…"), color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     Text("Beige : pluie faible · bleu : modérée · jaune puis rouge : forte · les 2 dernières heures en boucle", color = dim, style = MaterialTheme.typography.labelSmall)
                     Text("Radar : RainViewer · Carte : Natural Earth", color = dim, style = MaterialTheme.typography.labelSmall)
+                }
+                mode == SkyModes.AURORA -> {
+                    val o = observer
+                    val g = aurora
+                    val needed = o?.let { kpNeeded(geomagneticLatitude(it.latDeg, it.lonDeg)) }
+                    Text("Aurores : " + (kpNow?.let { "Kp %.1f · %s".format(Locale.FRANCE, it, stormScale(it)) } ?: "Kp…"), color = AURORA_COLOR, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    if (o != null && g != null) {
+                        val v = auroraFrom(g, o.latDeg, o.lonDeg)
+                        Text(if (v.percent >= 10) "Visible d’ici : ${v.percent} %" + (if (v.towardPole) ", bas vers le ${if (o.latDeg >= 0) "nord" else "sud"}" else ", au-dessus de vous") else "Pas visible d’ici pour l’instant (${v.percent} %)", color = text, style = MaterialTheme.typography.labelMedium)
+                        needed?.let { Text("Il faut un Kp d’environ %.0f ici".format(Locale.FRANCE, kotlin.math.ceil(it)), color = dim, style = MaterialTheme.typography.labelSmall) }
+                    }
+                    Text("Vert : probabilité d’aurore dans l’heure (modèle OVATION, NOAA) · ombre : la nuit", color = dim, style = MaterialTheme.typography.labelSmall)
                 }
                 callsign != null -> {
                     val a = aircraft

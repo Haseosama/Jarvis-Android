@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.47 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.48 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,17 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Northern lights and space weather** (since 0.9.48; `aurora`, `space/Aurora.kt`). From NOAA's Space Weather Prediction Center:
+  `now` tells whether an aurora can be seen from where the user is: the planetary Kp index (every minute) and the storm scale (G1 to
+  G5), the Kp needed there (from the geomagnetic latitude, about 6 in Paris), the chance from the OVATION model's map (every degree of
+  the Earth, for the next hour or so; overhead, or low on the horizon towards the pole within 1,000 km, counted less the further it is),
+  whether it is dark and how cloudy it is (Open-Meteo); the aurora oval is shown on the world map in green by its chance, with the night.
+  `forecast` gives NOAA's Kp for three days, night by night (dark hours only). `alert_on` (a threshold in %, 10 by default) starts a
+  watch every 30 minutes: only at night, the small Kp file first and the map only when Kp is near what is needed, one notification a
+  night (again only if the chance rises much). The OVATION map (920 KB, compressed on the way) is read number by number: a regular
+  expression searched from an index costs the whole text each time on Android, which never finished. *Checked:* on the emulator over
+  Paris, Kp 1.0, 0 %, too light, 27 % of clouds, the oval over the far north, the forecast for three nights, the watch running once;
+  the reading, the geomagnetic latitudes and the chance from a place by unit tests. *Not checked:* a real storm.
 - **Rocket launches** (since 0.9.47; `rocket_launches`, `space/Launches.kt`, `LaunchesView.kt`). The next launches in the world from
   The Space Devs' Launch Library 2 (free; 15 questions an hour without a key, so the list is kept for half an hour), shown in place of
   the face: the next one with its picture and a countdown to the second (T-2 j 03:24:37), its rocket, company, pad, time as precisely as

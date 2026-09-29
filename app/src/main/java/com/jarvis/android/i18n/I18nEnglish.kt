@@ -425,6 +425,8 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Vols suivis" to "Followed flights",
     "Vol suivi" to "Followed flight",
     "Lancements de fusées" to "Rocket launches",
+    "Aurores boréales" to "Northern lights",
+    "Aurore possible ce soir" to "Aurora possible tonight",
     "Radio en direct" to "Live radio",
     "touchez le visage" to "tap the face",
     "dites {0}, touchez le petit visage ou mettez en pause" to "say {0}, tap the small face or pause",
