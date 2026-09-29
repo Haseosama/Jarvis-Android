@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.48 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.49 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,18 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **My flights from my mails** (since 0.9.49; `my_flights`, `space/FlightMail.kt`). `scan` reads the travel mails of the last four
+  months in Gmail (bookings, boarding passes, e-tickets; not the promotions) and keeps the flights to come: a flight number written near
+  a travel word (vol, flight, Flug…; not a gate, a seat or a terminal), the date nearest to it (15/10/2026, 2026-10-15, 15 octobre, Oct 3,
+  a date without its year taken as the next one), the time written after it (the time of departure, local to the airport), and the gate
+  and terminal when the mail gives them (a boarding pass does; several mails for one flight add up). Each is checked against adsbdb (a
+  real route, its airports), the airport's time zone comes from Open-Meteo. On the day, a notification 3 hours before (6 a.m. when the
+  time is unknown), then the flight is followed: take-off told with its delay against the time planned (seen in the air, less the usual
+  taxiing), then the landing. `auto_on` looks twice a day; `list`, `forget`. There is no free source for gates or delays announced by
+  airlines: the gate is the one in the mail, the delay the one seen. *Checked:* the reading on French, English and low-cost mails, the
+  dates without a year, what is not a flight, by unit tests; on the emulator (a debug-only shortcut, Gmail not being connected there),
+  the day's notification with its terminal and gate, then a real easyJet flight followed and its take-off told. *Not checked:* a scan
+  of a real mailbox.
 - **Northern lights and space weather** (since 0.9.48; `aurora`, `space/Aurora.kt`). From NOAA's Space Weather Prediction Center:
   `now` tells whether an aurora can be seen from where the user is: the planetary Kp index (every minute) and the storm scale (G1 to
   G5), the Kp needed there (from the geomagnetic latitude, about 6 in Paris), the chance from the OVATION model's map (every degree of

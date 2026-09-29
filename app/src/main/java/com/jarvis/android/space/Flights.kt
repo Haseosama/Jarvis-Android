@@ -96,7 +96,20 @@ internal fun callsignForms(callsign: String): List<String> {
 internal data class WatchedFlight(
     val flight: String, val callsign: String, val destination: String, val destLat: Double?, val destLon: Double?,
     val until: Long, val lastSeen: Long = 0L, val lastLat: Double = 0.0, val lastLon: Double = 0.0, val lastAltFt: Double = -1.0, val missed: Int = 0,
+    val scheduledMs: Long = 0L, val tookOff: Boolean = false,
 )
+
+/** "Le vol AF1234 a décollé vers 10h52, avec 17 minutes de retard." (seen in the air within 5 minutes of leaving the ground: about) */
+internal fun takeoffWords(w: WatchedFlight, seenMs: Long): String {
+    val hm = Instant.ofEpochMilli(seenMs).atZone(ZoneId.systemDefault()).toLocalTime().let { "%02dh%02d".format(it.hour, it.minute) }
+    val late = if (w.scheduledMs > 0) ((seenMs - w.scheduledMs) / 60_000).toInt() - 10 else null
+    return "Le vol ${w.flight} a décollé (vu en vol vers $hm, heure du téléphone)" + when {
+        late == null -> "."
+        late >= 15 -> ", avec environ $late minutes de retard."
+        late <= -5 -> ", en avance."
+        else -> ", à l’heure."
+    }
+}
 
 /** Whether a flight has landed: on the ground, or low near its destination, or gone from view after coming down close to it. */
 internal fun landed(w: WatchedFlight, now: Aircraft?): Boolean {
@@ -129,19 +142,25 @@ internal object FlightWatch {
         if (landed(w, a)) {
             val at = if (a != null) System.currentTimeMillis() else w.lastSeen
             val hm = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).toLocalTime().let { "%02dh%02d".format(it.hour, it.minute) }
-            notify(c, "Le vol ${w.flight} a atterri à ${w.destination} (vers $hm).")
+            notify(c, "Le vol ${w.flight} a atterri à ${w.destination} (vers $hm).", 7_961, tr("Vol suivi"))
             stop(c)
             return
         }
-        put(c, if (a != null) w.copy(lastSeen = System.currentTimeMillis(), lastLat = a.latitude, lastLon = a.longitude, lastAltFt = a.altitudeFt ?: -1.0, missed = 0) else w.copy(missed = w.missed + 1))
+        // the take-off, with its delay when the time it was due is known
+        var tookOff = w.tookOff
+        if (a != null && !a.onGround && (a.altitudeFt ?: 0.0) > 500 && !w.tookOff) {
+            tookOff = true
+            notify(c, takeoffWords(w, System.currentTimeMillis()), 7_962, tr("Décollage"))
+        }
+        put(c, if (a != null) w.copy(tookOff = tookOff, lastSeen = System.currentTimeMillis(), lastLat = a.latitude, lastLon = a.longitude, lastAltFt = a.altitudeFt ?: -1.0, missed = 0) else w.copy(missed = w.missed + 1))
         next(c)
     }
 
-    private fun notify(c: Context, text: String) {
+    private fun notify(c: Context, text: String, id: Int, title: String) {
         c.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("jarvis_flights", tr("Vols suivis"), NotificationManager.IMPORTANCE_HIGH))
         try {
-            NotificationManagerCompat.from(c).notify(7_961, NotificationCompat.Builder(c, "jarvis_flights").setSmallIcon(android.R.drawable.ic_menu_send)
-                .setContentTitle(tr("Vol suivi")).setContentText(text).setAutoCancel(true).build())
+            NotificationManagerCompat.from(c).notify(id, NotificationCompat.Builder(c, "jarvis_flights").setSmallIcon(android.R.drawable.ic_menu_send)
+                .setContentTitle(title).setContentText(text).setAutoCancel(true).build())
         } catch (_: SecurityException) {
         }
     }

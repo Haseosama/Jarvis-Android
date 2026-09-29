@@ -29,6 +29,26 @@ class DebugToolReceiver : BroadcastReceiver() {
             CoroutineScope(Dispatchers.Default).launch { com.jarvis.android.space.PassAlerts.ring(context.applicationContext); Log.i("DebugTool", "pass_ring END") }
             return
         }
+        // "trip_test": a trip as if found in a mail (flight, callsign, dest lat/lon, departure 20 minutes ago), its day's reminder rung now
+        if (tool == "trip_test") {
+            val c = context.applicationContext
+            val now = System.currentTimeMillis()
+            val t = com.jarvis.android.space.Trip(
+                intent.getStringExtra("flight").orEmpty(), intent.getStringExtra("callsign").orEmpty(), java.time.LocalDate.now().toString(),
+                java.time.LocalTime.now().minusMinutes(20).withSecond(0).withNano(0).toString(), java.time.ZoneId.systemDefault().id,
+                "ORG", "Départ", "DST", intent.getStringExtra("dest").orEmpty(), intent.getStringExtra("lat")?.toDoubleOrNull(), intent.getStringExtra("lon")?.toDoubleOrNull(),
+                "K42", "2E", "Test", now - 20 * 60_000L,
+            )
+            com.jarvis.android.space.FlightMail.add(c, t)
+            com.jarvis.android.space.FlightMail.ring(c)
+            Log.i("DebugTool", "trip_test END")
+            return
+        }
+        // "flight_check": the followed flight looked at now (take-off, landing), without waiting 5 minutes
+        if (tool == "flight_check") {
+            CoroutineScope(Dispatchers.Default).launch { com.jarvis.android.space.FlightWatch.check(context.applicationContext); Log.i("DebugTool", "flight_check END") }
+            return
+        }
         // Simple extras (--es text Stopwatch) are easier to pass through adb than JSON.
         val simple = intent.extras?.keySet().orEmpty()
             .filter { it != "tool" && it != "args" && it != "args_file" }
