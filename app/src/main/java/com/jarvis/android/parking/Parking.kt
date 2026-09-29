@@ -144,6 +144,7 @@ class CarBluetoothReceiver : BroadcastReceiver() {
         val driving = com.jarvis.android.driving.DrivingMode
         if (connected) {
             if (driving.store(app).load().autoStart) driving.start(app, byCar = true)
+            com.jarvis.android.wakeup.WakeBriefing.onCarConnected(app)
             return
         }
         if (driving.active && driving.startedByCar) driving.stop(app)

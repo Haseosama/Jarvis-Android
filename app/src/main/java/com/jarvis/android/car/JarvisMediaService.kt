@@ -53,6 +53,8 @@ class JarvisMediaService : MediaBrowserService() {
         val trusted = clientUid == Process.myUid() || clientUid == Process.SYSTEM_UID ||
             (clientPackageName in TRUSTED && packageManager.getPackagesForUid(clientUid).orEmpty().contains(clientPackageName))
         if (!trusted) return null
+        // Android Auto connecting: the morning briefing, if the user asked for it in the car
+        if (clientPackageName == "com.google.android.projection.gearhead" && rootHints?.getBoolean(BrowserRoot.EXTRA_RECENT) != true) com.jarvis.android.wakeup.WakeBriefing.onCarConnected(this)
         // the phone's media controls, after a restart: only what played last, to play it again
         if (rootHints?.getBoolean(BrowserRoot.EXTRA_RECENT) == true) {
             return if (CarLibrary.last(this) != null) BrowserRoot(CarLibrary.RECENT, Bundle().apply { putBoolean(BrowserRoot.EXTRA_RECENT, true) }) else null

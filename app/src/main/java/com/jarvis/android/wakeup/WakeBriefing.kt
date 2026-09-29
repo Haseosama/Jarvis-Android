@@ -13,6 +13,7 @@ import com.jarvis.android.JarvisContainer
 import com.jarvis.android.i18n.tr
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
@@ -41,6 +42,11 @@ internal data class WakeData(
     val lastBriefDay: String = "",
     /** When the morning alarm started ringing; Jarvis waits for it to be stopped (0: nothing pending). */
     val ringingSince: Long = 0,
+    /** The parts switched off (keys of BRIEFING_SECTIONS). */
+    val off: List<String> = emptyList(),
+    /** Also said aloud when the phone joins the car (Android Auto or its Bluetooth) in the morning, once a day. */
+    val car: Boolean = false,
+    val lastCarDay: String = "",
 )
 
 internal class WakeStore(private val file: File) {
@@ -100,7 +106,7 @@ internal fun composeWakeBriefing(
         weather?.takeIf { it.isNotBlank() }?.let { add(it.trim().removeSuffix(".") + ".") }
         if (events.isNotEmpty()) add("Aujourd'hui : " + events.joinToString(" ; ") + ".")
         if (reminders.isNotEmpty()) add("Rappels : " + reminders.joinToString(" ; ") + ".")
-        extras.forEach { add(it.replaceFirstChar { c -> c.uppercase() } + ".") }
+        extras.forEach { add(it.trim().removeSuffix(".").replaceFirstChar { c -> c.uppercase() } + ".") }
         sleep?.let { add("Cette nuit : $it.") }
         if (size == 1) add("Rien de particulier au programme aujourd'hui.")
     }.joinToString(" ")
@@ -112,32 +118,49 @@ internal object WakeBriefing {
     fun store(context: Context) = (context.applicationContext as JarvisApp).container.wakeStore
 
     /** What the briefing says now, from what the phone knows (the weather needs the position and the network). */
-    suspend fun compose(ctx: JarvisContainer, now: LocalDateTime = LocalDateTime.now()): String {
+    suspend fun compose(ctx: JarvisContainer, now: LocalDateTime = LocalDateTime.now()): String = composeFull(ctx, now).first
+
+    /** The briefing, and whether rain is coming within two hours (to show the radar with it). */
+    suspend fun composeFull(ctx: JarvisContainer, now: LocalDateTime = LocalDateTime.now()): Pair<String, Boolean> = kotlinx.coroutines.coroutineScope {
         val context = ctx.appContext
         val zone = ZoneId.systemDefault()
         val today = now.toLocalDate()
-        val weather = withTimeoutOrNull(12_000) {
+        val off = ctx.wakeStore.load().off.toSet()
+        fun on(k: String) = k !in off
+        val found = withTimeoutOrNull(8_000) {
+            try { com.jarvis.android.weather.locate(context, maxAgeMs = 6 * 60 * 60_000L) as? com.jarvis.android.weather.LocationOutcome.Found } catch (_: Exception) { null }
+        }
+        val lat = found?.fix?.latitude
+        val lon = found?.fix?.longitude
+        // the newer parts, side by side
+        val rainJob = async { if (on("pluie") && lat != null && lon != null) BriefingExtras.rain(ctx, lat, lon) else null }
+        val mailsJob = async { if (on("mails")) BriefingExtras.mails(ctx) else null }
+        val issJob = async { if (on("iss") && lat != null && lon != null) BriefingExtras.iss(ctx, lat, lon) else null }
+        val launchJob = async { if (on("fusees")) BriefingExtras.launches(ctx) else null }
+        val auroraJob = async { if (on("aurores") && lat != null && lon != null) BriefingExtras.aurora(ctx, lat, lon) else null }
+        val weather = if (!on("meteo") || found == null) null else withTimeoutOrNull(12_000) {
             try {
-                (com.jarvis.android.weather.locate(context, maxAgeMs = 6 * 60 * 60_000L) as? com.jarvis.android.weather.LocationOutcome.Found)?.let { f ->
-                    com.jarvis.android.actions.weatherAt(ctx, f.fix.latitude, f.fix.longitude, com.jarvis.android.weather.positionLabel(f.place))
-                }
+                com.jarvis.android.actions.weatherAt(ctx, found.fix.latitude, found.fix.longitude, com.jarvis.android.weather.positionLabel(found.place))
             } catch (_: Exception) {
                 null
             }
         }
-        val events = try {
+        val events = if (!on("agenda")) emptyList() else try {
             com.jarvis.android.calendar.birthdaysToday(context) + com.jarvis.android.calendar.eventsToday(context)
         } catch (_: Exception) {
             emptyList()
         }
-        val reminders = try {
+        val reminders = if (!on("rappels")) emptyList() else try {
             com.jarvis.android.memory.remindersToday(com.jarvis.android.reminders.ReminderService.list(context), System.currentTimeMillis(), zone)
         } catch (_: Exception) {
             emptyList()
         }
-        val extras = com.jarvis.android.subscriptions.dueSoonLines(ctx.subscriptionStore.all(), today)
+        val money = if (!on("depenses")) emptyList() else com.jarvis.android.subscriptions.dueSoonLines(ctx.subscriptionStore.all(), today)
             .filter { it.endsWith("aujourd'hui") } + try { com.jarvis.android.budgets.Budgets.briefingLines(ctx) } catch (_: Exception) { emptyList() }
-        val sleep = withTimeoutOrNull(4_000) {
+        val rain = rainJob.await()
+        val flights = if (on("vols")) flightsLine(com.jarvis.android.space.FlightMail.trips(context), today) else null
+        val extras = listOfNotNull(rain?.first, flights) + money + listOfNotNull(mailsJob.await(), issJob.await(), launchJob.await(), auroraJob.await())
+        val sleep = if (!on("sommeil")) null else withTimeoutOrNull(4_000) {
             try {
                 val client = com.jarvis.android.health.healthClient(context) ?: return@withTimeoutOrNull null
                 val granted = com.jarvis.android.health.grantedHealth(context)
@@ -147,13 +170,15 @@ internal object WakeBriefing {
                 null
             }
         }
-        return composeWakeBriefing(now.hour, weather, events, reminders, sleep, extras)
+        composeWakeBriefing(now.hour, weather, events, reminders, sleep, extras) to (rain?.second == true)
     }
 
     /** Says and/or shows the briefing, as the user chose (aloud also shows it). */
     suspend fun deliver(ctx: JarvisContainer, mode: Int): String {
-        val text = compose(ctx)
+        val (text, rainSoon) = composeFull(ctx)
         val context = ctx.appContext
+        // rain coming: the radar where the face is, to see it arrive
+        if (rainSoon) ctx.videoPanel.show(com.jarvis.android.video.VideoPanel.Video(title = "Radar de pluie", sky = com.jarvis.android.space.SkyModes.RADAR))
         if (mode == WAKE_SPEAK) com.jarvis.android.driving.DrivingMode.speak(context, text, thenRelease = true)
         try {
             context.getSystemService(NotificationManager::class.java)
@@ -187,6 +212,20 @@ internal object WakeBriefing {
         if (before.mode == WAKE_OFF || !isWakeUp(before.nextAlarmAt, next, now, before.lastBriefDay, ZoneId.systemDefault())) return
         store(app).update { it.copy(ringingSince = now) }
         scheduleCheck(app)
+    }
+
+    /** The phone joined the car (Android Auto, or the car's Bluetooth): in the morning, once a day, the briefing aloud. */
+    fun onCarConnected(context: Context) {
+        val app = context.applicationContext
+        val data = store(app).load()
+        val today = LocalDate.now().toString()
+        if (!data.car || data.lastCarDay == today || LocalDateTime.now().hour !in 5..11) return
+        store(app).update { it.copy(lastCarDay = today) }
+        val ctx = (app as JarvisApp).container
+        CoroutineScope(Dispatchers.Default).launch {
+            kotlinx.coroutines.delay(8_000) // the car's audio settles first
+            try { deliver(ctx, WAKE_SPEAK) } catch (_: Exception) {}
+        }
     }
 
     /** Whether an alarm is sounding right now (any app's player with the alarm usage). */

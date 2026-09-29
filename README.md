@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.50 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.51 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,15 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **A fuller morning briefing, in the car too** (since 0.9.51; `wake_briefing`, `wakeup/BriefingExtras.kt`). The briefing said when
+  the morning alarm is stopped now also tells, each in one sentence or not at all: rain coming within two hours where the user is (and
+  the rain radar is shown in place of the face), the user's flights of the day (found in the mails), the important mails not read since
+  yesterday (who and what, three at most), the ISS crossing the sky tonight when it can be seen, the rocket launches of the day with a
+  set time, an aurora possible tonight (NOAA's forecast Kp against the Kp needed there). The new parts are looked for side by side.
+  `set` takes `skip` and `include` ("sans les mails", "remets la météo") and `car` (on/off): the briefing said aloud when the phone
+  joins the car in the morning (5 h – 11 h, once a day), through Android Auto connecting to Jarvis's media service or the car's
+  Bluetooth. `status` says what it holds. *Checked:* on the emulator, the briefing now (weather, a budget, the ISS at 18h35 tonight),
+  parts taken out and put back; the sentences by unit tests. *Not checked:* in a real car (on the emulator it was past 11 h).
 - **The weather along a drive** (since 0.9.50; `route_weather`, `driving/RouteWeather.kt`). "Quel temps sur la route de Lyon ?",
   "la météo pour aller à Bordeaux à 18h": the route by OSRM (OpenStreetMap's router) from where the user is (or `from`) to `to`, a
   point every 40 km or so (15 at most) with the time the car passes it (from the departure asked for: "18h30", "dans 2 h", now), and
