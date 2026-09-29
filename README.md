@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.51 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.52 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,15 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Air quality and pollens, further** (since 0.9.52; `air_quality` actions, `air/AirWatch.kt`). Six pollens now (alder, birch, olive,
+  grasses, mugwort, ragweed), each with its level in words (faible, moyen, élevé, très élevé: grains/m³ thresholds per kind, ragweed
+  high sooner), the ones under one grain left out. `forecast`: today and tomorrow at their worst between 7 h and 21 h (the European
+  index and the pollens from moderate). `map`: the air around the place in place of the face, a 9 × 9 grid about every 35 km in one
+  question to Open-Meteo, each cell in the European Environment Agency's colour with its index, drawn where it was asked (the model
+  moves its points to its own grid). `alert_on` (a threshold, 60 by default, and the pollens that bother the user) / `alert_off`: a
+  look every 2 hours in the daytime, one notification a day for the same trouble. *Checked:* on the emulator over Paris, now (index 32,
+  mugwort low), the two days' forecast, the map (25 to 37 around Paris), the watch set; the levels, the forecast's words, the alert's
+  words and the grid by unit tests.
 - **A fuller morning briefing, in the car too** (since 0.9.51; `wake_briefing`, `wakeup/BriefingExtras.kt`). The briefing said when
   the morning alarm is stopped now also tells, each in one sentence or not at all: rain coming within two hours where the user is (and
   the rain radar is shown in place of the face), the user's flights of the day (found in the mails), the important mails not read since

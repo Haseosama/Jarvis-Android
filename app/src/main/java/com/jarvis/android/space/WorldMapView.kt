@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -120,6 +121,12 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1_000) } }
 
     // the ISS and Tiangong (the world map)
+    // the air around a place (the air map)
+    val airCells by produceState<List<com.jarvis.android.air.AirCell>>(emptyList(), mode, observer) {
+        if (mode != SkyModes.AIR) return@produceState
+        val c = com.jarvis.android.air.AirMapCenter.at ?: observer?.let { it.latDeg to it.lonDeg } ?: return@produceState
+        value = com.jarvis.android.air.AirData.grid(container, c.first, c.second)
+    }
     // a drive and its weather (the route map)
     val routeReport = remember(mode) { if (mode == SkyModes.ROUTE) com.jarvis.android.driving.RouteWeather.last else null }
     // the aurora oval and Kp (the aurora map)
@@ -182,6 +189,10 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 placed = true
             }
             mode == SkyModes.MAP -> placed = true
+            mode == SkyModes.AIR && (com.jarvis.android.air.AirMapCenter.at != null || observer != null) -> {
+                val c = com.jarvis.android.air.AirMapCenter.at ?: (observer!!.latDeg to observer!!.lonDeg)
+                cx = mercX(c.second); cy = mercY(c.first - 0.6); zoom = 36.0; placed = true
+            }
             routeReport != null && routeReport.line.isNotEmpty() -> {
                 val xs = routeReport.line.map { mercX(it.second) }
                 val ys = routeReport.line.map { mercY(it.first) }
@@ -256,6 +267,13 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 drawPath(night, NIGHT)
                 val (sLat, sLon) = subSolar(now)
                 drawCircle(ISS_COLOR, 6.dp.toPx(), geo(sLat, sLon))
+            }
+            // the air: each cell of the grid in the colour of its index
+            airCells.forEach { a ->
+                val tl = geo(a.lat + 0.175, a.lon - 0.25)
+                val br = geo(a.lat - 0.175, a.lon + 0.25)
+                drawRect(com.jarvis.android.air.aqiColor(a.aqi).copy(alpha = 0.5f), tl, androidx.compose.ui.geometry.Size(br.x - tl.x, br.y - tl.y))
+                if (zoom > 20) mapLabel(a.aqi.toString(), Offset((tl.x + br.x) / 2 - 6.dp.toPx(), (tl.y + br.y) / 2 + 4.dp.toPx()), Color.White, 10)
             }
             // a drive: its line, and each point looked at by its weather (green: nothing, yellow: rain, red: danger)
             routeReport?.let { r ->
@@ -345,6 +363,17 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                     Text("Radar de pluie" + (f?.let { " · " + radarTime(it, now) } ?: " · chargement…"), color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     Text("Beige : pluie faible · bleu : modérée · jaune puis rouge : forte · les 2 dernières heures en boucle", color = dim, style = MaterialTheme.typography.labelSmall)
                     Text("Radar : RainViewer · Carte : Natural Earth", color = dim, style = MaterialTheme.typography.labelSmall)
+                }
+                mode == SkyModes.AIR -> {
+                    val centre = airCells.getOrNull(airCells.size / 2)
+                    Text("Qualité de l’air" + (centre?.let { " · indice ${it.aqi} (${com.jarvis.android.actions.describeEuropeanAqi(it.aqi)})" } ?: " · chargement…"), color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    if (airCells.isNotEmpty()) Text("Autour : de ${airCells.minOf { it.aqi }} à ${airCells.maxOf { it.aqi }} (une case ≈ 35 km)", color = dim, style = MaterialTheme.typography.labelSmall)
+                    Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)) {
+                        listOf(10 to "bon", 30 to "moyen", 50 to "dégradé", 70 to "mauvais", 90 to "très mauv.").forEach { (v, w) ->
+                            Text(w, color = Color.Black, style = MaterialTheme.typography.labelSmall, modifier = Modifier.background(com.jarvis.android.air.aqiColor(v), RoundedCornerShape(3.dp)).padding(horizontal = 3.dp))
+                        }
+                    }
+                    Text("Indice européen (Copernicus CAMS, Open-Meteo)", color = dim, style = MaterialTheme.typography.labelSmall)
                 }
                 routeReport != null -> {
                     val r = routeReport

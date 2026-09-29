@@ -41,17 +41,17 @@ internal fun formatAirQuality(body: String, label: String): String {
     val aqi = (current["european_aqi"] as? JsonPrimitive)?.intOrNull ?: num("european_aqi")?.toInt() ?: error("Missing AQI")
     val pm25 = num("pm2_5")
     val pm10 = num("pm10")
-    val pollen = listOfNotNull(
-        num("birch_pollen")?.let { "bouleau ${fmt(it)}" },
-        num("grass_pollen")?.let { "graminées ${fmt(it)}" },
-        num("ragweed_pollen")?.let { "ambroisie ${fmt(it)}" },
-    )
+    // each pollen with its level in words; those under one grain are left out, a missing one (outside Europe) too
+    val measured = com.jarvis.android.air.POLLENS.mapNotNull { p -> num(p.key)?.let { p to it } }
+    val pollen = measured.filter { it.second >= 1 }.sortedByDescending { com.jarvis.android.air.pollenLevel(it.first, it.second) }
+        .map { (p, v) -> "${p.name} ${fmt(v)} (${com.jarvis.android.air.levelWords(com.jarvis.android.air.pollenLevel(p, v))})" }
     val particles = listOfNotNull(pm25?.let { "PM2.5 ${fmt(it)} µg/m³" }, pm10?.let { "PM10 ${fmt(it)} µg/m³" })
     return buildString {
         append("Qualité de l'air à $label : indice européen $aqi (${describeEuropeanAqi(aqi)})")
         if (particles.isNotEmpty()) append(", ").append(particles.joinToString(", "))
         append(".")
         if (pollen.isNotEmpty()) append(" Pollens (grains/m³) : ").append(pollen.joinToString(", ")).append(".")
+        else if (measured.isNotEmpty()) append(" Pas de pollen notable.")
     }
 }
 
@@ -60,13 +60,33 @@ private fun fmt(v: Double) = String.format(Locale.FRANCE, "%.1f", v)
 object AirQualityTool : Tool {
     override val name = "air_quality"
     override val description =
-        "Qualité de l'air et pollens actuels (indice européen, particules PM2.5/PM10, pollens en Europe). Avec une ville, celle-ci ; " +
-            "SANS ville (ou « ici », « chez moi »), la position du téléphone."
+        "Qualité de l'air et pollens (indice européen, particules PM2.5/PM10, pollens d'aulne, bouleau, olivier, graminées, armoise et " +
+            "ambroisie avec leur niveau, en Europe). Avec une ville, celle-ci ; SANS ville (ou « ici », « chez moi »), la position du " +
+            "téléphone. action : « now » (défaut, maintenant), « forecast » (aujourd'hui et demain, au pire de la journée), « map » (la " +
+            "carte de l'air autour, à la place du visage), « alert_on » (threshold : indice européen au-delà duquel prévenir, 60 par " +
+            "défaut ; pollens : ceux qui gênent l'utilisateur, par exemple « graminées, bouleau », tous par défaut) / « alert_off » : une " +
+            "notification dans la journée quand l'air est mauvais ou un pollen élevé."
     override val parameters = objectSchema {
         string("city", "Nom de la ville ; vide ou « ici » pour utiliser la position de l'utilisateur.")
+        string("action", "now, forecast, map, alert_on ou alert_off.")
+        string("threshold", "Pour alert_on : l'indice européen au-delà duquel prévenir (60 par défaut : « mauvais » au-delà).")
+        string("pollens", "Pour alert_on : les pollens qui gênent l'utilisateur (aulne, bouleau, olivier, graminées, armoise, ambroisie), séparés par des virgules.")
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String = withContext(Dispatchers.IO) {
+        when (args.stringArg("action").trim().lowercase()) {
+            "alert_off" -> { com.jarvis.android.air.AirWatch.set(ctx.appContext, false); return@withContext "Je ne surveille plus l'air et les pollens." }
+            "alert_on" -> {
+                val threshold = args.stringArg("threshold").trim().toIntOrNull()?.coerceIn(10, 150) ?: 60
+                val wanted = args.stringArg("pollens").split(',', ';', '/').map { com.jarvis.android.offline.normalize(it) }.filter { it.isNotEmpty() }
+                val keys = com.jarvis.android.air.POLLENS.filter { p -> wanted.any { w -> com.jarvis.android.offline.normalize(p.name).startsWith(w.take(5)) } }.map { it.key }.toSet()
+                com.jarvis.android.air.AirWatch.set(ctx.appContext, true, threshold, keys)
+                val names = if (keys.isEmpty()) "tous les pollens" else com.jarvis.android.air.POLLENS.filter { it.key in keys }.joinToString(", ") { it.name }
+                return@withContext "Je surveille l'air (au-delà de l'indice $threshold) et les pollens ($names, quand leur niveau est élevé) : une notification " +
+                    "dans la journée, une fois par jour pour la même gêne."
+            }
+            "forecast", "map" -> return@withContext forecastOrMap(ctx, args)
+        }
         val rawCity = args.utilityString("city")
         if (isHereRequest(rawCity)) return@withContext airQualityHere(ctx)
         val city = normalizedUtilityQuery(rawCity, 200)
@@ -97,11 +117,32 @@ object AirQualityTool : Tool {
     }
 }
 
+/** The next two days, or the map, for a city or where the phone is. */
+private suspend fun forecastOrMap(ctx: JarvisContainer, args: JsonObject): String {
+    val rawCity = args.utilityString("city")
+    val (lat, lon, label) = if (isHereRequest(rawCity)) {
+        val f = com.jarvis.android.weather.locate(ctx.appContext) as? com.jarvis.android.weather.LocationOutcome.Found
+            ?: return "Je n'ai pas votre position : dites le nom d'une ville."
+        Triple(f.fix.latitude, f.fix.longitude, com.jarvis.android.weather.positionLabel(f.place))
+    } else {
+        val g = com.jarvis.android.driving.RouteWeather.geocode(ctx, rawCity.orEmpty().trim()) ?: return "Aucune ville trouvée pour « $rawCity »."
+        g
+    }
+    if (args.stringArg("action").trim().lowercase() == "map") {
+        com.jarvis.android.air.AirMapCenter.at = lat to lon
+        ctx.videoPanel.show(com.jarvis.android.video.VideoPanel.Video(title = "Qualité de l'air", sky = com.jarvis.android.space.SkyModes.AIR))
+        return "La carte de la qualité de l'air autour de $label s'affiche à la place du visage (une case tous les 35 km environ, aux couleurs de " +
+            "l'indice européen). Dites-le en une phrase."
+    }
+    val body = com.jarvis.android.air.AirData.forecast(ctx, lat, lon) ?: return "Prévision de la qualité de l'air indisponible pour le moment."
+    return "Qualité de l'air à $label (au pire entre 7 h et 21 h). " + com.jarvis.android.air.airForecastWords(body, java.time.LocalDate.now())
+}
+
 internal fun airQualityUrl(latitude: Double, longitude: Double): String =
     "https://air-quality-api.open-meteo.com/v1/air-quality".toHttpUrl().newBuilder()
         .addQueryParameter("latitude", latitude.toString())
         .addQueryParameter("longitude", longitude.toString())
-        .addQueryParameter("current", "european_aqi,pm2_5,pm10,birch_pollen,grass_pollen,ragweed_pollen")
+        .addQueryParameter("current", "european_aqi,pm2_5,pm10," + com.jarvis.android.air.POLLENS.joinToString(",") { it.key })
         .build().toString()
 
 /** Air quality at the phone's position, when the user has allowed location. */
