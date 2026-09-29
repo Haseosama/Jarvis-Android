@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.56 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.57 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,16 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Electricity: Tempo and EcoWatt** (since 0.9.57; `electricity`, `energy/Energy.kt`, Settings > *Électricité*). The Tempo day's
+  colour for today and tomorrow (blue, white, red: EDF's Tempo price from 6 a.m. to 10 p.m.) from api-couleur-tempo.fr (free, no key,
+  fed by RTE's publication; tomorrow's colour comes out about 11 a.m.), the red and white days left in the season, and what to put
+  off on a white or red day (washing machine, dishwasher, charging after 10 p.m., the heating a little lower). EcoWatt, RTE's signal of
+  how tight the grid is (green, orange, red, hour by hour, four days), with the user's own free RTE key (the "ID client encodé en base
+  64" of RTE's data portal, entered in the new settings card and encrypted like the other keys; asked for at most once an hour, RTE
+  allowing one question every 15 minutes). `alert_on` (white days too if asked): a notification the day before a red day and when
+  EcoWatt turns orange or red. The morning briefing says a white or red day and a tight grid. *Checked:* on the emulator, blue today
+  and tomorrow, 22 red and 43 white days left, the settings card; the readings (RTE's EcoWatt answer as documented) by unit tests.
+  *Not checked:* EcoWatt with a real RTE key (none on the emulator).
 - **Official weather and flood warnings** (since 0.9.56; `vigilance`, `weather/Vigilance.kt`). Météo-France's vigilance (storms,
   rain-flooding, floods, wind, snow and ice, heat waves, cold, waves, avalanches; yellow, orange, red) comes through MeteoAlarm (the
   European weather services' network, free and without a key, where Météo-France publishes it): the French texts, the level from the

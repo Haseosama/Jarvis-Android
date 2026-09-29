@@ -1171,6 +1171,7 @@ fun SettingsScreen(
             ParcelsCard()
             WakeBriefingCard()
             TransportCard()
+            EnergyCard()
             MeetingNotesCard()
             WatchesCard()
             GoogleCard(configStore)

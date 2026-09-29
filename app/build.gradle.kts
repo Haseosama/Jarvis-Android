@@ -38,8 +38,8 @@ android {
         applicationId = "com.jarvis.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 113
-        versionName = "0.9.56"
+        versionCode = 114
+        versionName = "0.9.57"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

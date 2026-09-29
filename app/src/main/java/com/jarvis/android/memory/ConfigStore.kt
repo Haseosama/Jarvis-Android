@@ -68,6 +68,9 @@ class ConfigStore(private val context: Context) {
     private val sncfKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_sncf_key.enc", keys = keystoreKey)
     private val navitiaKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_navitia_key.enc", keys = keystoreKey)
 
+    /** The RTE data portal key (EcoWatt), a credential too. */
+    private val rteKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_rte_key.enc", keys = keystoreKey)
+
     private var slotCache: List<String?>? = null
 
     @Synchronized
@@ -183,6 +186,9 @@ class ConfigStore(private val context: Context) {
     fun getNavitiaKey(): String? = navitiaKeyStore.read()
     suspend fun saveNavitiaKey(value: String): Boolean = withContext(Dispatchers.IO) { navitiaKeyStore.write(value) }
     suspend fun deleteNavitiaKey(): Boolean = withContext(Dispatchers.IO) { navitiaKeyStore.delete() }
+    fun getRteKey(): String? = rteKeyStore.read()
+    suspend fun saveRteKey(value: String): Boolean = withContext(Dispatchers.IO) { rteKeyStore.write(value) }
+    suspend fun deleteRteKey(): Boolean = withContext(Dispatchers.IO) { rteKeyStore.delete() }
 
     private val KEY_ASSISTANT_NAME = stringPreferencesKey("assistant_name")
     private val KEY_USER_NAME = stringPreferencesKey("user_name")

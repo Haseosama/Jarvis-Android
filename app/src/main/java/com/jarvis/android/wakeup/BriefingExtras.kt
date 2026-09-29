@@ -20,7 +20,7 @@ import java.time.ZoneId
 /** The parts of the briefing, by the key the user switches off ("sans les mails"). */
 internal val BRIEFING_SECTIONS = linkedMapOf(
     "meteo" to "la météo", "vigilance" to "les vigilances météo et crues", "pluie" to "la pluie qui arrive", "agenda" to "l’agenda", "rappels" to "les rappels", "depenses" to "les prélèvements et budgets",
-    "uv" to "les UV élevés", "mails" to "les mails importants", "vols" to "vos vols", "iss" to "l’ISS ce soir", "fusees" to "les lancements de fusées", "aurores" to "les aurores", "sommeil" to "la nuit de sommeil",
+    "uv" to "les UV élevés", "electricite" to "les jours Tempo et EcoWatt", "mails" to "les mails importants", "vols" to "vos vols", "iss" to "l’ISS ce soir", "fusees" to "les lancements de fusées", "aurores" to "les aurores", "sommeil" to "la nuit de sommeil",
 )
 
 /** "mails" from "Mails", "e-mails", "courriels": the key of a part named in words, or null. */
@@ -30,6 +30,7 @@ internal fun sectionKey(words: String): String? {
         w.isEmpty() -> null
         "mail" in w || "courriel" in w -> "mails"
         "vigilance" in w || "alerte" in w || "crue" in w -> "vigilance"
+        "tempo" in w || "ecowatt" in w || "electri" in w -> "electricite"
         "pluie" in w || "radar" in w -> "pluie"
         "meteo" in w || "temps" in w -> "meteo"
         "agenda" in w || "rendez" in w || "evenement" in w -> "agenda"

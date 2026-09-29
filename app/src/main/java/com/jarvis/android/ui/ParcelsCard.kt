@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Train
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -152,6 +153,26 @@ internal fun TransportCard() {
             tr("Bus, trams et métros de votre ville (facultatif) : créez un compte gratuit sur navitia.io et collez la clé ici."),
             "https://navitia.io/inscription/",
             { config.getNavitiaKey() }, { config.saveNavitiaKey(it) }, { config.deleteNavitiaKey() },
+        )
+    }
+}
+
+/** Electricity: the RTE key for EcoWatt (Tempo needs none). */
+@Composable
+internal fun EnergyCard() {
+    val context = LocalContext.current
+    val config = remember { (context.applicationContext as JarvisApp).container.configStore }
+    SettingsCard(tr("Électricité (Tempo, EcoWatt)"), Icons.Filled.Bolt, initiallyExpanded = false) {
+        Text(
+            tr("« Demain, c’est un jour rouge ? », « je peux lancer la machine ? » : la couleur Tempo marche sans rien faire. Pour EcoWatt (la tension du réseau, heure par heure), il faut une clé gratuite de RTE ; elle est chiffrée sur le téléphone."),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        ServiceKey(
+            tr("Clé RTE (EcoWatt)"),
+            tr("Créez un compte gratuit sur data.rte-france.com, abonnez une application à l’API « Ecowatt », puis copiez son « ID client encodé en base 64 » et collez-le ici."),
+            "https://data.rte-france.com/catalog/-/api/consumption/Ecowatt/v5.0",
+            { config.getRteKey() }, { config.saveRteKey(it) }, { config.deleteRteKey() },
         )
     }
 }
