@@ -431,6 +431,7 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Décollage" to "Take-off",
     "Qualité de l’air et pollens" to "Air quality and pollen",
     "Séismes" to "Earthquakes",
+    "Événements du ciel" to "Sky events",
     "Radio en direct" to "Live radio",
     "touchez le visage" to "tap the face",
     "dites {0}, touchez le petit visage ou mettez en pause" to "say {0}, tap the small face or pause",

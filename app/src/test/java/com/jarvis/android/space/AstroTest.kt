@@ -31,16 +31,24 @@ class AstroTest {
     }
 
     @Test fun `the Moon and the Sun too, and the Moon's distance and phase are right`() {
-        assertTrue(separation(raDec(moonVector(t)), 31.52194 to 17.80008) < 0.5)
+        // Meeus's lunar theory: within a few hundredths of a degree of JPL (apparent: nutation and aberration make the rest)
+        assertTrue(separation(raDec(moonVector(t)), 31.52194 to 17.80008) < 0.05)
         assertTrue(separation(raDec(sunPosition(t)), 185.39302 to -2.33310) < 0.1)
         val m = moonVector(t)
         val km = kotlin.math.sqrt(m.first * m.first + m.second * m.second + m.third * m.third)
-        assertEquals(0.00248860682143 * 149_597_870.7, km, 3_000.0)
+        assertEquals(0.00248860682143 * 149_597_870.7, km, 50.0)
         // 29 September 2026: the Moon is two days past full (JPL: elongation about 154°)
         val phase = moonPhase(t)
         assertTrue(phase.lit in 0.85..0.97)
         assertTrue(!phase.waxing)
         assertEquals("gibbeuse décroissante", phase.name)
+    }
+
+    @Test fun `Meeus's example 47a, the Moon on 12 April 1992`() {
+        val (lon, lat, r) = moonEcliptic(java.time.Instant.parse("1992-04-12T00:00:00Z").toEpochMilli())
+        assertEquals(133.162655, lon, 0.00002)
+        assertEquals(-3.229126, lat, 0.00002)
+        assertEquals(368409.7, r, 0.2)
     }
 
     @Test fun `the catalogue's stars are read, named, and the Pole Star stays near the pole from Paris`() {

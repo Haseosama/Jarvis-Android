@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.53 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.54 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,19 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **The sky's calendar, and a sharper Moon** (since 0.9.54; `sky_events`, `space/SkyEvents.kt`). What is coming in the sky, seen from
+  where the user is: the lunar eclipses (at each full moon, the Moon's distance from the centre of the Earth's shadow against the umbra
+  and penumbra, Meeus's radii: total, partial or penumbral, how much of the Moon is in the shadow, whether the Moon is up here), the
+  solar eclipses as seen from the place (the Moon's and the Sun's discs from there, minute by minute around each new moon: start,
+  middle, end while the Sun is up, the part of the Sun hidden), the meteor showers (peak night, rate, radiant, how much the Moon spoils
+  them), the Moon near a planet (told when under a degree) or two planets together, the full moons and the "super" ones. `list` (over
+  120 days by default, or `days`; `kind` to keep one sort), the fifteen most remarkable in their order; `alert_on`: a notification
+  the day before (from 5 p.m.) and the day itself. The Moon is now computed with Meeus's lunar theory (ELP-2000/82, 60 terms in longitude
+  and distance, 60 in latitude, about 10") instead of the Almanac's short series (0.3°): the sky chart and the camera view gain from it.
+  *Checked:* Meeus's example 47.a to 0.00002°; the Moon within 0.05° and 50 km of JPL; all the lunar eclipses of 2025–2029 with their
+  kind; the solar eclipse of 12 August 2026 from Paris against the US Naval Observatory (start and maximum within 4 minutes, 92 %
+  hidden) and total from Burgos; Venus and Jupiter on 12 August 2025; on the emulator, 400 days from Paris (the partial solar eclipse
+  of 2 August 2027, 51 %).
 - **Earthquakes** (since 0.9.53; `earthquakes`, `space/Quakes.kt`). From the USGS feeds (the whole world: magnitude 2.5 and more over
   the last day, 4.5 and more over the week): `recent` tells the day's strongest and the one nearest the user, in French ("séisme de
   magnitude 5,3 (modéré) à 76 km au nord-est de Tadine", its depth, how long ago, a tsunami alert, USGS's damage alert), and shows them on
