@@ -121,6 +121,10 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1_000) } }
 
     // the ISS and Tiangong (the world map)
+    // the rivers under flood watch (the floods map)
+    val floods by produceState<List<com.jarvis.android.weather.FloodSection>>(emptyList(), mode) {
+        if (mode == SkyModes.FLOODS) value = com.jarvis.android.weather.Vigilance.lastFloods.ifEmpty { com.jarvis.android.weather.Vigilance.floods(container) }
+    }
     // the earthquakes (the quake map)
     val quakes by produceState<List<Quake>>(emptyList(), mode) { if (mode == SkyModes.QUAKES) value = Quakes.recent(container) }
     // the air around a place (the air map)
@@ -191,6 +195,10 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 placed = true
             }
             mode == SkyModes.MAP -> placed = true
+            mode == SkyModes.FLOODS -> {
+                val c = com.jarvis.android.weather.Vigilance.centre ?: (46.6 to 2.4)
+                cx = mercX(c.second); cy = mercY(c.first - 1.5); zoom = 14.0; placed = true
+            }
             mode == SkyModes.AIR && (com.jarvis.android.air.AirMapCenter.at != null || observer != null) -> {
                 val c = com.jarvis.android.air.AirMapCenter.at ?: (observer!!.latDeg to observer!!.lonDeg)
                 cx = mercX(c.second); cy = mercY(c.first - 0.6); zoom = 36.0; placed = true
@@ -269,6 +277,18 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 drawPath(night, NIGHT)
                 val (sLat, sLon) = subSolar(now)
                 drawCircle(ISS_COLOR, 6.dp.toPx(), geo(sLat, sLon))
+            }
+            // the rivers: blue when green, then yellow, orange, red, thicker as it gets worse
+            floods.sortedBy { it.level }.forEach { s ->
+                val color = when (s.level) { 2 -> Color(0xFFFFE14D); 3 -> Color(0xFFFF9F43); 4 -> Color(0xFFFF3B3B); else -> Color(0x9953A7FF) }
+                val path = Path()
+                var last: Offset? = null
+                s.line.forEach { (lat, lon) ->
+                    val p = geo(lat, lon)
+                    if (last == null || kotlin.math.abs(p.x - last!!.x) > size.width) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y)
+                    last = p
+                }
+                drawPath(path, color, style = Stroke((if (s.level >= 2) 1.2f + s.level else 1f).dp.toPx()))
             }
             // the earthquakes: a circle by magnitude, red within 6 hours, orange within the day, yellow in the week
             quakes.sortedBy { it.mag }.forEach { q ->
@@ -375,6 +395,14 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                     Text("Radar de pluie" + (f?.let { " · " + radarTime(it, now) } ?: " · chargement…"), color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     Text("Beige : pluie faible · bleu : modérée · jaune puis rouge : forte · les 2 dernières heures en boucle", color = dim, style = MaterialTheme.typography.labelSmall)
                     Text("Radar : RainViewer · Carte : Natural Earth", color = dim, style = MaterialTheme.typography.labelSmall)
+                }
+                mode == SkyModes.FLOODS -> {
+                    val byLevel = floods.groupBy { it.level }
+                    Text("Vigilance crues · " + listOf(4 to "rouge", 3 to "orange", 2 to "jaune").joinToString(", ") { (l, w) -> "${byLevel[l]?.size ?: 0} en $w" }, color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    observer?.let { o -> com.jarvis.android.weather.floodsNear(floods, o.latDeg, o.lonDeg, 60.0).firstOrNull() }?.let { (s, km) ->
+                        Text("Près de vous : ${s.name} en ${com.jarvis.android.weather.levelColour(s.level)} (${km.toInt()} km)", color = text, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Text("Bleu : vert · jaune, orange, rouge : vigilance · Vigicrues", color = dim, style = MaterialTheme.typography.labelSmall)
                 }
                 mode == SkyModes.QUAKES -> {
                     val day = quakes.filter { now - it.timeMs < 24 * 3_600_000L }

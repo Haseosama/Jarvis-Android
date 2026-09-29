@@ -19,7 +19,7 @@ import java.time.ZoneId
 
 /** The parts of the briefing, by the key the user switches off ("sans les mails"). */
 internal val BRIEFING_SECTIONS = linkedMapOf(
-    "meteo" to "la météo", "pluie" to "la pluie qui arrive", "agenda" to "l’agenda", "rappels" to "les rappels", "depenses" to "les prélèvements et budgets",
+    "meteo" to "la météo", "vigilance" to "les vigilances météo et crues", "pluie" to "la pluie qui arrive", "agenda" to "l’agenda", "rappels" to "les rappels", "depenses" to "les prélèvements et budgets",
     "uv" to "les UV élevés", "mails" to "les mails importants", "vols" to "vos vols", "iss" to "l’ISS ce soir", "fusees" to "les lancements de fusées", "aurores" to "les aurores", "sommeil" to "la nuit de sommeil",
 )
 
@@ -29,6 +29,7 @@ internal fun sectionKey(words: String): String? {
     return when {
         w.isEmpty() -> null
         "mail" in w || "courriel" in w -> "mails"
+        "vigilance" in w || "alerte" in w || "crue" in w -> "vigilance"
         "pluie" in w || "radar" in w -> "pluie"
         "meteo" in w || "temps" in w -> "meteo"
         "agenda" in w || "rendez" in w || "evenement" in w -> "agenda"
@@ -85,6 +86,19 @@ internal object BriefingExtras {
             } catch (_: Exception) {
                 null
             }
+        }
+    }
+
+    /** The official warnings in force where the user is (yellow or more), and the rivers in flood watch nearby. */
+    suspend fun vigilance(ctx: JarvisContainer, lat: Double, lon: Double): String? = withTimeoutOrNull(12_000) {
+        try {
+            val v = com.jarvis.android.weather.Vigilance
+            val dept = v.department(ctx, lat, lon) ?: return@withTimeoutOrNull null
+            val warn = com.jarvis.android.weather.warningsFor(v.weather(ctx), dept.second, System.currentTimeMillis())
+            val floods = com.jarvis.android.weather.floodsNear(v.floods(ctx), lat, lon)
+            if (warn.isEmpty() && floods.isEmpty()) null else v.words(dept.second, warn, floods.ifEmpty { null }, ZoneId.systemDefault()).removeSuffix(".")
+        } catch (_: Exception) {
+            null
         }
     }
 

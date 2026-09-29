@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.55 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.56 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,16 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Official weather and flood warnings** (since 0.9.56; `vigilance`, `weather/Vigilance.kt`). Météo-France's vigilance (storms,
+  rain-flooding, floods, wind, snow and ice, heat waves, cold, waves, avalanches; yellow, orange, red) comes through MeteoAlarm (the
+  European weather services' network, free and without a key, where Météo-France publishes it): the French texts, the level from the
+  warning's awareness level (a warning lowered to green is not told), until when, and Météo-France's advice from orange. The user's
+  département comes from the State's geographic API (geo.api.gouv.fr); another can be asked for. The flood vigilance of Vigicrues: the
+  rivers' sections within 30 km in yellow, orange or red, and all of France's rivers drawn on the map in place of the face (blue when
+  green, then yellow, orange, red, thicker as it gets worse). `alert_on` (yellow, orange by default, or red): a look every hour, each new
+  warning told once. The morning briefing now says the warnings in force here. *Checked:* on the emulator, Paris in yellow for storms,
+  the Hérault in orange (floods, rain-flooding, storms, with the advice), the rivers of France with the Hérault's and the Gard's in
+  orange and yellow, and the briefing; the reading of both feeds, what is in force and the words by unit tests.
 - **Is tonight good for the stars? And the Sun of the day** (since 0.9.55; `observing_weather`, `space/Observing.kt`; `sun_uv`,
   `weather/SunUv.kt`). `observing_weather`: the next three nights hour by hour from Open-Meteo (clouds low, middle and high, humidity
   and dew point, wind, temperature) with the darkness and the Moon computed here (the Sun's depth, the Moon up or down and how lit): a
