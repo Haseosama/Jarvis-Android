@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.52 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.53 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,15 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Earthquakes** (since 0.9.53; `earthquakes`, `space/Quakes.kt`). From the USGS feeds (the whole world: magnitude 2.5 and more over
+  the last day, 4.5 and more over the week): `recent` tells the day's strongest and the one nearest the user, in French ("séisme de
+  magnitude 5,3 (modéré) à 76 km au nord-est de Tadine", its depth, how long ago, a tsunami alert, USGS's damage alert), and shows them on
+  the world map, a circle by magnitude, red within 6 hours, orange within the day, yellow in the week. `alert_on` (a magnitude, 4 by
+  default) watches every 30 minutes for a quake felt near the user or near the places added with `watch_add` ("Tokyo" for "ma sœur"):
+  the reach grows with the magnitude (about 100 km at 4, 250 at 5, 600 at 6, 1,500 at 7); each quake told once, its notification opens
+  its USGS page. `watch_list`, `watch_remove`, `alert_off`. *Checked:* on the emulator, 42 quakes in a day and 123 over the week on
+  the map, the strongest and the nearest told, Tokyo added and the watch set; the reading, the words and who is told by unit tests.
+  *Not checked:* a real alert.
 - **Air quality and pollens, further** (since 0.9.52; `air_quality` actions, `air/AirWatch.kt`). Six pollens now (alder, birch, olive,
   grasses, mugwort, ragweed), each with its level in words (faible, moyen, élevé, très élevé: grains/m³ thresholds per kind, ragweed
   high sooner), the ones under one grain left out. `forecast`: today and tomorrow at their worst between 7 h and 21 h (the European

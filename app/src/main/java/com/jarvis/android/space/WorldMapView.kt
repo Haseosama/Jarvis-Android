@@ -121,6 +121,8 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1_000) } }
 
     // the ISS and Tiangong (the world map)
+    // the earthquakes (the quake map)
+    val quakes by produceState<List<Quake>>(emptyList(), mode) { if (mode == SkyModes.QUAKES) value = Quakes.recent(container) }
     // the air around a place (the air map)
     val airCells by produceState<List<com.jarvis.android.air.AirCell>>(emptyList(), mode, observer) {
         if (mode != SkyModes.AIR) return@produceState
@@ -268,6 +270,16 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 val (sLat, sLon) = subSolar(now)
                 drawCircle(ISS_COLOR, 6.dp.toPx(), geo(sLat, sLon))
             }
+            // the earthquakes: a circle by magnitude, red within 6 hours, orange within the day, yellow in the week
+            quakes.sortedBy { it.mag }.forEach { q ->
+                val p = geo(q.lat, q.lon)
+                val age = now - q.timeMs
+                val color = when { age < 6 * 3_600_000L -> Color(0xFFFF4D4D); age < 24 * 3_600_000L -> Color(0xFFFF9F43); else -> Color(0xFFFFD54F) }
+                val r = (2.0 + Math.pow(1.7, q.mag - 2.0)).coerceAtMost(28.0).toFloat().dp.toPx()
+                drawCircle(color.copy(alpha = 0.45f), r, p)
+                drawCircle(color, r, p, style = Stroke(1.dp.toPx()))
+                if (q.mag >= 5.5 || (zoom > 6 && q.mag >= 4)) mapLabel("%.1f".format(Locale.FRANCE, q.mag), Offset(p.x + r + 2.dp.toPx(), p.y + 4.dp.toPx()), color, 11, bold = true)
+            }
             // the air: each cell of the grid in the colour of its index
             airCells.forEach { a ->
                 val tl = geo(a.lat + 0.175, a.lon - 0.25)
@@ -363,6 +375,16 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                     Text("Radar de pluie" + (f?.let { " · " + radarTime(it, now) } ?: " · chargement…"), color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     Text("Beige : pluie faible · bleu : modérée · jaune puis rouge : forte · les 2 dernières heures en boucle", color = dim, style = MaterialTheme.typography.labelSmall)
                     Text("Radar : RainViewer · Carte : Natural Earth", color = dim, style = MaterialTheme.typography.labelSmall)
+                }
+                mode == SkyModes.QUAKES -> {
+                    val day = quakes.filter { now - it.timeMs < 24 * 3_600_000L }
+                    val top = day.maxByOrNull { it.mag }
+                    Text("Séismes · ${day.size} en 24 h (M 2,5+), ${quakes.count { it.mag >= 4.5 }} de M 4,5+ en 7 jours", color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    top?.let { Text("Le plus fort du jour : M %.1f %s".format(Locale.FRANCE, it.mag, placeWords(it.place)), color = Color(0xFFFF9F43), style = MaterialTheme.typography.labelMedium) }
+                    observer?.let { o -> quakes.minByOrNull { com.jarvis.android.actions.distanceKm(o.latDeg, o.lonDeg, it.lat, it.lon) } }?.let { q ->
+                        Text("Le plus proche de vous : M %.1f à %d km (%s)".format(Locale.FRANCE, q.mag, com.jarvis.android.actions.distanceKm(observer!!.latDeg, observer!!.lonDeg, q.lat, q.lon).toInt(), countdownWords(q.timeMs - now)), color = text, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Text("Rouge : moins de 6 h · orange : moins de 24 h · jaune : la semaine · USGS", color = dim, style = MaterialTheme.typography.labelSmall)
                 }
                 mode == SkyModes.AIR -> {
                     val centre = airCells.getOrNull(airCells.size / 2)

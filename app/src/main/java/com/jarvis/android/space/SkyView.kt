@@ -77,6 +77,9 @@ internal object SkyModes {
     /** The sky through the camera, with names on what is there. */
     const val AR = "ar"
 
+    /** The earthquakes of the day and the week. */
+    const val QUAKES = "quakes"
+
     /** The air quality around a place. */
     const val AIR = "air"
 
@@ -95,7 +98,7 @@ internal object SkyModes {
     fun isAr(mode: String) = mode == AR || mode.startsWith(AR_TARGET)
 
     /** Whether a mode is drawn on the world map rather than as a sky chart. */
-    fun onMap(mode: String) = mode == MAP || mode == RADAR || mode == AURORA || mode == ROUTE || mode == AIR || mode.startsWith(FLIGHT)
+    fun onMap(mode: String) = mode == MAP || mode == RADAR || mode == AURORA || mode == ROUTE || mode == AIR || mode == QUAKES || mode.startsWith(FLIGHT)
 }
 
 private val SKY_BG = Color(0xFF050B14)
