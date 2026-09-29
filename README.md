@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.43 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.44 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,20 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **World map, followed flights, rain radar** (since 0.9.44; `space/WorldMapView.kt`, `MapData.kt`, `Flights.kt`). In place of the face,
+  a world map drawn from Natural Earth (land, borders, 923 cities shown as one zooms in; pinch and drag):
+  - `sky_view` show `map`: the ISS and Tiangong where they are, their ground track (the last 45 minutes and the next orbit, cut at the
+    date line), the night side of the Earth and the point under the Sun; a card with the ISS's position, altitude, speed and nearest city.
+  - `flight` (follow / status / stop): "suis le vol AF1234" (IATA or ICAO number). The route and airports from adsbdb, the aircraft live
+    from adsb.lol (every 15 s; its trail, its heading), the great circle to its destination, height, speed, climbing or descending, the
+    estimated arrival (distance left at the ground speed plus a quarter of an hour) and the nearest city. A watch looks every 5 minutes
+    and sends a notification when it has landed (on the ground near its destination, or gone from view coming down close to it; a flight
+    lost in cruise over an ocean is not taken for a landing). Callsigns sent with a padded number ("AMX45" as "AMX045") are found.
+  - `rain_radar`: the last two hours of rain around the user from RainViewer (zoom 7 tiles, the most they give), looped over the map,
+    with the time of each picture.
+  *Checked:* on the emulator over Paris: the ISS over Libya matching its computed position, the night band; BA468 London → Venice
+  climbing out of Heathrow, its ETA, the landing watch set (alarm 5 minutes later); the radar over northern France. *Not checked:* a
+  landing notification from a real arrival.
 - **Satellite pass alerts** (since 0.9.43; `satellites` alert, `space/PassAlerts.kt`). "Préviens-moi quand l'ISS passe" (or Tiangong,
   Hubble): an alarm 5 minutes before its next pass that can be seen (lit by the Sun in a dark sky, 10° high or more) over the place the
   user was, then a notification saying where it appears, how high it goes, where it disappears and for how long, and the same words aloud

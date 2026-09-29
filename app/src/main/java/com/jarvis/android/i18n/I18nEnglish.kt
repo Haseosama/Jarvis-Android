@@ -422,6 +422,8 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Mode léger : le visage est animé deux fois moins souvent et sans mèches fines. Pour un téléphone qui saccade, ou pour économiser la batterie." to "Light mode: the face is animated half as often and without fine strands. For a phone that stutters, or to save battery.",
     "Passage dans 5 minutes" to "Pass in 5 minutes",
     "Passages de satellites" to "Satellite passes",
+    "Vols suivis" to "Followed flights",
+    "Vol suivi" to "Followed flight",
     "Radio en direct" to "Live radio",
     "touchez le visage" to "tap the face",
     "dites {0}, touchez le petit visage ou mettez en pause" to "say {0}, tap the small face or pause",

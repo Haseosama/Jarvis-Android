@@ -238,6 +238,10 @@
             android:name=".space.PassAlertReceiver"
             android:exported="false" />
 
+        <receiver
+            android:name=".space.FlightWatchReceiver"
+            android:exported="false" />
+
         <!-- Jarvis as a media app: Android Auto and the phone's media controls browse and control its radio and podcasts -->
         <service
             android:name=".car.JarvisMediaService"

@@ -50,6 +50,8 @@ object ToolRegistry {
         com.jarvis.android.space.SatelliteTool,
         com.jarvis.android.space.SkyViewTool,
         com.jarvis.android.space.NightSkyTool,
+        com.jarvis.android.space.FlightTool,
+        com.jarvis.android.space.RainRadarTool,
         com.jarvis.android.podcasts.PodcastTool,
         com.jarvis.android.plugins.PluginManageTool,
         ScreenReadTool,

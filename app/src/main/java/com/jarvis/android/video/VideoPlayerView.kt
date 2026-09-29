@@ -124,6 +124,7 @@ internal fun VideoPlayerView(
                 .onGloballyPositioned { where[0] = it.boundsInWindow() },
         ) {
             when {
+                video.sky != null && com.jarvis.android.space.SkyModes.onMap(video.sky) -> key(video.sky) { com.jarvis.android.space.WorldMapView(video.sky, big) }
                 video.sky != null -> key(video.sky) { com.jarvis.android.space.SkyView(video.sky, big) }
                 video.isSlideshow -> key(video.photos) { Slideshow(panel, video) }
                 // one player for all the videos of a search, the next one loaded into it: a player made anew while the app is its small
@@ -147,7 +148,11 @@ internal fun VideoPlayerView(
 }
 
 /** The shape of the player's box under its header: 16:9 for a picture, taller for the live sky (a chart and its list). */
-internal fun panelRatio(v: VideoPanel.Video): Float = if (v.sky != null) 0.8f else 16f / 9f
+internal fun panelRatio(v: VideoPanel.Video): Float = when {
+    v.sky != null && com.jarvis.android.space.SkyModes.onMap(v.sky) -> 1f
+    v.sky != null -> 0.8f
+    else -> 16f / 9f
+}
 
 /** The sound asked for, 0 to 100: none, turned down while the user talks over it, or full. */
 internal fun volumeOf(v: VideoPanel.Video): Int = when {

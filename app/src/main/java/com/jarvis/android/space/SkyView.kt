@@ -68,6 +68,17 @@ internal object SkyModes {
     const val SATELLITES = "satellites"
     const val PLANES = "planes"
     const val PASS = "pass:"
+    /** The world map: the ISS and Tiangong over the Earth, day and night. */
+    const val MAP = "map"
+    /** The rain radar around the user, animated. */
+    const val RADAR = "radar"
+    /** A followed flight on the world map: "flight:<callsign>|<flight number>". */
+    const val FLIGHT = "flight:"
+    /** The sky through the camera, with names on what is there. */
+    const val AR = "ar"
+
+    /** Whether a mode is drawn on the world map rather than as a sky chart. */
+    fun onMap(mode: String) = mode == MAP || mode == RADAR || mode.startsWith(FLIGHT)
 }
 
 private val SKY_BG = Color(0xFF050B14)
