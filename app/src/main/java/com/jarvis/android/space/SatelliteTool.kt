@@ -191,7 +191,7 @@ object SatelliteTool : Tool {
     }
 
     /** A CelesTrak group, kept 12 hours on the phone (CelesTrak asks not to be asked again sooner); an older copy when offline. */
-    private suspend fun orbits(ctx: JarvisContainer, group: String): List<Tle> {
+    internal suspend fun orbits(ctx: JarvisContainer, group: String): List<Tle> {
         val file = File(File(ctx.appContext.cacheDir, "space").apply { mkdirs() }, "$group.tle")
         if (file.isFile && System.currentTimeMillis() - file.lastModified() < FRESH_MS) return parseTles(file.readText())
         return try {

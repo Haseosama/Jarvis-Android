@@ -120,10 +120,11 @@ internal fun VideoPlayerView(
             onDispose { panel.grabFrame = null }
         }
         Box(
-            (if (big) Modifier.fillMaxSize() else Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+            (if (big) Modifier.fillMaxSize() else Modifier.fillMaxWidth().aspectRatio(panelRatio(video)))
                 .onGloballyPositioned { where[0] = it.boundsInWindow() },
         ) {
             when {
+                video.sky != null -> key(video.sky) { com.jarvis.android.space.SkyView(video.sky, big) }
                 video.isSlideshow -> key(video.photos) { Slideshow(panel, video) }
                 // one player for all the videos of a search, the next one loaded into it: a player made anew while the app is its small
                 // video window got no picture until the app came back
@@ -144,6 +145,9 @@ internal fun VideoPlayerView(
         }
     }
 }
+
+/** The shape of the player's box under its header: 16:9 for a picture, taller for the live sky (a chart and its list). */
+internal fun panelRatio(v: VideoPanel.Video): Float = if (v.sky != null) 0.8f else 16f / 9f
 
 /** The sound asked for, 0 to 100: none, turned down while the user talks over it, or full. */
 internal fun volumeOf(v: VideoPanel.Video): Int = when {
@@ -192,14 +196,14 @@ private fun RowScope.Controls(panel: VideoPanel, video: VideoPanel.Video, previo
     if (previous && several) {
         IconButton(onClick = { panel.step(-1) }, modifier = small) { Icon(Icons.Filled.SkipPrevious, contentDescription = tr("Vidéo précédente")) }
     }
-    IconButton(onClick = { panel.command(if (video.paused) VideoPanel.Command.Resume else VideoPanel.Command.Pause) }, modifier = small) {
+    if (video.sky == null) IconButton(onClick = { panel.command(if (video.paused) VideoPanel.Command.Resume else VideoPanel.Command.Pause) }, modifier = small) {
         Icon(if (video.paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
             contentDescription = if (video.paused) tr("Reprendre la vidéo") else tr("Mettre la vidéo en pause"))
     }
     if (several) {
         IconButton(onClick = { panel.step(1) }, modifier = small) { Icon(Icons.Filled.SkipNext, contentDescription = tr("Vidéo suivante")) }
     }
-    if (!video.isSlideshow) {
+    if (!video.isSlideshow && video.sky == null) {
         IconButton(onClick = { panel.setSound(!video.sound) }, modifier = small) {
             Icon(
                 if (video.sound) Icons.Filled.VolumeUp else Icons.Filled.VolumeOff,

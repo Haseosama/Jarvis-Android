@@ -65,7 +65,9 @@ internal class VideoMedia(private val context: Context, private val panel: Video
     }
     private var lastKey: String? = null
 
-    private fun update(v: VideoPanel.Video?) {
+    private fun update(v0: VideoPanel.Video?) {
+        // the live sky is no media: no player on the lock screen for it
+        val v = v0?.takeIf { it.sky == null }
         if (v == null) {
             // nothing plays: the session still takes the car's requests (play an item, a search)
             session.setPlaybackState(PlaybackState.Builder().setActions(IDLE_ACTIONS).setState(PlaybackState.STATE_STOPPED, 0L, 0f).build())

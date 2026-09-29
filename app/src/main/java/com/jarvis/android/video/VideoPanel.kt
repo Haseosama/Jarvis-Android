@@ -43,6 +43,8 @@ class VideoPanel(private val log: (String) -> Unit = {}, private val clock: () -
         val artist: String = "",
         /** Falling asleep to it: the screen dims and does not stay on, the sound fades out before the timer stops it. */
         val sleep: Boolean = false,
+        /** The live sky instead of a video (space/SkyView.kt): "all", "satellites", "planes" or "pass:<name>". */
+        val sky: String? = null,
     ) {
         /** Sound without a picture: a radio or a podcast. */
         val audioOnly: Boolean get() = radio || podcast

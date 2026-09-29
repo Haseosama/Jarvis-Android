@@ -166,7 +166,7 @@ internal fun HudScreen(
                         .onGloballyPositioned { videoSlot = it.boundsInRoot() },
                 ) {
                     Spacer(Modifier.height(com.jarvis.android.video.VIDEO_HEADER))
-                    Spacer(Modifier.fillMaxWidth().padding(horizontal = 8.dp).aspectRatio(16f / 9f))
+                    Spacer(Modifier.fillMaxWidth().padding(horizontal = 8.dp).aspectRatio(com.jarvis.android.video.panelRatio(playing)))
                 }
             } else if (avatar != null) {
                 Box(

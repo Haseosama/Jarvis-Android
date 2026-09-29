@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.40 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.41 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,24 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **The live sky in place of the avatar** (since 0.9.41; `sky_view`, `space/SkyView.kt`, `space/SkyData.kt`). "Montre-moi les satellites /
+  les avions au-dessus de moi", "affiche le passage de l'ISS": in the video panel (its close, full screen and video window), a chart of the
+  sky above the user (the horizon round, 30° and 60° rings, the zenith in the middle, north up) with the brightest satellites (yellow when
+  seen by eye now, light blue when lit, dark blue in the Earth's shadow), the Starlink (small grey dots) and the aircraft (orange arrows
+  pointing where they fly; pink for a distress transponder code), each where it really is, moving every second (the aircraft every 10 s);
+  under it (beside it when wide), how many of each and whether the sky is dark, then the list, each with its height, direction and
+  distance. A touch on the chart or the list chooses one: a satellite shows where it is in the sky, its distance, altitude, speed, the
+  point of Earth under it, light or shadow, whether it can be seen now, its orbit (period, inclination), its catalogue number, its path
+  in the sky from 5 minutes ago to 15 minutes ahead (pink) and its next pass (dashed yellow, with the countdown); an aircraft shows its
+  airline and route (origin and destination cities and airports), model and category, registration, owner, a photo, altitude (metres
+  and feet), speed (km/h and knots), heading, climb or descent, where it is in the sky, its transponder code and address. Aircraft come from
+  adsb.lol (live, free, no key; within 40 nautical miles), their route and model from adsbdb (asked only for the one chosen, kept for the
+  session); satellites as for `satellites`. Objects under the horizon are listed, not drawn. The assistant can describe what is shown
+  (`look`). *Checked:* `SkyDataTest` (aircraft read with their units, on the ground and without a position left out, the distress codes,
+  a route and a model read, a close aircraft high and a far one low, the short names); on the emulator over Paris: 68 aircraft, 462
+  Starlink and 7 bright satellites drawn; Air France AFR030 chosen (Boeing 777-328ER, F-GZNA, Air France, 5 996 m, 745 km/h, climbing
+  12 m/s, 33° high to the west); the ISS's pass drawn with its card; full screen with the chart and the list side by side. *Not checked:*
+  on a real phone outdoors, and a route and a photo on the same aircraft (the one tried had neither in adsbdb).
 - **Satellites and the ISS** (since 0.9.40; `satellites`, `space/`). "Quels satellites au-dessus de moi ?": how many of the brightest
   satellites (CelesTrak's "visual" list and the space stations) are above the horizon now, and how many Starlink; the highest ones with
   their height, direction and distance, and whether one can see them now (lit by the Sun while the sky is dark). "Quand passe l'ISS ?"
