@@ -424,6 +424,7 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Passages de satellites" to "Satellite passes",
     "Vols suivis" to "Followed flights",
     "Vol suivi" to "Followed flight",
+    "Lancements de fusées" to "Rocket launches",
     "Radio en direct" to "Live radio",
     "touchez le visage" to "tap the face",
     "dites {0}, touchez le petit visage ou mettez en pause" to "say {0}, tap the small face or pause",

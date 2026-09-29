@@ -26,6 +26,7 @@ class BootReceiver : BroadcastReceiver() {
                     com.jarvis.android.quiet.QuietMode.afterBoot(appContext) // a reboot clears the alarm that ends the quiet time
                     com.jarvis.android.wakeup.RadioAlarms.reschedule(appContext) // and the radio alarm
                     com.jarvis.android.space.PassAlerts.afterBoot(appContext) // and the satellite pass alert
+                    com.jarvis.android.space.LaunchAlerts.afterBoot(appContext) // and the rocket launch alerts
                 } catch (_: Exception) {
                     Log.e("JarvisReminders", "Reprogrammation impossible après redémarrage.")
                 } finally {

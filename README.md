@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.46 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.47 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,15 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Rocket launches** (since 0.9.47; `rocket_launches`, `space/Launches.kt`, `LaunchesView.kt`). The next launches in the world from
+  The Space Devs' Launch Library 2 (free; 15 questions an hour without a key, so the list is kept for half an hour), shown in place of
+  the face: the next one with its picture and a countdown to the second (T-2 j 03:24:37), its rocket, company, pad, time as precisely as
+  it is known ("le lundi 5 octobre (heure pas encore fixée)"), status (confirmé, à confirmer, suspendu…), weather odds and orbit; the
+  following ones below with their countdown; touching one with a YouTube webcast plays it in the player. `detail` tells one ("Crew-13",
+  "Starship", "Ariane"), `watch` plays its webcast, `alert` sends a notification 30 minutes before (or as asked) that opens the webcast;
+  when the alarm rings the launch is asked for again, and a launch put back is told and followed to its new time. Kept across a reboot.
+  *Checked:* on the emulator, the list and countdown, the alert for Crew-13 set as an exact alarm 30 minutes before; the reading, the
+  countdowns and the dates by unit tests. *Not checked:* a real alert ringing before a launch.
 - **Constellations and a guide in the camera view** (since 0.9.46; `sky_view` show `ar` with `name`). The camera view now draws the
   figures of the best-known constellations with their French names, and "où est Jupiter ?" (the Moon, a planet, a bright star, the ISS,
   a flight by its callsign) puts a pink arrow at the edge towards it and says the way in words: "tournez à gauche de 119°, levez le

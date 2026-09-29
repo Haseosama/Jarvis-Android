@@ -77,6 +77,9 @@ internal object SkyModes {
     /** The sky through the camera, with names on what is there. */
     const val AR = "ar"
 
+    /** The next rocket launches with their countdown. */
+    const val LAUNCHES = "launches"
+
     /** The camera guiding to one object: "ar:<name>". */
     const val AR_TARGET = "ar:"
 
