@@ -63,6 +63,7 @@ object ToolRegistry {
         com.jarvis.android.weather.VigilanceTool,
         com.jarvis.android.energy.EnergyTool,
         com.jarvis.android.transport.MyTripsTool,
+        com.jarvis.android.weekly.WeeklySummaryTool,
         com.jarvis.android.podcasts.PodcastTool,
         com.jarvis.android.plugins.PluginManageTool,
         ScreenReadTool,

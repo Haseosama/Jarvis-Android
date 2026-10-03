@@ -439,6 +439,7 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Clé RTE (EcoWatt)" to "RTE key (EcoWatt)",
     "Trajets habituels" to "Usual trips",
     "Votre trajet" to "Your trip",
+    "Bilan de la semaine" to "Weekly summary",
     "Créez un compte gratuit sur data.rte-france.com, abonnez une application à l’API « Ecowatt », puis copiez son « ID client encodé en base 64 » et collez-le ici." to "Create a free account on data.rte-france.com, subscribe an application to the “Ecowatt” API, then copy its “base 64 encoded client ID” and paste it here.",
     "Radio en direct" to "Live radio",
     "touchez le visage" to "tap the face",

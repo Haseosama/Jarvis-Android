@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.59 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.60 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,13 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **The weekly summary** (since 0.9.60; `weekly_summary`, `weekly/WeeklySummary.kt`). The week gone by — the nights' average sleep and
+  the shortest (Health Connect), the steps (in all, a day, the best day; days without steps not counted), the spending noted this week
+  by category — and the week to come — the calendar's appointments day by day, the weather of the next seven days (Open-Meteo's daily
+  forecast; neighbouring days with the same weather said once, with the highest temperature) — in a few sentences. `now` at any time;
+  `set` (speak or notify, and the hour, 18 h by default): every Sunday by itself (an exact alarm, set again after each and after a
+  reboot). Each part only when the phone knows it. *Checked:* on the emulator, the summary (no health data or spending this week there,
+  the week's weather), set for Sunday 18:00; the words of both weeks, the daily forecast and the next Sunday by unit tests.
 - **Usual trips, and the disruptions in words** (since 0.9.59; `my_trips`, `transport/Commutes.kt`). The user's usual trips are kept
   ("enregistre mon trajet du boulot de Versailles à Paris Saint-Lazare à 7h40 en semaine": a name, from, to, the time, the days in
   words — "en semaine", "lun-ven", "le week-end", "lundi, mercredi et vendredi" — trains or local transport). `check` says the next
