@@ -1,0 +1,178 @@
+<title>Carte du code Jarvis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: header with key figures, then a two-column workspace (graph | inspector), findings below */
+:root{
+  --bg:#f3f5f8; --panel:#ffffff; --fg:#17202b; --muted:#5a6676; --line:#d9dfe7;
+  --accent:#0a7fa8; --hot:#c2541b; --edge:rgba(23,32,43,.13); --edgeHi:#0a7fa8;
+  --display:"Chakra Petch",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1218; --panel:#141b23; --fg:#e4eaf1; --muted:#93a0b0; --line:#253140;
+  --accent:#3fc1e8; --hot:#f08a4b; --edge:rgba(228,234,241,.12); --edgeHi:#3fc1e8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1218; --panel:#141b23; --fg:#e4eaf1; --muted:#93a0b0; --line:#253140;
+  --accent:#3fc1e8; --hot:#f08a4b; --edge:rgba(228,234,241,.12); --edgeHi:#3fc1e8; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);padding:24px 16px 48px}
+.wrap{max-width:1240px;margin:0 auto;display:grid;gap:20px}
+h1{font:600 28px/1.15 var(--display);margin:0;letter-spacing:.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;max-width:70ch}
+.stats{display:flex;flex-wrap:wrap;gap:8px 24px;font:500 13px var(--mono);color:var(--muted)}
+.stats b{color:var(--fg);font-variant-numeric:tabular-nums}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px}
+@media (max-width:900px){.work{grid-template-columns:minmax(0,1fr)}}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:6px;position:relative;min-width:0;height:640px;overflow:hidden}
+@media (max-width:600px){.stage{height:460px}}
+svg{width:100%;height:100%;display:block;touch-action:none}
+.tools{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+.tools>*{pointer-events:auto}
+input,button{font:13px var(--body);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:6px 10px}
+button{cursor:pointer}button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.legend{position:absolute;left:10px;bottom:10px;font:12px var(--mono);color:var(--muted)}
+.side{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0;max-height:640px;overflow:auto}
+.side h2{font:600 18px var(--display);margin:0}
+.k{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:12px var(--mono);border:1px solid var(--line);border-radius:3px;padding:2px 6px;cursor:pointer;background:none}
+.chip:hover{border-color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:4px 0;border-bottom:1px solid var(--line);vertical-align:top}
+td.n{text-align:right;font:12px var(--mono);font-variant-numeric:tabular-nums;color:var(--muted);padding-left:8px;white-space:nowrap}
+.fname{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+.pill{display:inline-block;font:500 11px var(--mono);padding:1px 6px;border-radius:3px;background:color-mix(in srgb,var(--hot) 16%,transparent);color:var(--hot)}
+.ok{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+.find{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.find section{min-width:0}
+.find h3{font:600 15px var(--display);margin:0 0 6px}
+.find p{margin:0;color:var(--muted);font-size:14px;max-width:65ch}
+.find code{font:12.5px var(--mono);color:var(--fg)}
+.node text{font:11px var(--mono);fill:var(--fg);pointer-events:none;paint-order:stroke;stroke:var(--panel);stroke-width:3px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Carte du code Jarvis</h1>
+    <p class="sub">Les packages Kotlin de <code>__SRC__</code> et leurs dépendances, déduites des types référencés d'un fichier à l'autre. Cliquez un module pour voir ses fichiers, ses voisins et ses tests.</p>
+  </header>
+  <div class="stats" id="stats"></div>
+  <div class="work">
+    <div class="stage">
+      <div class="tools">
+        <input id="q" type="search" placeholder="Chercher un module ou un fichier" aria-label="Chercher">
+        <button id="hideRoot" aria-pressed="false">Masquer JarvisContainer</button>
+      </div>
+      <svg id="g"></svg>
+      <div class="legend">Taille = lignes de code · <span style="color:var(--hot)">●</span> sans test unitaire</div>
+    </div>
+    <aside class="side" id="side"></aside>
+  </div>
+  <div class="find" id="find"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+const D=__DATA__;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const mods=D.modules, byId=Object.fromEntries(mods.map(m=>[m.id,m]));
+const files=D.files;
+const totalLines=mods.reduce((a,m)=>a+m.lines,0), totalTests=mods.reduce((a,m)=>a+m.tests,0);
+document.getElementById('stats').innerHTML=
+ `<span><b>${files.length}</b> fichiers</span><span><b>${totalLines.toLocaleString('fr-FR')}</b> lignes</span><span><b>${mods.length}</b> modules</span><span><b>${D.fedges.length}</b> liens entre fichiers</span><span><b>${totalTests}</b> fichiers de test</span>`;
+
+const inn=Object.fromEntries(mods.map(m=>[m.id,0])),out={...inn};
+D.medges.forEach(e=>{inn[e.t]+=e.w;out[e.s]+=e.w});
+
+const svg=d3.select('#g'), root=svg.append('g');
+let W=0,H=0; function size(){const r=svg.node().getBoundingClientRect();W=r.width;H=r.height}
+size();
+svg.call(d3.zoom().scaleExtent([.3,4]).on('zoom',ev=>root.attr('transform',ev.transform)));
+const r=d=>4+Math.sqrt(d.lines)/4.2;
+let nodes=mods.map(m=>({...m})), links=D.medges.map(e=>({source:e.s,target:e.t,w:e.w}));
+const linkG=root.append('g'), nodeG=root.append('g');
+let sim, linkSel, nodeSel, selected=null, hideRoot=false;
+
+function draw(){
+  const keep=n=>!(hideRoot&&n.id==='(racine)');
+  const ns=nodes.filter(keep), ids=new Set(ns.map(n=>n.id));
+  const ls=links.filter(l=>ids.has(l.source.id||l.source)&&ids.has(l.target.id||l.target));
+  if(sim) sim.stop();
+  sim=d3.forceSimulation(ns)
+    .force('link',d3.forceLink(ls).id(d=>d.id).distance(70).strength(l=>Math.min(.5,.05+l.w/40)))
+    .force('charge',d3.forceManyBody().strength(-180))
+    .force('center',d3.forceCenter(W/2,H/2))
+    .force('collide',d3.forceCollide(d=>r(d)+4));
+  linkSel=linkG.selectAll('line').data(ls,l=>(l.source.id||l.source)+'>'+(l.target.id||l.target)).join('line')
+    .attr('stroke',css('--edge')).attr('stroke-width',l=>Math.min(4,.6+l.w/8));
+  nodeSel=nodeG.selectAll('g.node').data(ns,d=>d.id).join(enter=>{
+    const g=enter.append('g').attr('class','node').attr('tabindex',0).style('cursor','pointer');
+    g.append('circle'); g.append('text').attr('dy',d=>-r(d)-4).attr('text-anchor','middle').text(d=>d.id);
+    return g;})
+    .on('click',(e,d)=>select(d.id)).on('keydown',(e,d)=>{if(e.key==='Enter')select(d.id)})
+    .call(d3.drag().on('start',(e,d)=>{if(!e.active)sim.alphaTarget(.2).restart();d.fx=d.x;d.fy=d.y})
+      .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y}).on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=d.fy=null}));
+  nodeSel.select('circle').attr('r',r).attr('stroke-width',1.5);
+  paint();
+  sim.on('tick',()=>{
+    linkSel.attr('x1',l=>l.source.x).attr('y1',l=>l.source.y).attr('x2',l=>l.target.x).attr('y2',l=>l.target.y);
+    nodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
+  });
+}
+function paint(){
+  const acc=css('--accent'),hot=css('--hot'),pan=css('--panel'),edge=css('--edge'),hi=css('--edgeHi');
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const fileHit=q?new Set(files.filter(f=>f.name.toLowerCase().includes(q)).map(f=>f.mod)):null;
+  const nb=new Set();
+  if(selected) linkSel.each(l=>{if(l.source.id===selected)nb.add(l.target.id);if(l.target.id===selected)nb.add(l.source.id)});
+  nodeSel.select('circle').attr('fill',d=>d.tests?acc:hot).attr('fill-opacity',d=>d.id===selected?1:.75).attr('stroke',d=>d.id===selected?css('--fg'):pan);
+  nodeSel.attr('opacity',d=>{
+    if(q) return (d.id.includes(q)||fileHit.has(d.id))?1:.15;
+    if(selected) return (d.id===selected||nb.has(d.id))?1:.2;
+    return 1;});
+  linkSel.attr('stroke',l=>selected&&(l.source.id===selected||l.target.id===selected)?hi:edge)
+    .attr('stroke-opacity',l=>!selected||(l.source.id===selected||l.target.id===selected)?1:.25);
+}
+function chip(id){return `<button class="chip" data-m="${id}">${id}</button>`}
+function select(id){
+  selected=id; paint();
+  const m=byId[id], fs=files.filter(f=>f.mod===id).sort((a,b)=>b.inn-a.inn||b.lines-a.lines);
+  const uses=D.medges.filter(e=>e.s===id).sort((a,b)=>b.w-a.w), used=D.medges.filter(e=>e.t===id).sort((a,b)=>b.w-a.w);
+  document.getElementById('side').innerHTML=`
+    <h2>${id}</h2>
+    <div style="margin-top:6px">${m.tests?`<span class="pill ok">${m.tests} fichiers de test</span>`:`<span class="pill">aucun test</span>`}
+      <span class="pill ok" style="margin-left:4px">${m.files} fichiers · ${m.lines.toLocaleString('fr-FR')} lignes</span></div>
+    <div class="k">Utilise (${uses.length})</div><div class="chips">${uses.map(e=>chip(e.t)).join('')||'<span class="sub">rien</span>'}</div>
+    <div class="k">Utilisé par (${used.length})</div><div class="chips">${used.map(e=>chip(e.s)).join('')||'<span class="sub">personne</span>'}</div>
+    <div class="k">Fichiers · entrants / sortants / lignes</div>
+    <table>${fs.map(f=>`<tr><td class="fname">${f.name}</td><td class="n">${f.inn} / ${f.out}</td><td class="n">${f.lines}</td></tr>`).join('')}</table>`;
+  bindChips();
+}
+function bindChips(){document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>select(b.dataset.m))}
+function overview(){
+  const top=[...files].sort((a,b)=>b.inn-a.inn).slice(0,12);
+  document.getElementById('side').innerHTML=`<h2>Fichiers les plus référencés</h2>
+   <p class="sub" style="font-size:13px">Nombre d'autres fichiers qui utilisent un type déclaré ici.</p>
+   <table>${top.map(f=>`<tr><td class="fname">${f.name}<br><button class="chip" data-m="${f.mod}" style="margin-top:2px">${f.mod}</button></td><td class="n">${f.inn}</td></tr>`).join('')}</table>`;
+  bindChips();
+}
+document.getElementById('q').oninput=paint;
+document.getElementById('hideRoot').onclick=e=>{hideRoot=!hideRoot;e.target.setAttribute('aria-pressed',hideRoot);draw()};
+svg.on('click',e=>{if(e.target===svg.node()){selected=null;paint();overview()}});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',paint);
+new MutationObserver(paint).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+window.addEventListener('resize',()=>{size();sim.force('center',d3.forceCenter(W/2,H/2)).alpha(.3).restart()});
+draw(); overview();
+
+const untested=mods.filter(m=>!m.tests).map(m=>m.id);
+const mutual=[...new Set(D.medges.filter(e=>e.s!=='(racine)'&&e.t!=='(racine)'&&D.medges.some(f=>f.s===e.t&&f.t===e.s)).map(e=>[e.s,e.t].sort().join(' ↔ ')))];
+const byIn=[...files].sort((a,b)=>b.inn-a.inn), byOut=[...files].sort((a,b)=>b.out-a.out);
+const bigMods=[...mods].sort((a,b)=>b.lines-a.lines), big=bigMods[0];
+const pct=Math.round(100*big.lines/totalLines);
+document.getElementById('find').innerHTML=`
+ <section><h3>Les fichiers pivots</h3><p><code>${byIn[0].name}</code> est utilisé par ${byIn[0].inn} fichiers et <code>${byIn[1].name}</code> par ${byIn[1].inn}. <code>${byOut[0].name}</code> est celui qui dépend du plus de fichiers (${byOut[0].out}).</p></section>
+ <section><h3>${big.id} est le plus gros module</h3><p>${big.files} fichiers et ${big.lines.toLocaleString('fr-FR')} lignes, soit ${pct} % du code. Suivent ${bigMods.slice(1,4).map(m=>`<code>${m.id}</code> (${m.lines.toLocaleString('fr-FR')})`).join(', ')}.</p></section>
+ <section><h3>Modules sans test</h3><p>${untested.length?untested.map(x=>`<code>${x}</code>`).join(', '):'Aucun : chaque module a au moins un fichier de test.'}</p></section>
+ <section><h3>${mutual.length} dépendances circulaires entre modules</h3><p>Hors racine. ${mutual.slice(0,8).map(x=>`<code>${x}</code>`).join(', ')}${mutual.length>8?'…':''}</p></section>`;
+</script>
