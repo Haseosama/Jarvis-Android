@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.60 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.61 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -34,7 +34,7 @@ Everything is asked by voice (French first, English too), or typed in the chat. 
   to a person: "la prochaine fois que Paul m'appelle…"), find the phone, files in a work folder.
 - **Everyday life**: lists, spending (by voice or by scanning a receipt) and monthly budgets, subscriptions and regular payments,
   recipes read step by step, parcel tracking, train and bus times, text read through the camera, a briefing when the alarm stops, medications and habits, where the car is parked, driving mode,
-  weather and rain in the next hour, air quality, fuel prices, planes overhead, birthdays, calendar, photos (by date, place, or what is on
+  weather and rain in the next hour, air quality, fuel prices, the nearest pharmacy, bakery, cash machine, toilets or charger (open or not), planes overhead, birthdays, calendar, photos (by date, place, or what is on
   them), health (steps, sleep, heart rate from Health Connect), an emergency SOS to chosen contacts.
 - **Knowledge and work**: web search, reading a web page, flights, translation and interpreter mode, meeting notes, documents, Gmail and
   Drive, code help, watches on prices or sites, a multi-step agent mode.
@@ -1228,6 +1228,18 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Around me** (since 0.9.61; `autour_de_moi`, `nearby/NearbyTool.kt`, `nearby/OpeningHours.kt`). "Où est la pharmacie la plus proche ?",
+  "une boulangerie ouverte près d'ici", "un distributeur", "des toilettes", "une borne de recharge": the places of that kind around the
+  phone's position (or a named place) from OpenStreetMap, through the Overpass API (free, no key; a second server when the first is busy),
+  nearest first with the distance and the way to go (as the crow flies), the address, and whether each is open now with when that changes
+  ("ouverte, ferme à 19 h 30", "fermée, ouvre lundi à 9 h"), read from its `opening_hours`: weekdays, breaks, past midnight, months, French
+  public holidays (`PH`, Easter's included) and the rules after ";" or ","; what it cannot read (sunrise, "08:00+", school holidays, week
+  numbers) is said as the raw hours rather than guessed. Toilets say if they are free and accessible, chargers their plugs and power. The
+  search widens once when nothing is near (1 km for a bakery, then 3 km; 3 then 10 km for a charger); `ouvert` keeps only those open now;
+  with no pharmacy open, the night pharmacy number (3237) is given. The map shows them in place of the face, numbered as said, green when
+  open, red when closed, grey when the hours are not known, over the streets around (OpenStreetMap too, up to 1.2 km). *Checked:* the
+  opening-hours reader, the query, the reading of Overpass' answer and the spoken answer by unit tests (`OpeningHoursTest`,
+  `NearbyPlacesTest`). *Not checked:* against the real Overpass servers, the map, on the emulator or a phone.
 - **The weekly summary** (since 0.9.60; `weekly_summary`, `weekly/WeeklySummary.kt`). The week gone by — the nights' average sleep and
   the shortest (Health Connect), the steps (in all, a day, the best day; days without steps not counted), the spending noted this week
   by category — and the week to come — the calendar's appointments day by day, the weather of the next seven days (Open-Meteo's daily
