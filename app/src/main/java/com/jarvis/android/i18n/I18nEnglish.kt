@@ -433,6 +433,7 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Séismes" to "Earthquakes",
     "Événements du ciel" to "Sky events",
     "Vigilance météo et crues" to "Weather and flood warnings",
+    "Rappels de produits" to "Product recalls",
     "Électricité : Tempo et EcoWatt" to "Electricity: Tempo and EcoWatt",
     "Électricité (Tempo, EcoWatt)" to "Electricity (Tempo, EcoWatt)",
     "« Demain, c’est un jour rouge ? », « je peux lancer la machine ? » : la couleur Tempo marche sans rien faire. Pour EcoWatt (la tension du réseau, heure par heure), il faut une clé gratuite de RTE ; elle est chiffrée sur le téléphone." to "“Is tomorrow a red day?”, “can I run the washing machine?”: the Tempo colour works with nothing to set up. For EcoWatt (how tight the grid is, hour by hour), a free RTE key is needed; it is encrypted on the phone.",

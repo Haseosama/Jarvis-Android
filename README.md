@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.61 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.62 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -846,7 +846,7 @@ a plugin only describes one of three declarative actions, and the file is checke
   not `agent_task` or `end_session`), with `{parameter}` filled in. Sensitive taps still ask for confirmation.
 
 Limits: 100 plugins, 5 parameters each, 20 000 characters per file, a name that is not a built-in tool's.
-Settings: the installed plugins and the catalogue (82 built-in plugins) are two dropdowns, folded by default (the installed ones show
+Settings: the installed plugins and the catalogue (80 built-in plugins) are two dropdowns, folded by default (the installed ones show
 their names in a line meanwhile), each with a search field on the name and description (the installed ones' from 7 plugins on).
 **Many plugins.** Every installed plugin is usable, but only the first 25 (by file name) are declared to the model as tools of their own: a long list
 of tool declarations weighs on every session, and one the service refuses would break the whole session, and Gemini's documentation gives no
@@ -1228,6 +1228,16 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Product recalls** (since 0.9.62; `rappel_produit`, `recalls/Recalls.kt`, `recalls/RecallParse.kt`). A built-in tool now, replacing
+  the catalogue plugins `rappel_produit` and `rappels_recents` (an installed copy of the first is shadowed by it; one of the second keeps
+  working). RappelConso (the State's recall site, open data on data.economie.gouv.fr, free, no key): `check` by name, brand or barcode
+  (full-text search, a recall listed once even when it has several barcodes) says the product and brand, the category, the date, why,
+  the risk, what to do and where it was sold, the three newest; `recent` the latest, optionally of one category or brand. `follow` a
+  category or brand ("alimentation", "jouets", "bébés", "voiture", "Lactalis"; the everyday words are mapped to RappelConso's
+  categories), up to 20: a look every six hours, each new recall that falls under one told once in a notification that opens the
+  official sheet; recalls older than the start of the watch are not told. `unfollow`, `list`. *Checked:* the reading of the records,
+  the merging by sheet, the matching of followed words and the words said, by unit tests. *Not checked:* a live call (the container
+  this was written in cannot reach data.economie.gouv.fr) and the notification on a phone.
 - **Around me** (since 0.9.61; `autour_de_moi`, `nearby/NearbyTool.kt`, `nearby/OpeningHours.kt`). "Où est la pharmacie la plus proche ?",
   "une boulangerie ouverte près d'ici", "un distributeur", "des toilettes", "une borne de recharge": the places of that kind around the
   phone's position (or a named place) from OpenStreetMap, through the Overpass API (free, no key; a second server when the first is busy),
