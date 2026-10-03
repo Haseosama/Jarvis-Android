@@ -28,6 +28,7 @@ class BootReceiver : BroadcastReceiver() {
                     com.jarvis.android.space.PassAlerts.afterBoot(appContext) // and the satellite pass alert
                     com.jarvis.android.space.LaunchAlerts.afterBoot(appContext) // and the rocket launch alerts
                     com.jarvis.android.space.FlightMail.afterBoot(appContext) // and the day-of-flight reminders
+                    com.jarvis.android.transport.Commutes.afterBoot(appContext) // and the usual trips' checks
                 } catch (_: Exception) {
                     Log.e("JarvisReminders", "Reprogrammation impossible après redémarrage.")
                 } finally {

@@ -113,8 +113,10 @@ object TransportTool : Tool {
             val (code, body) = get(ctx, "${net.base}/journeys?from=${enc(fromId)}&to=${enc(to.id)}&datetime=${toNavitia(at)}&count=3", net.key)
             if (code == 401 || code == 403) throw SecurityException()
             val journeys = if (code == 200) parseJourneys(body) else emptyList()
-            if (journeys.isEmpty()) "Aucun trajet trouvé de $fromLabel à ${to.name} à cette heure-là."
-            else "De $fromLabel à ${to.name} :\n" + journeys.take(3).mapIndexed { i, j -> "${i + 1}) ${describeJourney(j)}" }.joinToString("\n")
+            val disruptions = if (code == 200) com.jarvis.android.transport.parseDisruptions(body) else emptyList()
+            if (journeys.isEmpty()) "Aucun trajet trouvé de $fromLabel à ${to.name} à cette heure-là." + (if (disruptions.isNotEmpty()) " Perturbations : " + disruptions.take(2).joinToString(" ; ") else "")
+            else "De $fromLabel à ${to.name} :\n" + journeys.take(3).mapIndexed { i, j -> "${i + 1}) ${describeJourney(j)}" }.joinToString("\n") +
+                (if (disruptions.isNotEmpty()) "\nPerturbations : " + disruptions.take(3).joinToString(" ; ") else "")
         } catch (e: CancellationException) {
             throw e
         } catch (_: SecurityException) {

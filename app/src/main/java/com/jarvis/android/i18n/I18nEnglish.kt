@@ -437,6 +437,8 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Électricité (Tempo, EcoWatt)" to "Electricity (Tempo, EcoWatt)",
     "« Demain, c’est un jour rouge ? », « je peux lancer la machine ? » : la couleur Tempo marche sans rien faire. Pour EcoWatt (la tension du réseau, heure par heure), il faut une clé gratuite de RTE ; elle est chiffrée sur le téléphone." to "“Is tomorrow a red day?”, “can I run the washing machine?”: the Tempo colour works with nothing to set up. For EcoWatt (how tight the grid is, hour by hour), a free RTE key is needed; it is encrypted on the phone.",
     "Clé RTE (EcoWatt)" to "RTE key (EcoWatt)",
+    "Trajets habituels" to "Usual trips",
+    "Votre trajet" to "Your trip",
     "Créez un compte gratuit sur data.rte-france.com, abonnez une application à l’API « Ecowatt », puis copiez son « ID client encodé en base 64 » et collez-le ici." to "Create a free account on data.rte-france.com, subscribe an application to the “Ecowatt” API, then copy its “base 64 encoded client ID” and paste it here.",
     "Radio en direct" to "Live radio",
     "touchez le visage" to "tap the face",

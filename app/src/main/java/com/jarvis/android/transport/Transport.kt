@@ -122,3 +122,27 @@ internal fun describeDeparture(d: Departure): String {
     val what = "${d.mode} ${d.code}".trim()
     return "${hm(d.time)}$late ${if (what.isNotBlank()) "$what " else ""}vers ${d.direction.ifBlank { "?" }}"
 }
+
+/**
+ * The disruptions' words of an answer (its "disruptions" list): for each, its shortest message, without HTML, said once. The effect
+ * ("SIGNIFICANT_DELAYS", "NO_SERVICE"…) is given in words when there is no message.
+ */
+internal fun parseDisruptions(body: String): List<String> = try {
+    Json.parseToJsonElement(body).jsonObject.arr("disruptions").mapNotNull { d0 ->
+        val d = d0 as? JsonObject ?: return@mapNotNull null
+        if (d.str("status").let { it.isNotEmpty() && it != "active" }) return@mapNotNull null
+        val texts = d.arr("messages").mapNotNull { (it as? JsonObject)?.str("text") }
+            .map { it.replace(Regex("<[^>]*>"), " ").replace("&nbsp;", " ").replace(Regex("\\s+"), " ").trim() }.filter { it.isNotEmpty() }
+        texts.minByOrNull { it.length }?.take(220) ?: when (d.obj("severity")?.str("effect")) {
+            "NO_SERVICE" -> "trafic interrompu"
+            "REDUCED_SERVICE" -> "trafic réduit"
+            "SIGNIFICANT_DELAYS" -> "retards importants"
+            "DETOUR" -> "itinéraire dévié"
+            "MODIFIED_SERVICE" -> "service modifié"
+            else -> null
+        }
+    }.distinct()
+} catch (_: Exception) {
+    emptyList()
+}
+

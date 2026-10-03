@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.58 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.59 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,16 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Usual trips, and the disruptions in words** (since 0.9.59; `my_trips`, `transport/Commutes.kt`). The user's usual trips are kept
+  ("enregistre mon trajet du boulot de Versailles à Paris Saint-Lazare à 7h40 en semaine": a name, from, to, the time, the days in
+  words — "en semaine", "lun-ven", "le week-end", "lundi, mercredi et vendredi" — trains or local transport). `check` says the next
+  train of a trip (today's if it has not left, else the next day's): its times, its delay, and the disruptions in the operator's own
+  words. `alert_on` looks 45 minutes before each trip on its days (one exact alarm, set again after each look and after a reboot) and
+  sends a notification only when something is wrong: a delay of 5 minutes or more, no train, a disruption. The `transport` tool now
+  also says the disruptions' texts with its journeys (the shortest message of each, without HTML, or the effect in words: "trafic
+  interrompu", "retards importants"). The Navitia questions are shared (`Navitia`). *Checked:* on the emulator, a trip saved and listed,
+  its look set for Monday 06:55; the days, the times, the disruptions and what is told by unit tests. *Not checked:* real timetables
+  (the SNCF key on the emulator is refused; the user's own key is needed).
 - **Fuel on the map and along a drive** (since 0.9.58; `prix_carburant`, `actions/FuelPriceTool.kt`). The stations found are now shown
   on the map in place of the face, from green (the cheapest) to red, each with its price (the cheapest first, none written over
   another). `trajet` (a destination): the cheapest stations within 3 km of the road from where the user is (or `ville`) to there, the
