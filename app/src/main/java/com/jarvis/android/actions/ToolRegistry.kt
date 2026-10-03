@@ -64,6 +64,7 @@ object ToolRegistry {
         com.jarvis.android.energy.EnergyTool,
         com.jarvis.android.transport.MyTripsTool,
         com.jarvis.android.weekly.WeeklySummaryTool,
+        com.jarvis.android.recalls.RecallsTool,
         com.jarvis.android.podcasts.PodcastTool,
         com.jarvis.android.plugins.PluginManageTool,
         ScreenReadTool,
