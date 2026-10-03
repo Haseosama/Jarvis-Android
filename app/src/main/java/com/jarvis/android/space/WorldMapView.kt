@@ -71,6 +71,11 @@ private val CSS_COLOR = Color(0xFF7FD8FF)
 private val FLIGHT_COLOR = Color(0xFFFF9F43)
 private val YOU = Color(0xFF4DFFB8)
 private val AURORA_COLOR = Color(0xFF3DFF7A)
+private val STREET_GROUND = Color(0xFF0E2638)
+private val STREET = Color(0xFF3F6D8F)
+
+/** How far the "around me" map zooms in: a few streets across the screen. */
+private const val NEARBY_MAX_ZOOM = 200_000.0
 
 /** One picture of the rain radar: when, and where its tiles are. */
 internal data class RadarFrame(val time: Long, val path: String, val forecast: Boolean)
@@ -123,6 +128,9 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
     // the ISS and Tiangong (the world map)
     // fuel stations and their prices (the fuel map)
     val fuelStations = remember(mode) { if (mode == SkyModes.FUEL) com.jarvis.android.actions.FuelMap.stations.filter { it.latitude != null && it.longitude != null } else emptyList() }
+    // the nearest places of a kind and the streets around them (the "around me" map)
+    val nearbyHits = remember(mode) { if (mode == SkyModes.NEARBY) com.jarvis.android.nearby.NearbyMap.hits else emptyList() }
+    val nearbyRoads = remember(mode) { if (mode == SkyModes.NEARBY) com.jarvis.android.nearby.NearbyMap.roads else emptyList() }
     // the rivers under flood watch (the floods map)
     val floods by produceState<List<com.jarvis.android.weather.FloodSection>>(emptyList(), mode) {
         if (mode == SkyModes.FLOODS) value = com.jarvis.android.weather.Vigilance.lastFloods.ifEmpty { com.jarvis.android.weather.Vigilance.floods(container) }
@@ -204,6 +212,13 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 cx = (xs.min() + xs.max()) / 2; cy = (ys.min() + ys.max()) / 2 + (ys.max() - ys.min()) * 0.2
                 zoom = (0.8 / maxOf(xs.max() - xs.min(), (ys.max() - ys.min()) * 1.7, 0.0004)).coerceIn(1.0, 3000.0); placed = true
             }
+            mode == SkyModes.NEARBY && nearbyHits.isNotEmpty() -> {
+                val pts = nearbyHits.take(8).map { it.place.lat to it.place.lon } + listOfNotNull(com.jarvis.android.nearby.NearbyMap.origin)
+                val xs = pts.map { mercX(it.second) }
+                val ys = pts.map { mercY(it.first) }
+                cx = (xs.min() + xs.max()) / 2; cy = (ys.min() + ys.max()) / 2 + (ys.max() - ys.min()) * 0.25
+                zoom = (0.75 / maxOf(xs.max() - xs.min(), (ys.max() - ys.min()) * 1.8, 0.00002)).coerceIn(1.0, NEARBY_MAX_ZOOM); placed = true
+            }
             mode == SkyModes.FLOODS -> {
                 val c = com.jarvis.android.weather.Vigilance.centre ?: (46.6 to 2.4)
                 cx = mercX(c.second); cy = mercY(c.first - 1.5); zoom = 14.0; placed = true
@@ -230,7 +245,7 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
             Modifier.fillMaxSize().pointerInput(Unit) {
                 detectTransformGestures { centroid, pan, change, _ ->
                     val w = size.width.toDouble().coerceAtLeast(1.0)
-                    val z2 = (zoom * change).coerceIn(1.0, if (radar) 2.0.pow(RADAR_ZOOM + 1) else 400.0)
+                    val z2 = (zoom * change).coerceIn(1.0, if (radar) 2.0.pow(RADAR_ZOOM + 1) else if (mode == SkyModes.NEARBY) NEARBY_MAX_ZOOM else 400.0)
                     // keep the point under the fingers where it is
                     val fx = cx + (centroid.x - size.width / 2.0) / (w * zoom)
                     val fy = cy + (centroid.y - size.height / 2.0) / (w * zoom)
@@ -248,13 +263,17 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
             fun px(mx: Double, my: Double) = Offset(((mx - cx) * scale + this.size.width / 2).toFloat(), ((my - cy) * scale + this.size.height / 2).toFloat())
             fun geo(lat: Double, lon: Double) = px(mercX(lon), mercY(lat))
             val d = data ?: return@Canvas
-            // the land, the borders
-            val landPath = Path()
-            d.land.forEach { ring -> for (i in 0 until ring.size / 2) { val p = px(ring[2 * i].toDouble(), ring[2 * i + 1].toDouble()); if (i == 0) landPath.moveTo(p.x, p.y) else landPath.lineTo(p.x, p.y) }; landPath.close() }
-            drawPath(landPath, LAND)
-            val borderPath = Path()
-            d.borders.forEach { ring -> for (i in 0 until ring.size / 2) { val p = px(ring[2 * i].toDouble(), ring[2 * i + 1].toDouble()); if (i == 0) borderPath.moveTo(p.x, p.y) else borderPath.lineTo(p.x, p.y) } }
-            drawPath(borderPath, BORDER, style = Stroke(1f))
+            val nearby = mode == SkyModes.NEARBY
+            // the land, the borders (street by street, the land is all there is: a plain ground and OpenStreetMap's streets instead)
+            if (nearby) drawRect(STREET_GROUND)
+            else {
+                val landPath = Path()
+                d.land.forEach { ring -> for (i in 0 until ring.size / 2) { val p = px(ring[2 * i].toDouble(), ring[2 * i + 1].toDouble()); if (i == 0) landPath.moveTo(p.x, p.y) else landPath.lineTo(p.x, p.y) }; landPath.close() }
+                drawPath(landPath, LAND)
+                val borderPath = Path()
+                d.borders.forEach { ring -> for (i in 0 until ring.size / 2) { val p = px(ring[2 * i].toDouble(), ring[2 * i + 1].toDouble()); if (i == 0) borderPath.moveTo(p.x, p.y) else borderPath.lineTo(p.x, p.y) } }
+                drawPath(borderPath, BORDER, style = Stroke(1f))
+            }
             // the rain radar, on the land
             if (radar) {
                 val (host, list) = frames ?: (null to emptyList())
@@ -279,7 +298,7 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 }
             }
             // the night, the Sun's point
-            if (!radar) {
+            if (!radar && !nearby) {
                 val night = Path()
                 nightPolygon(now).forEachIndexed { i, (lon, lat) -> val p = geo(lat, lon); if (i == 0) night.moveTo(p.x, p.y) else night.lineTo(p.x, p.y) }
                 night.close()
@@ -311,6 +330,30 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                     if (taken.any { android.graphics.RectF.intersects(it, box) }) return@forEach
                     taken += box
                     mapLabel(String.format(Locale.FRANCE, "%.3f", s.price), Offset(p.x + 8.dp.toPx(), p.y + 4.dp.toPx()), colorOf(s.price), 11, bold = true)
+                }
+            }
+            // around me: the streets, then each place (green: open, red: closed, grey: hours unknown) with its number and name
+            if (nearbyHits.isNotEmpty()) {
+                val streets = Path()
+                nearbyRoads.forEach { line -> line.forEachIndexed { i, (lat, lon) -> val p = geo(lat, lon); if (i == 0) streets.moveTo(p.x, p.y) else streets.lineTo(p.x, p.y) } }
+                drawPath(streets, STREET, style = Stroke(1.5.dp.toPx()))
+                com.jarvis.android.nearby.NearbyMap.origin?.let { (lat, lon) -> drawCircle(Color.White, 7.dp.toPx(), geo(lat, lon), style = Stroke(2.dp.toPx())) }
+                fun colorOf(h: com.jarvis.android.nearby.NearbyHit) = when (h.state?.open) { true -> YOU; false -> Color(0xFFFF4D4D); null -> Color(0xFF8FA9C4) }
+                nearbyHits.asReversed().forEach { h ->
+                    val p = geo(h.place.lat, h.place.lon)
+                    drawCircle(colorOf(h), 7.dp.toPx(), p)
+                    drawCircle(Color.Black, 7.dp.toPx(), p, style = Stroke(1.dp.toPx()))
+                }
+                // the numbers as said, the nearest first, and a name where there is room
+                val taken = ArrayList<android.graphics.RectF>()
+                nearbyHits.forEachIndexed { i, h ->
+                    val p = geo(h.place.lat, h.place.lon)
+                    mapLabel("${i + 1}", Offset(p.x - 3.dp.toPx(), p.y + 4.dp.toPx()), Color.Black, 10, bold = true)
+                    val name = h.place.name ?: return@forEachIndexed
+                    val box = android.graphics.RectF(p.x + 8.dp.toPx(), p.y - 8.dp.toPx(), p.x + 10.dp.toPx() + name.length * 6.dp.toPx(), p.y + 8.dp.toPx())
+                    if (i >= 8 || taken.any { android.graphics.RectF.intersects(it, box) }) return@forEachIndexed
+                    taken += box
+                    mapLabel(name, Offset(p.x + 10.dp.toPx(), p.y + 4.dp.toPx()), colorOf(h), 11, bold = true)
                 }
             }
             // the rivers: blue when green, then yellow, orange, red, thicker as it gets worse
@@ -371,8 +414,8 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                     drawRect(AURORA_COLOR.copy(alpha = (v / 60f).coerceIn(0.06f, 0.85f)), tl, androidx.compose.ui.geometry.Size(br.x - tl.x + 0.5f, br.y - tl.y + 0.5f))
                 }
             }
-            // the cities (more as one zooms in)
-            val minPop = when { zoom < 3 -> Int.MAX_VALUE; zoom < 8 -> 5_000_000; zoom < 25 -> 1_000_000; zoom < 60 -> 400_000; else -> 150_000 }
+            // the cities (more as one zooms in; not among the streets)
+            val minPop = when { nearby -> Int.MAX_VALUE; zoom < 3 -> Int.MAX_VALUE; zoom < 8 -> 5_000_000; zoom < 25 -> 1_000_000; zoom < 60 -> 400_000; else -> 150_000 }
             d.cities.forEach { c ->
                 if (c.population < minPop && !(c.capital && zoom >= 3)) return@forEach
                 val p = geo(c.lat, c.lon)
@@ -437,6 +480,19 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                     best?.let { Text(String.format(Locale.FRANCE, "Le moins cher : %.3f €/L, %s, %s", it.price, it.address, it.city), color = Color(0xFF4DFFB8), style = MaterialTheme.typography.labelMedium) }
                     if (fuelStations.size > 1) Text(String.format(Locale.FRANCE, "De %.3f à %.3f €/L · vert : moins cher, rouge : plus cher", fuelStations.minOf { it.price }, fuelStations.maxOf { it.price }), color = dim, style = MaterialTheme.typography.labelSmall)
                     Text("data.economie.gouv.fr", color = dim, style = MaterialTheme.typography.labelSmall)
+                }
+                mode == SkyModes.NEARBY -> {
+                    val kind = com.jarvis.android.nearby.NearbyMap.kind
+                    val openCount = nearbyHits.count { it.state?.open == true }
+                    val at = java.time.LocalDateTime.now()
+                    Text("${kind.plural} · ${nearbyHits.size} autour, dont $openCount ${if (openCount > 1) kind.openPlural else kind.openWord}", color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    nearbyHits.take(3).forEachIndexed { i, h ->
+                        Text(
+                            "${i + 1}. ${h.place.name ?: kind.singular} · ${com.jarvis.android.nearby.distanceWords(h.distanceM).removePrefix("à ")} · ${com.jarvis.android.nearby.openWords(kind, h, at)}",
+                            color = if (h.state?.open == true) YOU else text, style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                    Text("Vert : ouvert · rouge : fermé · gris : horaires inconnus · © les contributeurs d’OpenStreetMap", color = dim, style = MaterialTheme.typography.labelSmall)
                 }
                 mode == SkyModes.FLOODS -> {
                     val byLevel = floods.groupBy { it.level }

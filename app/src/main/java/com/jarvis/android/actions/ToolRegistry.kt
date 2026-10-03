@@ -102,6 +102,7 @@ object ToolRegistry {
         FindPhoneTool,
         PlaceReminderTool,
         FuelPriceTool,
+        com.jarvis.android.nearby.NearbyTool,
         ParkingTool,
         RainSoonTool,
         BirthdaysTool,
