@@ -145,15 +145,19 @@ internal object RouteWeather {
         }
     }
 
-    suspend fun report(ctx: JarvisContainer, fromLat: Double, fromLon: Double, fromName: String, toLat: Double, toLon: Double, toName: String, startMs: Long): RouteReport? = withContext(Dispatchers.IO) {
+    /** The road from one place to another (OSRM): its line (longitude, latitude pairs, as GeoJSON), its length (km) and time (s). */
+    suspend fun route(ctx: JarvisContainer, fromLat: Double, fromLon: Double, toLat: Double, toLon: Double): Triple<List<Pair<Double, Double>>, Double, Double>? = withContext(Dispatchers.IO) {
         val route = get(ctx, "https://router.project-osrm.org/route/v1/driving/%.5f,%.5f;%.5f,%.5f?overview=full&geometries=geojson".format(Locale.US, fromLon, fromLat, toLon, toLat)) ?: return@withContext null
         val r = ((Json.parseToJsonElement(route) as? JsonObject)?.get("routes") as? JsonArray)?.firstOrNull() as? JsonObject ?: return@withContext null
         val coords = (((r["geometry"] as? JsonObject)?.get("coordinates")) as? JsonArray).orEmpty().mapNotNull { c ->
             val a = c as? JsonArray ?: return@mapNotNull null
             ((a.getOrNull(0) as? JsonPrimitive)?.doubleOrNull ?: return@mapNotNull null) to ((a.getOrNull(1) as? JsonPrimitive)?.doubleOrNull ?: return@mapNotNull null)
         }
-        val km = ((r["distance"] as? JsonPrimitive)?.doubleOrNull ?: 0.0) / 1000
-        val seconds = (r["duration"] as? JsonPrimitive)?.doubleOrNull ?: 0.0
+        Triple(coords, ((r["distance"] as? JsonPrimitive)?.doubleOrNull ?: 0.0) / 1000, (r["duration"] as? JsonPrimitive)?.doubleOrNull ?: 0.0)
+    }
+
+    suspend fun report(ctx: JarvisContainer, fromLat: Double, fromLon: Double, fromName: String, toLat: Double, toLon: Double, toName: String, startMs: Long): RouteReport? = withContext(Dispatchers.IO) {
+        val (coords, km, seconds) = route(ctx, fromLat, fromLon, toLat, toLon) ?: return@withContext null
         val points = samplePoints(coords, seconds, startMs)
         val cities = try { MapData.get(ctx.appContext).cities } catch (_: Exception) { emptyList() }
         val weather = if (points.isEmpty()) emptyList() else {

@@ -61,4 +61,17 @@ class FuelPriceToolTest {
         assertEquals("Aucune station avec du E85 disponible et un prix récent à Lyon.", formatStations(emptyList(), Fuel.E85, "à Lyon", now, null))
         assertTrue(parseStations("""{"total_count":0,"results":[]}""", Fuel.E85).isEmpty())
     }
+
+    @Test
+    fun `points along a road every so many km, and a station's place along it`() {
+        // due north along the meridian: about 111 km a degree
+        val line = (0..200).map { 45.0 + it / 100.0 to 2.0 }
+        val pts = evenPoints(line, 20.0)
+        assertEquals(line.first(), pts.first())
+        assertEquals(line.last(), pts.last())
+        assertTrue(pts.size in 11..13)
+        val (off, along) = alongLine(line, 46.0, 2.03) // 2.3 km east of the road, 111 km from its start
+        assertEquals(2.3, off, 0.2)
+        assertEquals(111.0, along, 1.5)
+    }
 }

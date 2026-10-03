@@ -121,6 +121,8 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1_000) } }
 
     // the ISS and Tiangong (the world map)
+    // fuel stations and their prices (the fuel map)
+    val fuelStations = remember(mode) { if (mode == SkyModes.FUEL) com.jarvis.android.actions.FuelMap.stations.filter { it.latitude != null && it.longitude != null } else emptyList() }
     // the rivers under flood watch (the floods map)
     val floods by produceState<List<com.jarvis.android.weather.FloodSection>>(emptyList(), mode) {
         if (mode == SkyModes.FLOODS) value = com.jarvis.android.weather.Vigilance.lastFloods.ifEmpty { com.jarvis.android.weather.Vigilance.floods(container) }
@@ -195,6 +197,13 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 placed = true
             }
             mode == SkyModes.MAP -> placed = true
+            mode == SkyModes.FUEL && fuelStations.isNotEmpty() -> {
+                val pts = fuelStations.map { it.latitude!! to it.longitude!! } + com.jarvis.android.actions.FuelMap.line + listOfNotNull(com.jarvis.android.actions.FuelMap.origin)
+                val xs = pts.map { mercX(it.second) }
+                val ys = pts.map { mercY(it.first) }
+                cx = (xs.min() + xs.max()) / 2; cy = (ys.min() + ys.max()) / 2 + (ys.max() - ys.min()) * 0.2
+                zoom = (0.8 / maxOf(xs.max() - xs.min(), (ys.max() - ys.min()) * 1.7, 0.0004)).coerceIn(1.0, 3000.0); placed = true
+            }
             mode == SkyModes.FLOODS -> {
                 val c = com.jarvis.android.weather.Vigilance.centre ?: (46.6 to 2.4)
                 cx = mercX(c.second); cy = mercY(c.first - 1.5); zoom = 14.0; placed = true
@@ -277,6 +286,32 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                 drawPath(night, NIGHT)
                 val (sLat, sLon) = subSolar(now)
                 drawCircle(ISS_COLOR, 6.dp.toPx(), geo(sLat, sLon))
+            }
+            // fuel: the road, then each station from green (cheapest) to red, with its price
+            if (fuelStations.isNotEmpty()) {
+                val fl = com.jarvis.android.actions.FuelMap.line
+                if (fl.size > 1) {
+                    val path = Path()
+                    fl.forEachIndexed { i, (lat, lon) -> val p = geo(lat, lon); if (i == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y) }
+                    drawPath(path, Color(0xFF7FD8FF), style = Stroke(3.dp.toPx()))
+                }
+                val lo = fuelStations.minOf { it.price }
+                val hi = fuelStations.maxOf { it.price }.coerceAtLeast(lo + 0.001)
+                fun colorOf(price: Double) = ((price - lo) / (hi - lo)).toFloat().let { f -> Color(0.3f + 0.7f * f, 1f - 0.7f * f, 0.45f - 0.2f * f) }
+                fuelStations.sortedByDescending { it.price }.forEach { s ->
+                    val p = geo(s.latitude!!, s.longitude!!)
+                    drawCircle(colorOf(s.price), 6.dp.toPx(), p)
+                    drawCircle(Color.Black, 6.dp.toPx(), p, style = Stroke(1.dp.toPx()))
+                }
+                // the prices, the cheapest first, none over another
+                val taken = ArrayList<android.graphics.RectF>()
+                fuelStations.sortedBy { it.price }.forEach { s ->
+                    val p = geo(s.latitude!!, s.longitude!!)
+                    val box = android.graphics.RectF(p.x + 6.dp.toPx(), p.y - 8.dp.toPx(), p.x + 50.dp.toPx(), p.y + 8.dp.toPx())
+                    if (taken.any { android.graphics.RectF.intersects(it, box) }) return@forEach
+                    taken += box
+                    mapLabel(String.format(Locale.FRANCE, "%.3f", s.price), Offset(p.x + 8.dp.toPx(), p.y + 4.dp.toPx()), colorOf(s.price), 11, bold = true)
+                }
             }
             // the rivers: blue when green, then yellow, orange, red, thicker as it gets worse
             floods.sortedBy { it.level }.forEach { s ->
@@ -395,6 +430,13 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                     Text("Radar de pluie" + (f?.let { " · " + radarTime(it, now) } ?: " · chargement…"), color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     Text("Beige : pluie faible · bleu : modérée · jaune puis rouge : forte · les 2 dernières heures en boucle", color = dim, style = MaterialTheme.typography.labelSmall)
                     Text("Radar : RainViewer · Carte : Natural Earth", color = dim, style = MaterialTheme.typography.labelSmall)
+                }
+                mode == SkyModes.FUEL -> {
+                    val best = fuelStations.minByOrNull { it.price }
+                    Text("${com.jarvis.android.actions.FuelMap.fuel.label} · ${fuelStations.size} stations", color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    best?.let { Text(String.format(Locale.FRANCE, "Le moins cher : %.3f €/L, %s, %s", it.price, it.address, it.city), color = Color(0xFF4DFFB8), style = MaterialTheme.typography.labelMedium) }
+                    if (fuelStations.size > 1) Text(String.format(Locale.FRANCE, "De %.3f à %.3f €/L · vert : moins cher, rouge : plus cher", fuelStations.minOf { it.price }, fuelStations.maxOf { it.price }), color = dim, style = MaterialTheme.typography.labelSmall)
+                    Text("data.economie.gouv.fr", color = dim, style = MaterialTheme.typography.labelSmall)
                 }
                 mode == SkyModes.FLOODS -> {
                     val byLevel = floods.groupBy { it.level }

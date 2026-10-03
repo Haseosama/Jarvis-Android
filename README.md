@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.57 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.58 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1228,6 +1228,13 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Fuel on the map and along a drive** (since 0.9.58; `prix_carburant`, `actions/FuelPriceTool.kt`). The stations found are now shown
+  on the map in place of the face, from green (the cheapest) to red, each with its price (the cheapest first, none written over
+  another). `trajet` (a destination): the cheapest stations within 3 km of the road from where the user is (or `ville`) to there, the
+  road coming from OSRM like the drive's weather: the government's feed is asked with circles every 10 km along it (60 at most), and
+  each station is kept by its distance to the road, told with how far along it is ("au km 396, à 2,8 km de la route"); the road is
+  drawn on the map with them. *Checked:* on the emulator, diesel from Paris to Lyon (465 km, the stations along the A6 drawn, the
+  cheapest at 2,250 €/L), SP95 within 5 km of Paris; the points along a road and a station's place on it by unit tests.
 - **Electricity: Tempo and EcoWatt** (since 0.9.57; `electricity`, `energy/Energy.kt`, Settings > *Électricité*). The Tempo day's
   colour for today and tomorrow (blue, white, red: EDF's Tempo price from 6 a.m. to 10 p.m.) from api-couleur-tempo.fr (free, no key,
   fed by RTE's publication; tomorrow's colour comes out about 11 a.m.), the red and white days left in the season, and what to put

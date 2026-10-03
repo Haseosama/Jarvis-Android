@@ -131,11 +131,13 @@ object FuelPriceTool : Tool {
     override val description =
         "Les stations les moins chères pour un carburant, en France (données officielles en direct). carburant : gazole/diesel, SP95, SP98, E10, " +
             "E85/éthanol, GPL — tel que dit par l'utilisateur. ville : une ville ou un code postal ; vide ou « ici » pour autour de la position du téléphone. " +
-            "Ne garde que les stations qui ont vraiment ce carburant et un prix récent."
+            "trajet : une destination, pour les moins chères le long de la route (à moins de 3 km). Ne garde que les stations qui ont vraiment ce " +
+            "carburant et un prix récent. Les stations s'affichent sur la carte à la place du visage, du vert (moins cher) au rouge."
     override val parameters = objectSchema(required = listOf("carburant")) {
         string("carburant", "Le carburant tel que dit : gazole, diesel, SP95, sans plomb 98, E10, E85, GPL…")
         string("ville", "Une ville ou un code postal ; vide ou « ici » pour autour de la position du téléphone.")
         integer("rayon_km", "Autour de la position : rayon en km, 1 à 30 (défaut 5).")
+        string("trajet", "Une destination : les stations les moins chères à moins de 3 km de la route, de la position (ou de ville) jusqu'à elle.")
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String = withContext(Dispatchers.IO) {
@@ -143,6 +145,7 @@ object FuelPriceTool : Tool {
             ?: return@withContext "Carburant inconnu : dites gazole, SP95, SP98, E10, E85 ou GPL."
         val cityArg = args.stringArg("ville").trim()
         val now = Instant.now()
+        args.stringArg("trajet").trim().takeIf { it.isNotEmpty() }?.let { return@withContext alongRoute(ctx, fuel, cityArg, it, now) }
         val here = com.jarvis.android.weather.isHereRequest(cityArg)
         var origin: Pair<Double, Double>? = null
         val where: String
@@ -176,6 +179,7 @@ object FuelPriceTool : Tool {
                 r.body?.string().orEmpty()
             }
             val ranked = rankStations(parseStations(body, fuel), fuel, now, if (here) null else cityArg, origin)
+            showFuelMap(ctx, ranked.take(30), fuel, null, origin)
             formatStations(ranked, fuel, where, now, origin)
         } catch (e: CancellationException) {
             throw e
@@ -185,4 +189,79 @@ object FuelPriceTool : Tool {
             "Prix des carburants indisponibles : réponse du service inexploitable."
         }
     }
+}
+
+/** What the fuel map shows: the stations, the fuel, the route when there is one, where the user is. */
+internal object FuelMap {
+    @Volatile var stations: List<Station> = emptyList()
+    @Volatile var fuel: Fuel = Fuel.GAZOLE
+    @Volatile var line: List<Pair<Double, Double>> = emptyList()
+    @Volatile var origin: Pair<Double, Double>? = null
+}
+
+private fun showFuelMap(ctx: JarvisContainer, stations: List<Station>, fuel: Fuel, line: List<Pair<Double, Double>>?, origin: Pair<Double, Double>?) {
+    if (stations.none { it.latitude != null }) return
+    FuelMap.stations = stations; FuelMap.fuel = fuel; FuelMap.line = line.orEmpty(); FuelMap.origin = origin
+    ctx.videoPanel.show(com.jarvis.android.video.VideoPanel.Video(title = "Prix ${fuel.label}", sky = com.jarvis.android.space.SkyModes.FUEL))
+}
+
+/** A station's distance to a line of points (latitude, longitude), and how far along it (km from its start). */
+internal fun alongLine(line: List<Pair<Double, Double>>, lat: Double, lon: Double): Pair<Double, Double> {
+    var best = Double.MAX_VALUE
+    var at = 0.0
+    var run = 0.0
+    line.forEachIndexed { i, p ->
+        if (i > 0) run += distanceKm(line[i - 1].first, line[i - 1].second, p.first, p.second)
+        val d = distanceKm(lat, lon, p.first, p.second)
+        if (d < best) { best = d; at = run }
+    }
+    return best to at
+}
+
+/** Points of a line (latitude, longitude) every [stepKm], its ends included. */
+internal fun evenPoints(line: List<Pair<Double, Double>>, stepKm: Double): List<Pair<Double, Double>> {
+    if (line.isEmpty()) return emptyList()
+    val out = arrayListOf(line.first())
+    var run = 0.0
+    for (i in 1 until line.size) {
+        run += distanceKm(line[i - 1].first, line[i - 1].second, line[i].first, line[i].second)
+        if (run >= stepKm) { out += line[i]; run = 0.0 }
+    }
+    if (out.last() != line.last()) out += line.last()
+    return out
+}
+
+/** The cheapest stations along a road: asked by circles every 20 km or so along it, kept within 3 km of it. */
+private suspend fun alongRoute(ctx: JarvisContainer, fuel: Fuel, fromWords: String, toWords: String, now: Instant): String {
+    val to = com.jarvis.android.driving.RouteWeather.geocode(ctx, toWords) ?: return "Je ne trouve pas « $toWords »."
+    val from = if (fromWords.isNotEmpty() && !com.jarvis.android.weather.isHereRequest(fromWords)) com.jarvis.android.driving.RouteWeather.geocode(ctx, fromWords) ?: return "Je ne trouve pas « $fromWords »."
+    else (com.jarvis.android.weather.locate(ctx.appContext) as? com.jarvis.android.weather.LocationOutcome.Found)?.let { Triple(it.fix.latitude, it.fix.longitude, com.jarvis.android.weather.positionLabel(it.place)) }
+        ?: return "Je n'ai pas votre position : dites d'où vous partez."
+    val (coords, km, _) = com.jarvis.android.driving.RouteWeather.route(ctx, from.first, from.second, to.first, to.second) ?: return "Itinéraire indisponible pour le moment."
+    val line = coords.map { it.second to it.first }
+    // a point every 10 km (60 at most), each asked with a circle that reaches the next one and 3 km beyond the road
+    val step = maxOf(10.0, km / 60)
+    val samples = evenPoints(line, step)
+    val radius = (step / 2 + 3).toInt() + 1
+    val circles = samples.joinToString(" or ") { "within_distance(geom, geom'POINT(${"%.5f".format(Locale.ROOT, it.second)} ${"%.5f".format(Locale.ROOT, it.first)})', ${radius}km)" }
+    val url = FUEL_DATASET.toHttpUrl().newBuilder()
+        .addQueryParameter("where", "($circles) and ${fuel.priceField} is not null")
+        .addQueryParameter("order_by", fuel.priceField)
+        .addQueryParameter("limit", "100")
+        .addQueryParameter("select", "adresse,ville,cp,geom,carburants_indisponibles,${fuel.priceField},${fuel.dateField}")
+        .build()
+    val body = withContext(Dispatchers.IO) {
+        try { ctx.http.newCall(Request.Builder().url(url).build()).execute().use { if (it.isSuccessful) it.body?.string() else null } } catch (_: IOException) { null }
+    } ?: return "Prix des carburants indisponibles pour le moment."
+    val near = rankStations(parseStations(body, fuel), fuel, now, null, null).mapNotNull { s ->
+        if (s.latitude == null || s.longitude == null) return@mapNotNull null
+        val (off, along) = alongLine(line, s.latitude, s.longitude)
+        if (off > 3.0) null else Triple(s, off, along)
+    }
+    if (near.isEmpty()) return "Aucune station avec du ${fuel.label} à moins de 3 km de la route ${from.third} → ${to.third}."
+    showFuelMap(ctx, near.map { it.first }.take(30), fuel, line, from.first to from.second)
+    return "${fuel.label} le moins cher sur la route ${from.third} → ${to.third} (${km.toInt()} km), à moins de 3 km de la route :\n" +
+        near.take(4).mapIndexed { i, (s, off, along) ->
+            "${i + 1}. ${String.format(Locale.FRANCE, "%.3f", s.price)} €/L — ${s.address}, ${s.postcode} ${s.city}, au km ${along.toInt()} (à ${String.format(Locale.FRANCE, "%.1f", off)} km de la route, prix mis à jour ${ageLabel(s.updated, now)})"
+        }.joinToString("\n") + "\n(Source : data.economie.gouv.fr ; la carte les montre à la place du visage.)"
 }
