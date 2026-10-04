@@ -220,7 +220,7 @@ internal fun ArSkyView(big: Boolean, target: String? = null, modifier: Modifier 
     val sats by produceState<List<Pair<Tle, Sgp4>>>(emptyList()) {
         value = withContext(Dispatchers.Default) {
             try {
-                (SatelliteTool.orbits(container, "stations") + SatelliteTool.orbits(container, "visual")).distinctBy { it.number }.map { it to Sgp4(it) }.filter { it.second.nearEarth }
+                (SatelliteTool.orbits(container, "stations") + SatelliteTool.orbits(container, "visual")).distinctBy { it.number }.map { it to Sgp4(it) }
             } catch (_: Exception) {
                 emptyList()
             }

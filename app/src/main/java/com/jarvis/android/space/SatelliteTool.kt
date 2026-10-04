@@ -89,7 +89,8 @@ object SatelliteTool : Tool {
         "Les satellites autour de l’utilisateur. action « above » : ceux au-dessus de lui maintenant (combien, dont les Starlink, les " +
             "plus brillants avec leur hauteur et leur direction, et s’ils sont visibles à l’œil nu) ; « passes » : les prochains passages " +
             "d’un satellite (name, l’ISS par défaut) sur 3 jours, avec l’heure, la hauteur, d’où vers où, et s’il sera visible ; « where » : " +
-            "où il est maintenant (au-dessus de quel point, altitude, vitesse, distance). Pour « quand passe l’ISS ? », « quels satellites " +
+            "où il est maintenant (au-dessus de quel point, altitude, vitesse, distance) ; passes et where marchent aussi pour les satellites " +
+            "lointains (GPS, Galileo, géostationnaires comme Meteosat ou Astra). Pour « quand passe l’ISS ? », « quels satellites " +
             "au-dessus de moi ? », « où est la station spatiale ? ». « alert » : prévenir 5 minutes avant le prochain passage VISIBLE (name, " +
             "voice = true pour le dire à voix haute aussi, repeat = true pour chaque passage visible) ; « alert_off » : ne plus prévenir ; " +
             "« alert_show » : l’alerte réglée."
@@ -97,7 +98,7 @@ object SatelliteTool : Tool {
         string("action", "above, passes, where, alert, alert_off ou alert_show.")
         string("voice", "Pour alert : « true » pour aussi le dire à voix haute.")
         string("repeat", "Pour alert : « true » pour chaque passage visible, pas seulement le prochain.")
-        string("name", "Pour passes et where : le satellite (ISS par défaut, Tiangong, Hubble…).")
+        string("name", "Pour passes et where : le satellite (ISS par défaut, Tiangong, Hubble, un GPS, Galileo, Meteosat…).")
     }
 
     private const val CELESTRAK = "https://celestrak.org/NORAD/elements/gp.php?FORMAT=tle&GROUP="
@@ -128,12 +129,13 @@ object SatelliteTool : Tool {
                         com.jarvis.android.photos.dayWords(it.toLocalDate(), false) + " à " + "%02dh%02d".format(it.hour, it.minute)
                     } + "."
                 } ?: "Aucune alerte de passage n’est réglée."
-                "where", "ou" -> where(ctx, find(bright, wanted) ?: return@withContext notFound(wanted))
+                "where", "ou" -> where(ctx, findAnywhere(ctx, bright, wanted) ?: return@withContext notFound(wanted))
                 "passes", "passages" -> {
                     val o = observer(ctx) ?: return@withContext positionMissing(ctx)
-                    val tle = find(bright, wanted) ?: return@withContext notFound(wanted)
-                    val list = passes(Sgp4(tle), o, System.currentTimeMillis()).take(6)
-                    if (list.isEmpty()) return@withContext "${friendlyName(tle.name).replaceFirstChar { it.uppercase() }} ne passe pas assez haut au-dessus de vous dans les 3 jours."
+                    val tle = findAnywhere(ctx, bright, wanted) ?: return@withContext notFound(wanted)
+                    val sgp = Sgp4(tle)
+                    val list = passes(sgp, o, System.currentTimeMillis()).take(6)
+                    if (list.isEmpty()) return@withContext noPass(tle, sgp, o, System.currentTimeMillis())
                     "Prochains passages de ${friendlyName(tle.name)} au-dessus de vous (hauteur 10° ou plus) :\n" +
                         list.joinToString("\n") { p ->
                             "- ${whenWords(p.riseMs)} à ${time(p.riseMs)} : ${fromDirection(p.riseAzimuth)} ${towardDirection(p.setAzimuth)}, " +
@@ -155,7 +157,32 @@ object SatelliteTool : Tool {
         }
     }
 
-    private fun notFound(name: String) = "Je ne connais pas le satellite « $name » : essayez ISS, Tiangong ou Hubble."
+    private fun notFound(name: String) = "Je ne connais pas le satellite « $name » : essayez ISS, Tiangong, Hubble, un GPS, Galileo ou Meteosat."
+
+    /** Why [tle] has no pass to tell over [o]: it never rises there, or (a geostationary one, a high orbit) it never sets. */
+    internal fun noPass(tle: Tle, sgp: Sgp4, o: Observer, now: Long): String {
+        val name = friendlyName(tle.name).replaceFirstChar { it.uppercase() }
+        val looks = (0..24).mapNotNull { h -> val at = now + h * 3_600_000L; sgp.at(at)?.let { s -> lookAt(o, temeToEcef(s.x, s.y, s.z, at)) } }
+        if (looks.isEmpty()) return "La position de ${friendlyName(tle.name)} ne peut pas être calculée (orbite trop ancienne)."
+        val low = looks.minOf { it.elevationDeg }
+        val high = looks.maxOf { it.elevationDeg }
+        val l = looks.first()
+        return when {
+            low > 0 && high - low < 2 -> "$name ne se lève ni ne se couche chez vous : il reste presque immobile dans le ciel, à ${l.elevationDeg.toInt()}° " +
+                "au-dessus de l’horizon ${towardDirection(l.azimuthDeg)}, à ${"%,d".format(l.rangeKm.toInt())} km (orbite géostationnaire). Trop loin pour être vu à l’œil nu."
+            low > 0 -> "$name reste au-dessus de l’horizon chez vous toute la journée : en ce moment à ${l.elevationDeg.toInt()}° ${towardDirection(l.azimuthDeg)}."
+            high < 0 -> "$name ne se lève jamais chez vous : il reste sous l’horizon."
+            else -> "$name ne passe pas assez haut au-dessus de vous dans les 3 jours."
+        }
+    }
+
+    /** [find] among the bright ones, then among the navigation (GPS, Galileo…) and geostationary satellites when a name is given. */
+    private suspend fun findAnywhere(ctx: JarvisContainer, bright: List<Tle>, name: String): Tle? =
+        find(bright, name) ?: if (name.isBlank()) null else try {
+            find(orbits(ctx, "gnss") + orbits(ctx, "geo"), name)
+        } catch (_: IOException) {
+            null
+        }
 
     private fun positionMissing(ctx: JarvisContainer) =
         "Je n’ai pas votre position : autorisez la position pour Jarvis (Paramètres > Position (météo)), ou dites au-dessus de quelle ville regarder."
@@ -179,15 +206,13 @@ object SatelliteTool : Tool {
         val now = System.currentTimeMillis()
         val dark = sunElevation(o, now) < -6
         val seen = bright.distinctBy { it.number }.mapNotNull { tle ->
-            val sgp = Sgp4(tle).takeIf { it.nearEarth } ?: return@mapNotNull null
-            val s = sgp.at(now) ?: return@mapNotNull null
+            val s = Sgp4(tle).at(now) ?: return@mapNotNull null
             val l = lookAt(o, temeToEcef(s.x, s.y, s.z, now))
             if (l.elevationDeg > 0) Triple(tle, l, sunlit(s, now)) else null
         }.sortedByDescending { it.second.elevationDeg }
         val starlink = try {
             orbits(ctx, "starlink").count { tle ->
-                val sgp = Sgp4(tle)
-                sgp.nearEarth && (sgp.at(now)?.let { s -> lookAt(o, temeToEcef(s.x, s.y, s.z, now)).elevationDeg > 0 } ?: false)
+                (Sgp4(tle).at(now)?.let { s -> lookAt(o, temeToEcef(s.x, s.y, s.z, now)).elevationDeg > 0 } ?: false)
             }
         } catch (_: IOException) {
             -1
@@ -209,7 +234,8 @@ object SatelliteTool : Tool {
         val (lat, lon, alt) = subPoint(ecef)
         val speed = sqrt(s.vx * s.vx + s.vy * s.vy + s.vz * s.vz) * 3600
         return "${friendlyName(tle.name).replaceFirstChar { it.uppercase() }} est en ce moment au-dessus du point ${"%.1f".format(lat)}° de latitude, " +
-            "${"%.1f".format(lon)}° de longitude (dites le pays ou l’océan si vous le savez), à ${alt.toInt()} km d’altitude, à ${"%,d".format(speed.toInt())} km/h, " +
+            "${"%.1f".format(lon)}° de longitude (dites le pays ou l’océan si vous le savez), à ${"%,d".format(alt.toInt())} km d’altitude, à ${"%,d".format(speed.toInt())} km/h, " +
+            (if (tle.periodMin in 1_400.0..1_480.0 && tle.inclination < 5 * Math.PI / 180) "en orbite géostationnaire (il reste au-dessus du même point de l’équateur), " else "") +
             (if (sunlit(s, now)) "éclairée par le Soleil." else "dans l’ombre de la Terre.")
     }
 

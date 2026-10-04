@@ -167,7 +167,7 @@ internal fun SkyView(mode: String, big: Boolean, modifier: Modifier = Modifier) 
         value = withContext(Dispatchers.Default) {
             try {
                 (SatelliteTool.orbits(container, "stations") + SatelliteTool.orbits(container, "visual")).distinctBy { it.number }
-                    .map { it to Sgp4(it) }.filter { it.second.nearEarth }
+                    .map { it to Sgp4(it) }
             } catch (_: Exception) {
                 emptyList()
             }
@@ -176,7 +176,7 @@ internal fun SkyView(mode: String, big: Boolean, modifier: Modifier = Modifier) 
     val starlinks by produceState<List<Sgp4>>(emptyList(), showSats, passTarget) {
         if (!showSats || passTarget != null) return@produceState
         value = withContext(Dispatchers.Default) {
-            try { SatelliteTool.orbits(container, "starlink").map { Sgp4(it) }.filter { it.nearEarth } } catch (_: Exception) { emptyList() }
+            try { SatelliteTool.orbits(container, "starlink").map { Sgp4(it) } } catch (_: Exception) { emptyList() }
         }
     }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
