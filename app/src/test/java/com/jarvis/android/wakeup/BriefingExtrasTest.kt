@@ -20,6 +20,11 @@ class BriefingExtrasTest {
         assertEquals("fusees", sectionKey("fusées"))
         assertEquals("depenses", sectionKey("prélèvements"))
         assertEquals("iss", sectionKey("la station spatiale"))
+        assertEquals("pollen", sectionKey("les pollens"))
+        assertEquals("pollen", sectionKey("alertes pollen"))
+        assertEquals("pollen", sectionKey("la qualité de l’air"))
+        assertEquals("pollen", sectionKey("l'air"))
+        assertEquals("vigilance", sectionKey("les vigilances"))
         assertNull(sectionKey("n'importe quoi"))
         assertNull(sectionKey(""))
     }

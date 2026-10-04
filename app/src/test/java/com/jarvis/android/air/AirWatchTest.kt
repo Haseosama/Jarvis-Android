@@ -44,6 +44,23 @@ class AirWatchTest {
         assertNull(airAlertWords("""{"current":{"european_aqi":30,"grass_pollen":10.0}}""", 60, emptySet()))
     }
 
+    @Test fun `the briefing tells today's pollens from moderate and bad air`() {
+        val json = """{"hourly":{"time":["2026-09-29T06:00","2026-09-29T12:00","2026-09-29T18:00","2026-09-30T12:00"],
+            "european_aqi":[95,72,38,22],"grass_pollen":[300,60,10,500],"birch_pollen":[0,0,0,0],"mugwort_pollen":[0,12,4,0],"ragweed_pollen":[null,null,null,null]}}"""
+        val day = LocalDate.of(2026, 9, 29)
+        assertEquals("risque pollen aujourd’hui : graminées élevé, armoise moyen, air mauvais au pire (indice 72)", airBriefingWords(json, day))
+        assertEquals("risque pollen aujourd’hui : armoise moyen, air mauvais au pire (indice 72)", airBriefingWords(json, day, setOf("mugwort_pollen", "birch_pollen")))
+        // 6 h is outside the day's hours; tomorrow's figures are not today's
+        assertEquals("risque pollen aujourd’hui : graminées très élevé", airBriefingWords(json, LocalDate.of(2026, 9, 30)))
+    }
+
+    @Test fun `a clean day says nothing in the briefing`() {
+        val json = """{"hourly":{"time":["2026-09-29T09:00","2026-09-29T15:00"],"european_aqi":[25,40],"grass_pollen":[3,12]}}"""
+        assertNull(airBriefingWords(json, LocalDate.of(2026, 9, 29)))
+        assertNull(airBriefingWords(json, LocalDate.of(2026, 10, 2)))
+        assertNull(airBriefingWords("""{"error":true}""", LocalDate.of(2026, 9, 29)))
+    }
+
     @Test fun `the grid of many places`() {
         val cells = parseAirGrid("""[{"latitude":48.8,"longitude":2.4,"current":{"european_aqi":32}},{"latitude":49.1,"longitude":2.9,"current":{"european_aqi":null}}]""")
         assertEquals(listOf(AirCell(48.8, 2.4, 32)), cells)
