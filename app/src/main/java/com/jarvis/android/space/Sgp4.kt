@@ -12,9 +12,10 @@ import kotlin.math.sqrt
 
 /*
  * Where a satellite is, from its published orbit (a "two-line element set", as CelesTrak gives them): the SGP4 model the orbits are
- * made for (Vallado, Crawford, Hujsak and Kelso, "Revisiting Spacetrack Report #3", 2006), near-Earth part only: satellites that go
- * round in less than 225 minutes (the ISS, Hubble, Starlink, most of the ones seen by eye). Then, for a place on Earth: how high in
- * the sky and in which direction, whether the Sun lights it, and whether the sky is dark enough to see it.
+ * made for (Vallado, Crawford, Hujsak and Kelso, "Revisiting Spacetrack Report #3", 2006): near-Earth for the satellites that go
+ * round in less than 225 minutes (the ISS, Hubble, Starlink, most of the ones seen by eye), with the deep-space terms of Sdp4.kt for
+ * the others (GPS, geostationary). Then, for a place on Earth: how high in the sky and in which direction, whether the Sun lights it,
+ * and whether the sky is dark enough to see it.
  */
 
 private const val TWO_PI = 2 * PI
@@ -87,7 +88,7 @@ internal fun parseTle(name: String, l1: String, l2: String): Tle? = try {
 /** A position and velocity in the TEME frame, in km and km/s. */
 internal data class StateVector(val x: Double, val y: Double, val z: Double, val vx: Double, val vy: Double, val vz: Double)
 
-/** SGP4 for one near-Earth satellite (its period under 225 minutes); [propagate] gives where it is so many minutes after its epoch. */
+/** SGP4 for one satellite; [propagate] gives where it is so many minutes after its epoch. */
 internal class Sgp4(private val tle: Tle) {
     private val ecco = tle.eccentricity
     private val inclo = tle.inclination
@@ -121,9 +122,11 @@ internal class Sgp4(private val tle: Tle) {
     private val mdot: Double
     private val nodecf: Double
     private val nodedot: Double
+    /** The Moon's and Sun's terms, for an orbit of 225 minutes or more. */
+    private val deep: DeepSpace?
 
-    /** False for a deep-space orbit (12 h, 24 h), which this near-Earth model would place wrongly. */
-    val nearEarth: Boolean = tle.periodMin < 225.0
+    /** False for a deep-space orbit (12 h, 24 h), placed with the Moon's and the Sun's pulls added. */
+    val nearEarth: Boolean get() = deep == null
 
     init {
         // the mean motion without the Kozai correction, and the semi-major axis
@@ -148,7 +151,8 @@ internal class Sgp4(private val tle: Tle) {
 
         var sfour = 78 / RE + 1
         var qzms24 = ((120 - 78) / RE).pow(4)
-        isimp = rp < 220 / RE + 1
+        val deepSpace = TWO_PI / no >= 225.0
+        isimp = deepSpace || rp < 220 / RE + 1
         val perige = (rp - 1) * RE
         if (perige < 156) {
             sfour = if (perige < 98) 20.0 else perige - 78
@@ -189,6 +193,9 @@ internal class Sgp4(private val tle: Tle) {
         delmo = (1 + eta * cos(mo)).pow(3)
         sinmao = sin(mo)
         x7thm1 = 7 * cosio2 - 1
+        deep = if (!deepSpace) null else DeepSpace(
+            julian(tle.epochMs) - 2433281.5, ecco, inclo, nodeo, argpo, mo, no, mdot, argpdot, nodedot, gmst(tle.epochMs), XKE,
+        )
         if (!isimp) {
             val cc1sq = cc1 * cc1
             d2 = 4 * ao * tsi * cc1sq
@@ -227,28 +234,59 @@ internal class Sgp4(private val tle: Tle) {
             tempe += bstar * cc5 * (sin(mm) - sinmao)
             templ += t3cof * t3 + t4 * (t4cof + t * t5cof)
         }
-        val am = (XKE / no).pow(2.0 / 3.0) * tempa * tempa
-        val nm = XKE / am.pow(1.5)
-        var em = ecco - tempe
+        var nm = no
+        var em = ecco
+        var inclm = inclo
+        if (deep != null) {
+            val d = deep.secular(t, mm, argpm, nodem)
+            em = d.em; argpm = d.argpm; inclm = d.inclm; mm = d.mm; nodem = d.nodem; nm = d.nm
+        }
+        if (nm <= 0) return null
+        val am = (XKE / nm).pow(2.0 / 3.0) * tempa * tempa
+        nm = XKE / am.pow(1.5)
+        em -= tempe
         if (em >= 1.0 || em < -0.001 || am < 0.95) return null
         if (em < 1.0e-6) em = 1.0e-6
         mm += no * templ
         var xlm = mm + argpm + nodem
-        nodem = mod2pi(nodem)
-        argpm = mod2pi(argpm)
-        xlm = mod2pi(xlm)
-        mm = mod2pi(xlm - argpm - nodem)
+        nodem %= TWO_PI
+        argpm %= TWO_PI
+        xlm %= TWO_PI
+        mm = (xlm - argpm - nodem) % TWO_PI
+
+        // the Moon's and the Sun's periodic pulls, for a deep-space orbit
+        var ep = em
+        var xincp = inclm
+        var argpp = argpm
+        var nodep = nodem
+        var mp = mm
+        var aycof = aycof
+        var xlcof = xlcof
+        if (deep != null) {
+            val p = deep.periodic(t, ep, xincp, nodep, argpp, mp)
+            ep = p.ep; xincp = p.inclp; nodep = p.nodep; argpp = p.argpp; mp = p.mp
+            if (xincp < 0) {
+                xincp = -xincp
+                nodep += PI
+                argpp -= PI
+            }
+            if (ep < 0 || ep > 1) return null
+            val s = sin(xincp)
+            val c = cos(xincp)
+            aycof = -0.5 * J3OJ2 * s
+            xlcof = -0.25 * J3OJ2 * s * (3 + 5 * c) / (if (abs(c + 1) > 1.5e-12) 1 + c else 1.5e-12)
+        }
 
         // long-period periodics
-        val sinip = sin(inclo)
-        val cosip = cos(inclo)
-        val axnl = em * cos(argpm)
-        var temp = 1 / (am * (1 - em * em))
-        val aynl = em * sin(argpm) + temp * aycof
-        val xl = mm + argpm + nodem + temp * xlcof * axnl
+        val sinip = sin(xincp)
+        val cosip = cos(xincp)
+        val axnl = ep * cos(argpp)
+        var temp = 1 / (am * (1 - ep * ep))
+        val aynl = ep * sin(argpp) + temp * aycof
+        val xl = mp + argpp + nodep + temp * xlcof * axnl
 
         // Kepler's equation
-        val u = mod2pi(xl - nodem)
+        val u = (xl - nodep) % TWO_PI
         var eo1 = u
         var tem5 = 9999.9
         var ktr = 1
@@ -283,10 +321,19 @@ internal class Sgp4(private val tle: Tle) {
         temp = 1 / pl
         val temp1 = 0.5 * J2 * temp
         val temp2 = temp1 * temp
+        var con41 = con41
+        var x1mth2 = x1mth2
+        var x7thm1 = x7thm1
+        if (deep != null) {
+            val cosisq = cosip * cosip
+            con41 = 3 * cosisq - 1
+            x1mth2 = 1 - cosisq
+            x7thm1 = 7 * cosisq - 1
+        }
         val mrt = rl * (1 - 1.5 * temp2 * betal * con41) + 0.5 * temp1 * x1mth2 * cos2u
         su -= 0.25 * temp2 * x7thm1 * sin2u
-        val xnode = nodem + 1.5 * temp2 * cosip * sin2u
-        val xinc = inclo + 1.5 * temp2 * cosip * sinip * cos2u
+        val xnode = nodep + 1.5 * temp2 * cosip * sin2u
+        val xinc = xincp + 1.5 * temp2 * cosip * sinip * cos2u
         val mvt = rdotl - nm * temp1 * x1mth2 * sin2u / XKE
         val rvdot = rvdotl + nm * temp1 * (x1mth2 * cos2u + 1.5 * con41) / XKE
         if (mrt < 1) return null
