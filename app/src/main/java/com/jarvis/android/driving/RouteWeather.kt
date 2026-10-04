@@ -1,13 +1,13 @@
 package com.jarvis.android.driving
 
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.distanceKm
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
-import com.jarvis.android.space.MapData
-import com.jarvis.android.space.SkyModes
-import com.jarvis.android.space.nearestCity
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.location.distanceKm
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.location.MapData
+import com.jarvis.android.video.SkyModes
+import com.jarvis.android.location.nearestCity
 import com.jarvis.android.video.VideoPanel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -205,7 +205,7 @@ object RouteWeatherTool : Tool {
         val to = RouteWeather.geocode(ctx, args.stringArg("to").trim()) ?: return "Je ne trouve pas « ${args.stringArg("to")} »."
         val fromWords = args.stringArg("from").trim()
         val from = if (fromWords.isNotEmpty()) RouteWeather.geocode(ctx, fromWords) ?: return "Je ne trouve pas « $fromWords »."
-        else (com.jarvis.android.weather.locate(ctx.appContext) as? com.jarvis.android.weather.LocationOutcome.Found)?.let { Triple(it.fix.latitude, it.fix.longitude, it.place ?: "votre position") }
+        else (com.jarvis.android.location.locate(ctx.appContext) as? com.jarvis.android.location.LocationOutcome.Found)?.let { Triple(it.fix.latitude, it.fix.longitude, it.place ?: "votre position") }
             ?: return "Je n’ai pas votre position : dites d’où vous partez."
         val start = departureMs(args.stringArg("depart"))
         val r = RouteWeather.report(ctx, from.first, from.second, from.third, to.first, to.second, to.third, start)

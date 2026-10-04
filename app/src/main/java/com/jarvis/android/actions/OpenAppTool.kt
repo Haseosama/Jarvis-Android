@@ -3,6 +3,9 @@ package com.jarvis.android.actions
 import android.content.Intent
 import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Launch an installed app by name — Android port of `actions/open_app.py`. */
 object OpenAppTool : Tool {
@@ -23,10 +26,10 @@ object OpenAppTool : Tool {
                 if (launchIntent != null) label to launchIntent else null
             }
 
-        val wanted = com.jarvis.android.offline.normalize(query)
-        val exact = launchable.firstOrNull { it.first.equals(query, ignoreCase = true) || com.jarvis.android.offline.normalize(it.first) == wanted }
+        val wanted = com.jarvis.android.text.normalize(query)
+        val exact = launchable.firstOrNull { it.first.equals(query, ignoreCase = true) || com.jarvis.android.text.normalize(it.first) == wanted }
         val partial = exact ?: launchable.firstOrNull { it.first.contains(query, ignoreCase = true) }
-            ?: launchable.firstOrNull { com.jarvis.android.offline.normalize(it.first).contains(wanted) }
+            ?: launchable.firstOrNull { com.jarvis.android.text.normalize(it.first).contains(wanted) }
 
         if (partial == null) return "No app matching '$query' is installed."
         val intent = partial.second.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }

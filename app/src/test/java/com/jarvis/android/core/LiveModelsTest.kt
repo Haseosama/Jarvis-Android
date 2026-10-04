@@ -4,6 +4,7 @@ import com.jarvis.android.rest.ModelLadder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import com.jarvis.android.engine.LiveModels
 
 class LiveModelsTest {
     @Test fun `a session refused for quota or a missing model moves to the next Live model`() {

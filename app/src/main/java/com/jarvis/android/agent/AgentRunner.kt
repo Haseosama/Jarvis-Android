@@ -3,10 +3,10 @@ package com.jarvis.android.agent
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.ToolRegistry
-import com.jarvis.android.core.buildSystemInstruction
+import com.jarvis.android.registry.ToolRegistry
+import com.jarvis.android.engine.buildSystemInstruction
 import com.jarvis.android.rest.RestChatException
-import com.jarvis.android.rest.RestChatSession
+import com.jarvis.android.engine.RestChatSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

@@ -4,6 +4,8 @@ import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 
 /** Hands a multi-step request to the background agent. */
 object AgentTool : Tool {

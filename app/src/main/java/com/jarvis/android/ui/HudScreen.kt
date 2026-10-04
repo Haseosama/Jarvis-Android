@@ -165,7 +165,7 @@ internal fun HudScreen(
                     Modifier.fillMaxWidth().padding(top = 2.dp)
                         .onGloballyPositioned { videoSlot = it.boundsInRoot() },
                 ) {
-                    Spacer(Modifier.height(com.jarvis.android.video.VIDEO_HEADER))
+                    Spacer(Modifier.height(com.jarvis.android.ui.VIDEO_HEADER))
                     Spacer(Modifier.fillMaxWidth().padding(horizontal = 8.dp).aspectRatio(com.jarvis.android.video.panelRatio(playing)))
                 }
             } else if (avatar != null) {
@@ -310,7 +310,7 @@ internal fun HudScreen(
             val place = if (bigVideo || slot == null) Modifier.fillMaxSize() else with(density) {
                 Modifier.offset { androidx.compose.ui.unit.IntOffset(slot.left.roundToInt(), slot.top.roundToInt()) }.size(slot.width.toDp(), slot.height.toDp())
             }
-            com.jarvis.android.video.VideoPlayerView(
+            com.jarvis.android.ui.VideoPlayerView(
                 videoPanel, playing, place, big = bigVideo, pip = pip,
                 face = avatar?.let { a -> { com.jarvis.android.avatar.AvatarView(a, state, outputLevel, Modifier.fillMaxSize(), close = true) } },
             )

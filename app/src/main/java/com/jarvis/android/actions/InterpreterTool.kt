@@ -1,8 +1,11 @@
 package com.jarvis.android.actions
 
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /*
  * Interpreter mode: a conversation between two people who do not share a language, with Jarvis in the middle — every

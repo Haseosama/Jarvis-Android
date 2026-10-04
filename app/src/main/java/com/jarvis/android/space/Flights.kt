@@ -11,10 +11,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.distanceKm
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.location.distanceKm
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.video.VideoPanel
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +32,7 @@ import kotlinx.serialization.json.jsonObject
 import okhttp3.Request
 import java.time.Instant
 import java.time.ZoneId
+import com.jarvis.android.video.SkyModes
 
 /*
  * Following a flight: "suis le vol AF1234". Its route (adsbdb: from its flight number, IATA or ICAO), where it is now anywhere in the world

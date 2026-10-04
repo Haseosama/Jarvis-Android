@@ -8,8 +8,8 @@ import com.jarvis.android.transport.parseDepartures
 import com.jarvis.android.transport.parseJourneys
 import com.jarvis.android.transport.parseStopArea
 import com.jarvis.android.transport.toNavitia
-import com.jarvis.android.weather.LocationOutcome
-import com.jarvis.android.weather.locate
+import com.jarvis.android.location.LocationOutcome
+import com.jarvis.android.location.locate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,6 +20,9 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.Base64
 import java.util.Locale
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Trains (SNCF) and local transport (navitia.io): next connections and departures (see transport/Transport.kt). */
 object TransportTool : Tool {

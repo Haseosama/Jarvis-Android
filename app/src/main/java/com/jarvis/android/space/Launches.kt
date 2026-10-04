@@ -13,9 +13,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.video.VideoPanel
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +40,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.jarvis.android.video.SkyModes
 
 /*
  * Rocket launches: the next ones in the world from The Space Devs' Launch Library 2 (free, 15 questions an hour without a key, so the
@@ -172,11 +173,11 @@ internal object Launches {
 
     /** The launch asked for by words ("Crew-13", "Ariane", "Starship", "le prochain"), among [list]. */
     fun find(list: List<Launch>, words: String): Launch? {
-        val w = com.jarvis.android.offline.normalize(words)
+        val w = com.jarvis.android.text.normalize(words)
         if (w.isEmpty() || w in setOf("next", "prochain", "le prochain", "suivant")) return list.firstOrNull()
         val parts = w.split(' ').filter { it.length > 1 }
-        return list.firstOrNull { l -> val t = com.jarvis.android.offline.normalize("${l.name} ${l.provider} ${l.place}"); parts.all { it in t } }
-            ?: list.firstOrNull { l -> com.jarvis.android.offline.normalize("${l.name} ${l.provider}").let { t -> parts.any { it.length > 3 && it in t } } }
+        return list.firstOrNull { l -> val t = com.jarvis.android.text.normalize("${l.name} ${l.provider} ${l.place}"); parts.all { it in t } }
+            ?: list.firstOrNull { l -> com.jarvis.android.text.normalize("${l.name} ${l.provider}").let { t -> parts.any { it.length > 3 && it in t } } }
     }
 }
 

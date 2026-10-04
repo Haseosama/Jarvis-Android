@@ -19,6 +19,9 @@ import kotlinx.serialization.json.JsonObject
 import java.io.File
 import java.time.LocalDate
 import java.time.ZoneId
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** "Scanne ce ticket": photo of a receipt, read on the phone, noted as an expense (see receipts/Receipt.kt). */
 object ReceiptTool : Tool {

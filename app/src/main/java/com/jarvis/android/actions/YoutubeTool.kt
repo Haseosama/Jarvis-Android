@@ -6,6 +6,8 @@ import android.net.Uri
 import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 
 object YoutubeTool : Tool {
     override val name = "youtube_video"

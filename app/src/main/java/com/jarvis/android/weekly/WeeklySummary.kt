@@ -12,9 +12,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import com.jarvis.android.i18n.tr
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -154,7 +154,7 @@ internal object WeeklySummary {
         } catch (_: Exception) {
             emptyList()
         } else emptyList()
-        val fix = (com.jarvis.android.weather.locate(c, 12 * 3_600_000L) as? com.jarvis.android.weather.LocationOutcome.Found)?.fix
+        val fix = (com.jarvis.android.location.locate(c, 12 * 3_600_000L) as? com.jarvis.android.location.LocationOutcome.Found)?.fix
         val daily = fix?.let { f ->
             withContext(Dispatchers.IO) {
                 try {

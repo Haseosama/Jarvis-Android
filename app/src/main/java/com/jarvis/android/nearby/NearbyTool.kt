@@ -1,10 +1,10 @@
 package com.jarvis.android.nearby
 
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.intArg
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -42,11 +42,11 @@ object NearbyTool : Tool {
         val kind = parsePlaceKind(args.stringArg("quoi"))
             ?: return@withContext "Je sais chercher une pharmacie, une boulangerie, un distributeur de billets, des toilettes publiques ou une borne de recharge."
         val placeArg = args.stringArg("ville").trim()
-        val (lat, lon, where) = if (com.jarvis.android.weather.isHereRequest(placeArg)) {
-            when (val outcome = com.jarvis.android.weather.locate(ctx.appContext)) {
-                is com.jarvis.android.weather.LocationOutcome.Found ->
-                    Triple(outcome.fix.latitude, outcome.fix.longitude, com.jarvis.android.weather.positionLabel(outcome.place))
-                com.jarvis.android.weather.LocationOutcome.NoPermission ->
+        val (lat, lon, where) = if (com.jarvis.android.location.isHereRequest(placeArg)) {
+            when (val outcome = com.jarvis.android.location.locate(ctx.appContext)) {
+                is com.jarvis.android.location.LocationOutcome.Found ->
+                    Triple(outcome.fix.latitude, outcome.fix.longitude, com.jarvis.android.location.positionLabel(outcome.place))
+                com.jarvis.android.location.LocationOutcome.NoPermission ->
                     return@withContext "Je n'ai pas accès à la position : dites un lieu, ou autorisez la position dans Paramètres > Position (météo)."
                 else -> return@withContext "Position introuvable pour le moment : dites un lieu."
             }
@@ -67,7 +67,7 @@ object NearbyTool : Tool {
             }
             if (hits.isNotEmpty()) {
                 NearbyMap.kind = kind; NearbyMap.hits = hits.take(20); NearbyMap.roads = found.roads; NearbyMap.origin = lat to lon
-                ctx.videoPanel.show(com.jarvis.android.video.VideoPanel.Video(title = kind.plural, sky = com.jarvis.android.space.SkyModes.NEARBY))
+                ctx.videoPanel.show(com.jarvis.android.video.VideoPanel.Video(title = kind.plural, sky = com.jarvis.android.video.SkyModes.NEARBY))
             }
             formatNearby(kind, hits, where, radius, now, onlyOpen) { com.jarvis.android.space.towardDirection(it) }
         } catch (e: CancellationException) {

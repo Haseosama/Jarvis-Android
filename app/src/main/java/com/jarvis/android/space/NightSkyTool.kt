@@ -1,9 +1,9 @@
 package com.jarvis.android.space
 
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
@@ -26,7 +26,7 @@ object NightSkyTool : Tool {
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String = withContext(Dispatchers.Default) {
-        val o = (com.jarvis.android.weather.locate(ctx.appContext) as? com.jarvis.android.weather.LocationOutcome.Found)?.let { Observer(it.fix.latitude, it.fix.longitude) }
+        val o = (com.jarvis.android.location.locate(ctx.appContext) as? com.jarvis.android.location.LocationOutcome.Found)?.let { Observer(it.fix.latitude, it.fix.longitude) }
             ?: return@withContext "Je n’ai pas votre position : autorisez la position pour Jarvis (Paramètres > Position (météo))."
         val now = System.currentTimeMillis()
         val solar = solarSystem(o, now)

@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
+import com.jarvis.android.text.normalize
 
 class OfflineIntentsTest {
     private val now = LocalDateTime.of(2026, 9, 21, 14, 5)

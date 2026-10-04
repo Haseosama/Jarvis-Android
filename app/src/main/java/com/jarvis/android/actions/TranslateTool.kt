@@ -7,6 +7,9 @@ import kotlinx.serialization.json.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /**
  * Translates a piece of text into a named language, without switching the language of the rest of

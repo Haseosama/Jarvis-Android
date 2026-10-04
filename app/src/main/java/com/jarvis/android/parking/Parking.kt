@@ -15,7 +15,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.i18n.tr
-import com.jarvis.android.weather.LocationOutcome
+import com.jarvis.android.location.LocationOutcome
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -102,7 +102,7 @@ internal object ParkingSaver {
     /** Saves the phone's current position as the car's spot. The message to say, success or not. */
     suspend fun saveHere(context: Context, note: String, auto: Boolean): String {
         // A fresh position: a 20-minute-old one could be where the car was two streets ago.
-        val fix = when (val outcome = com.jarvis.android.weather.locate(context, maxAgeMs = FRESH_FIX_MS)) {
+        val fix = when (val outcome = com.jarvis.android.location.locate(context, maxAgeMs = FRESH_FIX_MS)) {
             is LocationOutcome.Found -> outcome
             LocationOutcome.NoPermission -> return "Je n'ai pas accès à la position : autorisez-la dans Paramètres > Position (météo)."
             LocationOutcome.ServicesOff -> return "La localisation du téléphone est désactivée."

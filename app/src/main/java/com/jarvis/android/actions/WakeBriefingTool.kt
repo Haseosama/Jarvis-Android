@@ -6,6 +6,9 @@ import com.jarvis.android.wakeup.WAKE_OFF
 import com.jarvis.android.wakeup.WAKE_SPEAK
 import com.jarvis.android.wakeup.WakeBriefing
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** The briefing on waking up (see wakeup/WakeBriefing.kt): its setting, or the briefing now. */
 object WakeBriefingTool : Tool {

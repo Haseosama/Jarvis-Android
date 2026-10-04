@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.jarvis.android.JarvisApp
-import com.jarvis.android.actions.ToolRegistry
+import com.jarvis.android.registry.ToolRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

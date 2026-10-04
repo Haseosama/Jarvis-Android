@@ -1,6 +1,6 @@
 package com.jarvis.android.plugins
 
-import com.jarvis.android.actions.ToolRegistry
+import com.jarvis.android.registry.ToolRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

@@ -4,6 +4,9 @@ import com.jarvis.android.JarvisContainer
 import com.jarvis.android.video.VideoPanel
 import kotlinx.serialization.json.JsonObject
 import java.io.IOException
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /**
  * Plays a video where the avatar is: a YouTube link, a video file on the web, or a search ("la bande-annonce de Dune"): the first

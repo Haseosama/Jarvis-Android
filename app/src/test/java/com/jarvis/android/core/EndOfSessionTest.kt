@@ -1,7 +1,7 @@
 package com.jarvis.android.core
 
 import com.jarvis.android.actions.EndSessionTool
-import com.jarvis.android.actions.ToolRegistry
+import com.jarvis.android.registry.ToolRegistry
 import com.jarvis.android.actions.prepareMessageDraft
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive

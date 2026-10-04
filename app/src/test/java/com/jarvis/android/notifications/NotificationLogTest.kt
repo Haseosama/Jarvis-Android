@@ -4,6 +4,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.ZoneOffset
+import com.jarvis.android.notifications.log.NotificationLog
+import com.jarvis.android.notifications.log.SeenNotification
+import com.jarvis.android.notifications.log.clean
+import com.jarvis.android.notifications.log.formatNotifications
+import com.jarvis.android.notifications.log.redactSensitive
 
 class NotificationLogTest {
     private fun n(key: String, app: String = "WhatsApp", title: String = "Paul", text: String = "Salut", at: Long = 0L) =

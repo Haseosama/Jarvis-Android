@@ -25,7 +25,7 @@ internal val BRIEFING_SECTIONS = linkedMapOf(
 
 /** "mails" from "Mails", "e-mails", "courriels": the key of a part named in words, or null. */
 internal fun sectionKey(words: String): String? {
-    val w = com.jarvis.android.offline.normalize(words)
+    val w = com.jarvis.android.text.normalize(words)
     return when {
         w.isEmpty() -> null
         "mail" in w || "courriel" in w -> "mails"

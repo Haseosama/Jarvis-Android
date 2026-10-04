@@ -20,6 +20,9 @@ import kotlinx.serialization.json.JsonObject
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Steps, sleep and heart rate from Health Connect (see health/Health.kt). */
 object HealthTool : Tool {

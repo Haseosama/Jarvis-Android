@@ -1,4 +1,4 @@
-package com.jarvis.android.notifications
+package com.jarvis.android.notifications.log
 
 import java.time.Instant
 import java.time.ZoneId

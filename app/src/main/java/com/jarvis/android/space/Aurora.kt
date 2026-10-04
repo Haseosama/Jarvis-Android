@@ -14,10 +14,10 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.distanceKm
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.location.distanceKm
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.video.VideoPanel
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.sin
+import com.jarvis.android.video.SkyModes
 
 /*
  * Northern (and southern) lights: NOAA's Space Weather Prediction Center. The OVATION model's map of the chance of an aurora over the
@@ -229,7 +230,7 @@ internal object AuroraWatch {
     suspend fun check(c: Context) {
         if (!enabled(c)) return
         val ctx = (c.applicationContext as JarvisApp).container
-        val fix = (com.jarvis.android.weather.locate(c, 6 * 3_600_000L) as? com.jarvis.android.weather.LocationOutcome.Found)?.fix ?: return
+        val fix = (com.jarvis.android.location.locate(c, 6 * 3_600_000L) as? com.jarvis.android.location.LocationOutcome.Found)?.fix ?: return
         val o = Observer(fix.latitude, fix.longitude)
         val now = System.currentTimeMillis()
         if (sunElevation(o, now) > -10) return
@@ -284,7 +285,7 @@ object AuroraTool : Tool {
             }
             "alert_off" -> { AuroraWatch.set(c, false); return "Je ne surveille plus les aurores." }
         }
-        val fix = (com.jarvis.android.weather.locate(c) as? com.jarvis.android.weather.LocationOutcome.Found)?.fix
+        val fix = (com.jarvis.android.location.locate(c) as? com.jarvis.android.location.LocationOutcome.Found)?.fix
             ?: return "Je n’ai pas votre position : autorisez la position pour Jarvis pour savoir si une aurore est visible d’ici."
         val o = Observer(fix.latitude, fix.longitude)
         val mag = geomagneticLatitude(o.latDeg, o.lonDeg)

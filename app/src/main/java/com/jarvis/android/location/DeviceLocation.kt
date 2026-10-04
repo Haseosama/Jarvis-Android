@@ -1,4 +1,4 @@
-package com.jarvis.android.weather
+package com.jarvis.android.location
 
 import android.Manifest
 import android.content.Context

@@ -1,9 +1,9 @@
 package com.jarvis.android.weather
 
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import com.jarvis.android.space.Observer
 import com.jarvis.android.space.lookAtSky
 import com.jarvis.android.space.sunPosition
@@ -21,6 +21,9 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Locale
+import com.jarvis.android.location.LocationOutcome
+import com.jarvis.android.location.locate
+import com.jarvis.android.location.positionLabel
 
 /*
  * The Sun of the day: the UV index (Open-Meteo, hour by hour) with what protection it asks for (the WHO's scale), and the times of the

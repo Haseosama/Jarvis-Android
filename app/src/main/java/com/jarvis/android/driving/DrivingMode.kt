@@ -27,8 +27,6 @@ import java.util.Locale
  */
 
 internal const val DEFAULT_DRIVING_REPLY = "Je conduis, je te réponds dès que possible. (Réponse automatique)"
-internal const val AUTO_REPLY_QUIET_MS = 30 * 60_000L
-internal const val AUTO_REPLY_MAX_PER_HOUR = 10
 
 @Serializable
 internal data class DrivingSettings(
@@ -65,13 +63,6 @@ internal fun announcement(app: String, sender: String, text: String): String {
     val body = text.replace(Regex("\\s+"), " ").trim().let { if (it.length > 300) it.take(300).substringBeforeLast(' ') + "…" else it }
     val from = sender.ifBlank { "quelqu'un" }
     return if (body.isEmpty()) "Message $app de $from." else "Message $app de $from : $body"
-}
-
-/** Whether [sender] may get an automatic answer now, given the answers already sent ([history]: sender to time). */
-internal fun autoReplyAllowed(history: List<Pair<String, Long>>, sender: String, now: Long): Boolean {
-    if (sender.isBlank()) return false
-    if (history.any { it.first.equals(sender, ignoreCase = true) && now - it.second < AUTO_REPLY_QUIET_MS }) return false
-    return history.count { now - it.second < 60 * 60_000L } < AUTO_REPLY_MAX_PER_HOUR
 }
 
 internal object DrivingMode {

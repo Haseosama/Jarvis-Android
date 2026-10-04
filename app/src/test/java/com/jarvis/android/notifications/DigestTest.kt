@@ -8,6 +8,10 @@ import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import com.jarvis.android.notifications.log.NotificationHistory
+import com.jarvis.android.notifications.log.SeenNotification
+import com.jarvis.android.notifications.log.digestLines
+import com.jarvis.android.notifications.log.formatDigest
 
 class DigestTest {
     private val zone = ZoneId.of("Europe/Paris")

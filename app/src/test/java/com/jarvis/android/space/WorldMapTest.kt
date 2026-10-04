@@ -9,6 +9,12 @@ import org.junit.Test
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import com.jarvis.android.location.MapData
+import com.jarvis.android.location.greatCircle
+import com.jarvis.android.location.latOf
+import com.jarvis.android.location.mercX
+import com.jarvis.android.location.mercY
+import com.jarvis.android.location.nearestCity
 
 class WorldMapTest {
     @Test fun `Web Mercator goes both ways`() {
@@ -109,7 +115,7 @@ class WorldMapTest {
     @Test fun `the time left is the distance at the ground speed plus the landing`() {
         val route = FlightRoute("AFR1234", Route("Air France", "Paris", "", "CDG", "Berlin", "", "BER"), 49.0, 2.55, 52.35, 13.49)
         val a = plane(49.0, 2.55, 36_000.0)
-        val km = com.jarvis.android.actions.distanceKm(49.0, 2.55, 52.35, 13.49)
+        val km = com.jarvis.android.location.distanceKm(49.0, 2.55, 52.35, 13.49)
         assertEquals((km / (450 * 1.852) * 60 + 15).toInt(), minutesLeft(a, route))
         assertNull(minutesLeft(plane(49.0, 2.55, 0.0, ground = true, kt = 10.0), route))
     }

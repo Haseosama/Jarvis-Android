@@ -7,6 +7,9 @@ import com.jarvis.android.memory.MemoryManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Look up a stored fact on demand — backs the "[ALSO REMEMBERED]" index in the system prompt. */
 object RecallMemoryTool : Tool {

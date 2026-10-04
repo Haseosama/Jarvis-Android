@@ -1,4 +1,4 @@
-package com.jarvis.android.space
+package com.jarvis.android.location
 
 import android.content.Context
 import java.nio.ByteBuffer
@@ -68,51 +68,9 @@ internal class MapData(val land: List<FloatArray>, val borders: List<FloatArray>
     }
 }
 
-/** The point of the Earth under the Sun at [timeMs]: latitude, longitude (degrees). */
-internal fun subSolar(timeMs: Long): Pair<Double, Double> {
-    val (x, y, z) = sunPosition(timeMs)
-    val (lat, lon, _) = subPoint(temeToEcef(x, y, z, timeMs))
-    return lat to lon
-}
-
-/**
- * The night side of the Earth at [timeMs] as a polygon of longitude, latitude points (degrees): the terminator every 2° of longitude,
- * closed round the pole in the dark.
- */
-internal fun nightPolygon(timeMs: Long): List<Pair<Double, Double>> {
-    val (sLat, sLon) = subSolar(timeMs)
-    val dec = Math.toRadians(if (kotlin.math.abs(sLat) < 0.1) 0.1 else sLat)
-    val line = (-180..180 step 2).map { lon ->
-        val h = Math.toRadians(lon - sLon)
-        lon.toDouble() to Math.toDegrees(atan(-cos(h) / tan(dec)))
-    }
-    val darkPole = if (sLat > 0) -85.0 else 85.0
-    return line + listOf(180.0 to darkPole, -180.0 to darkPole)
-}
-
-/** A satellite's track on the ground from [fromMs] to [toMs], cut where it crosses the date line (lists of latitude, longitude). */
-internal fun groundTrack(sgp: Sgp4, fromMs: Long, toMs: Long, stepMs: Long = 30_000L): List<List<Pair<Double, Double>>> {
-    val out = ArrayList<MutableList<Pair<Double, Double>>>()
-    var cur = ArrayList<Pair<Double, Double>>()
-    var t = fromMs
-    var lastLon: Double? = null
-    while (t <= toMs) {
-        val s = sgp.at(t)
-        if (s != null) {
-            val (lat, lon, _) = subPoint(temeToEcef(s.x, s.y, s.z, t))
-            if (lastLon != null && kotlin.math.abs(lon - lastLon) > 180) { out += cur; cur = ArrayList() }
-            cur += lat to lon
-            lastLon = lon
-        }
-        t += stepMs
-    }
-    out += cur
-    return out.filter { it.size > 1 }
-}
-
 /** The nearest city to a point within [maxKm], with its distance. */
 internal fun nearestCity(cities: List<City>, lat: Double, lon: Double, maxKm: Double = 600.0): Pair<City, Double>? =
-    cities.map { it to com.jarvis.android.actions.distanceKm(lat, lon, it.lat, it.lon) }.filter { it.second <= maxKm }.minByOrNull { it.second }
+    cities.map { it to com.jarvis.android.location.distanceKm(lat, lon, it.lat, it.lon) }.filter { it.second <= maxKm }.minByOrNull { it.second }
 
 /** The points of the great circle from one place to another (latitude, longitude), for a flight's route. */
 internal fun greatCircle(lat1: Double, lon1: Double, lat2: Double, lon2: Double, n: Int = 64): List<Pair<Double, Double>> {

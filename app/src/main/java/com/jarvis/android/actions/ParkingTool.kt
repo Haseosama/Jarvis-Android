@@ -7,9 +7,13 @@ import com.jarvis.android.parking.ParkingSaver
 import com.jarvis.android.parking.directionWord
 import com.jarvis.android.parking.distanceWords
 import com.jarvis.android.parking.sinceWords
-import com.jarvis.android.weather.LocationOutcome
+import com.jarvis.android.location.LocationOutcome
 import kotlinx.serialization.json.JsonObject
 import java.util.Locale
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.location.distanceKm
+import com.jarvis.android.tool.objectSchema
 
 /** "Retiens où je me suis garé" / "où est ma voiture ?" */
 object ParkingTool : Tool {
@@ -34,7 +38,7 @@ object ParkingTool : Tool {
                 val note = if (car.note.isNotBlank()) " Note : ${car.note}." else ""
                 val how = if (car.auto) " (enregistrée automatiquement en quittant le Bluetooth de la voiture)" else ""
                 val where = car.label.ifEmpty { "l'endroit enregistré" }
-                val relative = when (val here = com.jarvis.android.weather.locate(ctx.appContext, maxAgeMs = com.jarvis.android.parking.FRESH_FIX_MS)) {
+                val relative = when (val here = com.jarvis.android.location.locate(ctx.appContext, maxAgeMs = com.jarvis.android.parking.FRESH_FIX_MS)) {
                     is LocationOutcome.Found -> {
                         val km = distanceKm(here.fix.latitude, here.fix.longitude, car.latitude, car.longitude)
                         if (km < 0.03) " Vous êtes juste à côté." else " Elle est ${distanceWords(km)} ${directionWord(here.fix.latitude, here.fix.longitude, car.latitude, car.longitude)}."

@@ -7,6 +7,7 @@ import android.os.BatteryManager
 import android.os.StatFs
 import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
 
 /** Device telemetry — Android port of `actions/system_monitor.py` (battery/storage; no CPU temp API on Android). */
 object SystemMonitorTool : Tool {

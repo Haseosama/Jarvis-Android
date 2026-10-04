@@ -10,6 +10,10 @@ import com.jarvis.android.people.PersonReminders
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** "La prochaine fois que Paul m'appelle, rappelle-moi de…": reminders tied to a contact (see people/PersonReminders.kt). */
 object PersonReminderTool : Tool {

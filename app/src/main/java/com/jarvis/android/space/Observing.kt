@@ -26,8 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.objectSchema
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 import com.jarvis.android.video.VideoPanel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,6 +44,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.jarvis.android.video.SkyModes
 
 /*
  * Is tonight good to look at the sky or photograph it? Open-Meteo's hourly clouds (low, middle, high), humidity, dew point and wind,
@@ -149,7 +150,7 @@ internal fun ObservingView(big: Boolean, modifier: Modifier = Modifier) {
     val container = remember(context) { (context.applicationContext as JarvisApp).container }
     val zone = ZoneId.systemDefault()
     val nights by produceState<List<ObsNight>?>(null) {
-        val f = com.jarvis.android.weather.locate(container.appContext) as? com.jarvis.android.weather.LocationOutcome.Found
+        val f = com.jarvis.android.location.locate(container.appContext) as? com.jarvis.android.location.LocationOutcome.Found
         value = if (f == null) emptyList() else obsNights(Observing.hours(container, Observer(f.fix.latitude, f.fix.longitude)), zone).take(3)
     }
     val text = Color(0xFFDCEBFA)
@@ -193,7 +194,7 @@ object ObservingTool : Tool {
     override val parameters = objectSchema { string("action", "show (par défaut).") }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String {
-        val f = com.jarvis.android.weather.locate(ctx.appContext) as? com.jarvis.android.weather.LocationOutcome.Found
+        val f = com.jarvis.android.location.locate(ctx.appContext) as? com.jarvis.android.location.LocationOutcome.Found
             ?: return "Je n’ai pas votre position : autorisez la position pour Jarvis."
         val zone = ZoneId.systemDefault()
         val nights = obsNights(Observing.hours(ctx, Observer(f.fix.latitude, f.fix.longitude)), zone).take(3)

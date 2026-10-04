@@ -17,10 +17,10 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.distanceKm
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.location.distanceKm
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.video.VideoPanel
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +40,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import com.jarvis.android.video.SkyModes
 
 /*
  * Earthquakes: the USGS feeds (the whole world, magnitude 2.5 and more over the last day, 4.5 and more over the week), on the world map
@@ -148,7 +149,7 @@ internal object Quakes {
     suspend fun check(c: Context) {
         if (!enabled(c)) return
         val ctx = (c.applicationContext as JarvisApp).container
-        val home = (com.jarvis.android.weather.locate(c, 24 * 3_600_000L) as? com.jarvis.android.weather.LocationOutcome.Found)?.fix?.let { WatchedPlace("vous", it.latitude, it.longitude) }
+        val home = (com.jarvis.android.location.locate(c, 24 * 3_600_000L) as? com.jarvis.android.location.LocationOutcome.Found)?.fix?.let { WatchedPlace("vous", it.latitude, it.longitude) }
         val places = listOfNotNull(home) + places(c)
         if (places.isEmpty()) return
         val p = prefs(c)
@@ -207,8 +208,8 @@ object QuakeTool : Tool {
             "alert_off" -> { Quakes.setWatch(c, false); "Je ne surveille plus les séismes." }
             "watch_list" -> Quakes.places(c).let { l -> if (l.isEmpty()) "Aucun lieu surveillé à part votre position." else "Lieux surveillés : " + l.joinToString(", ") { it.name } + "." }
             "watch_remove" -> {
-                val w = com.jarvis.android.offline.normalize(args.stringArg("place"))
-                val left = Quakes.places(c).filterNot { w.isNotEmpty() && w in com.jarvis.android.offline.normalize(it.name) }
+                val w = com.jarvis.android.text.normalize(args.stringArg("place"))
+                val left = Quakes.places(c).filterNot { w.isNotEmpty() && w in com.jarvis.android.text.normalize(it.name) }
                 Quakes.setPlaces(c, left)
                 "Lieux surveillés : " + (left.joinToString(", ") { it.name }.ifEmpty { "aucun à part votre position" }) + "."
             }
@@ -222,7 +223,7 @@ object QuakeTool : Tool {
             else -> {
                 val list = Quakes.recent(ctx)
                 if (list.isEmpty()) return "Liste des séismes indisponible pour le moment."
-                val fix = (com.jarvis.android.weather.locate(c) as? com.jarvis.android.weather.LocationOutcome.Found)?.fix
+                val fix = (com.jarvis.android.location.locate(c) as? com.jarvis.android.location.LocationOutcome.Found)?.fix
                 ctx.videoPanel.show(VideoPanel.Video(title = "Séismes", sky = SkyModes.QUAKES))
                 val day = list.filter { now - it.timeMs < 24 * 3_600_000L }
                 val strongest = day.sortedByDescending { it.mag }.take(3)

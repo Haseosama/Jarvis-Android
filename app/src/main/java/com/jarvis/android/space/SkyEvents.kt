@@ -14,9 +14,9 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import com.jarvis.android.i18n.tr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -327,7 +327,7 @@ internal object SkyEvents {
         val zone = ZoneId.systemDefault()
         val now = java.time.ZonedDateTime.now(zone)
         val ctx = (c.applicationContext as JarvisApp).container
-        val fix = (com.jarvis.android.weather.locate(c, 24 * 3_600_000L) as? com.jarvis.android.weather.LocationOutcome.Found)?.fix ?: return
+        val fix = (com.jarvis.android.location.locate(c, 24 * 3_600_000L) as? com.jarvis.android.location.LocationOutcome.Found)?.fix ?: return
         val events = upcoming(ctx, Observer(fix.latitude, fix.longitude), 3, zone).filter { it.worth >= 2 }
         val p = prefs(c)
         val told = p.getStringSet("told", emptySet()).orEmpty()
@@ -377,7 +377,7 @@ object SkyEventsTool : Tool {
             "alert_on" -> { SkyEvents.setAlerts(c, true); return "Je vous préviendrai la veille au soir des éclipses, pluies d’étoiles filantes, rapprochements de la Lune et des planètes et super Lunes visibles d’ici." }
             "alert_off" -> { SkyEvents.setAlerts(c, false); return "Je ne préviens plus des événements du ciel." }
         }
-        val fix = (com.jarvis.android.weather.locate(c) as? com.jarvis.android.weather.LocationOutcome.Found)?.fix
+        val fix = (com.jarvis.android.location.locate(c) as? com.jarvis.android.location.LocationOutcome.Found)?.fix
             ?: return "Je n’ai pas votre position : autorisez la position pour Jarvis, les événements dépendent du lieu."
         val days = args.stringArg("days").trim().toIntOrNull()?.coerceIn(1, 800) ?: 120
         val kind = args.stringArg("kind").trim().lowercase()

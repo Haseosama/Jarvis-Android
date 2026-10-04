@@ -20,6 +20,10 @@ import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.location.distanceKm
+import com.jarvis.android.tool.objectSchema
 
 /*
  * Aircraft flying around the phone right now, from the OpenSky Network's public API (free, no key,
@@ -73,14 +77,6 @@ internal fun boundingBox(latitude: Double, longitude: Double, radiusKm: Double):
     return doubleArrayOf(latitude - dLat, longitude - dLon, latitude + dLat, longitude + dLon)
 }
 
-/** Great-circle distance in km (haversine). */
-internal fun distanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-    val dLat = Math.toRadians(lat2 - lat1)
-    val dLon = Math.toRadians(lon2 - lon1)
-    val h = sin(dLat / 2).pow(2) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2)
-    return 2 * 6371.0 * asin(sqrt(h))
-}
-
 /** Airborne aircraft within [radiusKm] of the point, nearest first, as spoken lines. */
 internal fun formatPlanes(planes: List<PlaneState>, latitude: Double, longitude: Double, radiusKm: Int, place: String): String {
     val flying = planes.filter { !it.onGround }
@@ -111,13 +107,13 @@ object PlanesOverheadTool : Tool {
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String {
         val radius = args.intArg("radius_km", PLANES_DEFAULT_RADIUS_KM).coerceIn(5, 200)
-        val fix = when (val outcome = com.jarvis.android.weather.locate(ctx.appContext)) {
-            is com.jarvis.android.weather.LocationOutcome.Found -> outcome
-            com.jarvis.android.weather.LocationOutcome.NoPermission ->
+        val fix = when (val outcome = com.jarvis.android.location.locate(ctx.appContext)) {
+            is com.jarvis.android.location.LocationOutcome.Found -> outcome
+            com.jarvis.android.location.LocationOutcome.NoPermission ->
                 return "Je n'ai pas accès à la position. L'utilisateur peut l'autoriser dans Paramètres > Position (météo)."
-            com.jarvis.android.weather.LocationOutcome.ServicesOff ->
+            com.jarvis.android.location.LocationOutcome.ServicesOff ->
                 return "La localisation du téléphone est désactivée : il faut l'activer pour savoir quels avions sont autour."
-            com.jarvis.android.weather.LocationOutcome.Unavailable ->
+            com.jarvis.android.location.LocationOutcome.Unavailable ->
                 return "Position introuvable pour le moment (souvent : l'appli n'est pas au premier plan). Réessayez avec Jarvis ouvert."
         }
         val lat = fix.fix.latitude
@@ -137,7 +133,7 @@ object PlanesOverheadTool : Tool {
                 }
             }
             body.second?.let { return it }
-            formatPlanes(parseOpenSkyStates(body.first!!), lat, lon, radius, com.jarvis.android.weather.positionLabel(fix.place))
+            formatPlanes(parseOpenSkyStates(body.first!!), lat, lon, radius, com.jarvis.android.location.positionLabel(fix.place))
         } catch (e: CancellationException) {
             throw e
         } catch (_: IOException) {

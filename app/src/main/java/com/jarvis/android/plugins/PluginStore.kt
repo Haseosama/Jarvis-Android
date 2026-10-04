@@ -1,14 +1,13 @@
 package com.jarvis.android.plugins
 
-import com.jarvis.android.actions.ToolRegistry
 import java.io.File
 
-/** The plugin files of the app, one JSON per plugin, in its private storage. */
-internal class PluginStore(private val dir: File) {
-    /** Loads every valid plugin file and hands the result to the tool registry. Invalid files are skipped. */
+/** The plugin files of the app, one JSON per plugin, in its private storage. [builtInNames]: the names a plugin cannot take (the tool registry's). */
+internal class PluginStore(private val dir: File, val builtInNames: () -> Set<String>) {
+    /** Loads every valid plugin file and hands the result to the tool registry (through InstalledPlugins). Invalid files are skipped. */
     @Synchronized
     fun reload(): List<PluginTool> {
-        val builtIn = ToolRegistry.builtInNames()
+        val builtIn = builtInNames()
         val tools = (dir.listFiles { f -> f.extension == "json" }?.sortedBy { it.name } ?: emptyList())
             .mapNotNull { file ->
                 val parsed = try { parsePlugin(file.readText(), builtIn) } catch (_: Exception) { null }
@@ -16,14 +15,14 @@ internal class PluginStore(private val dir: File) {
             }
             .distinctBy { it.name }
             .take(MAX_PLUGINS)
-        ToolRegistry.setPlugins(tools)
+        InstalledPlugins.set(tools.filter { it.name !in builtIn })
         return tools
     }
 
     /** Checks [text] and saves it; returns null on success or a message for the user. */
     @Synchronized
     fun install(text: String): String? {
-        val builtIn = ToolRegistry.builtInNames()
+        val builtIn = builtInNames()
         return when (val parsed = parsePlugin(text, builtIn)) {
             is PluginParse.Error -> parsed.message
             is PluginParse.Ok -> {
@@ -44,5 +43,5 @@ internal class PluginStore(private val dir: File) {
         reload()
     }
 
-    fun names(): List<String> = ToolRegistry.pluginTools().map { it.name }
+    fun names(): List<String> = InstalledPlugins.all().map { it.name }
 }

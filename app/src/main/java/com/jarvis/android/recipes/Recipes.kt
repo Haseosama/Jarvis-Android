@@ -1,6 +1,6 @@
 package com.jarvis.android.recipes
 
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

@@ -6,6 +6,10 @@ import com.jarvis.android.device.RING_DEFAULT_SECONDS
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** "Où es-tu ?": rings the phone loud, even in silent mode, so it can be found. */
 object FindPhoneTool : Tool {

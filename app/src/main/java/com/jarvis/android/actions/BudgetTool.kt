@@ -10,6 +10,9 @@ import com.jarvis.android.expenses.formatCents
 import com.jarvis.android.expenses.parseAmountCents
 import kotlinx.serialization.json.JsonObject
 import java.time.LocalDate
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Monthly budgets per category, weighed against the expenses (see budgets/Budgets.kt). */
 object BudgetTool : Tool {

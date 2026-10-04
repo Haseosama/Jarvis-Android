@@ -218,7 +218,7 @@ class RadioAlarmService : Service() {
         triedAgain = true
         scope.launch {
             val found = try {
-                withContext(Dispatchers.IO) { com.jarvis.android.actions.RadioTool.findStations((application as JarvisApp).container.http, station, null) }.firstOrNull()
+                withContext(Dispatchers.IO) { com.jarvis.android.radio.findStations((application as JarvisApp).container.http, station, null) }.firstOrNull()
             } catch (_: Exception) {
                 null
             }

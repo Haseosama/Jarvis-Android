@@ -4,6 +4,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
 
 /**
  * Read the clipboard — Android port of the "Clipboard Intelligence" feature.

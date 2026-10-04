@@ -181,7 +181,7 @@ internal object QuietMode {
         return CoroutineScope(Dispatchers.Default).launch {
             if (!summarize) return@launch
             val text = try {
-                com.jarvis.android.actions.NotificationsTool.digest(container, state.startedAt)
+                com.jarvis.android.notifications.log.notificationDigest(container, state.startedAt)
                     .substringBefore("\n(Contenu des notifications")
             } catch (_: Exception) {
                 ""

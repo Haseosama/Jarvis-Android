@@ -15,10 +15,11 @@ import com.jarvis.android.JarvisApp
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.podcasts.PodcastSubscriptions
 import com.jarvis.android.video.VideoMedia
+import com.jarvis.android.media.PlayedLately
 
 /**
  * Jarvis as a media app: Android Auto (and the phone's own media controls) browse its list here (car/CarLibrary.kt) and control it
- * through the video panel's media session. While sound plays (video/AudioPlayer.kt), this service is in the foreground with the
+ * through the video panel's media session. While sound plays (car/AudioPlayer.kt), this service is in the foreground with the
  * player's notification, so the radio or the podcast goes on with the screen off, the app closed, and the phone locked in the car.
  */
 class JarvisMediaService : MediaBrowserService() {
@@ -57,7 +58,7 @@ class JarvisMediaService : MediaBrowserService() {
         if (clientPackageName == "com.google.android.projection.gearhead" && rootHints?.getBoolean(BrowserRoot.EXTRA_RECENT) != true) com.jarvis.android.wakeup.WakeBriefing.onCarConnected(this)
         // the phone's media controls, after a restart: only what played last, to play it again
         if (rootHints?.getBoolean(BrowserRoot.EXTRA_RECENT) == true) {
-            return if (CarLibrary.last(this) != null) BrowserRoot(CarLibrary.RECENT, Bundle().apply { putBoolean(BrowserRoot.EXTRA_RECENT, true) }) else null
+            return if (PlayedLately.last(this) != null) BrowserRoot(CarLibrary.RECENT, Bundle().apply { putBoolean(BrowserRoot.EXTRA_RECENT, true) }) else null
         }
         return BrowserRoot(CarLibrary.ROOT, Bundle().apply {
             putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true)
@@ -67,8 +68,8 @@ class JarvisMediaService : MediaBrowserService() {
     }
 
     override fun onLoadChildren(parentId: String, result: Result<MutableList<MediaBrowser.MediaItem>>) {
-        val nodes = if (parentId == CarLibrary.RECENT) listOfNotNull(CarLibrary.last(this)) else CarLibrary.children(
-            parentId, CarLibrary.recentRadios(this), PodcastSubscriptions(this).all(), container.videoHistory.all(),
+        val nodes = if (parentId == CarLibrary.RECENT) listOfNotNull(PlayedLately.last(this)) else CarLibrary.children(
+            parentId, PlayedLately.recentRadios(this), PodcastSubscriptions(this).all(), container.videoHistory.all(),
         )
         result.sendResult(nodes.map { node ->
             MediaBrowser.MediaItem(

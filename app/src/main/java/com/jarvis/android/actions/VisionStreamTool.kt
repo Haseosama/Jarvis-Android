@@ -5,6 +5,8 @@ import com.jarvis.android.core.VideoSource
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 
 /** Lets the user say "regarde mon écran" / "regarde avec la caméra" / "arrête de regarder". */
 object VisionStreamTool : Tool {

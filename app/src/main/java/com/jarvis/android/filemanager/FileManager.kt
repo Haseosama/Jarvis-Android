@@ -1,7 +1,7 @@
 package com.jarvis.android.filemanager
 
 import com.jarvis.android.core.UndoEntry
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import java.util.Locale
 
 /** One file or folder as the manager sees it. */

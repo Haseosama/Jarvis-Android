@@ -25,6 +25,8 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import com.jarvis.android.location.LocationOutcome
+import com.jarvis.android.location.locate
 
 /*
  * "Est-ce qu'il va pleuvoir dans l'heure ?" and, if switched on, a notification when rain is about to start where the phone

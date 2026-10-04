@@ -17,6 +17,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import java.time.LocalDateTime
 import java.time.ZoneId
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Medications and habits at fixed times, with a log of what was done, skipped or not noted. */
 object HabitsTool : Tool {
@@ -77,7 +80,7 @@ object HabitsTool : Tool {
                 val log = store.load().log
                 val targets = if (name.isEmpty()) habits else listOfNotNull(pick())
                 if (targets.isEmpty()) return@withContext none
-                val period = com.jarvis.android.offline.normalize(args.stringArg("period"))
+                val period = com.jarvis.android.text.normalize(args.stringArg("period"))
                 targets.joinToString("\n") { h ->
                     when {
                         "semaine" in period -> adherence(h, log, now.toLocalDate().minusDays(6).atStartOfDay(), now, zone, "sur 7 jours")

@@ -9,6 +9,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import com.jarvis.android.messaging.AUTO_REPLY_QUIET_MS
+import com.jarvis.android.messaging.autoReplyAllowed
 
 class DrivingModeTest {
     @get:Rule val tmp = TemporaryFolder()

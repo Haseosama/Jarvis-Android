@@ -10,6 +10,10 @@ import com.jarvis.android.quiet.quietUntil
 import kotlinx.serialization.json.JsonObject
 import java.time.LocalDateTime
 import java.time.ZoneId
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** "Je suis en réunion jusqu'à 15 h": Do Not Disturb until then, favourites only, a summary at the end (see quiet/QuietMode.kt). */
 object QuietModeTool : Tool {

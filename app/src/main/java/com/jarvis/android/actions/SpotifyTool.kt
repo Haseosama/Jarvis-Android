@@ -7,6 +7,8 @@ import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.net.URLEncoder
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 
 /*
  * Opens Spotify's own search for a title, an artist or a playlist, the same shape as `youtube_video`:

@@ -12,6 +12,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import com.jarvis.android.engine.RestChatSession
 
 class RestChatTest {
     private fun obj(text: String): JsonObject = Json.parseToJsonElement(text).jsonObject

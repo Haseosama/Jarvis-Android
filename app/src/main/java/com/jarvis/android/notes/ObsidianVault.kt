@@ -1,7 +1,7 @@
 package com.jarvis.android.notes
 
 import com.jarvis.android.filemanager.FileTree
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import java.time.LocalDate
 
 /**

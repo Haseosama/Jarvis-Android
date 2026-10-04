@@ -10,6 +10,8 @@ import okhttp3.Request
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import java.io.IOException
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 
 /*
  * Lets the model actually read a page, not just a search snippet: after `web_search`, it can open one of the links itself, read its text,

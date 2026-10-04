@@ -16,6 +16,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import java.time.ZoneId
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Parcel tracking (see parcels/Parcels.kt). */
 object ParcelTool : Tool {
@@ -95,7 +99,7 @@ object ParcelTool : Tool {
                 "Colis ${p.label.ifBlank { p.number }} retiré du suivi."
             }
             "detect" -> {
-                val found = JarvisNotificationListener.HISTORY.since(System.currentTimeMillis() - 7 * 24 * 60 * 60_000L)
+                val found = com.jarvis.android.notifications.log.SeenNotifications.HISTORY.since(System.currentTimeMillis() - 7 * 24 * 60 * 60_000L)
                     .flatMap { findTrackingNumbers(it.title + " " + it.text) }.distinct().filter { n -> items.none { it.number == n } }
                 if (found.isEmpty()) "Aucun numéro de suivi dans les messages reçus récemment (Jarvis ne voit que ceux arrivés depuis que l'accès aux notifications est actif)."
                 else "Numéros de suivi vus dans vos messages : " + found.joinToString(", ") { "$it (${detectCarriers(it).first().label})" } + ". Demandez lequel suivre (add)."

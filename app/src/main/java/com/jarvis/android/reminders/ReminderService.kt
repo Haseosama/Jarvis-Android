@@ -12,7 +12,6 @@ import android.util.AtomicFile
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.jarvis.android.actions.ReminderReceiver
 import com.jarvis.android.core.SpokenAlert
 import java.io.File
 import java.io.FileNotFoundException
@@ -133,7 +132,7 @@ internal object ReminderService {
     private fun programAlarm(context: Context, record: ReminderRecord): Boolean {
         val manager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
             ?: throw IllegalStateException("Le service d’alarme est indisponible.")
-        val pending = ReminderReceiver.pendingIntent(context, record.id, record.token)
+        val pending = ReminderAlarm.pendingIntent(context, record.id, record.token)
         var approximate = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !manager.canScheduleExactAlarms()
         if (!approximate) {
             try {
@@ -169,7 +168,7 @@ internal object ReminderService {
         }
         saveStatus(ReminderStatus.DELIVERING)
         val status = try {
-            val notification = NotificationCompat.Builder(context, ReminderReceiver.CHANNEL_ID)
+            val notification = NotificationCompat.Builder(context, ReminderAlarm.CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setContentTitle(tr("Rappel Jarvis"))
                 .setContentText(record.text)
@@ -198,9 +197,9 @@ internal object ReminderService {
         }
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             ?: return "Le service de notification est indisponible."
-        manager.createNotificationChannel(NotificationChannel(ReminderReceiver.CHANNEL_ID,
+        manager.createNotificationChannel(NotificationChannel(ReminderAlarm.CHANNEL_ID,
             tr("Rappels Jarvis"), NotificationManager.IMPORTANCE_HIGH))
-        val channel = manager.getNotificationChannel(ReminderReceiver.CHANNEL_ID)
+        val channel = manager.getNotificationChannel(ReminderAlarm.CHANNEL_ID)
             ?: return "Le canal des rappels est indisponible."
         if (channel.importance == NotificationManager.IMPORTANCE_NONE) {
             return "Le canal de notification des rappels est désactivé dans les réglages."
@@ -214,7 +213,7 @@ internal object ReminderService {
 
     private fun discardAlarm(context: Context, record: ReminderRecord) {
         try {
-            val pending = ReminderReceiver.existingPendingIntent(context, record.id, record.token) ?: return
+            val pending = ReminderAlarm.existingPendingIntent(context, record.id, record.token) ?: return
             try {
                 (context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager)?.cancel(pending)
             } finally {

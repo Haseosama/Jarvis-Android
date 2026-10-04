@@ -2,7 +2,7 @@ package com.jarvis.android.sos
 
 import com.jarvis.android.offline.OfflineAction
 import com.jarvis.android.offline.interpret
-import com.jarvis.android.weather.Fix
+import com.jarvis.android.location.Fix
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

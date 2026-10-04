@@ -9,6 +9,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.jarvis.android.weather.describeWeatherCode
+import com.jarvis.android.weather.formatCurrentWeather
 
 class UtilityActionsTest {
     @Test

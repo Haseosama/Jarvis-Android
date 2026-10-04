@@ -1,6 +1,6 @@
 package com.jarvis.android.plugins
 
-import com.jarvis.android.actions.parseStations
+import com.jarvis.android.radio.parseStations
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

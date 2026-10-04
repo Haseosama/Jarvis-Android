@@ -720,9 +720,9 @@ fun SettingsScreen(
                 (context0.applicationContext as com.jarvis.android.JarvisApp).container.engine.refreshWakeDetection()
             })
             SettingsCard(tr("Position (météo)"), Icons.Filled.LocationOn, initiallyExpanded = false) {
-            var locationGranted by remember { mutableStateOf(com.jarvis.android.weather.hasLocationPermission(context0)) }
+            var locationGranted by remember { mutableStateOf(com.jarvis.android.location.hasLocationPermission(context0)) }
             val askLocation = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
-                locationGranted = granted || com.jarvis.android.weather.hasLocationPermission(context0)
+                locationGranted = granted || com.jarvis.android.location.hasLocationPermission(context0)
             }
             Text(
                 if (locationGranted) tr("Position autorisée ✓ : « quel temps fait-il ? » sans ville donne la météo de l’endroit où vous êtes.")
@@ -772,7 +772,7 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            var callLogGranted by remember { mutableStateOf(com.jarvis.android.actions.hasCallLogPermission(context0)) }
+            var callLogGranted by remember { mutableStateOf(com.jarvis.android.people.hasCallLogPermission(context0)) }
             val askCallLog = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
                 callLogGranted = granted
             }
@@ -790,7 +790,7 @@ fun SettingsScreen(
             var watchCalls by remember { mutableStateOf(com.jarvis.android.people.PersonReminders.canWatchCalls(context0)) }
             val askWatchCalls = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) {
                 watchCalls = com.jarvis.android.people.PersonReminders.canWatchCalls(context0)
-                callLogGranted = com.jarvis.android.actions.hasCallLogPermission(context0)
+                callLogGranted = com.jarvis.android.people.hasCallLogPermission(context0)
             }
             Text(
                 if (watchCalls) tr("Rappels pendant les appels ✓ : « la prochaine fois que Paul m’appelle, rappelle-moi de… » s’affiche quand il appelle.")
@@ -939,7 +939,7 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            val installed = remember(pluginTick) { com.jarvis.android.actions.ToolRegistry.pluginTools().filterIsInstance<com.jarvis.android.plugins.PluginTool>().sortedBy { it.name } }
+            val installed = remember(pluginTick) { com.jarvis.android.registry.ToolRegistry.pluginTools().filterIsInstance<com.jarvis.android.plugins.PluginTool>().sortedBy { it.name } }
             if (installed.isEmpty()) {
                 Text(tr("Aucun plugin installé."), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
             } else {
@@ -994,7 +994,7 @@ fun SettingsScreen(
                     }
                 }
             }
-            val catalog = remember { com.jarvis.android.plugins.readCatalog(context0, com.jarvis.android.actions.ToolRegistry.builtInNames()) }
+            val catalog = remember { com.jarvis.android.plugins.readCatalog(context0, com.jarvis.android.registry.ToolRegistry.builtInNames()) }
             val installedNames = installed.map { it.name }.toSet()
             var catalogExpanded by rememberSaveable { mutableStateOf(false) }
             var catalogQuery by rememberSaveable { mutableStateOf("") }

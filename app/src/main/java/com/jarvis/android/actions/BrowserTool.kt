@@ -6,6 +6,8 @@ import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 
 object BrowserTool : Tool {
     override val name = "browser_control"

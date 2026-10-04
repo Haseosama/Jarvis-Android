@@ -1,4 +1,4 @@
-package com.jarvis.android.reminders
+package com.jarvis.android
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -8,6 +8,7 @@ import com.jarvis.android.timers.TimerService
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import com.jarvis.android.reminders.ReminderService
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

@@ -1,4 +1,4 @@
-package com.jarvis.android.core
+package com.jarvis.android.engine
 
 import com.jarvis.android.rest.ModelLadder
 

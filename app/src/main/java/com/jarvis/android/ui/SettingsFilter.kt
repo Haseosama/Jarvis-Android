@@ -19,7 +19,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jarvis.android.i18n.tr
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 
 /*
  * The settings page has some forty cards: a search field and a few themes to narrow them down. The cards are not

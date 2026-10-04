@@ -6,9 +6,7 @@ import com.jarvis.android.podcasts.PodcastSubscriptions
 import com.jarvis.android.video.VideoHistory
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-
-/** One entry of the car's list: a folder ([playable] false) or something to play. */
-internal data class CarNode(val id: String, val title: String, val subtitle: String = "", val playable: Boolean = true)
+import com.jarvis.android.media.CarNode
 
 /**
  * What Jarvis shows in the car (Android Auto) and plays from it: the news, radios (the ones played lately, then the best-known French
@@ -47,31 +45,6 @@ internal object CarLibrary {
         else -> emptyList()
     }
 
-    private fun prefs(context: Context) = context.getSharedPreferences("car", Context.MODE_PRIVATE)
-
-    /** The stations played lately, newest first (for the car's list). */
-    fun recentRadios(context: Context): List<String> = prefs(context).getString("radios", "").orEmpty().split('\n').filter { it.isNotBlank() }
-
-    fun rememberRadio(context: Context, name: String) {
-        val list = (listOf(name) + recentRadios(context).filter { !it.equals(name, ignoreCase = true) }).take(8)
-        prefs(context).edit().putString("radios", list.joinToString("\n")).apply()
-        rememberLast(context, CarNode("radio:$name", name, "Radio"))
-    }
-
-    /** What played last (a station, an episode), for the phone's « play again » after a restart. */
-    fun rememberLast(context: Context, node: CarNode) {
-        prefs(context).edit().putString("last_id", node.id).putString("last_title", node.title).putString("last_subtitle", node.subtitle).apply()
-    }
-
-    fun last(context: Context): CarNode? {
-        val p = prefs(context)
-        val id = p.getString("last_id", null) ?: return null
-        return CarNode(id, p.getString("last_title", "").orEmpty(), p.getString("last_subtitle", "").orEmpty())
-    }
-
-    /** An episode's media id: its audio, title and podcast (no list to look it up in). */
-    fun episodeId(url: String, title: String, artist: String) = "episode:" + listOf(url, title, artist).joinToString("\u0001")
-
     /** Plays an entry of the car's list ([mediaId]) or what was asked for aloud ([query], through an assistant): with its sound. */
     suspend fun play(ctx: JarvisContainer, mediaId: String?, query: String?) {
         fun args(vararg kv: Pair<String, String>) = buildJsonObject { kv.forEach { (k, v) -> put(k, JsonPrimitive(v)) } }
@@ -94,7 +67,7 @@ internal object CarLibrary {
                 if (q.isEmpty()) {
                     com.jarvis.android.podcasts.PodcastTool.run(args("action" to "news"), ctx)
                 } else {
-                    val station = try { com.jarvis.android.actions.RadioTool.findStations(ctx.http, q, "FR").firstOrNull() } catch (_: Exception) { null }
+                    val station = try { com.jarvis.android.radio.findStations(ctx.http, q, "FR").firstOrNull() } catch (_: Exception) { null }
                     if (station != null && station.name.contains(q, ignoreCase = true)) com.jarvis.android.actions.RadioTool.run(args("action" to "play", "query" to q), ctx)
                     else com.jarvis.android.podcasts.PodcastTool.run(args("action" to "play", "query" to q), ctx)
                 }

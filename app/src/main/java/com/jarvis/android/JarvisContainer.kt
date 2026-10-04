@@ -4,11 +4,12 @@ import android.content.Context
 import com.jarvis.android.core.ConfirmManager
 import com.jarvis.android.core.JarvisState
 import com.jarvis.android.core.wantsStandby
-import com.jarvis.android.core.JarvisEngine
+import com.jarvis.android.engine.JarvisEngine
 import com.jarvis.android.core.UndoManager
 import com.jarvis.android.memory.ConfigStore
 import com.jarvis.android.memory.MemoryManager
-import com.jarvis.android.rest.RestChat
+import com.jarvis.android.engine.RestChat
+import com.jarvis.android.registry.ToolRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,7 +19,7 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 /**
- * App-wide dependency bag handed to every [com.jarvis.android.actions.Tool].
+ * App-wide dependency bag handed to every [com.jarvis.android.tool.Tool].
  * Equivalent of the `ctx` dict (`player`, `speak`, `response`, `session_memory`)
  * that Mark-LIII's action_loader injects into handlers by signature introspection.
  */
@@ -99,7 +100,7 @@ class JarvisContainer(val appContext: Context) {
     internal val videoMedia by lazy { com.jarvis.android.video.VideoMedia(appContext, videoPanel, appScope) }
 
     /** Sound alone (a radio, a podcast) plays here, outside the screen. */
-    private val audioPlayer by lazy { com.jarvis.android.video.AudioPlayer(appContext, videoPanel, appScope) }
+    private val audioPlayer by lazy { com.jarvis.android.car.AudioPlayer(appContext, videoPanel, appScope) }
 
     internal val briefing: com.jarvis.android.memory.BriefingCoordinator by lazy { com.jarvis.android.memory.BriefingCoordinator(this) }
 
@@ -107,7 +108,10 @@ class JarvisContainer(val appContext: Context) {
     internal val shareInbox = com.jarvis.android.share.ShareInbox()
     internal val avatar = com.jarvis.android.avatar.AvatarController(appContext)
 
-    internal val pluginStore = com.jarvis.android.plugins.PluginStore(java.io.File(appContext.filesDir, "plugins"))
+    internal val pluginStore = com.jarvis.android.plugins.PluginStore(java.io.File(appContext.filesDir, "plugins"), ToolRegistry::builtInNames)
+
+    /** Runs a built-in tool only: plugin routines call these, never another plugin. */
+    internal suspend fun runBuiltInTool(name: String, args: kotlinx.serialization.json.JsonObject): String = ToolRegistry.runBuiltIn(name, args, this)
 
     init {
         pluginStore.reload()
@@ -191,7 +195,7 @@ class JarvisContainer(val appContext: Context) {
         // What was said in a session that ended before its summary could be stored is stored now.
         appScope.launch(Dispatchers.IO) {
             kotlinx.coroutines.delay(8_000)   // the container is fully built by then
-            com.jarvis.android.rest.retryPendingTranscripts(this@JarvisContainer)
+            com.jarvis.android.engine.retryPendingTranscripts(this@JarvisContainer)
         }
         appScope.launch {
             configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }

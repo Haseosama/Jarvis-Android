@@ -12,11 +12,11 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import com.jarvis.android.i18n.tr
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -170,7 +170,7 @@ internal object Commutes {
 
     /** A trip's next train (the first leaving from its time), and the disruptions; or why not. */
     suspend fun look(ctx: JarvisContainer, cm: Commute, day: LocalDate = LocalDate.now()): Pair<Journey?, List<String>>? = withContext(Dispatchers.IO) {
-        val fix = (com.jarvis.android.weather.locate(ctx.appContext, 30 * 60_000L) as? com.jarvis.android.weather.LocationOutcome.Found)?.fix
+        val fix = (com.jarvis.android.location.locate(ctx.appContext, 30 * 60_000L) as? com.jarvis.android.location.LocationOutcome.Found)?.fix
         val net = Navitia.net(ctx, cm.local, fix?.latitude, fix?.longitude) as? Navitia.Net.Ok ?: return@withContext null
         val from = Navitia.stopNamed(ctx, net, cm.from) ?: return@withContext null
         val to = Navitia.stopNamed(ctx, net, cm.to) ?: return@withContext null
