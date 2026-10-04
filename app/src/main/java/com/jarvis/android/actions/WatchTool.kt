@@ -40,32 +40,15 @@ object WatchTool : Tool {
         val store = watchStore(context)
         return when (val action = args.stringArg("action").trim().lowercase(Locale.ROOT)) {
             "add" -> {
-                val kind = args.stringArg("kind").trim().lowercase(Locale.ROOT)
-                val threshold = args.stringArg("threshold").replace(',', '.').trim().toDoubleOrNull()
-                val above = args.stringArg("direction").trim().lowercase(Locale.ROOT).let { it != "below" && it != "en dessous" }
-                val label = args.stringArg("label").trim().take(60)
-                val watch = when (kind) {
-                    KIND_CRYPTO -> {
-                        val coin = args.stringArg("target").trim().lowercase(Locale.ROOT)
-                        if (!validCoinId(coin)) return "Identifiant de crypto invalide : utilisez l’identifiant CoinGecko (bitcoin, ethereum, solana…)."
-                        if (threshold == null || threshold <= 0) return "Indiquez le prix seuil en euros."
-                        Watch(0, KIND_CRYPTO, coin, threshold, above, label)
-                    }
-                    KIND_SITE -> {
-                        val site = normaliseSite(args.stringArg("target")) ?: return "Adresse de site invalide."
-                        Watch(0, KIND_SITE, site, 0.0, true, label)
-                    }
-                    KIND_TEMPERATURE -> Watch(0, KIND_TEMPERATURE, "", threshold ?: 42.0, true, label)
-                    KIND_MEMORY -> Watch(0, KIND_MEMORY, "", threshold ?: 400.0, false, label)
-                    else -> return "Type inconnu. Types possibles : crypto, site, temperature, memory."
-                }
+                val (watch, problem) = watchFromArgs(args)
+                if (watch == null) return problem ?: "Impossible d’ajouter la surveillance."
                 val created = try { store.add(watch) } catch (e: IllegalArgumentException) { return e.message ?: "Impossible d’ajouter la surveillance." }
                 WatchScheduler.sync(context)
-                "Surveillance n° ${created.id} ajoutée : ${describe(created)}. Je préviens par notification (vérification environ toutes les 15 minutes)."
+                "Surveillance n° ${created.id} ajoutée : ${describeWatch(created)}. Je préviens par notification (vérification environ toutes les 15 minutes)."
             }
             "list" -> {
                 val list = store.load()
-                if (list.isEmpty()) "Aucune surveillance active." else list.joinToString("\n") { "n° ${it.id} : ${describe(it)}" + (it.lastValue?.let { v -> " — dernière valeur : ${format(v)}" } ?: "") }
+                if (list.isEmpty()) "Aucune surveillance active." else list.joinToString("\n") { "n° ${it.id} : ${describeWatch(it)}" + (it.lastValue?.let { v -> " — dernière valeur : ${formatWatchValue(v)}" } ?: "") }
             }
             "remove" -> {
                 val id = args.intArg("id", -1)
@@ -79,7 +62,7 @@ object WatchTool : Tool {
                 val updated = list.map { w ->
                     val value = sampleWatch(context, ctx.http, w)
                     val result = evaluateWatch(w, value, now)
-                    lines += "n° ${w.id} ${w.title()} : " + (value?.let { if (w.kind == KIND_SITE) (if (it > 0.5) "répond" else "ne répond pas") else format(it) } ?: "mesure impossible") + (result.alert?.let { " → alerte : $it" } ?: "")
+                    lines += "n° ${w.id} ${w.title()} : " + (value?.let { if (w.kind == KIND_SITE) (if (it > 0.5) "répond" else "ne répond pas") else formatWatchValue(it) } ?: "mesure impossible") + (result.alert?.let { " → alerte : $it" } ?: "")
                     result.watch
                 }
                 store.replace(updated)
@@ -88,13 +71,37 @@ object WatchTool : Tool {
             else -> "Action inconnue : $action."
         }
     }
+}
 
-    private fun format(v: Double) = if (v >= 100) String.format(Locale.FRANCE, "%,.0f", v) else String.format(Locale.FRANCE, "%.2f", v)
-
-    private fun describe(w: Watch): String = when (w.kind) {
-        KIND_CRYPTO -> "${w.title()} ${if (w.above) "au-dessus de" else "en dessous de"} ${format(w.threshold)} €"
-        KIND_SITE -> "site ${w.target} (alerte s’il ne répond plus)"
-        KIND_TEMPERATURE -> "température de la batterie au-dessus de ${format(w.threshold)} °C"
-        else -> "mémoire libre en dessous de ${format(w.threshold)} Mo"
+/** The watch an `add` asks for, or why it cannot be made (the same pair as [parseAlarm]). */
+internal fun watchFromArgs(args: JsonObject): Pair<Watch?, String?> {
+    val kind = args.stringArg("kind").trim().lowercase(Locale.ROOT)
+    val threshold = args.stringArg("threshold").replace(',', '.').trim().toDoubleOrNull()
+    val above = args.stringArg("direction").trim().lowercase(Locale.ROOT).let { it != "below" && it != "en dessous" }
+    val label = args.stringArg("label").trim().take(60)
+    val watch = when (kind) {
+        KIND_CRYPTO -> {
+            val coin = args.stringArg("target").trim().lowercase(Locale.ROOT)
+            if (!validCoinId(coin)) return null to "Identifiant de crypto invalide : utilisez l’identifiant CoinGecko (bitcoin, ethereum, solana…)."
+            if (threshold == null || threshold <= 0) return null to "Indiquez le prix seuil en euros."
+            Watch(0, KIND_CRYPTO, coin, threshold, above, label)
+        }
+        KIND_SITE -> {
+            val site = normaliseSite(args.stringArg("target")) ?: return null to "Adresse de site invalide."
+            Watch(0, KIND_SITE, site, 0.0, true, label)
+        }
+        KIND_TEMPERATURE -> Watch(0, KIND_TEMPERATURE, "", threshold ?: 42.0, true, label)
+        KIND_MEMORY -> Watch(0, KIND_MEMORY, "", threshold ?: 400.0, false, label)
+        else -> return null to "Type inconnu. Types possibles : crypto, site, temperature, memory."
     }
+    return watch to null
+}
+
+internal fun formatWatchValue(v: Double): String = if (v >= 100) String.format(Locale.FRANCE, "%,.0f", v) else String.format(Locale.FRANCE, "%.2f", v)
+
+internal fun describeWatch(w: Watch): String = when (w.kind) {
+    KIND_CRYPTO -> "${w.title()} ${if (w.above) "au-dessus de" else "en dessous de"} ${formatWatchValue(w.threshold)} €"
+    KIND_SITE -> "site ${w.target} (alerte s’il ne répond plus)"
+    KIND_TEMPERATURE -> "température de la batterie au-dessus de ${formatWatchValue(w.threshold)} °C"
+    else -> "mémoire libre en dessous de ${formatWatchValue(w.threshold)} Mo"
 }

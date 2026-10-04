@@ -32,7 +32,7 @@ object ParcelTool : Tool {
         integer("choice", "Numéro du colis dans la liste.")
     }
 
-    private fun line(i: Int, p: Parcel, zone: ZoneId): String {
+    internal fun line(i: Int, p: Parcel, zone: ZoneId): String {
         val name = p.label.ifBlank { p.number }
         val where = when {
             p.status.isNotBlank() -> "${p.status}${eventWhen(p.statusAt, zone).let { if (it.isEmpty()) "" else " ($it)" }}"

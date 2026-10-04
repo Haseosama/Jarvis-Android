@@ -980,10 +980,7 @@ fun SettingsScreen(
                                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                             )
                         }
-                        val shown = installed.filter { p ->
-                            val q = installedQuery.trim()
-                            q.isEmpty() || p.name.contains(q, ignoreCase = true) || p.summary.contains(q, ignoreCase = true)
-                        }
+                        val shown = installed.filter { p -> pluginMatches(installedQuery, p.name, p.summary) }
                         if (shown.isEmpty()) Text(tr("Aucun plugin ne correspond."), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                         shown.forEach { plugin ->
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
@@ -1024,8 +1021,7 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     )
                     val filtered = remember(catalog, catalogQuery) {
-                        val q = catalogQuery.trim()
-                        if (q.isEmpty()) catalog else catalog.filter { it.name.contains(q, ignoreCase = true) || it.description.contains(q, ignoreCase = true) }
+                        catalog.filter { pluginMatches(catalogQuery, it.name, it.description) }
                     }
                     if (filtered.isEmpty()) {
                         Text(tr("Aucun plugin ne correspond."), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
@@ -2098,8 +2094,7 @@ private suspend fun testApiKey(configStore: ConfigStore): String = withContext(D
     try {
         val key = validatedApiKey(configStore.getApiKey().orEmpty())
             ?: return@withContext tr("Aucune clé valide enregistrée.")
-        val model = configStore.snapshotRestModel().let { if (it.startsWith("models/")) it else "models/$it" }
-        if (!Regex("models/[A-Za-z0-9._-]+").matches(model)) return@withContext tr("Nom de modèle texte invalide.")
+        val model = restModelPath(configStore.snapshotRestModel()) ?: return@withContext tr("Nom de modèle texte invalide.")
         val body = """{"contents":[{"parts":[{"text":"Say OK"}]}]}"""
             .toRequestBody("application/json".toMediaType())
         val request = Request.Builder()
@@ -2127,11 +2122,7 @@ private suspend fun testHomeAssistant(configStore: ConfigStore): String = withCo
         if (token.isNullOrBlank()) return@withContext tr("Indiquez d’abord un jeton d’accès.")
         val request = Request.Builder().url("$base/api/").header("Authorization", "Bearer $token").build()
         settingsHttp.newCall(request).execute().use { response ->
-            when {
-                response.code == 401 || response.code == 403 -> trf("Jeton refusé (HTTP {0}).", response.code)
-                response.isSuccessful -> trf("Connexion réussie (HTTP {0}).", response.code)
-                else -> trf("Échec (HTTP {0}). Vérifiez l’adresse.", response.code)
-            }
+            homeAssistantAnswer(response.code)
         }
     } catch (e: CancellationException) {
         throw e
@@ -2188,7 +2179,7 @@ internal fun collectLiveModels(fetchPage: (String?) -> LiveModelPage): LiveModel
 
 private class ModelListHttpException(val code: Int) : Exception("HTTP $code")
 
-private data class ModelListing(val models: List<String>, val message: String?)
+internal data class ModelListing(val models: List<String>, val message: String?)
 
 private suspend fun listLiveModels(configStore: ConfigStore): ModelListing = withContext(Dispatchers.IO) {
     try {
@@ -2204,17 +2195,7 @@ private suspend fun listLiveModels(configStore: ConfigStore): ModelListing = wit
                 parseLiveModelPage(response.body?.string().orEmpty())
             }
         }
-        when (result) {
-            is LiveModelsResult.NoneFound ->
-                ModelListing(emptyList(), trf("Aucun modèle compatible Live dans ce projet ({0} modèles vérifiés).", result.total))
-            is LiveModelsResult.Found -> when {
-                result.names.isEmpty() ->
-                    ModelListing(emptyList(), tr("Aucun modèle compatible Live trouvé dans les pages reçues."))
-                result.partial ->
-                    ModelListing(result.names, tr("Liste partielle : d’autres modèles compatibles peuvent exister."))
-                else -> ModelListing(result.names, null)
-            }
-        }
+        modelListing(result)
     } catch (e: CancellationException) {
         throw e
     } catch (e: ModelListHttpException) {
@@ -2223,5 +2204,37 @@ private suspend fun listLiveModels(configStore: ConfigStore): ModelListing = wit
         ModelListing(emptyList(), tr("Liste des modèles indisponible : connexion impossible ou délai dépassé."))
     } catch (_: Exception) {
         ModelListing(emptyList(), tr("Liste des modèles indisponible : réponse inexploitable ou clé inaccessible."))
+    }
+}
+
+/** Whether a plugin is shown for the search [query]: an empty query shows them all, otherwise its name or [text] must contain it. */
+internal fun pluginMatches(query: String, name: String, text: String): Boolean {
+    val q = query.trim()
+    return q.isEmpty() || name.contains(q, ignoreCase = true) || text.contains(q, ignoreCase = true)
+}
+
+/** The REST model as the API path `models/…`, or null when the name could not be a model's. */
+internal fun restModelPath(raw: String): String? {
+    val model = if (raw.startsWith("models/")) raw else "models/$raw"
+    return model.takeIf { Regex("models/[A-Za-z0-9._-]+").matches(it) }
+}
+
+/** What the Home Assistant test says for the HTTP [code] of `GET /api/`. */
+internal fun homeAssistantAnswer(code: Int): String = when {
+    code == 401 || code == 403 -> trf("Jeton refusé (HTTP {0}).", code)
+    code in 200..299 -> trf("Connexion réussie (HTTP {0}).", code)
+    else -> trf("Échec (HTTP {0}). Vérifiez l’adresse.", code)
+}
+
+/** The models offered in the menu and the line shown under it, for what the paging found. */
+internal fun modelListing(result: LiveModelsResult): ModelListing = when (result) {
+    is LiveModelsResult.NoneFound ->
+        ModelListing(emptyList(), trf("Aucun modèle compatible Live dans ce projet ({0} modèles vérifiés).", result.total))
+    is LiveModelsResult.Found -> when {
+        result.names.isEmpty() ->
+            ModelListing(emptyList(), tr("Aucun modèle compatible Live trouvé dans les pages reçues."))
+        result.partial ->
+            ModelListing(result.names, tr("Liste partielle : d’autres modèles compatibles peuvent exister."))
+        else -> ModelListing(result.names, null)
     }
 }

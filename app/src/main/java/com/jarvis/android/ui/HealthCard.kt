@@ -55,11 +55,7 @@ internal fun HealthCard() {
             }
             HealthStatus.AVAILABLE -> {
                 Text(
-                    when {
-                        granted.containsAll(HEALTH_PERMISSIONS) -> tr("Accès à Health Connect : accordé ✓")
-                        granted.isEmpty() -> tr("Accès à Health Connect : non accordé.")
-                        else -> trf("Accès à Health Connect : partiel ({0} sur {1}).", granted.intersect(HEALTH_PERMISSIONS).size, HEALTH_PERMISSIONS.size)
-                    },
+                    healthAccessText(granted, HEALTH_PERMISSIONS),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 8.dp),
                 )
@@ -71,4 +67,11 @@ internal fun HealthCard() {
             }
         }
     }
+}
+
+/** What the card says about the Health Connect access: [granted] among the [wanted] permissions. */
+internal fun healthAccessText(granted: Set<String>, wanted: Set<String>): String = when {
+    granted.containsAll(wanted) -> tr("Accès à Health Connect : accordé ✓")
+    granted.isEmpty() -> tr("Accès à Health Connect : non accordé.")
+    else -> trf("Accès à Health Connect : partiel ({0} sur {1}).", granted.intersect(wanted).size, wanted.size)
 }

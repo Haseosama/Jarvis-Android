@@ -25,13 +25,13 @@ object WakeBriefingTool : Tool {
         string("include", "Pour set : les parties à remettre.")
     }
 
-    private fun modeWords(mode: Int) = when (mode) {
+    internal fun modeWords(mode: Int) = when (mode) {
         WAKE_SPEAK -> "à voix haute quand vous arrêtez le réveil du matin"
         WAKE_NOTIFY -> "en notification quand vous arrêtez le réveil du matin"
         else -> "désactivé"
     }
 
-    private fun statusWords(d: com.jarvis.android.wakeup.WakeData): String {
+    internal fun statusWords(d: com.jarvis.android.wakeup.WakeData): String {
         val parts = com.jarvis.android.wakeup.BRIEFING_SECTIONS.filterKeys { it !in d.off }.values
         return "Briefing du matin : ${modeWords(d.mode)}" + (if (d.car) " ; et en voiture le matin" else "") + ". Il dit : ${parts.joinToString(", ")}." +
             if (d.off.isNotEmpty()) " Retirés : ${d.off.mapNotNull { com.jarvis.android.wakeup.BRIEFING_SECTIONS[it] }.joinToString(", ")}." else ""

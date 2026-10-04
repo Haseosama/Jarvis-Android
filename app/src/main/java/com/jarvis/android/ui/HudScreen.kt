@@ -406,7 +406,7 @@ internal fun ConfirmBanner(pending: PendingConfirmation, onConfirm: () -> Unit, 
     }
 }
 
-private fun stateLabel(state: JarvisState): String = when (state) {
+internal fun stateLabel(state: JarvisState): String = when (state) {
     JarvisState.ASLEEP -> tr("En veille")
     JarvisState.CONNECTING -> tr("Connexion…")
     JarvisState.LISTENING -> tr("À l’écoute")
