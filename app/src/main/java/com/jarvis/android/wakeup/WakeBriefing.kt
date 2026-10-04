@@ -138,6 +138,7 @@ internal object WakeBriefing {
         val issJob = async { if (on("iss") && lat != null && lon != null) BriefingExtras.iss(ctx, lat, lon) else null }
         val launchJob = async { if (on("fusees")) BriefingExtras.launches(ctx) else null }
         val auroraJob = async { if (on("aurores") && lat != null && lon != null) BriefingExtras.aurora(ctx, lat, lon) else null }
+        val pollenJob = async { if (on("pollen") && lat != null && lon != null) BriefingExtras.pollen(ctx, lat, lon) else null }
         val vigilanceJob = async { if (on("vigilance") && lat != null && lon != null) BriefingExtras.vigilance(ctx, lat, lon) else null }
         val energyJob = async { if (on("electricite")) withTimeoutOrNull(10_000) { try { com.jarvis.android.energy.Energy.briefingLine(ctx) } catch (_: Exception) { null } } else null }
         val uvJob = async { if (on("uv") && lat != null && lon != null) withTimeoutOrNull(8_000) { com.jarvis.android.weather.SunUv.briefingLine(ctx, lat, lon) } else null }
@@ -162,7 +163,7 @@ internal object WakeBriefing {
             .filter { it.endsWith("aujourd'hui") } + try { com.jarvis.android.budgets.Budgets.briefingLines(ctx) } catch (_: Exception) { emptyList() }
         val rain = rainJob.await()
         val flights = if (on("vols")) flightsLine(com.jarvis.android.space.FlightMail.trips(context), today) else null
-        val extras = listOfNotNull(vigilanceJob.await(), rain?.first, uvJob.await(), energyJob.await(), flights) + money + listOfNotNull(mailsJob.await(), issJob.await(), launchJob.await(), auroraJob.await())
+        val extras = listOfNotNull(vigilanceJob.await(), rain?.first, uvJob.await(), pollenJob.await(), energyJob.await(), flights) + money + listOfNotNull(mailsJob.await(), issJob.await(), launchJob.await(), auroraJob.await())
         val sleep = if (!on("sommeil")) null else withTimeoutOrNull(4_000) {
             try {
                 val client = com.jarvis.android.health.healthClient(context) ?: return@withTimeoutOrNull null
