@@ -44,28 +44,12 @@ object ReminderTool : Tool {
                 val offset = strictInt(args, "offset", 0)
                 require(offset >= 0) { "Le décalage de liste doit être positif ou nul." }
                 val records = ReminderService.list(ctx.appContext)
-                val page = records.drop(offset).take(10)
                 val notificationWarning = try {
                     ReminderService.notificationProblem(ctx.appContext)
                 } catch (_: RuntimeException) {
                     "Impossible de vérifier les notifications."
                 }
-                buildString {
-                    if (records.isEmpty()) append("Aucun rappel enregistré.")
-                    else if (page.isEmpty()) append("Aucun rappel à ce décalage (${records.size} au total).")
-                    else {
-                        append("Rappels ${offset + 1} à ${offset + page.size} sur ${records.size} :")
-                        page.forEach { record ->
-                            append("\n#${record.id} — ${record.whenIso} (${record.zoneId}) — ${status(record)}")
-                            append(if (record.approximate) " — approximatif" else " — exact demandé")
-                            append(" — ${record.text.replace('\n', ' ').replace('\r', ' ')}")
-                        }
-                        if (offset + page.size < records.size) append("\nSuite : mode=list, offset=${offset + page.size}.")
-                    }
-                    if (notificationWarning != null) append("\n$notificationWarning")
-                    append("\n${ReminderService.LIMITATION}")
-                    append(" Un état programmé décrit le dernier enregistrement, pas une vérification auprès d’Android.")
-                }
+                reminderListText(records, offset, notificationWarning)
             }
             "cancel" -> {
                 val id = strictInt(args, "id")
@@ -87,31 +71,52 @@ object ReminderTool : Tool {
         }
     }
 
-    private fun strictString(args: JsonObject, key: String, default: String = ""): String {
+    internal fun strictString(args: JsonObject, key: String, default: String = ""): String {
         val value = args[key] ?: return default
         require(value is JsonPrimitive && value.isString) { "Le paramètre $key doit être du texte." }
         return value.content
     }
 
-    private fun strictInt(args: JsonObject, key: String, default: Int? = null): Int {
+    internal fun strictInt(args: JsonObject, key: String, default: Int? = null): Int {
         val value = args[key]
         if (value == null && default != null) return default
         require(value is JsonPrimitive && !value.isString) { "Le paramètre $key doit être un entier." }
         return value.content.toIntOrNull() ?: throw IllegalArgumentException("Le paramètre $key doit être un entier valide.")
     }
 
-    private fun created(record: ReminderRecord): String =
+    internal fun created(record: ReminderRecord): String =
         "Rappel #${record.id} enregistré pour ${record.whenIso} (${record.zoneId}) : ${record.text}. " +
             (if (record.approximate) "Alarme approximative : l’accès aux alarmes exactes est interdit ; Android peut la retarder. "
             else "Alarme exacte demandée à Android ; la livraison n’est pas garantie. ") + ReminderService.LIMITATION
 
-    private fun status(record: ReminderRecord): String = when (record.status) {
+    internal fun status(record: ReminderRecord, now: Long = System.currentTimeMillis()): String = when (record.status) {
         ReminderStatus.PREPARING -> "programmation non confirmée"
-        ReminderStatus.SCHEDULED -> if (record.triggerAt <= System.currentTimeMillis()) "échéance atteinte, livraison non confirmée" else "programmé"
+        ReminderStatus.SCHEDULED -> if (record.triggerAt <= now) "échéance atteinte, livraison non confirmée" else "programmé"
         ReminderStatus.DELIVERING -> "affichage non confirmé, pas de nouvelle tentative automatique"
         ReminderStatus.DELIVERED -> "notification transmise à Android"
         ReminderStatus.BLOCKED -> "notification bloquée, pas de nouvelle tentative automatique"
         ReminderStatus.FAILED -> "échec, annulez ce rappel avant de réessayer"
+    }
+
+    /** One page of the list (ten reminders from [offset]), with the notification [warning] when there is one. */
+    internal fun reminderListText(records: List<ReminderRecord>, offset: Int, warning: String?, now: Long = System.currentTimeMillis()): String {
+        val page = records.drop(offset).take(10)
+        return buildString {
+            if (records.isEmpty()) append("Aucun rappel enregistré.")
+            else if (page.isEmpty()) append("Aucun rappel à ce décalage (${records.size} au total).")
+            else {
+                append("Rappels ${offset + 1} à ${offset + page.size} sur ${records.size} :")
+                page.forEach { record ->
+                    append("\n#${record.id} — ${record.whenIso} (${record.zoneId}) — ${status(record, now)}")
+                    append(if (record.approximate) " — approximatif" else " — exact demandé")
+                    append(" — ${record.text.replace('\n', ' ').replace('\r', ' ')}")
+                }
+                if (offset + page.size < records.size) append("\nSuite : mode=list, offset=${offset + page.size}.")
+            }
+            if (warning != null) append("\n$warning")
+            append("\n${ReminderService.LIMITATION}")
+            append(" Un état programmé décrit le dernier enregistrement, pas une vérification auprès d’Android.")
+        }
     }
 
     private suspend fun safely(block: suspend () -> String): String = try {

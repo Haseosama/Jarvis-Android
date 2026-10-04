@@ -84,13 +84,12 @@ internal fun WakeLearnCard(onChanged: () -> Unit) {
     var selected by remember { mutableStateOf(manager.selected()) }
 
     /** Why teaching cannot start now, or null. */
-    fun blocker(): String? = when {
-        !File(manager.dir, WAKE_MODEL_MARKER).exists() -> tr("Téléchargez d’abord les modèles openWakeWord (carte « Mot d’activation »).")
-        ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED -> tr("Le micro n’est pas autorisé.")
-        container.engine.state.value != JarvisState.ASLEEP -> tr("Fermez la session vocale avant d’apprendre un mot : le micro ne sert qu’à un usage à la fois.")
-        MeetingRecorderService.recording -> tr("Un enregistrement de réunion est en cours.")
-        else -> null
-    }
+    fun blocker(): String? = wakeLearnBlocker(
+        modelsReady = File(manager.dir, WAKE_MODEL_MARKER).exists(),
+        micAllowed = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED,
+        state = container.engine.state.value,
+        meetingRecording = MeetingRecorderService.recording,
+    )
 
     /** Runs [work] with the microphone to ourselves (the wake-word detector lets go of it first). */
     fun withTeacher(work: suspend (WakeTeacher) -> Unit) {
@@ -259,4 +258,13 @@ internal fun WakeLearnCard(onChanged: () -> Unit) {
             }
         }
     }
+}
+
+/** Why teaching a wake word cannot start now, or null: the first missing piece, in the order the user can fix them. */
+internal fun wakeLearnBlocker(modelsReady: Boolean, micAllowed: Boolean, state: JarvisState, meetingRecording: Boolean): String? = when {
+    !modelsReady -> tr("Téléchargez d’abord les modèles openWakeWord (carte « Mot d’activation »).")
+    !micAllowed -> tr("Le micro n’est pas autorisé.")
+    state != JarvisState.ASLEEP -> tr("Fermez la session vocale avant d’apprendre un mot : le micro ne sert qu’à un usage à la fois.")
+    meetingRecording -> tr("Un enregistrement de réunion est en cours.")
+    else -> null
 }

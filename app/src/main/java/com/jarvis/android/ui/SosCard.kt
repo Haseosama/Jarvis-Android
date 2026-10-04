@@ -130,12 +130,7 @@ internal fun PhotosCard() {
             modifier = Modifier.padding(top = 6.dp),
         )
         Text(
-            when {
-                photos && places && !videos -> tr("Accès aux photos accordé ✓, mais pas aux vidéos : « montre la vidéo de… » ne les trouvera pas.")
-                photos && places -> tr("Accès aux photos et à leur position : accordé ✓")
-                photos -> tr("Accès aux photos accordé ✓, mais pas à leur position : la recherche par lieu ne marchera pas.")
-                else -> tr("Accès aux photos : non accordé.")
-            },
+            photosAccessText(photos, places, videos),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 8.dp),
         )
@@ -153,4 +148,12 @@ internal fun PhotosCard() {
             ) { Text(tr("Autoriser l’accès aux photos")) }
         }
     }
+}
+
+/** What the Photos card says about the access given: the photos, their position, the videos. */
+internal fun photosAccessText(photos: Boolean, places: Boolean, videos: Boolean): String = when {
+    photos && places && !videos -> tr("Accès aux photos accordé ✓, mais pas aux vidéos : « montre la vidéo de… » ne les trouvera pas.")
+    photos && places -> tr("Accès aux photos et à leur position : accordé ✓")
+    photos -> tr("Accès aux photos accordé ✓, mais pas à leur position : la recherche par lieu ne marchera pas.")
+    else -> tr("Accès aux photos : non accordé.")
 }
