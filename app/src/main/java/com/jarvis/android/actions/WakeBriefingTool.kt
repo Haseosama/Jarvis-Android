@@ -15,7 +15,7 @@ object WakeBriefingTool : Tool {
     override val name = "wake_briefing"
     override val description =
         "Briefing du matin : quand l'utilisateur arrête son réveil du matin, Jarvis dit (ou affiche) la météo, la pluie qui arrive (avec le " +
-            "radar), les UV quand ils sont élevés, les vigilances météo et crues, les jours Tempo blancs ou rouges et EcoWatt, les coupures d'électricité, d'eau ou de gaz prévues, l'agenda, les rappels, ses vols du jour, les prélèvements, les mails importants non lus, l'ISS visible ce soir, les " +
+            "radar), les UV quand ils sont élevés, les vigilances météo et crues, le risque pollen du jour (et l'air quand il est mauvais), les jours Tempo blancs ou rouges et EcoWatt, les coupures d'électricité, d'eau ou de gaz prévues, l'agenda, les rappels, ses vols du jour, les prélèvements, les mails importants non lus, l'ISS visible ce soir, les " +
             "lancements de fusées du jour, une aurore possible cette nuit et la nuit de sommeil. set (mode : 'speak' à voix haute, 'notify' " +
             "en notification, 'off') : « lis-moi le briefing quand j'arrête mon réveil » ; car ('on'/'off') : le dire aussi en montant en " +
             "voiture le matin (Android Auto ou le Bluetooth de la voiture) ; skip / include : retirer ou remettre des parties (« sans les " +
@@ -24,7 +24,7 @@ object WakeBriefingTool : Tool {
         string("action", "'now' (défaut), 'set' ou 'status'.")
         string("mode", "Pour set : 'speak', 'notify' ou 'off'.")
         string("car", "Pour set : 'on' ou 'off' (le briefing en voiture le matin).")
-        string("skip", "Pour set : les parties à retirer, séparées par des virgules (mails, météo, pluie, agenda, rappels, prélèvements, coupures, vols, iss, fusées, aurores, sommeil).")
+        string("skip", "Pour set : les parties à retirer, séparées par des virgules (mails, météo, vigilance, pollen, pluie, agenda, rappels, prélèvements, coupures, vols, iss, fusées, aurores, sommeil).")
         string("include", "Pour set : les parties à remettre.")
     }
 

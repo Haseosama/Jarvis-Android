@@ -14,12 +14,13 @@ import java.time.ZoneId
 
 /*
  * The briefing's newer parts, each one sentence or nothing: rain coming within two hours, the important mails not read, the ISS
- * crossing the sky tonight, the user's flights today, the rocket launches today, an aurora possible tonight. Each can be switched off.
+ * crossing the sky tonight, the user's flights today, the rocket launches today, an aurora possible tonight, today's pollens and bad air.
+ * Each can be switched off.
  */
 
 /** The parts of the briefing, by the key the user switches off ("sans les mails"). */
 internal val BRIEFING_SECTIONS = linkedMapOf(
-    "meteo" to "la météo", "vigilance" to "les vigilances météo et crues", "pluie" to "la pluie qui arrive", "agenda" to "l’agenda", "rappels" to "les rappels", "depenses" to "les prélèvements et budgets",
+    "meteo" to "la météo", "vigilance" to "les vigilances météo et crues", "pollen" to "le risque pollen et l’air pollué", "pluie" to "la pluie qui arrive", "agenda" to "l’agenda", "rappels" to "les rappels", "depenses" to "les prélèvements et budgets",
     "uv" to "les UV élevés", "electricite" to "les jours Tempo et EcoWatt", "coupures" to "les coupures prévues", "mails" to "les mails importants", "vols" to "vos vols", "iss" to "l’ISS ce soir", "fusees" to "les lancements de fusées", "aurores" to "les aurores", "sommeil" to "la nuit de sommeil",
 )
 
@@ -29,6 +30,7 @@ internal fun sectionKey(words: String): String? {
     return when {
         w.isEmpty() -> null
         "mail" in w || "courriel" in w -> "mails"
+        "pollen" in w || "allerg" in w || "pollution" in w || "qualite de l" in w || w == "air" || w.endsWith(" air") -> "pollen"
         "vigilance" in w || "alerte" in w || "crue" in w -> "vigilance"
         "coupure" in w || "travaux" in w -> "coupures"
         "tempo" in w || "ecowatt" in w || "electri" in w -> "electricite"
@@ -99,6 +101,15 @@ internal object BriefingExtras {
             val warn = com.jarvis.android.weather.warningsFor(v.weather(ctx), dept.second, System.currentTimeMillis())
             val floods = com.jarvis.android.weather.floodsNear(v.floods(ctx), lat, lon)
             if (warn.isEmpty() && floods.isEmpty()) null else v.words(dept.second, warn, floods.ifEmpty { null }, ZoneId.systemDefault()).removeSuffix(".")
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** Today's pollens from moderate (those the user named for the air watch, else all) and the air when bad. */
+    suspend fun pollen(ctx: JarvisContainer, lat: Double, lon: Double): String? = withTimeoutOrNull(8_000) {
+        try {
+            com.jarvis.android.air.AirData.forecast(ctx, lat, lon)?.let { com.jarvis.android.air.airBriefingWords(it, LocalDate.now(), com.jarvis.android.air.AirWatch.pollens(ctx.appContext)) }
         } catch (_: Exception) {
             null
         }

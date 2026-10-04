@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.65 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.66 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1229,7 +1229,7 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
-- **Planned outages** (since 0.9.65; `coupures_prevues`, `outages/Outages.kt`, `outages/OutageParse.kt`). Cuts of electricity, water or
+- **Planned outages** (since 0.9.66; `coupures_prevues`, `outages/Outages.kt`, `outages/OutageParse.kt`). Cuts of electricity, water or
   gas planned at home for works. No open data lists them (Enedis shows its works cuts by address on enedis.fr, "Info coupure", and the
   water services each their own way; nothing on data.gouv.fr or data.enedis.fr), but the notices reach the phone: Enedis's SMS or mail
   to the customers signed up for its alerts, GRDF's, the water service's, the town hall's app. With the notification access already used
@@ -1241,6 +1241,16 @@ also shown in the settings.
   off). The tool lists them, `add`s one announced otherwise (a letter, a poster: type, date, hours, or the notice's text as it is) and
   `remove`s one. *Checked:* the reading of notices (Enedis, Veolia, GRDF wordings, phone numbers not taken for dates), the noting once,
   the reminder's time and the words said, by unit tests. *Not checked:* a real notice arriving on a phone, the reminder ringing.
+- **Pollen risk in the morning briefing** (since 0.9.65; `wake_briefing`, `air/AirWatch.kt`, `wakeup/BriefingExtras.kt`). The briefing
+  already told the Météo-France and Vigicrues warnings in force here (since 0.9.56); it now also says today's pollen risk, in one
+  sentence or not at all: each pollen that reaches moderate or more between 7 h and 21 h where the user is (Open-Meteo's forecast,
+  from Copernicus CAMS, the same thresholds as `air_quality`), the highest first, and the air when the European index goes above 60
+  ("Risque pollen aujourd’hui : graminées élevé, armoise moyen, air mauvais au pire (indice 72)."). When the user named the pollens
+  that bother them for the air watch (`air_quality` `alert_on`), only those are told. A new part of the briefing, `pollen`, which
+  can be switched off ("sans les pollens", "sans la qualité de l’air"). *Checked:* the sentence (the day's hours only, the pollens
+  asked for, nothing on a clean day or a broken answer) and the part named in words by unit tests, run on the JVM outside Android.
+  *Not checked:* on the emulator or a real phone, and against Open-Meteo's live answer (not reachable from the development
+  environment); the official RNSA risk by département is not used (no free open API for it).
 - **Product recalls** (since 0.9.62; `rappel_produit`, `recalls/Recalls.kt`, `recalls/RecallParse.kt`). A built-in tool now, replacing
   the catalogue plugins `rappel_produit` and `rappels_recents` (an installed copy of the first is shadowed by it; one of the second keeps
   working). RappelConso (the State's recall site, open data on data.economie.gouv.fr, free, no key): `check` by name, brand or barcode

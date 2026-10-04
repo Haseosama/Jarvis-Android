@@ -88,6 +88,24 @@ internal fun airForecastWords(json: String, today: LocalDate): String {
     }
 }
 
+/**
+ * The morning briefing's sentence: today's pollens from moderate between 7 h and 21 h (only those that bother the user, when they said
+ * which), and the air when it gets bad (above 60), or nothing on a clean day.
+ */
+internal fun airBriefingWords(json: String, today: LocalDate, pollens: Set<String> = emptySet()): String? {
+    val hourly = (Json.parseToJsonElement(json) as? JsonObject)?.get("hourly") as? JsonObject ?: return null
+    val times = (hourly["time"] as? JsonArray).orEmpty().map { LocalDateTime.parse((it as JsonPrimitive).content) }
+    val idx = times.indices.filter { times[it].toLocalDate() == today && times[it].hour in 7..21 }
+    if (idx.isEmpty()) return null
+    fun dayMax(k: String) = (hourly[k] as? JsonArray).orEmpty().let { s -> idx.mapNotNull { s.getOrNull(it).num() }.maxOrNull() }
+    val risky = POLLENS.filter { pollens.isEmpty() || it.key in pollens }.mapNotNull { p -> dayMax(p.key)?.let { p to pollenLevel(p, it) } }
+        .filter { it.second >= 2 }.sortedByDescending { it.second }
+    val parts = ArrayList<String>()
+    if (risky.isNotEmpty()) parts += "risque pollen aujourd’hui : " + risky.joinToString(", ") { (p, l) -> "${p.name} ${levelWords(l)}" }
+    dayMax("european_aqi")?.toInt()?.takeIf { it > 60 }?.let { parts += "air ${describeEuropeanAqi(it)} au pire (indice $it)" }
+    return if (parts.isEmpty()) null else parts.joinToString(", ")
+}
+
 /** A cell of the air map: where, the index there. */
 internal data class AirCell(val lat: Double, val lon: Double, val aqi: Int)
 
@@ -144,6 +162,9 @@ internal fun airAlertWords(json: String, threshold: Int, pollens: Set<String>): 
 internal object AirWatch {
     private fun prefs(c: Context) = c.getSharedPreferences("air_watch", Context.MODE_PRIVATE)
     fun enabled(c: Context) = prefs(c).getBoolean("on", false)
+
+    /** The pollens the user said bother them (API keys; empty: all). */
+    fun pollens(c: Context): Set<String> = prefs(c).getStringSet("pollens", emptySet()).orEmpty()
 
     fun set(c: Context, on: Boolean, threshold: Int = 60, pollens: Set<String> = emptySet()) {
         prefs(c).edit().putBoolean("on", on).putInt("threshold", threshold).putStringSet("pollens", pollens).apply()
