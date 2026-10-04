@@ -163,7 +163,8 @@ internal object WakeBriefing {
             .filter { it.endsWith("aujourd'hui") } + try { com.jarvis.android.budgets.Budgets.briefingLines(ctx) } catch (_: Exception) { emptyList() }
         val rain = rainJob.await()
         val flights = if (on("vols")) flightsLine(com.jarvis.android.space.FlightMail.trips(context), today) else null
-        val extras = listOfNotNull(vigilanceJob.await(), rain?.first, uvJob.await(), pollenJob.await(), energyJob.await(), flights) + money + listOfNotNull(mailsJob.await(), issJob.await(), launchJob.await(), auroraJob.await())
+        val outages = if (on("coupures")) try { com.jarvis.android.outages.Outages.briefingLine(context) } catch (_: Exception) { null } else null
+        val extras = listOfNotNull(vigilanceJob.await(), rain?.first, uvJob.await(), pollenJob.await(), energyJob.await(), outages, flights) + money + listOfNotNull(mailsJob.await(), issJob.await(), launchJob.await(), auroraJob.await())
         val sleep = if (!on("sommeil")) null else withTimeoutOrNull(4_000) {
             try {
                 val client = com.jarvis.android.health.healthClient(context) ?: return@withTimeoutOrNull null

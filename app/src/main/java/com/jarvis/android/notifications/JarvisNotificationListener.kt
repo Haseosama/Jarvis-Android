@@ -63,6 +63,8 @@ class JarvisNotificationListener : NotificationListenerService() {
         if (!fresh) return
         // A tracking number in a message or a mail ("votre colis … est expédié"): offered for tracking, once.
         try { com.jarvis.android.parcels.ParcelTracking.offerFromMessage(this, clean(app, 60), "$safeTitle $safeText") } catch (_: Exception) { }
+        // A notice of a planned cut ("Enedis : coupure pour travaux le 14/10 de 9h à 12h"): noted, reminded the evening before.
+        try { com.jarvis.android.outages.Outages.offerFromMessage(this, clean(app, 60), "$safeTitle $safeText") } catch (_: Exception) { }
         // A message from someone with a reminder tied to them ("quand Paul m'écrit…"), and what driving mode reads out.
         if (n.category == Notification.CATEGORY_MESSAGE || MESSAGING_APPS.contains(sbn.packageName)) {
             try { com.jarvis.android.people.PersonReminders.onMessage(this, title) } catch (_: Exception) { }
