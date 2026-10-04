@@ -16,6 +16,7 @@ import com.jarvis.android.files.MAX_FILE_BYTES
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.jarvis.android.files.loadAttachment
 
 /**
  * Opens the system file picker and keeps the chosen file in memory. [onResult] receives an error
@@ -31,26 +32,4 @@ internal fun rememberFileAttacher(onResult: (String?) -> Unit): () -> Unit {
         }
     }
     return { launcher.launch(arrayOf("*/*")) }
-}
-
-internal suspend fun loadAttachment(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
-    try {
-        var name = "fichier"
-        var size = -1L
-        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
-            if (c.moveToFirst()) {
-                c.getString(0)?.let { name = it }
-                if (!c.isNull(1)) size = c.getLong(1)
-            }
-        }
-        if (size > MAX_FILE_BYTES) return@withContext ERROR_FILE_TOO_BIG
-        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readNBytes(MAX_FILE_BYTES + 1) }
-            ?: return@withContext tr("Impossible de lire ce fichier.")
-        if (bytes.size > MAX_FILE_BYTES) return@withContext ERROR_FILE_TOO_BIG
-        val container = (context.applicationContext as JarvisApp).container
-        container.attachedFiles.attach(AttachedFile(name, context.contentResolver.getType(uri).orEmpty(), bytes))
-        null
-    } catch (_: Exception) {
-        tr("Impossible de lire ce fichier.")
-    }
 }

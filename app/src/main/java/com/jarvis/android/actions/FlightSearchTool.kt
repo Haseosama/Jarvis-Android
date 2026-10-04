@@ -5,6 +5,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.net.URLEncoder
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 
 object FlightSearchTool : Tool {
     override val name = "flight_search"

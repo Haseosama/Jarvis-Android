@@ -5,6 +5,9 @@ import com.jarvis.android.sos.SosAlarm
 import com.jarvis.android.sos.SosArm
 import com.jarvis.android.sos.namesList
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** "Au secours" / "SOS": a countdown, then an SMS with the position to the trusted contacts (see sos/Sos.kt). */
 object SosTool : Tool {

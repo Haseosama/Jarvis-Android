@@ -6,11 +6,14 @@ import com.jarvis.android.core.SessionTrigger
 import com.jarvis.android.core.SpokenAlert
 import com.jarvis.android.memory.ConfigStore
 import com.jarvis.android.memory.Voice
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /**
  * Changes the assistant's voice by voice: a voice named ("la voix Leda"), or one of a kind ("une voix féminine", "une voix masculine

@@ -14,12 +14,12 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.distanceKm
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.location.distanceKm
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import com.jarvis.android.i18n.tr
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import com.jarvis.android.video.VideoPanel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,6 +35,8 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import com.jarvis.android.location.LocationOutcome
+import com.jarvis.android.location.locate
 
 /*
  * The official warnings in France: Météo-France's weather vigilance (through MeteoAlarm, Europe's network of weather services: free,
@@ -210,7 +212,7 @@ object VigilanceTool : Tool {
         val near = if (fix != null && asked.isEmpty()) floodsNear(floods, fix.latitude, fix.longitude) else null
         if (fix != null) {
             Vigilance.centre = fix.latitude to fix.longitude
-            ctx.videoPanel.show(VideoPanel.Video(title = "Vigilance crues", sky = com.jarvis.android.space.SkyModes.FLOODS))
+            ctx.videoPanel.show(VideoPanel.Video(title = "Vigilance crues", sky = com.jarvis.android.video.SkyModes.FLOODS))
         }
         return Vigilance.words(dept, warn, near, ZoneId.systemDefault()) + " (Les rivières en vigilance sont dessinées sur la carte.) Dites-le simplement."
     }

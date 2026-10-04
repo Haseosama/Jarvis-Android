@@ -19,9 +19,9 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import com.jarvis.android.google.GoogleApi
 import com.jarvis.android.google.GoogleException
 import com.jarvis.android.i18n.tr

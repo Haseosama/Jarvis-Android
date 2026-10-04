@@ -7,6 +7,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Test
 import java.time.LocalDate
 import java.time.ZoneId
+import com.jarvis.android.people.CallEntry
+import com.jarvis.android.people.CallKind
+import com.jarvis.android.people.callerLabel
+import com.jarvis.android.people.describeGroups
+import com.jarvis.android.people.groupCallers
+import com.jarvis.android.people.whenLabel
 
 class CallLogToolTest {
     private val zone = ZoneId.of("Europe/Paris")

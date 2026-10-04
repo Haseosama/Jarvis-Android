@@ -8,7 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.core.content.IntentCompat
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.MainActivity
-import com.jarvis.android.ui.loadAttachment
+import com.jarvis.android.files.loadAttachment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

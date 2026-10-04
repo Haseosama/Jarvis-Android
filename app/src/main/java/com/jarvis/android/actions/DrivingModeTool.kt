@@ -6,6 +6,9 @@ import com.jarvis.android.notifications.JarvisNotificationListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** "Mode conduite": short answers, messages read out, optional "je conduis" answer (see driving/DrivingMode.kt). */
 object DrivingModeTool : Tool {

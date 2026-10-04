@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.ContactsContract
 import androidx.core.content.ContextCompat
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import java.time.LocalDate
 import java.time.MonthDay
 import java.time.format.TextStyle

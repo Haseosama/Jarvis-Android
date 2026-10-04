@@ -16,9 +16,9 @@ import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
 import com.jarvis.android.messaging.SendOutcome
 import com.jarvis.android.messaging.sendSms
-import com.jarvis.android.weather.Fix
-import com.jarvis.android.weather.LocationOutcome
-import com.jarvis.android.weather.locate
+import com.jarvis.android.location.Fix
+import com.jarvis.android.location.LocationOutcome
+import com.jarvis.android.location.locate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

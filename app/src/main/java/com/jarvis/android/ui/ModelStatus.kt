@@ -12,7 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.jarvis.android.core.LiveModels
+import com.jarvis.android.engine.LiveModels
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
 import com.jarvis.android.rest.ModelLadder

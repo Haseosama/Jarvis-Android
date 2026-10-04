@@ -4,7 +4,7 @@ import com.jarvis.android.JarvisContainer
 import com.jarvis.android.expenses.ExpensePeriod
 import com.jarvis.android.expenses.formatCents
 import com.jarvis.android.expenses.parseAmountCents
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import com.jarvis.android.subscriptions.MONTHLY
 import com.jarvis.android.subscriptions.Subscription
 import com.jarvis.android.subscriptions.SubscriptionAlerts
@@ -16,6 +16,10 @@ import com.jarvis.android.subscriptions.nextDue
 import kotlinx.serialization.json.JsonObject
 import java.time.LocalDate
 import java.time.ZoneId
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Subscriptions and regular payments: listed, warned the day before, spotted among the expenses (see subscriptions/). */
 object SubscriptionsTool : Tool {

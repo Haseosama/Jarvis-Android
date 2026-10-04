@@ -2,6 +2,7 @@ package com.jarvis.android.actions
 
 import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
 
 /** Lets the user close the voice session by voice ("arrête la session", "au revoir"). */
 object EndSessionTool : Tool {

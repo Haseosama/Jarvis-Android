@@ -122,7 +122,7 @@ internal fun arGuideWords(turn: Double, raise: Double): String {
 
 /** Whether a name in the sky is the one asked for: "Jupiter", "la Lune", "l’ISS", "Sirius", "AFR1234". */
 internal fun arNameMatches(label: String, id: String, wanted: String): Boolean {
-    fun clean(t: String) = com.jarvis.android.offline.normalize(t.substringBefore(" (")).removePrefix("la ").removePrefix("le ").removePrefix("l ").removePrefix("les ")
+    fun clean(t: String) = com.jarvis.android.text.normalize(t.substringBefore(" (")).removePrefix("la ").removePrefix("le ").removePrefix("l ").removePrefix("les ")
     val w = clean(wanted)
     if (w.isEmpty()) return false
     val l = clean(label)
@@ -181,7 +181,7 @@ internal fun ArSkyView(big: Boolean, target: String? = null, modifier: Modifier 
     LaunchedEffect(Unit) { if (!granted) permission.launch(Manifest.permission.CAMERA) }
 
     val observer by produceState<Observer?>(null) {
-        value = (com.jarvis.android.weather.locate(container.appContext) as? com.jarvis.android.weather.LocationOutcome.Found)?.let { Observer(it.fix.latitude, it.fix.longitude) }
+        value = (com.jarvis.android.location.locate(container.appContext) as? com.jarvis.android.location.LocationOutcome.Found)?.let { Observer(it.fix.latitude, it.fix.longitude) }
     }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1_000) } }

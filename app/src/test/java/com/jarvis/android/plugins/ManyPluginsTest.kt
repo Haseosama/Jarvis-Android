@@ -1,7 +1,6 @@
 package com.jarvis.android.plugins
 
-import com.jarvis.android.actions.MAX_DECLARED_PLUGINS
-import com.jarvis.android.actions.ToolRegistry
+import com.jarvis.android.registry.ToolRegistry
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -77,7 +76,7 @@ class ManyPluginsTest {
     }
 
     @Test fun `more than twenty plugins can be installed, up to the sanity limit`() {
-        val store = PluginStore(tmp.newFolder("plugins"))
+        val store = PluginStore(tmp.newFolder("plugins"), ToolRegistry::builtInNames)
         for (n in 1..MAX_PLUGINS) assertNull("plugin $n", store.install(json(n)))
         assertEquals(MAX_PLUGINS, store.reload().size)
         assertEquals(MAX_PLUGINS, ToolRegistry.pluginTools().size)

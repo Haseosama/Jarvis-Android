@@ -1,4 +1,4 @@
-package com.jarvis.android.space
+package com.jarvis.android.ui
 
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
@@ -61,6 +61,38 @@ import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.floor
 import kotlin.math.pow
+import com.jarvis.android.video.SkyModes
+import com.jarvis.android.space.Aircraft
+import com.jarvis.android.space.AuroraGrid
+import com.jarvis.android.space.FlightRoute
+import com.jarvis.android.space.Flights
+import com.jarvis.android.location.MapData
+import com.jarvis.android.space.Observer
+import com.jarvis.android.space.Quake
+import com.jarvis.android.space.Quakes
+import com.jarvis.android.space.RadarFrame
+import com.jarvis.android.space.SatelliteTool
+import com.jarvis.android.space.Sgp4
+import com.jarvis.android.space.SpaceWeather
+import com.jarvis.android.space.Tle
+import com.jarvis.android.space.auroraFrom
+import com.jarvis.android.space.compass
+import com.jarvis.android.space.countdownWords
+import com.jarvis.android.space.geomagneticLatitude
+import com.jarvis.android.location.greatCircle
+import com.jarvis.android.space.groundTrack
+import com.jarvis.android.space.kpNeeded
+import com.jarvis.android.location.mercX
+import com.jarvis.android.location.mercY
+import com.jarvis.android.space.minutesLeft
+import com.jarvis.android.location.nearestCity
+import com.jarvis.android.space.nightPolygon
+import com.jarvis.android.space.parseRadarFrames
+import com.jarvis.android.space.placeWords
+import com.jarvis.android.space.stormScale
+import com.jarvis.android.space.subPoint
+import com.jarvis.android.space.subSolar
+import com.jarvis.android.space.temeToEcef
 
 private val OCEAN = Color(0xFF071A2C)
 private val LAND = Color(0xFF22506F)
@@ -77,25 +109,6 @@ private val STREET = Color(0xFF3F6D8F)
 /** How far the "around me" map zooms in: a few streets across the screen. */
 private const val NEARBY_MAX_ZOOM = 200_000.0
 
-/** One picture of the rain radar: when, and where its tiles are. */
-internal data class RadarFrame(val time: Long, val path: String, val forecast: Boolean)
-
-/** RainViewer's list of radar pictures: the host, then the past ones and the few to come. */
-internal fun parseRadarFrames(json: String): Pair<String, List<RadarFrame>>? = try {
-    val o = Json.parseToJsonElement(json).jsonObject
-    val host = o["host"]?.jsonPrimitive?.contentOrNull ?: return null
-    val radar = o["radar"]?.jsonObject ?: return null
-    fun list(k: String, forecast: Boolean) = (radar[k] as? JsonArray).orEmpty().mapNotNull { f ->
-        val fo = f as? JsonObject ?: return@mapNotNull null
-        val t = fo["time"]?.jsonPrimitive?.longOrNull ?: return@mapNotNull null
-        val p = fo["path"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-        RadarFrame(t * 1000, p, forecast)
-    }
-    host to (list("past", false) + list("nowcast", true))
-} catch (_: Exception) {
-    null
-}
-
 /** The zoom RainViewer's free tiles stop at. */
 private const val RADAR_ZOOM = 7
 
@@ -110,7 +123,7 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
     val container = remember(context) { (context.applicationContext as JarvisApp).container }
     val data by produceState<MapData?>(null) { value = withContext(Dispatchers.IO) { try { MapData.get(context) } catch (_: Exception) { null } } }
     val observer by produceState<Observer?>(null) {
-        value = (com.jarvis.android.weather.locate(container.appContext) as? com.jarvis.android.weather.LocationOutcome.Found)?.let { Observer(it.fix.latitude, it.fix.longitude) }
+        value = (com.jarvis.android.location.locate(container.appContext) as? com.jarvis.android.location.LocationOutcome.Found)?.let { Observer(it.fix.latitude, it.fix.longitude) }
     }
     val radar = mode == SkyModes.RADAR
     val flightKey = mode.removePrefix(SkyModes.FLIGHT).takeIf { mode.startsWith(SkyModes.FLIGHT) }
@@ -507,14 +520,14 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                     val top = day.maxByOrNull { it.mag }
                     Text("Séismes · ${day.size} en 24 h (M 2,5+), ${quakes.count { it.mag >= 4.5 }} de M 4,5+ en 7 jours", color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     top?.let { Text("Le plus fort du jour : M %.1f %s".format(Locale.FRANCE, it.mag, placeWords(it.place)), color = Color(0xFFFF9F43), style = MaterialTheme.typography.labelMedium) }
-                    observer?.let { o -> quakes.minByOrNull { com.jarvis.android.actions.distanceKm(o.latDeg, o.lonDeg, it.lat, it.lon) } }?.let { q ->
-                        Text("Le plus proche de vous : M %.1f à %d km (%s)".format(Locale.FRANCE, q.mag, com.jarvis.android.actions.distanceKm(observer!!.latDeg, observer!!.lonDeg, q.lat, q.lon).toInt(), countdownWords(q.timeMs - now)), color = text, style = MaterialTheme.typography.labelSmall)
+                    observer?.let { o -> quakes.minByOrNull { com.jarvis.android.location.distanceKm(o.latDeg, o.lonDeg, it.lat, it.lon) } }?.let { q ->
+                        Text("Le plus proche de vous : M %.1f à %d km (%s)".format(Locale.FRANCE, q.mag, com.jarvis.android.location.distanceKm(observer!!.latDeg, observer!!.lonDeg, q.lat, q.lon).toInt(), countdownWords(q.timeMs - now)), color = text, style = MaterialTheme.typography.labelSmall)
                     }
                     Text("Rouge : moins de 6 h · orange : moins de 24 h · jaune : la semaine · USGS", color = dim, style = MaterialTheme.typography.labelSmall)
                 }
                 mode == SkyModes.AIR -> {
                     val centre = airCells.getOrNull(airCells.size / 2)
-                    Text("Qualité de l’air" + (centre?.let { " · indice ${it.aqi} (${com.jarvis.android.actions.describeEuropeanAqi(it.aqi)})" } ?: " · chargement…"), color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    Text("Qualité de l’air" + (centre?.let { " · indice ${it.aqi} (${com.jarvis.android.air.describeEuropeanAqi(it.aqi)})" } ?: " · chargement…"), color = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     if (airCells.isNotEmpty()) Text("Autour : de ${airCells.minOf { it.aqi }} à ${airCells.maxOf { it.aqi }} (une case ≈ 35 km)", color = dim, style = MaterialTheme.typography.labelSmall)
                     Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)) {
                         listOf(10 to "bon", 30 to "moyen", 50 to "dégradé", 70 to "mauvais", 90 to "très mauv.").forEach { (v, w) ->
@@ -563,7 +576,7 @@ internal fun WorldMapView(mode: String, big: Boolean, modifier: Modifier = Modif
                         )
                         if (r != null) minutesLeft(a, r)?.let { m ->
                             val eta = Instant.ofEpochMilli(now + m * 60_000L).atZone(ZoneId.systemDefault()).toLocalTime()
-                            val left = if (r.destLat != null && r.destLon != null) com.jarvis.android.actions.distanceKm(a.latitude, a.longitude, r.destLat, r.destLon) else null
+                            val left = if (r.destLat != null && r.destLon != null) com.jarvis.android.location.distanceKm(a.latitude, a.longitude, r.destLat, r.destLon) else null
                             Text("Arrivée estimée vers %02dh%02d".format(eta.hour, eta.minute) + (left?.let { " · encore ${fmtMap(it)} km" } ?: ""), color = dim, style = MaterialTheme.typography.labelSmall)
                         }
                         data?.let { d -> nearestCity(d.cities, a.latitude, a.longitude, 300.0) }?.let { (c, km) ->

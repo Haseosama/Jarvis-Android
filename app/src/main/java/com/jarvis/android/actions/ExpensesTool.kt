@@ -8,6 +8,9 @@ import com.jarvis.android.expenses.parsePeriod
 import com.jarvis.android.expenses.summarize
 import kotlinx.serialization.json.JsonObject
 import java.time.ZoneId
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Spending noted by voice, summed by period and category. Kept on the phone; works offline too. */
 object ExpensesTool : Tool {

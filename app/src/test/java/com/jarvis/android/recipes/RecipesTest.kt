@@ -2,7 +2,7 @@ package com.jarvis.android.recipes
 
 import com.jarvis.android.offline.OfflineAction
 import com.jarvis.android.offline.interpret
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

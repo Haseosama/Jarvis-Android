@@ -1,11 +1,12 @@
 package com.jarvis.android.space
 
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import com.jarvis.android.video.VideoPanel
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.video.SkyModes
 
 /** Shows the live sky (SkyView.kt) where the face is: the satellites and the aircraft around the user, with all their details. */
 object SkyViewTool : Tool {

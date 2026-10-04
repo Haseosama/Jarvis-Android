@@ -1,10 +1,9 @@
 package com.jarvis.android.plugins
 
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.ToolRegistry
-import com.jarvis.android.actions.objectSchema
-import com.jarvis.android.actions.stringArg
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.stringArg
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
@@ -64,7 +63,7 @@ object PluginManageTool : Tool {
             else if (!confirm(ctx, "Désinstaller un plugin", "Retirer le plugin « $name » ?")) "Rien n’a été retiré."
             else { ctx.pluginStore.remove(name); "Plugin « $name » retiré." }
         }
-        "list" -> ToolRegistry.pluginTools().filterIsInstance<PluginTool>().let { list ->
+        "list" -> InstalledPlugins.all().filterIsInstance<PluginTool>().let { list ->
             if (list.isEmpty()) "Aucun plugin installé." else list.sortedBy { it.name }.joinToString("\n", prefix = "Plugins installés (${list.size}) :\n") { "- ${it.name} : ${it.summary}" }
         }
         else -> "Action inconnue."
@@ -72,7 +71,7 @@ object PluginManageTool : Tool {
 
     private suspend fun create(ctx: JarvisContainer, text: String, test: String): String {
         if (text.isBlank()) return "Écrivez le plugin (JSON) dans « plugin »."
-        val spec = when (val parsed = parsePlugin(text, ToolRegistry.builtInNames())) {
+        val spec = when (val parsed = parsePlugin(text, ctx.pluginStore.builtInNames())) {
             is PluginParse.Error -> return "Plugin refusé : ${parsed.message} Corrigez-le et réessayez."
             is PluginParse.Ok -> parsed.spec
         }
@@ -102,7 +101,7 @@ object PluginManageTool : Tool {
         val url = pluginDownloadUrl(link) ?: return "Adresse refusée : un lien https vers un fichier de plugin (pas le réseau local)."
         val text = try { download(ctx, url) } catch (_: IOException) { return "Le fichier est inaccessible à cette adresse." }
             ?: return "Fichier trop gros pour un plugin (${MAX_PLUGIN_BYTES} caractères au plus)."
-        val spec = when (val parsed = parsePlugin(text, ToolRegistry.builtInNames())) {
+        val spec = when (val parsed = parsePlugin(text, ctx.pluginStore.builtInNames())) {
             is PluginParse.Error -> return "Ce fichier n’est pas un plugin valable : ${parsed.message}"
             is PluginParse.Ok -> parsed.spec
         }

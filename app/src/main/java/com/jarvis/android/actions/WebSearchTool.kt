@@ -1,7 +1,7 @@
 package com.jarvis.android.actions
 
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -12,6 +12,9 @@ import okhttp3.Request
 import org.jsoup.Jsoup
 import java.io.IOException
 import java.time.LocalDate
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** "site", "semaine", "cette année"… (accent/case-insensitive) to the one-letter code both search backends below understand. */
 internal fun recencyCode(recency: String): String? = when (normalize(recency)) {

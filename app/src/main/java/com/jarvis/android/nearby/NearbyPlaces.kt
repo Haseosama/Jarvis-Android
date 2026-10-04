@@ -1,7 +1,7 @@
 package com.jarvis.android.nearby
 
-import com.jarvis.android.actions.distanceKm
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.location.distanceKm
+import com.jarvis.android.text.normalize
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject

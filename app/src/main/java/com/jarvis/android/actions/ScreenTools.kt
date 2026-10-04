@@ -25,6 +25,8 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 
 internal const val ERROR_SERVICE_OFF =
     "Le contrôle du téléphone n’est pas activé. Ouvrez Paramètres > Accessibilité > Jarvis : contrôle du téléphone, puis activez-le. " +

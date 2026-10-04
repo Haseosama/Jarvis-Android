@@ -1,4 +1,4 @@
-package com.jarvis.android.core
+package com.jarvis.android.engine
 
 import com.jarvis.android.JarvisContainer
 import kotlinx.coroutines.flow.first
@@ -7,6 +7,9 @@ import java.io.InputStreamReader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.jarvis.android.core.SelfKnowledgeInputs
+import com.jarvis.android.core.WakeMode
+import com.jarvis.android.core.buildSelfKnowledge
 
 /**
  * System instruction shared by the voice session and the REST text chat: language rule, clock,
@@ -70,8 +73,8 @@ internal suspend fun collectSelfKnowledge(container: JarvisContainer, assistantN
         assistantName = assistantName,
         androidRelease = android.os.Build.VERSION.RELEASE.orEmpty(),
         deviceModel = listOf(android.os.Build.MANUFACTURER, android.os.Build.MODEL).filter { !it.isNullOrBlank() }.joinToString(" "),
-        builtInTools = com.jarvis.android.actions.ToolRegistry.ALL.map { it.name },
-        plugins = com.jarvis.android.actions.ToolRegistry.pluginTools().map { it.name },
+        builtInTools = com.jarvis.android.registry.ToolRegistry.ALL.map { it.name },
+        plugins = com.jarvis.android.registry.ToolRegistry.pluginTools().map { it.name },
         accessibilityOn = com.jarvis.android.device.JarvisAccessibilityService.instance != null,
         deviceControlEnabled = store.deviceControlEnabled.first(),
         workFolderSet = store.workFolder.first().isNotBlank(),

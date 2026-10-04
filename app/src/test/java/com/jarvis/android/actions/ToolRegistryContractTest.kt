@@ -11,6 +11,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.registry.ToolRegistry
 
 /**
  * One malformed declaration makes the Live API refuse the setup of the whole session (see [Tool.parameters]),

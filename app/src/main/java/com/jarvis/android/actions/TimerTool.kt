@@ -4,6 +4,10 @@ import com.jarvis.android.JarvisContainer
 import com.jarvis.android.timers.TimerDurations
 import com.jarvis.android.timers.TimerService
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 object TimerTool : Tool {
     override val name = "timer"

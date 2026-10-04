@@ -1,22 +1,19 @@
 package com.jarvis.android.actions
 
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.util.Log
+import com.jarvis.android.reminders.ReminderAlarm
 import com.jarvis.android.reminders.ReminderService
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
+/** Fires a reminder when its alarm goes off (the alarm itself is set in reminders/ReminderAlarm.kt). */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != ACTION_FIRE) return
-        val id = intent.getIntExtra(EXTRA_ID, 0)
-        val token = intent.getStringExtra(EXTRA_TOKEN) ?: return
-        if (id <= 0 || token.length != 36 || intent.data != identity(id, token)) return
+        val (id, token) = ReminderAlarm.parse(intent) ?: return
         val result = goAsync()
         try {
             executor.execute {
@@ -34,30 +31,7 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val EXTRA_ID = "id"
-        const val CHANNEL_ID = "jarvis_reminders"
-        private const val EXTRA_TOKEN = "reminder_token"
-        private const val ACTION_FIRE = "com.jarvis.android.reminders.FIRE"
         private val executor = ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, ArrayBlockingQueue<Runnable>(32))
             .apply { allowCoreThreadTimeOut(true) }
-
-        private fun identity(id: Int, token: String): Uri = Uri.Builder()
-            .scheme("jarvis-reminder").authority("local").appendPath(id.toString()).appendPath(token).build()
-
-        private fun intent(context: Context, id: Int, token: String) =
-            Intent(context, ReminderReceiver::class.java).apply {
-                action = ACTION_FIRE
-                data = identity(id, token)
-                putExtra(EXTRA_ID, id)
-                putExtra(EXTRA_TOKEN, token)
-            }
-
-        fun pendingIntent(context: Context, id: Int, token: String): PendingIntent =
-            PendingIntent.getBroadcast(context, id, intent(context, id, token),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-
-        fun existingPendingIntent(context: Context, id: Int, token: String): PendingIntent? =
-            PendingIntent.getBroadcast(context, id, intent(context, id, token),
-                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
     }
 }

@@ -128,7 +128,7 @@ internal object WakeBriefing {
         val off = ctx.wakeStore.load().off.toSet()
         fun on(k: String) = k !in off
         val found = withTimeoutOrNull(8_000) {
-            try { com.jarvis.android.weather.locate(context, maxAgeMs = 6 * 60 * 60_000L) as? com.jarvis.android.weather.LocationOutcome.Found } catch (_: Exception) { null }
+            try { com.jarvis.android.location.locate(context, maxAgeMs = 6 * 60 * 60_000L) as? com.jarvis.android.location.LocationOutcome.Found } catch (_: Exception) { null }
         }
         val lat = found?.fix?.latitude
         val lon = found?.fix?.longitude
@@ -143,7 +143,7 @@ internal object WakeBriefing {
         val uvJob = async { if (on("uv") && lat != null && lon != null) withTimeoutOrNull(8_000) { com.jarvis.android.weather.SunUv.briefingLine(ctx, lat, lon) } else null }
         val weather = if (!on("meteo") || found == null) null else withTimeoutOrNull(12_000) {
             try {
-                com.jarvis.android.actions.weatherAt(ctx, found.fix.latitude, found.fix.longitude, com.jarvis.android.weather.positionLabel(found.place))
+                com.jarvis.android.weather.weatherAt(ctx, found.fix.latitude, found.fix.longitude, com.jarvis.android.location.positionLabel(found.place))
             } catch (_: Exception) {
                 null
             }
@@ -181,7 +181,7 @@ internal object WakeBriefing {
         val (text, rainSoon) = composeFull(ctx)
         val context = ctx.appContext
         // rain coming: the radar where the face is, to see it arrive
-        if (rainSoon) ctx.videoPanel.show(com.jarvis.android.video.VideoPanel.Video(title = "Radar de pluie", sky = com.jarvis.android.space.SkyModes.RADAR))
+        if (rainSoon) ctx.videoPanel.show(com.jarvis.android.video.VideoPanel.Video(title = "Radar de pluie", sky = com.jarvis.android.video.SkyModes.RADAR))
         if (mode == WAKE_SPEAK) com.jarvis.android.driving.DrivingMode.speak(context, text, thenRelease = true)
         try {
             context.getSystemService(NotificationManager::class.java)

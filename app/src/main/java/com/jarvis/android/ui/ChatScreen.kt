@@ -49,7 +49,7 @@ import androidx.compose.ui.unit.dp
 import com.jarvis.android.core.ConversationRole
 import com.jarvis.android.core.MAX_MESSAGE_CHARS
 import com.jarvis.android.core.PendingConfirmation
-import com.jarvis.android.rest.RestChat
+import com.jarvis.android.engine.RestChat
 import com.jarvis.android.rest.VoiceStage
 import kotlinx.coroutines.launch
 

@@ -1,7 +1,7 @@
 package com.jarvis.android.actions
 
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -19,6 +19,10 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /*
  * Home Assistant control — not a Mark-LIII port, no direct equivalent there. The user runs their own

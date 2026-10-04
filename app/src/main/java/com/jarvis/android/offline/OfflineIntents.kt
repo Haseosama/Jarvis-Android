@@ -5,6 +5,7 @@ import java.text.Normalizer
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.jarvis.android.text.normalize
 
 /*
  * What Jarvis understands without the network: a fixed set of spoken commands (in French), matched with rules, each one becoming a call to
@@ -23,12 +24,6 @@ internal sealed interface OfflineAction {
 
     /** Nothing recognised. */
     data object Unknown : OfflineAction
-}
-
-/** Lower case, no accents, no punctuation, single spaces: "Éteins  la lampe !" becomes "eteins la lampe". */
-internal fun normalize(text: String): String {
-    val folded = Normalizer.normalize(text.lowercase(Locale.ROOT), Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
-    return folded.replace('’', ' ').replace('\'', ' ').replace(Regex("[^a-z0-9%+ ]"), " ").replace(Regex("\\s+"), " ").trim()
 }
 
 internal const val OFFLINE_HELP =

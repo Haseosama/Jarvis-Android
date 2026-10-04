@@ -1,4 +1,4 @@
-package com.jarvis.android.actions
+package com.jarvis.android.tool
 
 import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
@@ -18,7 +18,7 @@ import kotlinx.serialization.json.putJsonObject
  * the device at runtime (that's arbitrary code execution, not a feature), so
  * the equivalent here is compile-time but still "one file, no core edits":
  * add a new object implementing [Tool] and register it once in
- * [ToolRegistry.ALL].
+ * `ToolRegistry.ALL` (registry/ToolRegistry.kt).
  */
 interface Tool {
     val name: String

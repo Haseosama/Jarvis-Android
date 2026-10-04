@@ -3,8 +3,7 @@ package com.jarvis.android.plugins
 import android.content.Intent
 import android.net.Uri
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.Tool
-import com.jarvis.android.actions.ToolRegistry
+import com.jarvis.android.tool.Tool
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -56,7 +55,7 @@ internal class PluginTool(private val spec: PluginSpec) : Tool {
                 }
             },
             // Routines call built-in tools only, so a plugin can never start another plugin.
-            runTool = { tool, toolArgs -> ToolRegistry.runBuiltIn(tool, toolArgs, ctx) },
+            runTool = { tool, toolArgs -> ctx.runBuiltInTool(tool, toolArgs) },
         )
         return runner.run(spec, values)
     }

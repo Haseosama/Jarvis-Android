@@ -2,6 +2,9 @@ package com.jarvis.android.actions
 
 import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** A shopping list, a to-do list, or any other list the user names — persists between sessions, works offline too. */
 object TaskListTool : Tool {

@@ -22,6 +22,11 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import java.time.LocalDate
 import java.time.ZoneId
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.location.distanceKm
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.people.whenLabel
 
 /** Finds the phone's photos by date, album and place, says how many, and opens one (see photos/PhotoSearch.kt). */
 object PhotoSearchTool : Tool {

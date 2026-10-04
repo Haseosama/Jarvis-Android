@@ -1,6 +1,6 @@
 package com.jarvis.android.expenses
 
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable

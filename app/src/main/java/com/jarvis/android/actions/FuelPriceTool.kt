@@ -1,7 +1,7 @@
 package com.jarvis.android.actions
 
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -18,6 +18,11 @@ import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.util.Locale
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.location.distanceKm
+import com.jarvis.android.tool.objectSchema
 
 /*
  * Cheapest fuel in France, from the government's live feed (data.economie.gouv.fr, no key). Replaces the JSON plugin of the
@@ -146,20 +151,20 @@ object FuelPriceTool : Tool {
         val cityArg = args.stringArg("ville").trim()
         val now = Instant.now()
         args.stringArg("trajet").trim().takeIf { it.isNotEmpty() }?.let { return@withContext alongRoute(ctx, fuel, cityArg, it, now) }
-        val here = com.jarvis.android.weather.isHereRequest(cityArg)
+        val here = com.jarvis.android.location.isHereRequest(cityArg)
         var origin: Pair<Double, Double>? = null
         val where: String
         val filter: String
         if (here) {
-            val found = when (val outcome = com.jarvis.android.weather.locate(ctx.appContext)) {
-                is com.jarvis.android.weather.LocationOutcome.Found -> outcome
-                com.jarvis.android.weather.LocationOutcome.NoPermission ->
+            val found = when (val outcome = com.jarvis.android.location.locate(ctx.appContext)) {
+                is com.jarvis.android.location.LocationOutcome.Found -> outcome
+                com.jarvis.android.location.LocationOutcome.NoPermission ->
                     return@withContext "Je n'ai pas accès à la position : dites une ville, ou autorisez la position dans Paramètres > Position (météo)."
                 else -> return@withContext "Position introuvable pour le moment : dites une ville ou un code postal."
             }
             origin = found.fix.latitude to found.fix.longitude
             val radius = args.intArg("rayon_km", 5).coerceIn(1, 30)
-            where = "à moins de $radius km de ${com.jarvis.android.weather.positionLabel(found.place)}"
+            where = "à moins de $radius km de ${com.jarvis.android.location.positionLabel(found.place)}"
             filter = "within_distance(geom, geom'POINT(${"%.5f".format(Locale.ROOT, found.fix.longitude)} ${"%.5f".format(Locale.ROOT, found.fix.latitude)})', ${radius}km)"
         } else {
             val city = normalizedUtilityQuery(cityArg, 80) ?: return@withContext "Indiquez une ville ou un code postal."
@@ -202,7 +207,7 @@ internal object FuelMap {
 private fun showFuelMap(ctx: JarvisContainer, stations: List<Station>, fuel: Fuel, line: List<Pair<Double, Double>>?, origin: Pair<Double, Double>?) {
     if (stations.none { it.latitude != null }) return
     FuelMap.stations = stations; FuelMap.fuel = fuel; FuelMap.line = line.orEmpty(); FuelMap.origin = origin
-    ctx.videoPanel.show(com.jarvis.android.video.VideoPanel.Video(title = "Prix ${fuel.label}", sky = com.jarvis.android.space.SkyModes.FUEL))
+    ctx.videoPanel.show(com.jarvis.android.video.VideoPanel.Video(title = "Prix ${fuel.label}", sky = com.jarvis.android.video.SkyModes.FUEL))
 }
 
 /** A station's distance to a line of points (latitude, longitude), and how far along it (km from its start). */
@@ -234,8 +239,8 @@ internal fun evenPoints(line: List<Pair<Double, Double>>, stepKm: Double): List<
 /** The cheapest stations along a road: asked by circles every 20 km or so along it, kept within 3 km of it. */
 private suspend fun alongRoute(ctx: JarvisContainer, fuel: Fuel, fromWords: String, toWords: String, now: Instant): String {
     val to = com.jarvis.android.driving.RouteWeather.geocode(ctx, toWords) ?: return "Je ne trouve pas « $toWords »."
-    val from = if (fromWords.isNotEmpty() && !com.jarvis.android.weather.isHereRequest(fromWords)) com.jarvis.android.driving.RouteWeather.geocode(ctx, fromWords) ?: return "Je ne trouve pas « $fromWords »."
-    else (com.jarvis.android.weather.locate(ctx.appContext) as? com.jarvis.android.weather.LocationOutcome.Found)?.let { Triple(it.fix.latitude, it.fix.longitude, com.jarvis.android.weather.positionLabel(it.place)) }
+    val from = if (fromWords.isNotEmpty() && !com.jarvis.android.location.isHereRequest(fromWords)) com.jarvis.android.driving.RouteWeather.geocode(ctx, fromWords) ?: return "Je ne trouve pas « $fromWords »."
+    else (com.jarvis.android.location.locate(ctx.appContext) as? com.jarvis.android.location.LocationOutcome.Found)?.let { Triple(it.fix.latitude, it.fix.longitude, com.jarvis.android.location.positionLabel(it.place)) }
         ?: return "Je n'ai pas votre position : dites d'où vous partez."
     val (coords, km, _) = com.jarvis.android.driving.RouteWeather.route(ctx, from.first, from.second, to.first, to.second) ?: return "Itinéraire indisponible pour le moment."
     val line = coords.map { it.second to it.first }

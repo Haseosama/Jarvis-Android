@@ -5,6 +5,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.jarvis.android.location.Fix
+import com.jarvis.android.location.isHereRequest
+import com.jarvis.android.location.pickFreshest
+import com.jarvis.android.location.positionLabel
 
 class WeatherLocationTest {
     @Test

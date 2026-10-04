@@ -1,12 +1,11 @@
-package com.jarvis.android.rest
+package com.jarvis.android.engine
 
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.ToolRegistry
+import com.jarvis.android.registry.ToolRegistry
 import com.jarvis.android.core.ConversationMessage
 import com.jarvis.android.core.ConversationRole
-import com.jarvis.android.core.buildSystemInstruction
 import com.jarvis.android.core.appendConversation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +17,28 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 import java.util.concurrent.TimeUnit
+import com.jarvis.android.rest.AudioPlayer
+import com.jarvis.android.rest.AudioRecorder
+import com.jarvis.android.rest.ChatHistoryStore
+import com.jarvis.android.rest.ERROR_EMPTY_DRAFT
+import com.jarvis.android.rest.ERROR_TOO_MANY_TOOLS
+import com.jarvis.android.rest.GenerateTransport
+import com.jarvis.android.rest.MAX_SAVED_TURN_CHARS
+import com.jarvis.android.rest.ModelLadder
+import com.jarvis.android.rest.OkHttpGenerateTransport
+import com.jarvis.android.rest.RestChatException
+import com.jarvis.android.rest.RestReply
+import com.jarvis.android.rest.RestVoice
+import com.jarvis.android.rest.SavedChat
+import com.jarvis.android.rest.SavedMessage
+import com.jarvis.android.rest.SpeechModelResolver
+import com.jarvis.android.rest.VoicePreview
+import com.jarvis.android.rest.buildGenerateRequest
+import com.jarvis.android.rest.functionResponseTurn
+import com.jarvis.android.rest.modelTurn
+import com.jarvis.android.rest.parseGenerateResponse
+import com.jarvis.android.rest.trimTurns
+import com.jarvis.android.rest.userTurn
 
 internal const val MAX_TOOL_ROUNDS = 6
 

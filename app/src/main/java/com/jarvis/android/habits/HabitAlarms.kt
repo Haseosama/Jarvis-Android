@@ -10,7 +10,6 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.jarvis.android.JarvisApp
-import com.jarvis.android.actions.ReminderReceiver
 import com.jarvis.android.core.SpokenAlert
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.reminders.ReminderService
@@ -85,7 +84,7 @@ internal object HabitAlarms {
             val spoken = if (habit.medication) "C’est l’heure de votre médicament : ${habit.name}. Dites-moi quand c’est pris."
             else "C’est l’heure : ${habit.name}. Dites-moi quand c’est fait."
             if (ReminderService.notificationProblem(context) == null) { // also creates the reminders' channel, reused here
-                val notification = NotificationCompat.Builder(context, ReminderReceiver.CHANNEL_ID)
+                val notification = NotificationCompat.Builder(context, com.jarvis.android.reminders.ReminderAlarm.CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                     .setContentTitle(if (habit.medication) tr("Médicament") else tr("Habitude"))
                     .setContentText("${habit.name} — ${formatTime(slotTime.toLocalTime())}")

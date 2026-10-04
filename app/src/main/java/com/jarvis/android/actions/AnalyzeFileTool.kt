@@ -8,6 +8,8 @@ import com.jarvis.android.rest.RestChatException
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 
 /** Answers a question about the file the user attached with the paperclip button. */
 object AnalyzeFileTool : Tool {

@@ -14,6 +14,13 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.air.airQualityUrl
+import com.jarvis.android.people.CallKind
+import com.jarvis.android.people.callKindOf
 
 class ToolArgsTest {
     private val args = buildJsonObject {

@@ -1,9 +1,9 @@
 package com.jarvis.android.actions
 
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.weather.LocationOutcome
+import com.jarvis.android.location.LocationOutcome
 import com.jarvis.android.weather.describeRain
-import com.jarvis.android.weather.isHereRequest
+import com.jarvis.android.location.isHereRequest
 import com.jarvis.android.weather.parseRainSlots
 import com.jarvis.android.weather.rainForecastUrl
 import kotlinx.coroutines.CancellationException
@@ -13,6 +13,8 @@ import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import java.io.IOException
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 
 /** "Est-ce qu'il va pleuvoir dans l'heure ?": the next two hours, in 15-minute steps. */
 object RainSoonTool : Tool {
@@ -27,8 +29,8 @@ object RainSoonTool : Tool {
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String = withContext(Dispatchers.IO) {
         val raw = args.utilityString("city")
         val (lat, lon, label) = if (isHereRequest(raw)) {
-            when (val o = com.jarvis.android.weather.locate(ctx.appContext)) {
-                is LocationOutcome.Found -> Triple(o.fix.latitude, o.fix.longitude, com.jarvis.android.weather.positionLabel(o.place))
+            when (val o = com.jarvis.android.location.locate(ctx.appContext)) {
+                is LocationOutcome.Found -> Triple(o.fix.latitude, o.fix.longitude, com.jarvis.android.location.positionLabel(o.place))
                 LocationOutcome.NoPermission -> return@withContext "Je n'ai pas accès à la position : dites une ville, ou autorisez-la dans Paramètres > Position (météo)."
                 else -> return@withContext "Position introuvable pour le moment : dites une ville."
             }

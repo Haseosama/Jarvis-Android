@@ -7,7 +7,6 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
 import com.jarvis.android.JarvisApp
-import com.jarvis.android.driving.autoReplyAllowed
 
 /**
  * The automatic answer of driving mode ("je conduis") and of the quiet mode ("je suis en réunion"), sent with the

@@ -1,4 +1,4 @@
-package com.jarvis.android.weather
+package com.jarvis.android.location
 
 /** A position fix. */
 internal data class Fix(val latitude: Double, val longitude: Double, val timeMs: Long, val accuracyMeters: Float)

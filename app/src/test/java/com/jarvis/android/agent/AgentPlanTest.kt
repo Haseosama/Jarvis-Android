@@ -1,7 +1,7 @@
 package com.jarvis.android.agent
 
-import com.jarvis.android.actions.ToolRegistry
-import com.jarvis.android.rest.RestChatSession
+import com.jarvis.android.registry.ToolRegistry
+import com.jarvis.android.engine.RestChatSession
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject

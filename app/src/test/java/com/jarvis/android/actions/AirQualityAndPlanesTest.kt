@@ -5,6 +5,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.jarvis.android.location.distanceKm
+import com.jarvis.android.air.describeEuropeanAqi
 
 class AirQualityAndPlanesTest {
     // ── air quality ─────────────────────────────────────────────────────────

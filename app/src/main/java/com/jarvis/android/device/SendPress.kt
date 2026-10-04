@@ -1,6 +1,6 @@
 package com.jarvis.android.device
 
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import kotlinx.coroutines.delay
 
 /*

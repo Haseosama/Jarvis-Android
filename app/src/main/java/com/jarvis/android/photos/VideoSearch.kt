@@ -7,7 +7,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 
 /*
  * "Montre la vidéo de l'anniversaire", "la dernière vidéo", "les vidéos de samedi": the phone's own videos, found by the words of

@@ -15,6 +15,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.objectSchema
 
 private val SHUTTER_WORDS = listOf(
     "shutter", "obturateur", "declencheur", "prendre une photo", "prendre photo", "take photo",

@@ -1,4 +1,4 @@
-package com.jarvis.android.video
+package com.jarvis.android.car
 
 import android.content.Context
 import android.content.Intent
@@ -10,10 +10,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.jarvis.android.video.VideoPanel
+import com.jarvis.android.video.volumeOf
 
 /**
  * Sound without a picture (a radio, a podcast, the news) played outside the screen: the video panel says what, this player plays it,
- * inside the media service (car/JarvisMediaService.kt, in the foreground while it plays), so it goes on with the screen off, the app
+ * inside the media service (JarvisMediaService.kt, in the foreground while it plays), so it goes on with the screen off, the app
  * closed, and in the car with the phone locked. The panel still shows its card; its commands (pause, 30 s on, the start again), its
  * volume (the sound on or off, turned down while the user talks), its end and the sleep timer's fading all come through here.
  */

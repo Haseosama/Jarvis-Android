@@ -18,7 +18,7 @@ import com.jarvis.android.expenses.Expense
 import com.jarvis.android.expenses.formatCents
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
-import com.jarvis.android.offline.normalize
+import com.jarvis.android.text.normalize
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString

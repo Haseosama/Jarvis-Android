@@ -6,6 +6,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.jarvis.android.engine.HEALTHY_SESSION_MS
+import com.jarvis.android.engine.MAX_CONSECUTIVE_DROPS
+import com.jarvis.android.engine.RECONNECT_BASE_DELAY_MS
+import com.jarvis.android.engine.RECONNECT_MAX_DELAY_MS
+import com.jarvis.android.engine.ReconnectDecision
+import com.jarvis.android.engine.decideReconnect
 
 class SessionResumptionTest {
     private fun retry(decision: ReconnectDecision): ReconnectDecision.Retry {

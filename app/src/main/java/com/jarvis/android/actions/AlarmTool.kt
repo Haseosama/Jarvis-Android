@@ -6,6 +6,9 @@ import com.jarvis.android.JarvisContainer
 import kotlinx.serialization.json.JsonObject
 import java.time.LocalDateTime
 import java.time.LocalTime
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** A validated alarm request. [calendarDays] uses java.util.Calendar numbers (Sunday 1 … Saturday 7), as AlarmClock wants. */
 internal data class AlarmRequest(val hour: Int, val minute: Int, val label: String, val calendarDays: List<Int>)

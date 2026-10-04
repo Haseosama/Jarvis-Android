@@ -13,6 +13,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import java.io.File
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Text seen through the camera (or in the last photo), read on the phone: a sign, a menu, a label, a notice. */
 object ReadTextTool : Tool {

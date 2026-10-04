@@ -214,10 +214,10 @@ private fun sameRow(n: com.jarvis.android.device.ScreenElement, b: com.jarvis.an
  * The first "Envoyer" on the screen is NEVER taken blindly: that would send to whoever Messenger lists first.
  */
 internal fun pickMessengerSend(elements: List<com.jarvis.android.device.ScreenElement>, person: String): MessengerPick {
-    val wanted = com.jarvis.android.offline.normalize(person)
+    val wanted = com.jarvis.android.text.normalize(person)
     val words = wanted.split(' ').filter { it.isNotEmpty() }
     if (words.isEmpty()) return MessengerPick.None(emptyList())
-    fun names(label: String) = com.jarvis.android.offline.normalize(label).let { l -> words.all { it in l } }
+    fun names(label: String) = com.jarvis.android.text.normalize(label).let { l -> words.all { it in l } }
     val buttons = elements.filter { it.clickable && isSendLabel(it.label) }
     val direct = buttons.filter { names(it.label) }.map { it to it.label }
     val byRow = elements.filter { !it.editable && !isSendLabel(it.label) && it.label.isNotBlank() && names(it.label) }
@@ -227,7 +227,7 @@ internal fun pickMessengerSend(elements: List<com.jarvis.android.device.ScreenEl
         pairs.size == 1 -> MessengerPick.Found(pairs[0].first.index, pairs[0].second)
         pairs.size > 1 -> {
             // "Paul" with both "Paul" and "Paul Durand" listed: an exact name settles it, anything else is asked.
-            val exact = pairs.filter { com.jarvis.android.offline.normalize(it.second) == wanted }
+            val exact = pairs.filter { com.jarvis.android.text.normalize(it.second) == wanted }
             if (exact.size == 1) MessengerPick.Found(exact[0].first.index, exact[0].second)
             else MessengerPick.Ambiguous(pairs.map { it.second }.distinct())
         }
@@ -240,15 +240,15 @@ internal fun pickMessengerSend(elements: List<com.jarvis.android.device.ScreenEl
 
 /** Messenger marks a row once its message went: "Envoyé", "Sent", or an "Annuler"/"Undo" button in place of "Envoyer". */
 internal fun messengerConfirmsSent(elements: List<com.jarvis.android.device.ScreenElement>, rowName: String): Boolean {
-    val row = elements.firstOrNull { com.jarvis.android.offline.normalize(it.label) == com.jarvis.android.offline.normalize(rowName) }
+    val row = elements.firstOrNull { com.jarvis.android.text.normalize(it.label) == com.jarvis.android.text.normalize(rowName) }
     val marks = setOf("envoye", "sent", "annuler", "undo")
     return elements.any { e ->
-        com.jarvis.android.offline.normalize(e.label) in marks && (row == null || sameRow(row, e))
+        com.jarvis.android.text.normalize(e.label) in marks && (row == null || sameRow(row, e))
     }
 }
 
 private fun isSearchField(e: com.jarvis.android.device.ScreenElement) =
-    e.editable && com.jarvis.android.offline.normalize(e.label).let { "recherch" in it || "search" in it }
+    e.editable && com.jarvis.android.text.normalize(e.label).let { "recherch" in it || "search" in it }
 
 /**
  * Sends [text] to [person] through Messenger's "send to" screen: opens it with the text, types the name in its search field,
@@ -293,7 +293,7 @@ internal suspend fun sendThroughMessenger(ctx: JarvisContainer, person: String, 
                         delay(600)
                         val after = service.readScreen()
                         if (after != null && messengerConfirmsSent(after.elements, pick.name)) {
-                            after.elements.firstOrNull { it.clickable && com.jarvis.android.offline.normalize(it.label) in setOf("termine", "done", "ok") }
+                            after.elements.firstOrNull { it.clickable && com.jarvis.android.text.normalize(it.label) in setOf("termine", "done", "ok") }
                                 ?.let { service.tap(it.index) }
                             return SendOutcome.Sent("Messenger")
                         }

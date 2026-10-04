@@ -15,7 +15,6 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.actions.describeEuropeanAqi
 import com.jarvis.android.i18n.tr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -117,7 +116,7 @@ internal object AirData {
     }
 
     suspend fun now(ctx: JarvisContainer, lat: Double, lon: Double): String? = withContext(Dispatchers.IO) {
-        get(ctx, com.jarvis.android.actions.airQualityUrl(lat, lon))
+        get(ctx, com.jarvis.android.air.airQualityUrl(lat, lon))
     }
 
     /** The index on a 9 × 9 grid around a place, every 0.35° (about 35 km): 81 places in one question. */
@@ -159,7 +158,7 @@ internal object AirWatch {
     suspend fun check(c: Context) {
         if (!enabled(c) || java.time.LocalTime.now().hour !in 7..21) return
         val ctx = (c.applicationContext as JarvisApp).container
-        val fix = (com.jarvis.android.weather.locate(c, 6 * 3_600_000L) as? com.jarvis.android.weather.LocationOutcome.Found)?.fix ?: return
+        val fix = (com.jarvis.android.location.locate(c, 6 * 3_600_000L) as? com.jarvis.android.location.LocationOutcome.Found)?.fix ?: return
         val p = prefs(c)
         val body = AirData.now(ctx, fix.latitude, fix.longitude) ?: return
         val text = airAlertWords(body, p.getInt("threshold", 60), p.getStringSet("pollens", emptySet()).orEmpty()) ?: return

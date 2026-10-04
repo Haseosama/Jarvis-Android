@@ -14,7 +14,7 @@ import com.jarvis.android.places.matchReminders
 import com.jarvis.android.places.parseTrigger
 import com.jarvis.android.places.placeKey
 import com.jarvis.android.places.placePermissionProblem
-import com.jarvis.android.weather.LocationOutcome
+import com.jarvis.android.location.LocationOutcome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -22,6 +22,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import java.util.Locale
 import kotlin.coroutines.resume
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Reminders that fire on arriving at or leaving a place, and the named places they refer to. */
 object PlaceReminderTool : Tool {
@@ -102,7 +106,7 @@ object PlaceReminderTool : Tool {
      * when [near] (so "la boulangerie" means one nearby, not the first in France).
      */
     private suspend fun resolve(ctx: JarvisContainer, where: String, near: Boolean?): Result<Resolved> {
-        val here = com.jarvis.android.weather.locate(ctx.appContext, maxAgeMs = com.jarvis.android.parking.FRESH_FIX_MS)
+        val here = com.jarvis.android.location.locate(ctx.appContext, maxAgeMs = com.jarvis.android.parking.FRESH_FIX_MS)
         if (isHere(where) || placeKey(where).isEmpty()) {
             return when (here) {
                 is LocationOutcome.Found -> Result.success(Resolved(here.fix.latitude, here.fix.longitude, here.place ?: "votre position actuelle"))

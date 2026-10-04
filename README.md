@@ -67,11 +67,11 @@ release APK comes out unsigned. `keystore/`, `*.keystore` and `*.jks` are git-ig
 
 | Desktop (Mark-LIII, Python) | Android (this repo, Kotlin) |
 |---|---|
-| `main.py` (`JarvisLive`, `google-genai` Live session) | [`core/JarvisEngine.kt`](app/src/main/java/com/jarvis/android/core/JarvisEngine.kt) + [`core/GeminiLiveClient.kt`](app/src/main/java/com/jarvis/android/core/GeminiLiveClient.kt) |
+| `main.py` (`JarvisLive`, `google-genai` Live session) | [`engine/JarvisEngine.kt`](app/src/main/java/com/jarvis/android/engine/JarvisEngine.kt) + [`core/GeminiLiveClient.kt`](app/src/main/java/com/jarvis/android/core/GeminiLiveClient.kt) |
 | `core/wake_word.py` (openWakeWord, fully offline ONNX) | [`wake/OpenWakeWordDetector.kt`](app/src/main/java/com/jarvis/android/wake/OpenWakeWordDetector.kt) — the same three openWakeWord models, run with TFLite, fully offline (downloaded on demand, see "Offline wake word"), plus [phrases you teach it yourself](app/src/main/java/com/jarvis/android/wake/WakeLearning.kt). Without the models, [`core/WakeWordDetector.kt`](app/src/main/java/com/jarvis/android/core/WakeWordDetector.kt) falls back to Android's `SpeechRecognizer` (approximate, and it may use the network). |
 | `core/confirm.py` (real user confirmation for irreversible actions) | [`core/ConfirmManager.kt`](app/src/main/java/com/jarvis/android/core/ConfirmManager.kt) |
 | `core/undo.py` | [`core/UndoManager.kt`](app/src/main/java/com/jarvis/android/core/UndoManager.kt) |
-| `core/action_loader.py` + `plugins/` (runtime file auto-discovery) | [`actions/ToolRegistry.kt`](app/src/main/java/com/jarvis/android/actions/ToolRegistry.kt) — a compile-time list instead. Android can't safely load and execute arbitrary code dropped onto the device at runtime, so "one file, no core edits" survives as a Kotlin object implementing `Tool`, registered once in `ToolRegistry.ALL`. |
+| `core/action_loader.py` + `plugins/` (runtime file auto-discovery) | [`registry/ToolRegistry.kt`](app/src/main/java/com/jarvis/android/registry/ToolRegistry.kt) — a compile-time list instead. Android can't safely load and execute arbitrary code dropped onto the device at runtime, so "one file, no core edits" survives as a Kotlin object implementing `Tool`, registered once in `ToolRegistry.ALL`. |
 | `memory/memory_manager.py` | [`memory/MemoryManager.kt`](app/src/main/java/com/jarvis/android/memory/MemoryManager.kt) — same design: nothing is silently forgotten, only a budgeted "core" rides in every prompt, the rest is recalled on demand. |
 | `config/api_keys.json` + UI settings | [`memory/ConfigStore.kt`](app/src/main/java/com/jarvis/android/memory/ConfigStore.kt) — API key in `EncryptedSharedPreferences`, everything else in DataStore. |
 | `dashboard/` (remote control from your phone) | N/A — the assistant already *is* the phone. |
@@ -174,7 +174,7 @@ Since 0.9.27, after [Mark LV](https://github.com/FatihMakes/Mark-LV) (CC BY-NC 4
   streamed answer moves to another model only before anything of it was handed on. Every call also has a deadline (180 s in all,
   90 s without a byte), so a model that holds the line is let go. Before this, one model answered everything: Mark LV measured
   `gemini-3.6-flash`, this app's default, answering 504 after 12 s.
-- **Live models** (`core/LiveModels.kt`). A voice session opens on the model chosen in the settings; if it is out of quota or not
+- **Live models** (`engine/LiveModels.kt`). A voice session opens on the model chosen in the settings; if it is out of quota or not
   there for this key, it reconnects at once on `gemini-3.1-flash-live-preview`, then `gemini-2.5-flash-native-audio-preview-12-2025`
   (the two Mark LV checked in September 2026), and says so in the activity log. Deliberately a short list, and only for the model's
   own failures: Live models differ in what they accept, and a network drop or a refused key never moves it.
@@ -421,7 +421,7 @@ by the `DUMP` permission so only adb can call it; it is not in the release build
   (`SpeechStyleTest`, `MemoryManagerTest`) — the sorting in both directions, the caps, the promotion into the
   prompt and the absence of repetition. *Not checked:* whether the model obeys the instruction more faithfully in
   a real long conversation, which is the whole point and can only be judged in use.
-- **What Jarvis remembers after a session** (`memory/MemoryExtraction.kt`, `rest/RestChat.kt`). Until 0.4.4 it kept only what the model
+- **What Jarvis remembers after a session** (`memory/MemoryExtraction.kt`, `engine/RestChat.kt`). Until 0.4.4 it kept only what the model
   explicitly saved with `remember_fact`. Now, when a session with at least two exchanges ends, one Gemini call reads the conversation and
   returns a summary and the lasting facts the user gave about themselves (name, city, tastes, projects, people, wishes: at most 8, never a
   password, a long number or a health detail), which are stored in the memory. The transcript is put aside first and dropped only once the
@@ -756,7 +756,7 @@ payload shaped like the real one, and live on the emulator for Lyon, Paris and a
 
 ### Missed notifications, quiet time, subscriptions, recipes, parcels
 
-- **"Qu'est-ce que j'ai raté ?"** (`notifications` action `digest`, `notifications/NotificationLog.kt`). Everything that arrived
+- **"Qu'est-ce que j'ai raté ?"** (`notifications` action `digest`, `notifications/log/NotificationLog.kt`). Everything that arrived
   since a moment (3 hours by default, "depuis ce matin"…), even the notifications already swiped away — kept in memory only,
   300 at most, never on disk — grouped by app and by person, the busiest first, with the missed calls. The model sums it up.
 - **Do Not Disturb until a time** (`quiet_mode`, `quiet/QuietMode.kt`, Settings > *Ne pas déranger*). "Je suis en réunion
@@ -1404,7 +1404,7 @@ also shown in the settings.
   calibrate the compass when it is imprecise. *Checked:* on the emulator (its virtual room as the camera), the picture upright and not
   stretched, the horizon and north where the sensor says, the aircraft over Paris named without overlap; the projection by unit tests
   (ahead in the middle, higher up, east to the right, the declination, nothing behind). *Not checked:* a real phone outdoors at night.
-- **World map, followed flights, rain radar** (since 0.9.44; `space/WorldMapView.kt`, `MapData.kt`, `Flights.kt`). In place of the face,
+- **World map, followed flights, rain radar** (since 0.9.44; `ui/WorldMapView.kt`, `location/MapData.kt`, `Flights.kt`). In place of the face,
   a world map drawn from Natural Earth (land, borders, 923 cities shown as one zooms in; pinch and drag):
   - `sky_view` show `map`: the ISS and Tiangong where they are, their ground track (the last 45 minutes and the next orbit, cut at the
     date line), the night side of the Earth and the point under the Sun; a card with the ISS's position, altitude, speed and nearest city.
@@ -1481,7 +1481,7 @@ also shown in the settings.
   (`tcppver.out`), every satellite agrees within 4 cm. A geostationary satellite stays overhead all day for a place under it, a GPS one
   crosses the sky. *Not checked:* the `gnss` and `geo` downloads from CelesTrak (not reachable from where this was written), on a real phone.
 - **The app's name** is "Jarvis" (it was "Jarvis Dev") since 0.9.39.
-- **Jarvis in Android Auto, sound off the screen** (since 0.9.38; `car/`, `video/AudioPlayer.kt`). Sound alone (a radio, a podcast, the
+- **Jarvis in Android Auto, sound off the screen** (since 0.9.38; `car/`, `car/AudioPlayer.kt`). Sound alone (a radio, a podcast, the
   news) no longer plays inside the app's screen but in `AudioPlayer`, run by a media service (`JarvisMediaService`, in the foreground
   with the player's notification while it plays): it goes on with the screen off, the app closed (swiped away from the recent apps) and the
   phone locked in the car. The same service is a media browser, so Jarvis is a media app for Android Auto (`automotive_app_desc.xml`): the

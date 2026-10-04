@@ -6,6 +6,10 @@ import android.content.pm.PackageManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationManagerCompat
+import com.jarvis.android.notifications.log.SeenNotification
+import com.jarvis.android.notifications.log.clean
+import com.jarvis.android.notifications.log.redactSensitive
+import com.jarvis.android.notifications.log.SeenNotifications
 
 /**
  * Lets Jarvis read the notifications the user can see, once the user has switched on "Notification access" for it in
@@ -24,8 +28,8 @@ class JarvisNotificationListener : NotificationListenerService() {
     }
 
     override fun onListenerDisconnected() {
-        LOG.clear()
-        HISTORY.clear()
+        SeenNotifications.LOG.clear()
+        SeenNotifications.HISTORY.clear()
         super.onListenerDisconnected()
     }
 
@@ -34,7 +38,7 @@ class JarvisNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
-        if (sbn != null) LOG.remove(sbn.key)
+        if (sbn != null) SeenNotifications.LOG.remove(sbn.key)
     }
 
     private fun keep(sbn: StatusBarNotification, fresh: Boolean) {
@@ -54,8 +58,8 @@ class JarvisNotificationListener : NotificationListenerService() {
         }
         val (safeTitle, safeText) = redactSensitive(title, text)
         val seen = SeenNotification(sbn.key, clean(app, 60), sbn.packageName, sbn.postTime, safeTitle, safeText)
-        LOG.add(seen)
-        HISTORY.add(seen)
+        SeenNotifications.LOG.add(seen)
+        SeenNotifications.HISTORY.add(seen)
         if (!fresh) return
         // A tracking number in a message or a mail ("votre colis … est expédié"): offered for tracking, once.
         try { com.jarvis.android.parcels.ParcelTracking.offerFromMessage(this, clean(app, 60), "$safeTitle $safeText") } catch (_: Exception) { }
@@ -68,9 +72,6 @@ class JarvisNotificationListener : NotificationListenerService() {
     }
 
     companion object {
-        internal val LOG = NotificationLog()
-        internal val HISTORY = NotificationHistory()
-
         /** Apps whose notifications are messages from a person, even when they do not say so. */
         internal val MESSAGING_APPS = setOf(
             "com.google.android.apps.messaging", "com.samsung.android.messaging", "com.whatsapp", "com.whatsapp.w4b",

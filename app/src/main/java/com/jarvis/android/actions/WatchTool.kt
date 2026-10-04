@@ -15,6 +15,10 @@ import com.jarvis.android.watch.validCoinId
 import com.jarvis.android.watch.watchStore
 import kotlinx.serialization.json.JsonObject
 import java.util.Locale
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.intArg
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Watches something in the background (a crypto price, a website, the battery temperature, the free memory) and alerts by notification. */
 object WatchTool : Tool {

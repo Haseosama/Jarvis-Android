@@ -8,6 +8,9 @@ import kotlinx.serialization.json.JsonObject
 import java.io.IOException
 import java.time.Instant
 import java.time.ZoneId
+import com.jarvis.android.tool.Tool
+import com.jarvis.android.tool.stringArg
+import com.jarvis.android.tool.objectSchema
 
 /** Waking up to a radio station (see wakeup/RadioAlarm.kt): one radio alarm, set, shown or removed. */
 object RadioAlarmTool : Tool {
@@ -37,7 +40,7 @@ object RadioAlarmTool : Tool {
                 val query = args.stringArg("query").trim().take(80)
                 if (query.isEmpty()) return "Dites avec quelle station vous réveiller."
                 val station = try {
-                    RadioTool.findStations(ctx.http, query, "FR").firstOrNull()
+                    com.jarvis.android.radio.findStations(ctx.http, query, "FR").firstOrNull()
                 } catch (_: IOException) {
                     return "L’annuaire des radios ne répond pas : réessayez dans un moment."
                 } ?: return "Aucune radio trouvée pour « $query »."
