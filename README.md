@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.63 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.65 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -34,7 +34,7 @@ Everything is asked by voice (French first, English too), or typed in the chat. 
   to a person: "la prochaine fois que Paul m'appelle…"), find the phone, files in a work folder.
 - **Everyday life**: lists, spending (by voice or by scanning a receipt) and monthly budgets, subscriptions and regular payments,
   recipes read step by step, parcel tracking, train and bus times, text read through the camera, a briefing when the alarm stops, medications and habits, where the car is parked, driving mode,
-  weather and rain in the next hour, air quality, fuel prices, the nearest pharmacy, bakery, cash machine, toilets or charger (open or not), planes overhead, birthdays, calendar, photos (by date, place, or what is on
+  weather and rain in the next hour, air quality, fuel prices, the nearest pharmacy, bakery, cash machine, toilets or charger (open or not), planned cuts of electricity, water or gas (read from the notices received, reminded the evening before), planes overhead, birthdays, calendar, photos (by date, place, or what is on
   them), health (steps, sleep, heart rate from Health Connect), an emergency SOS to chosen contacts.
 - **Knowledge and work**: web search, reading a web page, flights, translation and interpreter mode, meeting notes, documents, Gmail and
   Drive, code help, watches on prices or sites, a multi-step agent mode.
@@ -1229,6 +1229,18 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Planned outages** (since 0.9.65; `coupures_prevues`, `outages/Outages.kt`, `outages/OutageParse.kt`). Cuts of electricity, water or
+  gas planned at home for works. No open data lists them (Enedis shows its works cuts by address on enedis.fr, "Info coupure", and the
+  water services each their own way; nothing on data.gouv.fr or data.enedis.fr), but the notices reach the phone: Enedis's SMS or mail
+  to the customers signed up for its alerts, GRDF's, the water service's, the town hall's app. With the notification access already used
+  for parcels, a notice is read as it arrives ("ENEDIS : coupure pour travaux le 14/10 de 09h00 à 12h00", "Veolia : l'eau sera coupée
+  mercredi 7 octobre entre 8 h 30 et 17 h"): what is cut, the day (a date, "demain", a weekday) and the hours; it must come from such a
+  sender or speak of works, so a headline about a blackout elsewhere is not noted, and be within two months. The cut is noted once, told
+  in a notification, reminded the evening before at 20 h (an hour before when that is gone) with what to prepare (bottles of water;
+  phone charged and freezer shut), and said in the morning briefing on the day and the day before (part "coupures", can be switched
+  off). The tool lists them, `add`s one announced otherwise (a letter, a poster: type, date, hours, or the notice's text as it is) and
+  `remove`s one. *Checked:* the reading of notices (Enedis, Veolia, GRDF wordings, phone numbers not taken for dates), the noting once,
+  the reminder's time and the words said, by unit tests. *Not checked:* a real notice arriving on a phone, the reminder ringing.
 - **Product recalls** (since 0.9.62; `rappel_produit`, `recalls/Recalls.kt`, `recalls/RecallParse.kt`). A built-in tool now, replacing
   the catalogue plugins `rappel_produit` and `rappels_recents` (an installed copy of the first is shadowed by it; one of the second keeps
   working). RappelConso (the State's recall site, open data on data.economie.gouv.fr, free, no key): `check` by name, brand or barcode
