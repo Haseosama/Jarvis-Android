@@ -583,8 +583,9 @@ Spotify app or a browser on a device.
   key, rate-limited). OpenSky only sees aircraft whose transponder reaches one of its volunteer receivers —
   most airliners, not necessarily every light or military aircraft — so the answer says "vus par OpenSky".
   Aircraft on the ground are left out.
-- **Satellites overhead: not done.** Every free "what is above me" service found (N2YO and similar) needs the
-  user to register for their own API key first — the same trap as Google Home or Spotify's Web API.
+- **Satellites overhead: not done here, done since 0.9.40** without any such service: the orbits come from
+  CelesTrak and the positions are computed on the phone (see "Satellites and the ISS" below). At this version,
+  every free "what is above me" service found (N2YO and similar) needed the user to register for their own API key.
 - Checked: unit tests for the parsing and formatting of both (the positional arrays OpenSky returns, an empty
   sky, the nearest-first order, the bounding box, a haversine distance), and called live on the emulator (see the
   release notes of this version for what came back).
