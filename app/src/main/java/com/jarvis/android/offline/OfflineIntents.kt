@@ -86,6 +86,8 @@ private val PARCELS = Regex("^(?:ou en est mon colis|ou en sont mes colis|mes co
 private val BUDGETS = Regex("^(?:mon budget|mes budgets|ou en est mon budget|ou en sont mes budgets|il me reste combien(?: de budget)?)$")
 private val READ_TEXT = Regex("^(?:qu est ce qui est ecrit(?: la| ici| dessus)?|c est ecrit quoi(?: la)?|lis moi (?:ca|ce texte|cette notice|ce panneau|cette etiquette|cette page|ce document|ce menu)|lis (?:ca|ce texte|cette notice|ce panneau|cette etiquette))$")
 private val NEXT_TRAIN = Regex("^(?:quel est le |c est quand le )?prochain train (?:pour|vers|a destination de|jusqu a) (.+)$")
+private val NEXT_DEPARTURES = Regex("^(?:quels sont les |donne moi les |les )?(?:prochains )?departs(?: (?:de|du|depuis) (?:la gare d |la gare de |l arret de |l arret )?(.+))?$")
+private val NEXT_LOCAL = Regex("^(?:quand passe (?:mon|le prochain) (bus|tram|metro)|(?:mon|le prochain) (bus|tram|metro) passe quand)$")
 private val CALLS_MISSED = Regex("^(?:qui m a appele|qui a appele|j ai des appels manques|j ai eu des appels|est ce que j ai (?:eu )?des appels(?: manques)?|mes appels manques|appels manques)(?: aujourd hui)?$")
 private val CALLS_RECENT = Regex("^(?:mes derniers appels|derniers appels|mon journal d appels|journal d appels)$")
 
@@ -144,6 +146,11 @@ internal fun interpret(raw: String, now: LocalDateTime = LocalDateTime.now()): O
 
     // Before the music: "prochain" alone is the next song, but "le prochain train pour Rennes" is a train.
     NEXT_TRAIN.matchEntire(n)?.let { return OfflineAction.ToolCall("transport", mapOf("action" to "journey", "to" to it.groupValues[1]), "", format = { t -> t }) }
+    NEXT_DEPARTURES.matchEntire(n)?.let {
+        val station = it.groupValues[1]
+        return OfflineAction.ToolCall("transport", if (station.isEmpty()) mapOf("action" to "departures") else mapOf("action" to "departures", "station" to station), "", format = { t -> t })
+    }
+    NEXT_LOCAL.matchEntire(n)?.let { return OfflineAction.ToolCall("transport", mapOf("action" to "departures", "network" to "local"), "", format = { t -> t }) }
 
     if (THANKS.containsMatchIn(n)) return OfflineAction.Say("Je vous en prie.")
     if (HELP.containsMatchIn(n)) return OfflineAction.Say(OFFLINE_HELP)

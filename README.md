@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.65 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.66 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -807,7 +807,7 @@ payload shaped like the real one, and live on the emulator for Lyon, Paris and a
   train pour Rennes ?" (also offline), "les départs de la gare de Brest", "mon bus passe quand ?": the Navitia API, through
   SNCF's own open data for trains (free SNCF key) and navitia.io for the buses, trams and metros of the phone's city (free
   key, optional); both keys are encrypted like the others. Connections with the trains taken, the changes and the delays;
-  departures with their delay.
+  departures with their delay. Since 0.9.66 the departures also work without any key (Transitous, see "Next departures without a key").
 - **Settings search and themes**. A search field (titles in both languages, plus a few keywords: "clé", "batterie",
   "train"…) and theme chips (Voix et IA, Téléphone, Vie quotidienne, Voiture et sécurité, Services et données) narrow down the
   forty cards; each card finds its theme from its French title (`ui/SettingsFilter.kt`), nothing was moved.
@@ -1229,6 +1229,20 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Next departures without a key** (since 0.9.66; `transport` `departures`, `transport/Transitous.kt`). "Les prochains départs",
+  "mon bus passe quand ?", "le prochain tram", "les départs de la gare de Brest" now work with no key at all: when the service's key
+  (SNCF for trains, navitia.io for local transport) is not set, the departures come from Transitous (api.transitous.org), a
+  community server fed with the open timetables of transport.data.gouv.fr and their real-time feeds, so the SNCF trains and the
+  buses, trams and metros of most French networks. The stop named (searched near the phone), or the nearest stops (up to four,
+  within 1.5 km, 3 km for a train station, those known to serve the kind asked first) until one has departures; then the next six
+  of the kind asked (`network` `train`, `local` or empty for all): the time, "dans 4 min", the delay, the line ("Bus C6", "Tram A",
+  "TER 857300"), its direction, the track, and "supprimé" when cancelled; "horaires prévus" when the network gives no real time.
+  With a key the Navitia answers are kept as before; journeys from one station to another still need the SNCF key. Also without
+  the model: "les prochains départs (de …)", "quand passe mon bus / tram ?". Transitous asks for a User-Agent naming the app (sent)
+  and a visible link to its sources (a button in Settings > *Transports*). *Checked:* the answers read and said, the stops chosen,
+  the kinds kept and the offline phrases by unit tests, run on the JVM outside Android; the request paths against MOTIS's published
+  API description. *Not checked:* on the emulator or a real phone, and against Transitous's live answers (not reachable from the
+  development environment).
 - **Pollen risk in the morning briefing** (since 0.9.65; `wake_briefing`, `air/AirWatch.kt`, `wakeup/BriefingExtras.kt`). The briefing
   already told the Météo-France and Vigicrues warnings in force here (since 0.9.56); it now also says today's pollen risk, in one
   sentence or not at all: each pollen that reaches moderate or more between 7 h and 21 h where the user is (Open-Meteo's forecast,
