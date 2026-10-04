@@ -51,7 +51,7 @@ private val KEYWORDS: Map<String, String> = mapOf(
     "Envoi de messages" to "sms whatsapp messenger envoyer",
     "Contacts (appels et SMS)" to "appels journal telephone",
     "Colis" to "la poste suivi cle",
-    "Transports" to "train sncf bus tram metro cle navitia",
+    "Transports" to "train sncf bus tram metro cle navitia departs horaires transitous",
     "Maison connectée" to "home assistant domotique lumiere",
     "Médicaments et habitudes" to "medicament pilule",
     "Urgence / SOS" to "secours alerte",
