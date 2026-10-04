@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
+import com.jarvis.android.transport.TRANSITOUS_SOURCES
 import kotlinx.coroutines.launch
 
 /** Parcels: the La Poste key for automatic tracking, and the parcels being followed. */
@@ -131,17 +132,21 @@ private fun ServiceKey(label: String, how: String, link: String, get: () -> Stri
     }
 }
 
-/** Public transport: the SNCF key (trains) and the navitia.io key (local buses and trams). */
+/** Public transport: the SNCF key (trains) and the navitia.io key (local buses and trams); departures work without either (Transitous). */
 @Composable
 internal fun TransportCard() {
     val context = LocalContext.current
     val config = remember { (context.applicationContext as JarvisApp).container.configStore }
     SettingsCard(tr("Transports"), Icons.Filled.Train, initiallyExpanded = false) {
         Text(
-            tr("« Quel est le prochain train pour Rennes ? », « les départs de la gare de Brest », « mon bus passe quand ? » : horaires en temps réel, avec les retards. Il faut une clé gratuite par service ; elles sont chiffrées sur le téléphone."),
+            tr("« Quel est le prochain train pour Rennes ? », « les départs de la gare de Brest », « mon bus passe quand ? » : horaires en temps réel, avec les retards. Les prochains départs marchent sans clé, partout en France, grâce à Transitous ; les trajets d’une gare à l’autre demandent la clé SNCF gratuite. Les clés sont chiffrées sur le téléphone."),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 6.dp),
         )
+        // Transitous asks for a visible link to the sources of its timetables.
+        TextButton(onClick = {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TRANSITOUS_SOURCES)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }) { Text(tr("Sources des horaires sans clé (Transitous)")) }
         ServiceKey(
             tr("Clé SNCF"),
             tr("Trains : demandez une clé gratuite sur numerique.sncf.com (« API SNCF », jeton développeur, reçu par mail) et collez-la ici."),
