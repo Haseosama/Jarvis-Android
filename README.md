@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.75 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.76 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -816,7 +816,7 @@ still opens the app and starts a session ("Parler à Jarvis").
   proposes, then starts the chosen recipe; each step is read on demand ("étape suivante", "répète", "l'étape d'avant", "étape
   3" — offline too once it has started), a step with a duration suggests a timer, the missing ingredients go on the shopping
   list, and "garde cette recette" keeps it (50 at most) for "ma recette de crêpes". A recipe untouched for four hours is over.
-- **Hands-free cooking: timers on their own** (since 0.9.75; `recipe`, `recipes/Recipes.kt`, `actions/RecipeTool.kt`). The first time a
+- **Hands-free cooking: timers on their own** (since 0.9.76; `recipe`, `recipes/Recipes.kt`, `actions/RecipeTool.kt`). The first time a
   step with a duration is read ("cuire 20 minutes", "laisser reposer 1 h 30", "1h30"; the lower figure of "20 à 25 minutes"), its timer
   starts by itself, named after the recipe and the step ("Crêpes, étape 3 : Laisser reposer 1 h"), so its spoken end says what it was
   for. "Répète" or going back to that step does not start it twice. "Pas de minuteur" (also offline) switches this off for the recipe
