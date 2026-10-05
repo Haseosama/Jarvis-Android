@@ -5,7 +5,11 @@
     <string name="shortcut_talk_short">Parler à Jarvis</string>
     <string name="shortcut_talk_long">Démarrer une session avec Jarvis</string>
     <string name="widget_talk">Parler à Jarvis</string>
-    <string name="widget_description">Un bouton pour démarrer Jarvis d’un geste</string>
+    <string name="widget_description">Le visage de Jarvis, la météo et ton prochain rappel ; un appui pour lui parler</string>
+    <string name="widget_face">Visage de Jarvis</string>
+    <string name="widget_no_reminder">Aucun rappel à venir</string>
+    <string name="widget_weather_no_location">Météo : autorise la position dans les réglages</string>
+    <string name="widget_weather_unavailable">Météo indisponible pour le moment</string>
     <string name="tile_label">Jarvis</string>
     <string name="share_label">Jarvis</string>
     <string name="assist_label">Jarvis</string>
