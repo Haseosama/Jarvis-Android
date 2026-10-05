@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.75 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.77 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1330,7 +1330,7 @@ also shown in the settings.
   twice for the same station at the same price, and at most once a day unless the price went down since. One alert at a time; a new one
   replaces it. *Checked:* unit tests on the price as said, the words of the alert, when it is told again, and the feed's filters.
   *Not checked:* on the emulator or a real phone (the background check, the notification).
-- **Bin collection** (since 0.9.75; `poubelles`, `trash/Trash.kt`, `trash/TrashSchedule.kt`). "Le bac jaune c'est le mardi des
+- **Bin collection** (since 0.9.77; `poubelles`, `trash/Trash.kt`, `trash/TrashSchedule.kt`). "Le bac jaune c'est le mardi des
   semaines paires", "les ordures ménagères mardi et vendredi", "le verre le premier lundi du mois", "les encombrants le 14 novembre":
   no national open data gives the collection days (each commune or intercommunality publishes its own calendar), so the calendar comes
   from three places, mixed: the days said by voice (every week, even or odd ISO weeks, every other week counted from a known collection
