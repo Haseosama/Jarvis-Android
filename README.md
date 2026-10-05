@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.68 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.69 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -93,7 +93,7 @@ text into a named language without switching the language of the conversation it
 `air_quality` (air quality index and pollen), `planes_overhead` (aircraft flying around the phone),
 `expenses` (spending by voice), `habits` (medications and habits at fixed times), `find_phone` (rings the phone
 loud to find it), `place_reminder` (reminders on arriving at or leaving a place) — see "Four everyday helpers",
-`prix_carburant` (cheapest fuel), `parking`, `rain_soon`, `birthdays`, `interpreter` — see "Car, rain, birthdays, interpreter",
+`prix_carburant` (cheapest fuel, and a price alert), `parking`, `rain_soon`, `birthdays`, `interpreter` — see "Car, rain, birthdays, interpreter",
 `call_log` (missed calls and calling back), `sos` (emergency alert), `photos` (photo search) — see "Calls, SOS, photos",
 `receipt` (receipt to expense), `person_reminder` (reminders tied to a person), `driving_mode`, `health` (Health Connect) —
 see "Receipts, people, driving, health", `quiet_mode` (Do Not Disturb until a time), `subscriptions`, `recipe`, `parcel`, and
@@ -1253,6 +1253,15 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
+- **Fuel price alert** (since 0.9.69; `prix_carburant` `alert_on` / `alert_off` / `alert_status`, `actions/FuelWatch.kt`). "Préviens-moi
+  quand le gazole passe sous 1,70 près de chez moi": the fuel, a price in €/L (said as "1,70", "1 euro 70", "170 centimes") and a place, a
+  city or postcode, or where the phone is when the alert is set (kept as a fixed point with its radius, 5 km by default, so the
+  background check needs no position). Every 4 hours from 7 a.m. to 9 p.m. (WorkManager, network required) the same government feed is
+  asked with the same rules as a search (the fuel actually available, a price under 8 days old, in that city itself); when the cheapest
+  station is at or under the price, a notification gives it with its address, its distance and how many others are under it too. Never
+  twice for the same station at the same price, and at most once a day unless the price went down since. One alert at a time; a new one
+  replaces it. *Checked:* unit tests on the price as said, the words of the alert, when it is told again, and the feed's filters.
+  *Not checked:* on the emulator or a real phone (the background check, the notification).
 - **Planned outages** (since 0.9.67; `coupures_prevues`, `outages/Outages.kt`, `outages/OutageParse.kt`). Cuts of electricity, water or
   gas planned at home for works. No open data lists them (Enedis shows its works cuts by address on enedis.fr, "Info coupure", and the
   water services each their own way; nothing on data.gouv.fr or data.enedis.fr), but the notices reach the phone: Enedis's SMS or mail
