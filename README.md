@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.69 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.70 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1253,7 +1253,7 @@ also shown in the settings.
   kept), the timer ("arrête la radio dans 30 minutes"), the notification and a headset's buttons all work on it; a radio is never kept for
   "where was it left". *Checked:* `PluginFieldsTest` (https streams only, each once, clean names); on the emulator FIP found and playing
   (the player started, the card shown), then stopped.
-- **Fuel price alert** (since 0.9.69; `prix_carburant` `alert_on` / `alert_off` / `alert_status`, `actions/FuelWatch.kt`). "Préviens-moi
+- **Fuel price alert** (since 0.9.70; `prix_carburant` `alert_on` / `alert_off` / `alert_status`, `actions/FuelWatch.kt`). "Préviens-moi
   quand le gazole passe sous 1,70 près de chez moi": the fuel, a price in €/L (said as "1,70", "1 euro 70", "170 centimes") and a place, a
   city or postcode, or where the phone is when the alert is set (kept as a fixed point with its radius, 5 km by default, so the
   background check needs no position). Every 4 hours from 7 a.m. to 9 p.m. (WorkManager, network required) the same government feed is
