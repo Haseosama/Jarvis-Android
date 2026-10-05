@@ -31,6 +31,8 @@
     <uses-permission android:name="android.permission.WRITE_SETTINGS"
         tools:ignore="ProtectedPermissions" xmlns:tools="http://schemas.android.com/tools" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- ARCore is optional: without it, Haseo floats over the camera instead of standing on the table -->
+    <uses-feature android:name="android.hardware.camera.ar" android:required="false" />
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
@@ -85,6 +87,15 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <meta-data android:name="com.google.ar.core" android:value="optional" />
+
+        <!-- Haseo in augmented reality, on a table seen through the camera -->
+        <activity
+            android:name=".ar.ArFaceActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:theme="@style/Theme.Jarvis" />
 
         <activity
             android:name=".share.ShareReceiverActivity"

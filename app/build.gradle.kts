@@ -38,8 +38,8 @@ android {
         applicationId = "com.jarvis.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 134
-        versionName = "0.9.77"
+        versionCode = 135
+        versionName = "0.9.78"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -144,6 +144,11 @@ dependencies {
     implementation("androidx.camera:camera-core:1.3.4")
     implementation("androidx.camera:camera-camera2:1.3.4")
     implementation("androidx.camera:camera-lifecycle:1.3.4")
+    // the camera's picture under the face when ARCore is missing (ar/ArFaceActivity.kt)
+    implementation("androidx.camera:camera-view:1.3.4")
+
+    // Haseo standing on a table in augmented reality; optional: phones without ARCore get the simple mode
+    implementation("com.google.ar:core:1.44.0")
 
     // On-device image labels ("mes photos de chien") and text reading (receipts); the models ship inside the app, nothing is sent
     implementation("com.google.mlkit:image-labeling:17.0.9")

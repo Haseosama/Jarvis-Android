@@ -44,6 +44,9 @@ private const val MOUTH_INSIDE_WEIGHT = 0.7f   // about the lips' own weight at 
 // stay on where the finger was once it lifts; how far the head turns towards it. And how often a blink comes twice in a row.
 private const val FINGER_DEPTH = 1.3f
 private const val FOLLOW_HOLD = 0.9f
+private const val AIM_SWAY = 0.35f   // the idle sway kept while looking at someone
+private const val AIM_HOLD = 3f      // the eyes stay on someone 3 to 6 s between two glances aside
+private const val AIM_AWAY = 0.45f   // how long a glance aside lasts
 private const val FOLLOW_YAW = 0.30f
 private const val FOLLOW_PITCH = 0.16f
 private const val DOUBLE_BLINK = 0.15f
@@ -67,6 +70,14 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
 
     /** While a video plays: the eyes rest on it (down, in front) instead of on the user. */
     @Volatile var watching = false
+
+    /**
+     * Someone to look at, set from outside every frame (the face standing on a table in augmented reality, see ar/ArLook.kt), or null:
+     * yaw and pitch the head turns by on top of its idle sway (which shrinks), then where the eyes look (each -1..1, as [gaze]).
+     */
+    @Volatile var aim: FloatArray? = null
+    private var lookAwayUntil = -10f
+    private var lookBackAt = 2f
     private var reactAt = -10f
 
     /** A short reaction: the brows go up and the head nods, once (a video that starts, or the face coming back after it). */
@@ -255,8 +266,10 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         // Idle sway: the phase is integrated, so changing speed never teleports the head.
         sway += dt * (if (live) 1.25f else 1f)
         val s = sway
-        yaw = 0.26f * sin(s * 0.31f) + 0.09f * sin(s * 0.73f + 1.3f)
-        pitch = 0.060f * sin(s * 0.23f + 0.7f) + 0.024f * sin(s * 0.61f)
+        // looking at someone, the head wanders much less: it keeps facing them
+        val wander = if (aim != null) AIM_SWAY else 1f
+        yaw = wander * (0.26f * sin(s * 0.31f) + 0.09f * sin(s * 0.73f + 1.3f))
+        pitch = wander * (0.060f * sin(s * 0.23f + 0.7f) + 0.024f * sin(s * 0.61f))
         // A head that only turns and nods reads as a camera on a gimbal; real idle movement also tilts, off its own,
         // slower rhythm so the three never lock into a visibly repeating combination. Kept small — a few degrees at
         // most — since a head that visibly tips over looks drunk, not alive.
@@ -277,6 +290,7 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         val rt = rate(dt, 0.28f)
         for (i in 0..1) turn[i] += ((if (following && mood != Mood.ASLEEP) followTurn(i) else 0f) - turn[i]) * rt
         yaw += turn[0]; pitch += turn[1]
+        aim?.let { yaw += it[0]; pitch += it[1] }
         yawOverride?.let { yaw = it }       // for looking at the head from a chosen side (debug builds set it)
         pitchOverride?.let { pitch = it }
         rollOverride?.let { roll = it }
@@ -374,7 +388,12 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         // a finger wins over everything else, and the eyes rest on it with nothing added (not asleep: closed eyes follow nothing)
         val onFinger = following && !asleep
         if (onFinger) { gazeTgt[0] = follow[0]; gazeTgt[1] = follow[1]; gazeAt = t + 0.4f }
-        for (i in 0..1) gaze[i] += ((gazeTgt[i] + if (onFinger) 0f else gazeBias[i]).coerceIn(-1f, 1f) - gaze[i]) * rate(dt, 0.09f)
+        // someone to look at: the eyes rest on them, with a glance aside now and then (a stare never broken reads as a doll)
+        val who = aim
+        if (who != null && t >= lookBackAt) { lookAwayUntil = t + AIM_AWAY; lookBackAt = t + AIM_HOLD + AIM_HOLD * random.nextFloat() }
+        val onAim = who != null && !onFinger && !asleep && glance == null && t >= lookAwayUntil
+        if (onAim && who != null) { gazeTgt[0] = who[2].coerceIn(-1f, 1f); gazeTgt[1] = who[3].coerceIn(-1f, 1f) }
+        for (i in 0..1) gaze[i] += ((gazeTgt[i] + if (onFinger || onAim) 0f else gazeBias[i]).coerceIn(-1f, 1f) - gaze[i]) * rate(dt, 0.09f)
 
         // Lips lead the jaw slightly and relax to neutral when the voice stops.
         val wideT = if (live && frames != null) lastVWide else 0f

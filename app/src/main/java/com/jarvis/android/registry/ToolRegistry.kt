@@ -189,6 +189,7 @@ object ToolRegistry {
         BirthdaysTool,
         InterpreterTool,
         CallLogTool, SosTool, PhotoSearchTool, ReceiptTool, PersonReminderTool, DrivingModeTool, HealthTool, QuietModeTool, SubscriptionsTool, RecipeTool, ParcelTool, BudgetTool, ReadTextTool, WakeBriefingTool, TransportTool, TidesTool,
+        com.jarvis.android.actions.HaseoArTool,
     )
 
     private val byName = ALL.associateBy { it.name }
