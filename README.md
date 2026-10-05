@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.76 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.77 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -34,7 +34,7 @@ Everything is asked by voice (French first, English too), or typed in the chat. 
   to a person: "la prochaine fois que Paul m'appelle…"), find the phone, files in a work folder.
 - **Everyday life**: lists, spending (by voice or by scanning a receipt) and monthly budgets, subscriptions and regular payments,
   recipes read step by step, parcel tracking, train and bus times, text read through the camera, a briefing when the alarm stops, medications and habits, where the car is parked, driving mode,
-  weather and rain in the next hour, tides and marine weather, air quality, fuel prices, the nearest pharmacy, bakery, cash machine, toilets or charger (open or not), planned cuts of electricity, water or gas (read from the notices received, reminded the evening before), planes overhead, birthdays, calendar, photos (by date, place, or what is on
+  weather and rain in the next hour, tides and marine weather, air quality, fuel prices, the nearest pharmacy, bakery, cash machine, toilets or charger (open or not), planned cuts of electricity, water or gas (read from the notices received, reminded the evening before), which bin to put out (reminded the evening before), planes overhead, birthdays, calendar, photos (by date, place, or what is on
   them), health (steps, sleep, heart rate from Health Connect), an emergency SOS to chosen contacts.
 - **Knowledge and work**: web search, reading a web page, flights, translation and interpreter mode, meeting notes, documents, Gmail and
   Drive, code help, watches on prices or sites, a multi-step agent mode.
@@ -1340,6 +1340,21 @@ also shown in the settings.
   twice for the same station at the same price, and at most once a day unless the price went down since. One alert at a time; a new one
   replaces it. *Checked:* unit tests on the price as said, the words of the alert, when it is told again, and the feed's filters.
   *Not checked:* on the emulator or a real phone (the background check, the notification).
+- **Bin collection** (since 0.9.77; `poubelles`, `trash/Trash.kt`, `trash/TrashSchedule.kt`). "Le bac jaune c'est le mardi des
+  semaines paires", "les ordures ménagères mardi et vendredi", "le verre le premier lundi du mois", "les encombrants le 14 novembre":
+  no national open data gives the collection days (each commune or intercommunality publishes its own calendar), so the calendar comes
+  from three places, mixed: the days said by voice (every week, even or odd ISO weeks, every other week counted from a known collection
+  day, the nth or last weekday of the month, one-off days, days without collection such as a bank holiday); the commune's `.ics` link
+  when it gives one (`action = ics`, fetched again each week, with weekly, monthly and yearly repeats, exclusions, UNTIL and COUNT); and
+  the phone calendar's events that speak of a collection ("Collecte bac jaune", "Ordures ménagères", "Encombrants"). A bin said again
+  replaces what was said for it ("non, le jaune c'est le jeudi"); "jaune" and "poubelle jaune" are the same bin. Every evening at 20 h
+  (`action = heure` to change it), when a bin is collected tomorrow, a notification says which ("Demain mardi, collecte : ordures
+  ménagères et bac jaune. Pensez à sortir les bacs ce soir."), once per day, noted for Sunday's summary (alert "poubelles"); the alarm
+  is set again after a reboot. "Quelle poubelle demain ?" / "quand passe le verre ?" → `next`; `status` says the calendar; `off`/`on`.
+  *Checked:* unit tests (`trash/TrashScheduleTest`: the days and frequencies as said, even/odd and every-other weeks across a 53-week
+  year, nth and last weekday, bins merged and skipped, an `.ics` with single days, repeats, exclusions, a UTC time, folded lines, COUNT
+  and UNTIL, the words said, the schedule kept). *Not checked:* on the emulator or a phone (the evening notification, the calendar
+  events read, a real commune's `.ics`).
 - **Planned outages** (since 0.9.67; `coupures_prevues`, `outages/Outages.kt`, `outages/OutageParse.kt`). Cuts of electricity, water or
   gas planned at home for works. No open data lists them (Enedis shows its works cuts by address on enedis.fr, "Info coupure", and the
   water services each their own way; nothing on data.gouv.fr or data.enedis.fr), but the notices reach the phone: Enedis's SMS or mail
@@ -1420,7 +1435,7 @@ also shown in the settings.
   Since 0.9.72 it also says what Jarvis itself did in the week (`weekly/WeekRecap.kt`, `journal/`): the drives (each time driving mode
   went on then off, by voice or the car's Bluetooth: how many, the time at the wheel, the longest; under two minutes not counted), the
   reminders that rang (named when one or two, counted otherwise, and those that could not show because notifications were blocked), the
-  alerts Jarvis gave (vigilance and floods, rain soon, air and pollen, fuel price, product recalls, planned outages, disrupted usual
+  alerts Jarvis gave (vigilance and floods, rain soon, air and pollen, fuel price, product recalls, planned outages, bins to put out, disrupted usual
   trips, parcels, budgets, earthquakes, Tempo/EcoWatt, web watches: one said in full, more counted by subject), and in the week to come the
   reminders already set (day, hour, five at most). The drives and alerts are noted in a small journal on the phone (`week_journal.json`,
   five weeks at most, 500 entries), so only what happens after the update counts. *Checked:* the words of the reminders, drives and

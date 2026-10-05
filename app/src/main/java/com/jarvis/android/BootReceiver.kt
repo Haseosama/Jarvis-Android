@@ -31,6 +31,7 @@ class BootReceiver : BroadcastReceiver() {
                     com.jarvis.android.space.FlightMail.afterBoot(appContext) // and the day-of-flight reminders
                     com.jarvis.android.transport.Commutes.afterBoot(appContext) // and the usual trips' checks
                     com.jarvis.android.weekly.WeeklySummary.afterBoot(appContext) // and Sunday's summary
+                    com.jarvis.android.trash.TrashReminder.afterBoot(appContext) // and the bin reminder
                 } catch (_: Exception) {
                     Log.e("JarvisReminders", "Reprogrammation impossible après redémarrage.")
                 } finally {

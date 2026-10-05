@@ -569,6 +569,8 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Décollage" to "Take-off",
     "Qualité de l’air et pollens" to "Air quality and pollen",
     "Prix du carburant" to "Fuel prices",
+    "Collecte des poubelles" to "Bin collection",
+    "Poubelles à sortir" to "Bins to put out",
     "Carburant sous votre seuil" to "Fuel under your price",
     "Séismes" to "Earthquakes",
     "Événements du ciel" to "Sky events",
