@@ -824,6 +824,7 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Interruption détectée : la phrase en cours est coupée." to "Interruption detected: the current sentence is cut.",
     "Message non envoyé. Vérifiez la session puis réessayez." to "Message not sent. Check the session, then try again.",
     "Mise en veille après deux minutes sans échange." to "Going to sleep after two minutes without exchange.",
+    "Mise en veille après dix minutes sans échange (recette en cours : dites le mot d’activation pour la suite)." to "Going to sleep after ten minutes without exchange (recipe under way: say the wake word to go on).",
     "Mot d’activation en pause : autorisation du microphone manquante." to "Wake word paused: microphone permission missing.",
     "Mot d’activation indisponible sur cet appareil." to "Wake word unavailable on this device.",
     "Partage d’écran arrêté : le service d’accessibilité s’est déconnecté." to "Screen sharing stopped: the accessibility service disconnected.",

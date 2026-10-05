@@ -61,4 +61,43 @@ class RecipesTest {
         // Not cooking: "suivant" is still the next song.
         assertFalse((interpret("suivant") as? OfflineAction.ToolCall)?.name == "recipe")
     }
+
+    @Test
+    fun `a step with a duration starts its own timer once, unless timers are switched off`() {
+        assertEquals(90, stepMinutes("Laisser reposer 1 h 30 au frais"))
+        assertEquals(90, stepMinutes("Cuire 1h30 à 180 °C"))
+        assertEquals(60, stepMinutes("Cuire 1 heure à 180 °C"))
+        assertEquals(10, stepMinutes("Cuire 10 min, puis égoutter"))
+        assertNull(stepMinutes("Ajouter 2 harengs"))
+        assertNull(stepMinutes("Préchauffer le four à 200 °C"))
+        val s = RecipeSession(crepes, -1)
+        assertNull(autoTimerMinutes(s, 0))
+        assertEquals(60, autoTimerMinutes(s, 2))
+        assertNull(autoTimerMinutes(s.copy(timedSteps = listOf(2)), 2))
+        assertNull(autoTimerMinutes(s.copy(autoTimers = false), 2))
+        assertEquals("Crêpes, étape 3 : Laisser reposer 1 h.", stepTimerLabel(crepes, 2))
+        assertEquals("Étape 3 sur 4 : Laisser reposer 1 h. Minuteur de 1 heure lancé.", stepText(crepes, 2, " Minuteur de 1 heure lancé."))
+        assertEquals("Étape 4 sur 4 : Cuire 2 minutes de chaque côté. C'était la dernière étape : bon appétit !", stepText(crepes, 3, ""))
+        assertEquals("1 minute", timerWords(1))
+        assertEquals("20 minutes", timerWords(20))
+        assertEquals("2 heures", timerWords(120))
+        assertEquals("1 h 30", timerWords(90))
+    }
+
+    @Test
+    fun `a recipe kept before the timers loads with them on`() {
+        val f = File(tmp.root, "old.json")
+        f.writeText("""{"current":{"recipe":{"title":"Crêpes","ingredients":[],"steps":["Cuire 2 minutes."]},"step":0,"updatedAt":1000}}""")
+        val s = RecipeStore(f).current(now = 2_000)!!
+        assertTrue(s.autoTimers)
+        assertEquals(emptyList<Int>(), s.timedSteps)
+    }
+
+    @Test
+    fun `offline, the timers of a recipe can be switched off and on`() {
+        assertEquals(mapOf("action" to "timers_off"), recipePhrase(normalize("Pas de minuteur"), cooking = true))
+        assertEquals(mapOf("action" to "timers_off"), recipePhrase(normalize("sans minuteurs"), cooking = true))
+        assertEquals(mapOf("action" to "timers_on"), recipePhrase(normalize("Remets les minuteurs"), cooking = true))
+        assertNull(recipePhrase(normalize("pas de minuteur"), cooking = false))
+    }
 }
