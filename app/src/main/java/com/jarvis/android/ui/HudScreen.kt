@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -145,6 +146,12 @@ internal fun HudScreen(
                     val pickFile = rememberFileAttacher { }
                     val tint = MaterialTheme.colorScheme.onSurfaceVariant
                     IconButton(onClick = pickFile) { Icon(Icons.Filled.AttachFile, contentDescription = tr("Joindre un fichier"), tint = tint) }
+                    if (avatar != null) {
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        IconButton(onClick = { context.startActivity(android.content.Intent(context, com.jarvis.android.ar.ArFaceActivity::class.java)) }) {
+                            Icon(Icons.Filled.ViewInAr, contentDescription = tr("Haseo sur la table (réalité augmentée)"), tint = tint)
+                        }
+                    }
                     IconButton(onClick = onOpenChat) { Icon(Icons.Filled.Chat, contentDescription = tr("Chat texte"), tint = tint) }
                     IconButton(onClick = onOpenMemory) { Icon(Icons.Filled.Info, contentDescription = tr("Mémoire"), tint = tint) }
                     IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Settings, contentDescription = tr("Paramètres"), tint = tint) }

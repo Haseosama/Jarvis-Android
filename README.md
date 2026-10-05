@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.77 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.78 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -28,7 +28,7 @@ the emulator.
 Everything is asked by voice (French first, English too), or typed in the chat. Details, limits and what was tested are in the sections below.
 
 - **Conversation and memory**: real-time voice with Gemini Live, a long-term memory, the morning briefing (agenda, reminders, birthdays,
-  yesterday's steps and last night's sleep), kept session history, a 3D holographic avatar that speaks with its lips.
+  yesterday's steps and last night's sleep), kept session history, a 3D holographic avatar that speaks with its lips, and can stand on a table in augmented reality.
 - **The phone itself**: open apps, read and drive the screen (accessibility service), send messages (SMS, WhatsApp, Telegram, Messenger),
   calls, missed calls and calling back, notifications and "what did I miss?", Do Not Disturb until a time, volume, brightness, flashlight, alarms, timers, reminders (by time, by place, or tied
   to a person: "la prochaine fois que Paul m'appelle…"), find the phone, files in a work folder.
@@ -1252,6 +1252,23 @@ also shown in the settings.
   head drawn towards a finger below and to the right with the head turning, the eyes wandering again once it lifts, the blink of a
   finger arriving, nothing while asleep). *Not checked:* anything on the emulator or a phone (how it feels under a real finger, the small
   face over a video, the drawn face and the textured characters).
+- **Haseo on the table, in augmented reality** (since 0.9.78; `ar/ArFaceActivity.kt`, `ar/ArLook.kt`, `haseo_realite_augmentee`). The
+  cube button at the top of the main screen (shown while the face is on), or "pose-toi sur la table", opens the back camera. With ARCore
+  ("Services Google Play pour la RA", offered for install the first time when the phone supports it), Jarvis looks for a table ("bouge
+  doucement le téléphone en visant la table"), then a touch on it puts the face there, as a small bust about 20 cm tall with a soft
+  shadow under it; it stays on that spot when the phone moves, grows as you come closer, and another touch moves it. It turns to you as
+  you walk round it: its body follows the camera a moment late, so you see the head turned away a little then catching up, while the eyes,
+  quicker, stay on you (with a glance aside every few seconds); from above, it lifts its face and eyes to you (`ArLook`, fed to the face
+  through `HoloAvatar.aim`, which also calms its idle sway). The face is the one chosen in the settings, drawn by the same code as on the
+  main screen and laid over the camera's picture at the head's projected place (`projectPoint`, `faceSquare`); a voice session going on
+  goes on, with the lips moving on the table. Without ARCore (a phone it does not support, its install refused, or ARCore failing to
+  start), the simple mode: the face floats over the camera's picture where the screen was touched, looking at you. *Checked:* `ArLookTest`
+  (the projection of a point onto the screen and its size with distance, a point behind the camera left out, the face's square around the
+  head, the angles wrapping the short way, the late turn and the eyes making up for it when walking round, the face lifting to a camera
+  above, the turn's limit, the face's eyes resting on the viewer with a glance aside now and then). *Not checked:* anything on a phone or
+  an emulator: ARCore's install prompt and table finding, how steady the face sits on the table (it is drawn over the camera's picture a
+  frame after it, so a quick move may make it slide a little), its size, the holographic looks over a bright camera picture, the simple
+  mode's camera, and turning the phone sideways.
 - **A video in place of the avatar** (since 0.9.30, after Mark LV; `play_video`). "Joue la bande-annonce de Dune", or a YouTube link, or
   the address of a video file: it appears where the face is, with its title, a sound button and ✕. A search takes the first YouTube
   result (the same search as `youtube_video`, the title treated as data). YouTube videos play in YouTube's own embedded player
