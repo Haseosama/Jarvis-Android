@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.78 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.79 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1255,18 +1255,26 @@ also shown in the settings.
 - **Haseo on the table, in augmented reality** (since 0.9.78; `ar/ArFaceActivity.kt`, `ar/ArLook.kt`, `haseo_realite_augmentee`). The
   cube button at the top of the main screen (shown while the face is on), or "pose-toi sur la table", opens the back camera. With ARCore
   ("Services Google Play pour la RA", offered for install the first time when the phone supports it), Jarvis looks for a table ("bouge
-  doucement le téléphone en visant la table"), then a touch on it puts the face there, as a small bust about 20 cm tall with a soft
-  shadow under it; it stays on that spot when the phone moves, grows as you come closer, and another touch moves it. It turns to you as
+  doucement le téléphone en visant la table"), then a touch on it puts Haseo there, standing, as a figure about 40 cm tall with a soft
+  shadow under his feet; he stays on that spot when the phone moves, grows as you come closer, and another touch moves him. Since 0.9.79
+  he has a whole body (`ar/ArBody.kt`): about five and a half heads tall, a dark jacket with seams of the theme's colour, a belt, dark
+  trousers and shoes, the neck and hands in the face's skin tone (dark glass tinted with the theme's colour for the holograms), built every
+  frame from simple shapes and drawn flat-shaded, facet by facet, under the face. He breathes, shifts his weight now and then, and talks
+  with his arms while the voice speaks (one hand comes up and moves, the other follows a little), then lets them fall again. It turns to you as
   you walk round it: its body follows the camera a moment late, so you see the head turned away a little then catching up, while the eyes,
   quicker, stay on you (with a glance aside every few seconds); from above, it lifts its face and eyes to you (`ArLook`, fed to the face
   through `HoloAvatar.aim`, which also calms its idle sway). The face is the one chosen in the settings, drawn by the same code as on the
-  main screen and laid over the camera's picture at the head's projected place (`projectPoint`, `faceSquare`); a voice session going on
+  main screen and laid over the camera's picture at the head's projected place (`projectPoint`, `faceSquare`), the body under it seen
+  through the same camera (`bodyDrawList`, `ArStage`); a voice session going on
   goes on, with the lips moving on the table. Without ARCore (a phone it does not support, its install refused, or ARCore failing to
-  start), the simple mode: the face floats over the camera's picture where the screen was touched, looking at you. *Checked:* `ArLookTest`
+  start), the simple mode: Haseo stands over the camera's picture where the screen was touched (seen from a camera of his own, in
+  front and a little above), looking at you. *Checked:* `ArBodyTest` (the figure's height and width, every facet facing out, a hand
+  coming up while speaking and falling back, the breathing, the figure upright on its feet with the face over the neck, the hidden facets
+  left out, turned round its sides swapping, the colours) and drawings of the body from in front, the side and above off the phone; `ArLookTest`
   (the projection of a point onto the screen and its size with distance, a point behind the camera left out, the face's square around the
   head, the angles wrapping the short way, the late turn and the eyes making up for it when walking round, the face lifting to a camera
   above, the turn's limit, the face's eyes resting on the viewer with a glance aside now and then). *Not checked:* anything on a phone or
-  an emulator: ARCore's install prompt and table finding, how steady the face sits on the table (it is drawn over the camera's picture a
+  an emulator: ARCore's install prompt and table finding, how the face meets the body's neck, how steady he stands on the table (it is drawn over the camera's picture a
   frame after it, so a quick move may make it slide a little), its size, the holographic looks over a bright camera picture, the simple
   mode's camera, and turning the phone sideways.
 - **A video in place of the avatar** (since 0.9.30, after Mark LV; `play_video`). "Joue la bande-annonce de Dune", or a YouTube link, or

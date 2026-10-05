@@ -5,11 +5,11 @@ import kotlin.math.atan2
 import kotlin.math.exp
 import kotlin.math.sqrt
 
-/** The head's half-height on the table, in metres: a head about 20 cm tall, a small bust on the table. */
-internal const val AR_HEAD_HALF = 0.10f
-
-/** How far above the spot touched on the table the head's centre stands, in metres (its neck fading out below). */
-internal const val AR_HEAD_LIFT = 0.13f
+/**
+ * The head's half-height on the table, in metres, and so the unit the body is built in (see ArBody): a head about 7 cm tall on a
+ * figure about 40 cm tall.
+ */
+internal const val AR_UNIT = 0.035f
 
 /**
  * Where a world point falls on the screen: [x], [y] in pixels (y down), [depth] in metres in front of the camera, and [scale] the pixels
@@ -96,12 +96,12 @@ internal class ArLook {
 }
 
 /**
- * Where to lay the face's square view so its head stands on [head] (the head's centre projected on the screen): the square's left, top
- * and side in pixels. The face view draws the head 0.36 of its side high (in half-heights) with its centre at 0.44 of its height
- * (see AvatarView's headRadius and headCentre); the side is kept under [maxSide].
+ * Where to lay the face's square view so its head, [half] metres in half-height, stands on [head] (the head's centre projected on the
+ * screen): the square's left, top and side in pixels. The face view draws the head 0.36 of its side high (in half-heights) with its
+ * centre at 0.44 of its height (see AvatarView's headRadius and headCentre); the side is kept under [maxSide].
  */
-internal fun faceSquare(head: ScreenPoint, maxSide: Float): FloatArray {
-    val side = (AR_HEAD_HALF * head.scale / FACE_HEAD_SHARE).coerceIn(1f, maxSide)
+internal fun faceSquare(head: ScreenPoint, half: Float, maxSide: Float): FloatArray {
+    val side = (half * head.scale / FACE_HEAD_SHARE).coerceIn(1f, maxSide)
     return floatArrayOf(head.x - side / 2f, head.y - FACE_CENTRE_SHARE * side, side)
 }
 
