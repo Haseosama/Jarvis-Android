@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.70 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.71 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1174,6 +1174,24 @@ also shown in the settings.
   character saved before Haseo); the reshaping, the sliders and the levels give the same positions as Jarvis 2.0's JavaScript on the
   same scan (compared to the third decimal). *Not checked:* anything on the emulator or a phone (the screens, the touch gestures of the
   editor, the clipped eyes, the frame rate at Haute définition and Ultra).
+- **Haseo who talks: expressions with the voice** (since 0.9.71, every head; nothing to switch on). The lips already followed Jarvis's
+  voice (the sound’s formants and the transcript’s consonants); now the face also shows what the words mean
+  (`avatar/Expressions.kt`): the corners of the mouth rise on good news or thanks (« parfait », « bon anniversaire », « pas de
+  problème »), drop and the inner ends of the brows lift on bad news or a warning (« désolé », « attention », « orage »,
+  « annulé »), the brows go up, the eyes open wider and the lips part on surprise (« oh », « incroyable »), and a question lifts the
+  brows and tips the head. French and English words, whole words only; reassurance (« pas de problème », « aucune coupure ») counts as
+  good news, not bad; on a tie the worried face wins; an exclamation strengthens it. The feeling shows as soon as its word is heard,
+  stays for the sentence, eases in and out (about a fifth of a second), lasts 1.6 s after the voice stops, and is forgotten when the
+  user speaks again. While listening the face keeps a faint smile; asleep it shows nothing. The scanned heads (Classique, Léa, Marc,
+  Haseo) get all of it on their mesh (`HoloAvatar`: the lip corners, the mouth line and the cavity move together); the drawn face gets
+  the smile and the brows; the textured characters the brows and the head tilt only. In the **offline mode** the mouth used not to move at
+  all (the phone's voice gives no sound to analyse): it now plays each word's mouth shapes as the phone's voice reaches it
+  (`UtteranceProgressListener.onRangeStart`, `wordVisemes`), with the same expressions; a voice that does not report its words falls
+  back to the made-up loudness. *Checked:* `ExpressionsTest` (the words of each feeling, reassurance, ties, the tracker on a transcript
+  arriving in pieces, the corners of the lips and the mouth line rising and dropping on the Haseo head while the middle stays, the inner
+  brows, the wider lids and parted jaw, the fade after the voice and asleep, the word frames driving the mouth); the four faces rendered
+  from the posed mesh off the phone. *Not checked:* anything on the emulator or a phone (how it reads at the face's real size, the
+  timing against Gemini's transcript, the offline voice's word marks on Haseo's phone).
 - **A video in place of the avatar** (since 0.9.30, after Mark LV; `play_video`). "Joue la bande-annonce de Dune", or a YouTube link, or
   the address of a video file: it appears where the face is, with its title, a sound button and ✕. A search takes the first YouTube
   result (the same search as `youtube_video`, the title treated as data). YouTube videos play in YouTube's own embedded player

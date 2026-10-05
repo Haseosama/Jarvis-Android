@@ -133,6 +133,29 @@ internal fun textToVisemes(text: String): List<Pair<String, Float>> {
     return out
 }
 
+/**
+ * The mouth shapes of one spoken word as 20 ms frames, for a voice that gives no sound to analyse (the phone's own synthesis, which only
+ * says which word it is at). A sound of duration weight 1 lasts [secondsPerUnit]; the lips shut on m, b, p, and close after the word.
+ */
+internal fun wordVisemes(word: String, secondsPerUnit: Float = 0.075f): List<AudioViseme> {
+    val shapes = textToVisemes(word).filter { it.first != "REST" }
+    if (shapes.isEmpty()) return emptyList()
+    val out = ArrayList<AudioViseme>()
+    var carry = 0f
+    for ((name, weight) in shapes) {
+        val shape = VISEMES[name] ?: continue
+        carry += weight * secondsPerUnit / 0.02f
+        val count = carry.toInt()
+        carry -= count
+        // a sound that presses the lips together is drawn as a quiet frame: the mouth stays live but shut
+        val level = if (shape.closure > 0.5f) 0.05f else 0.6f
+        val open = shape.open * (1f - shape.closure)
+        repeat(count) { out += AudioViseme(level, open, shape.wide) }
+    }
+    repeat(2) { out += AudioViseme(0f, 0f, 0f) }
+    return out
+}
+
 /** Fuses the transcript's shape sequence onto the audio's timing. Thread safe: the transcript and the audio arrive on different threads. */
 internal class VisemeStream {
     private val queue = ArrayDeque<Pair<String, Float>>()
