@@ -133,7 +133,7 @@ private fun inFace(place: androidx.compose.ui.layout.LayoutCoordinates?, at: and
 }
 
 /** Brighter and a little lifted, for the small face: the dark looks otherwise melt into the background. */
-private val CLOSE_UP_PAINT = androidx.compose.ui.graphics.Paint().apply {
+internal val CLOSE_UP_PAINT = androidx.compose.ui.graphics.Paint().apply {
     colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(
         androidx.compose.ui.graphics.ColorMatrix(
             floatArrayOf(
@@ -146,7 +146,7 @@ private val CLOSE_UP_PAINT = androidx.compose.ui.graphics.Paint().apply {
     )
 }
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHead(
+internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHead(
     renderer: AvatarRenderer, avatar: HoloAvatar, controller: AvatarController, model: Int, hairColour: String,
     characterFolder: String?, character: CharacterRenderer?, cartoon: CartoonRenderer, cy: Float, r: Float,
     primary: Int, accent: Int, bg: Int, stroke: Float,

@@ -627,6 +627,28 @@ payload shaped like the real one, and live on the emulator for Lyon, Paris and a
   marine weather sentence). *Not checked*: the live Marine API (unreachable from the build machine), so the real
   times and coefficients have not been compared with the SHOM tables yet, nor anything on a phone.
 
+### Home-screen widget (0.9.75)
+
+The widget (4 × 2 cells, resizable) now shows the chosen face, the weather where the phone is, and the next reminder; a tap anywhere
+still opens the app and starts a session ("Parler à Jarvis").
+
+- **Face**: the face picked in the settings (Haseo for the Haseo look, with its sliders, retouches, hair, skin, lips and cap), drawn as the
+  small close-up over a video, at rest with the eyes open, in the theme's colour (`avatar/AvatarSnapshot.kt`). A widget cannot show a live
+  view, so the face is still: it is drawn once (about a second, off the main thread) into a file and drawn again only when its look, the
+  theme's colour or the app itself changes. With the face turned off in the settings, the app icon is shown instead.
+- **Weather**: "⛅ 18 °C, partiellement nuageux · Lyon", from Open-Meteo (no key) at the phone's last known position, up to six hours old
+  as for the morning briefing (a widget cannot ask for a fresh position from the background). Fetched at most every 20 minutes; when the
+  position or the network is missing, the last line stays up to three hours, then a short "Météo indisponible" or "autorise la position".
+  The position is not stored; only the weather line is.
+- **Next reminder**: "⏰ Demain 08:30 · Dentiste" (Aujourd'hui, Demain, a weekday within the week, else the date), the soonest
+  scheduled reminder, or "Aucun rappel à venir".
+- **Refresh**: every 30 minutes (the launcher's shortest period), at once when a reminder is added, cancelled or rung, and two seconds after
+  the face's look or the theme's colour changes in the settings.
+- *Checked*: unit tests (`widget/WidgetTextTest`: the next reminder among past, rung and blocked ones, the day words, a long text cut,
+  Open-Meteo's answer read and refused, the weather line). *Not checked*: anything on a phone or an emulator, so how the drawn
+  face looks at widget size, the layout on a real launcher (and on an old 2 × 1 widget, which may need to be resized), and the refresh
+  timings are still to be seen.
+
 ### Four everyday helpers
 
 - **Spending** (`expenses`, `expenses/ExpenseStore.kt`, Settings > *Dépenses*). "J'ai dépensé 12 euros au restaurant",
@@ -968,8 +990,8 @@ starts the answer again. Changes:
   with the same models (ONNX, not the app), white noise of σ 600 on 16-bit samples lowered the same-voice scores only from about 0.9 to 0.8. *Not tested:* a human voice and a real microphone (the emulator's is silent), so how
   many false alarms you get in daily life is for you to find; the flow itself ran on the emulator up to its "not heard" message.
   Choose a phrase of three syllables or more; very short words cannot be told apart from ordinary speech.
-- **Home screen.** A "Parler à Jarvis" widget and a long-press launcher shortcut open the app and start a session.
-  Checked on the emulator: the widget receiver is registered and the shortcut is published; the tap itself was not tried.
+- **Home screen.** The Jarvis widget (see "Home-screen widget" below) and a long-press launcher shortcut open the app and start a
+  session. Checked on the emulator: the widget receiver is registered and the shortcut is published; the tap itself was not tried.
 - **Routines.** "Chaque matin à 7 h, donne-moi la météo": the `routine` tool stores a daily task (optional weekdays).
   A WorkManager job (15-minute granularity, so it can be late, and Android may delay it further in battery saving)
   runs it as a background task (same tools as the agent mode) and posts the result as a notification. A run more than

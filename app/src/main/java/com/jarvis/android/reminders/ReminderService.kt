@@ -255,6 +255,8 @@ internal object ReminderService {
                     file.failWrite(output)
                     throw e
                 }
+                // the home-screen widget shows the next reminder
+                try { com.jarvis.android.refreshHomeWidgets(context) } catch (_: RuntimeException) {}
             }
         })
     }
