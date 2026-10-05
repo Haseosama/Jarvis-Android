@@ -40,6 +40,14 @@ private const val FEELING_HOLD = 1.6f
 private const val TAU_FEELING = 0.22f
 private const val MOUTH_INSIDE_WEIGHT = 0.7f   // about the lips' own weight at the corners of the mouth
 
+// A finger on the screen (see HoloAvatar.follow): how far in front of the face the screen sits, in head half-heights; how long the eyes
+// stay on where the finger was once it lifts; how far the head turns towards it. And how often a blink comes twice in a row.
+private const val FINGER_DEPTH = 1.3f
+private const val FOLLOW_HOLD = 0.9f
+private const val FOLLOW_YAW = 0.30f
+private const val FOLLOW_PITCH = 0.16f
+private const val DOUBLE_BLINK = 0.15f
+
 /** Frame-rate independent lerp factor for an exponential approach with time constant [tau]. */
 internal fun rate(dt: Float, tau: Float): Float = 1f - exp(-dt / tau)
 
@@ -89,6 +97,16 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
     private var vPeak = 0.18f
     var wide = 0f; private set
     private var lastVWide = 0f
+
+    // a finger on the screen: where the eyes turn to follow it (-1..1), until when, and how far the head has turned towards it
+    private val follow = FloatArray(2)
+    private var followUntil = -10f
+    private val turn = FloatArray(2)
+    /** The eyes' height in head half-heights from the head's centre, downwards (the screen's way), to aim them from there. */
+    private val eyeDrop: Float = if (mesh.eyeCentre.size >= 6) -0.5f * (mesh.eyeCentre[1] + mesh.eyeCentre[4]) else -0.2f
+
+    /** The face is following a finger (or still looking where it lifted). */
+    val following: Boolean get() = time < followUntil
 
     /** What the words being said show (see Expressions.kt): set from outside every frame, eased in [step]. */
     @Volatile var feeling: Feeling = Feeling.NEUTRAL
@@ -255,6 +273,10 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         emph += (mouth - emph) * rate(dt, if (mouth > emph) 0.055f else 0.32f)
         pitch -= emph * 0.028f
         yaw += 0.018f * sin(t * 1.7f) * emph
+        // the head turns a little towards a finger
+        val rt = rate(dt, 0.28f)
+        for (i in 0..1) turn[i] += ((if (following && mood != Mood.ASLEEP) followTurn(i) else 0f) - turn[i]) * rt
+        yaw += turn[0]; pitch += turn[1]
         yawOverride?.let { yaw = it }       // for looking at the head from a chosen side (debug builds set it)
         pitchOverride?.let { pitch = it }
         rollOverride?.let { roll = it }
@@ -349,7 +371,10 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         glance?.let { g ->
             if (t < g[2]) { gazeTgt[0] = g[0]; gazeTgt[1] = g[1] } else glance = null
         }
-        for (i in 0..1) gaze[i] += ((gazeTgt[i] + gazeBias[i]).coerceIn(-1f, 1f) - gaze[i]) * rate(dt, 0.09f)
+        // a finger wins over everything else, and the eyes rest on it with nothing added (not asleep: closed eyes follow nothing)
+        val onFinger = following && !asleep
+        if (onFinger) { gazeTgt[0] = follow[0]; gazeTgt[1] = follow[1]; gazeAt = t + 0.4f }
+        for (i in 0..1) gaze[i] += ((gazeTgt[i] + if (onFinger) 0f else gazeBias[i]).coerceIn(-1f, 1f) - gaze[i]) * rate(dt, 0.09f)
 
         // Lips lead the jaw slightly and relax to neutral when the voice stops.
         val wideT = if (live && frames != null) lastVWide else 0f
@@ -367,7 +392,8 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
                 blinkAt = t + 6f
             } else {
                 blink = 1f
-                blinkAt = t + (if (thinking) 5.5f else 3.4f) + 3.1f * random.nextFloat()
+                // now and then two in a row, as people do
+                blinkAt = if (random.nextFloat() < DOUBLE_BLINK) t + 0.28f else t + (if (thinking) 5.5f else 3.4f) + 3.1f * random.nextFloat()
             }
         }
     }
@@ -375,6 +401,21 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
     /** Look deliberately somewhere for [hold] seconds (something appeared on screen), then wander again. */
     fun glance(dx: Float, dy: Float, hold: Float = 1.1f) {
         glance = floatArrayOf(dx.coerceIn(-1f, 1f), dy.coerceIn(-1f, 1f), time + max(0.1f, hold))
+    }
+
+    /** The head's turn towards the finger: yaw for [i] 0, pitch for 1, a share of where the eyes look. */
+    private fun followTurn(i: Int): Float = follow[i] * (if (i == 0) FOLLOW_YAW else FOLLOW_PITCH)
+
+    /**
+     * A finger is on the screen at ([x], [y]) in head half-heights from the head's centre (x to the right, y down, as on the screen):
+     * the eyes turn to it and the head a little, for as long as it stays and a moment after. A finger that just arrived catches the
+     * eye: the face blinks.
+     */
+    fun follow(x: Float, y: Float) {
+        val d = fingerGaze(x, y, eyeDrop)
+        follow[0] = d[0]; follow[1] = d[1]
+        if (!following && blink == 0f) blink = 1f
+        followUntil = time + FOLLOW_HOLD
     }
 
     /** Applies the brow lift, lip spread or round, jaw drop and head rotation to the real geometry. */
@@ -496,4 +537,15 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
             pn[3 * i + 2] = rnz
         }
     }
+}
+
+/**
+ * Where the eyes look (each -1..1, as [HoloAvatar.gaze]) at a finger at ([x], [y]) in head half-heights from the head's centre (x right,
+ * y down), the eyes being [eyeDrop] below it: the direction from the eyes to the finger, the screen sitting [FINGER_DEPTH] in front of
+ * them, so a finger right over the face is looked at almost straight on and one far off at the eyes' full reach.
+ */
+internal fun fingerGaze(x: Float, y: Float, eyeDrop: Float): FloatArray {
+    val dy = y - eyeDrop
+    val len = kotlin.math.sqrt(x * x + dy * dy + FINGER_DEPTH * FINGER_DEPTH)
+    return floatArrayOf((1.6f * x / len).coerceIn(-1f, 1f), (1.6f * dy / len).coerceIn(-1f, 1f))
 }

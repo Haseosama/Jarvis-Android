@@ -66,6 +66,9 @@ internal class AvatarController(private val context: Context) {
     /** Counts the reactions asked for (a video starts or ends): each new value makes the face react once. */
     var reactions by androidx.compose.runtime.mutableIntStateOf(0)
 
+    /** Where a finger touches the screen, in window pixels, or null: the face follows it with its eyes (see HoloAvatar.follow). */
+    @Volatile var finger: androidx.compose.ui.geometry.Offset? = null
+
     /** The hair colour chosen for the current face (a HairShade id), empty for the face's own. A Compose state, as [model]. */
     var hairColour by androidx.compose.runtime.mutableStateOf("")
 
