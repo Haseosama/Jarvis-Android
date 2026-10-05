@@ -70,8 +70,11 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
                 avatar.rollOverride = controller.debugRoll
                 avatar.mouthOverride = controller.debugMouth
                 val sample = controller.timeline.sample(now)
+                avatar.feeling = controller.feeling
+                // the phone's voice without word marks: only its made-up loudness moves the mouth
+                val guessed = !sample.speaking && controller.phoneVoice && !controller.phoneVoiceWords
                 avatar.step(
-                    dt, currentLevel, sample.speaking, controller.debugMood ?: moodFor(currentState),
+                    dt, currentLevel, sample.speaking || guessed, controller.debugMood ?: moodFor(currentState),
                     if (sample.speaking) sample.frames else null,
                 )
                 frame = nanos

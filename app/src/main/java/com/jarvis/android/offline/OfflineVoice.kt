@@ -47,8 +47,8 @@ internal class OfflineVoice(private val context: Context) {
         return true
     }
 
-    /** Says [text] and returns when it is finished (or was cut). */
-    suspend fun speak(text: String) {
+    /** Says [text] and returns when it is finished (or was cut). [onWord] gets each word as the voice reaches it, when the voice tells. */
+    suspend fun speak(text: String, onWord: ((String) -> Unit)? = null) {
         val engine = tts ?: return
         val done = CompletableDeferred<Unit>()
         val id = "jarvis-" + System.nanoTime()
@@ -57,6 +57,9 @@ internal class OfflineVoice(private val context: Context) {
             override fun onDone(utteranceId: String?) { done.complete(Unit) }
             @Deprecated("Deprecated in Java") override fun onError(utteranceId: String?) { done.complete(Unit) }
             override fun onStop(utteranceId: String?, interrupted: Boolean) { done.complete(Unit) }
+            override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
+                if (onWord != null && start in 0 until end && end <= text.length) onWord(text.substring(start, end))
+            }
         })
         if (engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, id) != TextToSpeech.SUCCESS) return
         try {

@@ -29,6 +29,17 @@ private const val TAU_SHAPE = 0.018f  // openness following the schedule
 private const val MIC_FLOOR = 0.14f
 private const val CLOSE_FRAC = 0.10f  // -20 dB below this voice's loud level counts as a closure
 
+// Expressions (see Expressions.kt), in head-half-heights: how far a full smile lifts the corners of the mouth and pulls them out, how
+// far worry lifts the inner ends of the brows, how much wider surprise opens the eyes (a share of the lids' travel), and how long the
+// face keeps a feeling once the voice stops.
+private const val SMILE_LIFT = 0.070f
+private const val SMILE_PULL = 0.030f
+private const val INNER_LIFT = 0.090f
+private const val WIDEN_OPEN = 0.30f
+private const val FEELING_HOLD = 1.6f
+private const val TAU_FEELING = 0.22f
+private const val MOUTH_INSIDE_WEIGHT = 0.7f   // about the lips' own weight at the corners of the mouth
+
 /** Frame-rate independent lerp factor for an exponential approach with time constant [tau]. */
 internal fun rate(dt: Float, tau: Float): Float = 1f - exp(-dt / tau)
 
@@ -79,6 +90,20 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
     var wide = 0f; private set
     private var lastVWide = 0f
 
+    /** What the words being said show (see Expressions.kt): set from outside every frame, eased in [step]. */
+    @Volatile var feeling: Feeling = Feeling.NEUTRAL
+    /** The corners of the mouth: up in a smile (to 1), down when worried (negative). */
+    var smile = 0f; private set
+    /** The inner ends of the brows lifted (worry), 0..1. */
+    var inner = 0f; private set
+    /** The eyes opened wider than at rest (surprise), 0..1. */
+    var widen = 0f; private set
+    /** The lips kept a little apart (surprise), as a share of the jaw's travel. */
+    var parted = 0f; private set
+    private var feelingBrow = 0f
+    private var tilt = 0f
+    private var quiet = 10f
+
     /**
      * How much each hair vertex swings (0..1): a chosen hairstyle's own weights, or along the head's locks (their tips more than their
      * roots, the low ones more than those on top). Empty when the head has no hair that moves.
@@ -126,6 +151,46 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
             val d = abs(mesh.verts[3 * i] - cx) / halfWidth
             val t = ((d - 0.55f) / (1.05f - 0.55f)).coerceIn(0f, 1f)
             1f - t * t * (3f - 2f * t)
+        }
+    }
+
+    /** Where the corners of the mouth are, per vertex: 0 at the middle of the lips, ±1 at and beyond each corner (the sign: the side). */
+    private val cornerSide: FloatArray = run {
+        val cx = mesh.lipCentre[0]
+        var halfWidth = 0.01f
+        for (i in mesh.mouthLower) halfWidth = max(halfWidth, abs(mesh.verts[3 * i] - cx))
+        FloatArray(mesh.vertexCount) { i ->
+            val d = (mesh.verts[3 * i] - cx) / halfWidth
+            val t = ((abs(d) - 0.2f) / 0.8f).coerceIn(0f, 1f)
+            (if (d < 0f) -1f else 1f) * t * t * (3f - 2f * t)
+        }
+    }
+
+    /**
+     * How much of a smile reaches a vertex: the lips' own weight on the skin, and as much as the lips for what is drawn inside the mouth
+     * (the mouth line, the cavity and the teeth), which carries no lip weight but has to stay inside the lips.
+     */
+    private val smileWeight: FloatArray = run {
+        val w = mesh.lips.copyOf()
+        val eyeball = BooleanArray(mesh.vertexCount)
+        for (e in mesh.eyeFirst.indices) for (i in mesh.eyeFirst[e] until (mesh.eyeFirst[e] + mesh.eyeCount[e]).coerceAtMost(mesh.vertexCount)) eyeball[i] = true
+        val cx = mesh.lipCentre[0]; val cy = mesh.lipCentre[1]
+        for (i in 0 until mesh.vertexCount) {
+            if (w[i] != 0f || mesh.paint[i] == 0 || eyeball[i]) continue
+            val dx = mesh.verts[3 * i] - cx; val dy = mesh.verts[3 * i + 1] - cy
+            if (dx * dx + dy * dy < 0.35f * 0.35f) w[i] = MOUTH_INSIDE_WEIGHT
+        }
+        for (i in mesh.mouthUpper) w[i] = MOUTH_INSIDE_WEIGHT
+        for (i in mesh.mouthLower) w[i] = MOUTH_INSIDE_WEIGHT
+        w
+    }
+
+    /** The brows' inner ends: 1 near the middle of the face, falling to -0.35 at their outer ends (a worried brow slopes). */
+    private val innerBrow: FloatArray = run {
+        val mid = if (mesh.eyeCentre.size >= 6) 0.5f * (mesh.eyeCentre[0] + mesh.eyeCentre[3]) else mesh.lipCentre[0]
+        FloatArray(mesh.vertexCount) { i ->
+            val t = ((abs(mesh.verts[3 * i] - mid) - 0.06f) / 0.24f).coerceIn(0f, 1f)
+            1f - 1.35f * t * t * (3f - 2f * t)
         }
     }
 
@@ -205,6 +270,21 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
             }
         }
 
+        // What the words show: held a moment after the voice stops, a warm face while listening, nothing asleep.
+        quiet = if (live) 0f else quiet + dt
+        var tg = expressionTargets(if (quiet < FEELING_HOLD) feeling else Feeling.NEUTRAL)
+        if (mood == Mood.LISTENING && tg.smile == 0f) tg = tg.copy(smile = 0.12f)
+        if (mood == Mood.ASLEEP) tg = ExpressionTargets()
+        val rf = rate(dt, TAU_FEELING)
+        smile += (tg.smile - smile) * rf
+        inner += (tg.inner - inner) * rf
+        widen += (tg.widen - widen) * rf
+        parted += (tg.jaw - parted) * rf
+        feelingBrow += (tg.brow - feelingBrow) * rf
+        tilt += (tg.tilt - tilt) * rate(dt, 0.5f)
+        roll += tilt
+        rollOverride?.let { roll = it }
+
         // The loudness envelope is lazier than the mouth: brows follow the phrase, not each syllable.
         val env = if (live) amp else 0f
         ampSlow += (env - ampSlow) * rate(dt, if (env > ampSlow) 0.16f else 0.36f)
@@ -220,7 +300,7 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         }
         expr += (exprTgt - expr) * rate(dt, 0.43f)
 
-        val browT = 0.55f * ampSlow + 0.60f * expr + browBias
+        val browT = 0.55f * ampSlow + 0.60f * expr + browBias + feelingBrow
         brow += (browT.coerceIn(-0.4f, 1.2f) - brow) * rate(dt, 0.15f)
         // a reaction: brows up and a small nod, over a little under a second
         val sinceReact = t - reactAt
@@ -303,13 +383,17 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         val v = pv
         System.arraycopy(mesh.verts, 0, v, 0, v.size)
 
-        if (abs(brow) > 0.004f) {
+        if (abs(brow) > 0.004f || inner > 0.004f) {
             val k = brow * BROW_LIFT
-            for (i in 0 until n) v[3 * i + 1] += mesh.brow[i] * k
+            val ki = inner * INNER_LIFT
+            for (i in 0 until n) {
+                val b = mesh.brow[i]
+                if (b != 0f) v[3 * i + 1] += b * (k + ki * innerBrow[i])
+            }
         }
-        // The lids: the skin round each eye drops (upper lid) and rises (lower lid) as the eyes close.
-        val close = (1f - ((1f - blink) * lids.coerceIn(0f, 1f))).coerceIn(0f, 0.97f)
-        if (close > 0.01f) {
+        // The lids: the skin round each eye drops (upper lid) and rises (lower lid) as the eyes close; surprise opens them past rest.
+        val close = (1f - ((1f - blink) * lids.coerceIn(0f, 1f)) - WIDEN_OPEN * widen * (1f - blink)).coerceIn(-WIDEN_OPEN, 0.97f)
+        if (abs(close) > 0.01f) {
             for (i in 0 until n) {
                 val l = mesh.lid[i]
                 if (l != 0f) v[3 * i + 1] -= l * close
@@ -340,13 +424,29 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
                 v[3 * i + 2] -= k * 0.055f
             }
         }
-        if (mouth > 0.004f) {
+        if (abs(smile) > 0.004f) {
+            // the corners of the mouth rise (and pull out, back into the cheeks) or drop; the middle of the lips stays
+            val lift = smile * SMILE_LIFT
+            val pull = max(0f, smile) * SMILE_PULL
+            val back = abs(smile) * 0.012f
+            for (i in 0 until n) {
+                val w = smileWeight[i]
+                if (w == 0f) continue
+                val c = cornerSide[i]
+                val a = abs(c) * w
+                v[3 * i] += pull * c * w
+                v[3 * i + 1] += lift * a
+                v[3 * i + 2] -= back * a
+            }
+        }
+        val open = max(mouth, parted)
+        if (open > 0.004f) {
             val py = JAW_PIVOT[1]
             val pz = JAW_PIVOT[2]
             for (i in 0 until n) {
                 val w = mesh.jaw[i]
                 if (w == 0f) continue
-                val ang = w * cornerFactor[i] * (mouth * JAW_MAX)
+                val ang = w * cornerFactor[i] * (open * JAW_MAX)
                 val ca = cos(ang)
                 val sa = sin(ang)
                 val dy = v[3 * i + 1] - py

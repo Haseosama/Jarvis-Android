@@ -41,6 +41,19 @@ internal class AvatarController(private val context: Context) {
     val timeline = VisemeTimeline()
     private val stream = VisemeStream()
 
+    /** The feeling of what is being said (see Expressions.kt): the face smiles, worries or is surprised with the words. */
+    private val feelings = ExpressionTracker()
+    val feeling: Feeling get() = feelings.feeling
+
+    /**
+     * The phone's own voice is speaking (the offline mode): it gives no sound to analyse, so the mouth follows the words it says
+     * (see [onSpokenWord]), or, on a voice that does not tell which word it is at, the loudness the engine makes up.
+     */
+    @Volatile var phoneVoice = false
+        private set
+    @Volatile var phoneVoiceWords = false
+        private set
+
     /** Which head is shown (index in [AVATAR_FACES]). A Compose state, so the view redraws with the new head when it changes. */
     var model by androidx.compose.runtime.mutableIntStateOf(0)
 
@@ -176,14 +189,45 @@ internal class AvatarController(private val context: Context) {
         }
     }
 
-    /** The words being spoken, so the lips can close on m, b, p. */
+    /** The words being spoken, so the lips can close on m, b, p, and the face shows what they mean. */
     fun onTranscript(text: String) {
-        if (enabled) stream.feedText(text)
+        if (!enabled) return
+        stream.feedText(text)
+        feelings.feed(text)
+    }
+
+    /** The user speaks: a new turn, the feeling of the last reply is over. */
+    fun onUserSpeech() = feelings.reset()
+
+    /** The phone's voice starts saying [text] (offline mode): the face takes on its feeling. */
+    fun onPhoneVoiceStart(text: String) {
+        timeline.clear()
+        feelings.reset()
+        phoneVoiceWords = false
+        phoneVoice = true
+        if (enabled) feelings.feed(text)
+    }
+
+    /** The phone's voice is at [word] (it says so as it goes): the mouth plays its shapes now. */
+    fun onSpokenWord(word: String) {
+        if (!enabled) return
+        phoneVoiceWords = true
+        val frames = wordVisemes(word)
+        if (frames.isEmpty()) return
+        val now = SystemClock.elapsedRealtimeNanos()
+        timeline.clear()
+        timeline.push(frames, now, latencyNs = 0L)
+    }
+
+    fun onPhoneVoiceEnd() {
+        phoneVoice = false
+        phoneVoiceWords = false
     }
 
     /** The user cut the assistant off, or the session ended: nothing already queued is going to be heard. */
     fun interrupt() {
         timeline.clear()
         stream.reset()
+        feelings.reset()
     }
 }

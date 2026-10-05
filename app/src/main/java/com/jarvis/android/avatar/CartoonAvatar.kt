@@ -43,6 +43,8 @@ internal fun lipColour(tone: Int, skin: SkinPalette): Color = when (tone) {
 internal data class CartoonPose(
     val mouth: Float, val wide: Float, val brow: Float, val eyeOpen: Float,
     val gazeX: Float, val gazeY: Float, val yaw: Float, val pitch: Float, val time: Float,
+    /** The corners of the mouth, as [HoloAvatar.smile]: up in a smile, down when worried. */
+    val smile: Float = 0f,
 )
 
 /** The open fraction of the eyes (1 wide, 0 shut) from the blink and the lids of the state (low when asleep). */
@@ -51,7 +53,7 @@ internal fun eyeOpenness(blink: Float, lids: Float): Float = ((1f - blink) * lid
 internal fun cartoonPose(a: HoloAvatar) = CartoonPose(
     mouth = a.mouth.coerceIn(0f, 1f), wide = a.wide.coerceIn(-1f, 1f), brow = a.brow.coerceIn(-0.4f, 1.2f),
     eyeOpen = eyeOpenness(a.blink, a.lids), gazeX = a.gaze[0].coerceIn(-1f, 1f), gazeY = a.gaze[1].coerceIn(-1f, 1f),
-    yaw = a.yaw, pitch = a.pitch, time = a.time,
+    yaw = a.yaw, pitch = a.pitch, time = a.time, smile = a.smile.coerceIn(-1f, 1f),
 )
 
 /**
@@ -222,7 +224,7 @@ internal class CartoonRenderer {
         val cym = 0.64f + fy * 0.8f
         val half = 0.31f * (1f + 0.30f * pose.wide.coerceAtLeast(0f) - 0.22f * (-pose.wide).coerceAtLeast(0f) - 0.10f * pose.mouth)
         val open = 0.06f + pose.mouth * 0.30f                   // the smile always shows a little of the teeth
-        val cornerLift = 0.095f - 0.04f * pose.mouth
+        val cornerLift = 0.095f - 0.04f * pose.mouth + 0.07f * pose.smile
         val topY = cym - 0.02f
         val botY = cym + open + jaw * 0.6f
         // the opening: a smile above, a rounder lip below

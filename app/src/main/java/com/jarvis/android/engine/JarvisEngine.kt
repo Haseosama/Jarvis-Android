@@ -670,9 +670,11 @@ class JarvisEngine(
             ?: "Je n’ai pas pu réfléchir à une réponse. Réessayez, ou dites « aide » pour les commandes."
     }
 
-    /** Speaks [text], with the avatar's mouth moving while it does. */
+    /** Speaks [text], with the avatar's mouth following the words and its face their feeling. */
     private suspend fun offlineSay(voice: com.jarvis.android.offline.OfflineVoice, text: String) {
         _state.value = JarvisState.SPEAKING
+        val avatar = container.avatar
+        avatar.onPhoneVoiceStart(text)
         val mouth = scope.launch {
             var t = 0
             while (true) {
@@ -682,10 +684,11 @@ class JarvisEngine(
             }
         }
         try {
-            voice.speak(text)
+            voice.speak(text) { word -> avatar.onSpokenWord(word) }
         } finally {
             mouth.cancel()
             _outputLevel.value = 0f
+            avatar.onPhoneVoiceEnd()
         }
     }
 
@@ -829,6 +832,7 @@ class JarvisEngine(
                 _conversation.update { appendConversation(it, ConversationRole.ASSISTANT, event.text) }
             }
             is LiveEvent.InputTranscript -> {
+                container.avatar.onUserSpeech()
                 _conversation.update { appendConversation(it, ConversationRole.USER, event.text) }
                 _state.value = JarvisState.THINKING
             }
