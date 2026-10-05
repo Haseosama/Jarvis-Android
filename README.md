@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.73 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.74 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -608,7 +608,7 @@ default, with the distance in the answer); it keeps only stations in that city i
 live feed as before (data.economie.gouv.fr, no key); it has no brand names, only addresses. Checked: unit tests on a
 payload shaped like the real one, and live on the emulator for Lyon, Paris and around the phone.
 
-### Tides and marine weather (`marees`, 0.9.73)
+### Tides and marine weather (`marees`, 0.9.74)
 
 - **Tides** (`action = tides`, the default): today's and tomorrow's high and low waters at the closest French port
   within 50 km of a named place or of the phone (about 90 ports, Dunkirk to Hendaye, the Mediterranean and Corsica;
