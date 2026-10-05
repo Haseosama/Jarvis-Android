@@ -258,6 +258,10 @@
             android:name=".weekly.WeeklySummaryReceiver"
             android:exported="false" />
 
+        <receiver
+            android:name=".trash.TrashReceiver"
+            android:exported="false" />
+
         <!-- Jarvis as a media app: Android Auto and the phone's media controls browse and control its radio and podcasts -->
         <service
             android:name=".car.JarvisMediaService"

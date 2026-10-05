@@ -31,6 +31,7 @@ internal object AlertKind {
     const val QUAKE = "séisme"
     const val ENERGY = "électricité"
     const val WATCH = "surveillance"
+    const val TRASH = "poubelles"
 }
 
 internal const val DRIVE = "drive"
