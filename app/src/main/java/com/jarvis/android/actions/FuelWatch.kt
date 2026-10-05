@@ -84,6 +84,7 @@ internal object FuelWatch {
         val today = LocalDate.now().toString()
         if (!shouldTellFuel(p.getString("told", null), p.getString("told_day", null), p.getFloat("told_price", Float.MAX_VALUE).toDouble(), key, today, best.price)) return
         p.edit().putString("told", key).putString("told_day", today).putFloat("told_price", best.price.toFloat()).apply()
+        com.jarvis.android.journal.Journal.alert(c, com.jarvis.android.journal.AlertKind.FUEL, text)
         c.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel(CHANNEL, tr("Prix du carburant"), NotificationManager.IMPORTANCE_DEFAULT))
         try {
             NotificationManagerCompat.from(c).notify(

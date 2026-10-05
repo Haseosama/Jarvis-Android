@@ -132,6 +132,7 @@ class RainWatchWorker(context: Context, params: WorkerParameters) : CoroutineWor
     }
 
     private fun notify(text: String) {
+        com.jarvis.android.journal.Journal.alert(applicationContext, com.jarvis.android.journal.AlertKind.RAIN, text)
         try {
             val manager = applicationContext.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(NotificationChannel(CHANNEL, tr("Alerte pluie"), NotificationManager.IMPORTANCE_DEFAULT))

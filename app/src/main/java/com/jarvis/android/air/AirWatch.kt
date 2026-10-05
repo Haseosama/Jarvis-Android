@@ -193,6 +193,7 @@ internal object AirWatch {
         val key = LocalDate.now().toString() + "|" + text.substringBefore(" (")
         if (p.getString("told", null) == key) return
         p.edit().putString("told", key).apply()
+        com.jarvis.android.journal.Journal.alert(c, com.jarvis.android.journal.AlertKind.AIR, text)
         c.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("jarvis_air", tr("Qualité de l’air et pollens"), NotificationManager.IMPORTANCE_DEFAULT))
         try {
             NotificationManagerCompat.from(c).notify(

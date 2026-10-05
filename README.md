@@ -1366,6 +1366,15 @@ also shown in the settings.
   `set` (speak or notify, and the hour, 18 h by default): every Sunday by itself (an exact alarm, set again after each and after a
   reboot). Each part only when the phone knows it. *Checked:* on the emulator, the summary (no health data or spending this week there,
   the week's weather), set for Sunday 18:00; the words of both weeks, the daily forecast and the next Sunday by unit tests.
+  Since 0.9.72 it also says what Jarvis itself did in the week (`weekly/WeekRecap.kt`, `journal/`): the drives (each time driving mode
+  went on then off, by voice or the car's Bluetooth: how many, the time at the wheel, the longest; under two minutes not counted), the
+  reminders that rang (named when one or two, counted otherwise, and those that could not show because notifications were blocked), the
+  alerts Jarvis gave (vigilance and floods, rain soon, air and pollen, fuel price, product recalls, planned outages, disrupted usual
+  trips, parcels, budgets, earthquakes, Tempo/EcoWatt, web watches: one said in full, more counted by subject), and in the week to come the
+  reminders already set (day, hour, five at most). The drives and alerts are noted in a small journal on the phone (`week_journal.json`,
+  five weeks at most, 500 entries), so only what happens after the update counts. *Checked:* the words of the reminders, drives and
+  alerts, and the journal's reading, writing and trimming by unit tests (`WeekRecapTest`, `JournalEntriesTest`). *Not checked:* on the
+  emulator or a phone (a real Sunday summary with a week of drives, reminders and alerts; the journal written by each alert).
 - **Usual trips, and the disruptions in words** (since 0.9.59; `my_trips`, `transport/Commutes.kt`). The user's usual trips are kept
   ("enregistre mon trajet du boulot de Versailles à Paris Saint-Lazare à 7h40 en semaine": a name, from, to, the time, the days in
   words — "en semaine", "lun-ven", "le week-end", "lundi, mercredi et vendredi" — trains or local transport). `check` says the next
