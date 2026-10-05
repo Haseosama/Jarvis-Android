@@ -3,9 +3,13 @@ package com.jarvis.android.actions
 import com.jarvis.android.JarvisContainer
 import com.jarvis.android.recipes.Recipe
 import com.jarvis.android.recipes.RecipeSession
+import com.jarvis.android.recipes.autoTimerMinutes
+import com.jarvis.android.recipes.timerWords
 import com.jarvis.android.recipes.ingredientsText
 import com.jarvis.android.recipes.splitItems
 import com.jarvis.android.recipes.stepText
+import com.jarvis.android.recipes.stepTimerLabel
+import com.jarvis.android.timers.TimerService
 import kotlinx.serialization.json.JsonObject
 import com.jarvis.android.tool.Tool
 import com.jarvis.android.tool.intArg
@@ -20,9 +24,10 @@ object RecipeTool : Tool {
             "l'utilisateur en choisit une, action start avec title, servings, ingredients et steps (chacun séparé par « | », étapes courtes, une " +
             "action chacune). Ensuite : next (« étape suivante »), previous, repeat, goto (step), ingredients, missing (items : ce qui manque, " +
             "ajouté à la liste de courses), save (« garde cette recette »), load (name : « ma recette de crêpes »), saved (les recettes gardées), " +
-            "forget (name), stop. Lisez l'étape telle quelle ; quand elle propose un minuteur, proposez-le (timer)."
+            "forget (name), timers_off (« pas de minuteur »), timers_on, stop. Lisez la réponse telle quelle : une étape avec une durée " +
+            "lance elle-même son minuteur (ne lancez pas de timer en plus) ; quand elle en propose un, proposez-le (timer)."
     override val parameters = objectSchema {
-        string("action", "'start', 'next' (défaut), 'previous', 'repeat', 'goto', 'ingredients', 'missing', 'save', 'load', 'saved', 'forget' ou 'stop'.")
+        string("action", "'start', 'next' (défaut), 'previous', 'repeat', 'goto', 'ingredients', 'missing', 'save', 'load', 'saved', 'forget', 'timers_off', 'timers_on' ou 'stop'.")
         string("title", "Pour start : nom de la recette.")
         integer("servings", "Pour start : nombre de personnes.")
         string("ingredients", "Pour start : ingrédients avec quantités, séparés par « | ».")
@@ -32,6 +37,7 @@ object RecipeTool : Tool {
         string("name", "Pour load / forget : nom de la recette gardée.")
     }
 
+    private const val TIMERS_HINT = " Une étape avec une durée lance son minuteur toute seule (« pas de minuteur » pour les couper)."
     private const val NONE = "Aucune recette en cours : choisissez-en une d'abord (ou « ma recette de … » pour une recette gardée)."
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String {
@@ -39,8 +45,12 @@ object RecipeTool : Tool {
         val now = System.currentTimeMillis()
         fun go(s: RecipeSession, i: Int): String {
             val step = i.coerceIn(0, s.recipe.steps.lastIndex.coerceAtLeast(0))
-            store.setCurrent(s.copy(step = step, updatedAt = now))
-            return stepText(s.recipe, step)
+            val minutes = autoTimerMinutes(s, step)
+            val started = minutes?.let { startTimer(ctx, s.recipe, step, it) }
+            val timed = if (started?.second == true) s.timedSteps + step else s.timedSteps
+            store.setCurrent(s.copy(step = step, updatedAt = now, timedSteps = timed))
+            val said = started?.first ?: if (s.autoTimers && step in s.timedSteps) " Son minuteur a déjà été lancé." else null
+            return stepText(s.recipe, step, said)
         }
         val current = store.current(now)
         return when (args.stringArg("action").trim().lowercase().ifEmpty { "next" }) {
@@ -51,7 +61,7 @@ object RecipeTool : Tool {
                 if (steps.isEmpty()) return "Il faut les étapes de la recette (steps, séparées par « | »)."
                 val r = Recipe(title, args.intArg("servings", 0).coerceIn(0, 50), ingredients, steps)
                 store.setCurrent(RecipeSession(r, -1, now))
-                ingredientsText(r) + " ${steps.size} étapes. Dites « étape suivante » quand vous êtes prêt, « répète » ou « l'étape d'avant » à tout moment."
+                ingredientsText(r) + " ${steps.size} étapes. Dites « étape suivante » quand vous êtes prêt, « répète » ou « l'étape d'avant » à tout moment." + TIMERS_HINT
             }
             "next" -> current?.let { go(it, it.step + 1) } ?: NONE
             "previous", "back" -> current?.let { go(it, it.step - 1) } ?: NONE
@@ -76,15 +86,38 @@ object RecipeTool : Tool {
             "load" -> {
                 val r = store.find(args.stringArg("name")) ?: return "Aucune recette gardée ne correspond. " + savedList(ctx)
                 store.setCurrent(RecipeSession(r, -1, now))
-                ingredientsText(r) + " ${r.steps.size} étapes. Dites « étape suivante » pour commencer."
+                ingredientsText(r) + " ${r.steps.size} étapes. Dites « étape suivante » pour commencer." + TIMERS_HINT
             }
             "saved", "list" -> savedList(ctx)
             "forget", "delete" -> if (store.forget(args.stringArg("name").trim())) "Recette oubliée." else "Aucune recette gardée de ce nom. " + savedList(ctx)
+            "timers_off" -> current?.let {
+                store.setCurrent(it.copy(autoTimers = false, updatedAt = now))
+                "D'accord, plus de minuteur automatique pour cette recette : je les proposerai seulement."
+            } ?: NONE
+            "timers_on" -> current?.let {
+                store.setCurrent(it.copy(autoTimers = true, updatedAt = now))
+                "Les étapes avec une durée lanceront de nouveau leur minuteur toutes seules."
+            } ?: NONE
             "stop", "end" -> {
                 store.setCurrent(null)
                 "Recette terminée."
             }
             else -> "Action inconnue."
+        }
+    }
+
+    /** Starts the timer of step [i]: what to say, and whether it really started. */
+    private fun startTimer(ctx: JarvisContainer, r: Recipe, i: Int, minutes: Int): Pair<String, Boolean> {
+        val offer = " Dites « minuteur de $minutes minutes » si vous en voulez un."
+        try {
+            TimerService.notificationProblem(ctx.appContext)?.let { return " Je n'ai pas pu lancer son minuteur : $it" to false }
+            val record = TimerService.create(ctx.appContext, minutes * 60L, stepTimerLabel(r, i))
+            val approx = if (record.approximate) " (heure approximative)" else ""
+            return " Minuteur de ${timerWords(minutes)} lancé$approx, je vous préviens à la fin." to true
+        } catch (e: IllegalArgumentException) {
+            return " ${e.message ?: "Le minuteur n'a pas pu être lancé."}$offer" to false
+        } catch (_: Exception) {
+            return " Le minuteur n'a pas pu être lancé.$offer" to false
         }
     }
 
