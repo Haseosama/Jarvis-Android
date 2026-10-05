@@ -9,6 +9,7 @@ import kotlinx.serialization.json.put
 import com.jarvis.android.tool.Tool
 import com.jarvis.android.actions.AgentTool
 import com.jarvis.android.actions.AirQualityTool
+import com.jarvis.android.actions.TidesTool
 import com.jarvis.android.actions.AlarmTool
 import com.jarvis.android.actions.AnalyzeFileTool
 import com.jarvis.android.actions.BirthdaysTool
@@ -186,7 +187,7 @@ object ToolRegistry {
         RainSoonTool,
         BirthdaysTool,
         InterpreterTool,
-        CallLogTool, SosTool, PhotoSearchTool, ReceiptTool, PersonReminderTool, DrivingModeTool, HealthTool, QuietModeTool, SubscriptionsTool, RecipeTool, ParcelTool, BudgetTool, ReadTextTool, WakeBriefingTool, TransportTool,
+        CallLogTool, SosTool, PhotoSearchTool, ReceiptTool, PersonReminderTool, DrivingModeTool, HealthTool, QuietModeTool, SubscriptionsTool, RecipeTool, ParcelTool, BudgetTool, ReadTextTool, WakeBriefingTool, TransportTool, TidesTool,
     )
 
     private val byName = ALL.associateBy { it.name }
