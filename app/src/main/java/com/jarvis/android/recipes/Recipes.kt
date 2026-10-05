@@ -8,8 +8,9 @@ import java.io.File
 
 /*
  * Cooking hands-free: a recipe (from the model, or kept from last time) read one step at a time — "étape suivante",
- * "répète", "l'étape d'avant" — even offline once it has started; the missing ingredients go on the shopping list,
- * and a recipe the user liked can be kept ("garde cette recette") and read again later ("ma recette de crêpes").
+ * "répète", "l'étape d'avant" — even offline once it has started; a step with a duration starts its own timer the first
+ * time it is read (unless "pas de minuteur"); the missing ingredients go on the shopping list, and a recipe the user
+ * liked can be kept ("garde cette recette") and read again later ("ma recette de crêpes").
  */
 
 internal const val RECIPE_IDLE_MS = 4 * 60 * 60_000L
@@ -26,7 +27,15 @@ internal object RecipeLive {
 internal data class Recipe(val title: String, val servings: Int = 0, val ingredients: List<String>, val steps: List<String>)
 
 @Serializable
-internal data class RecipeSession(val recipe: Recipe, val step: Int = 0, val updatedAt: Long = 0)
+internal data class RecipeSession(
+    val recipe: Recipe,
+    val step: Int = 0,
+    val updatedAt: Long = 0,
+    /** Steps whose timer was already started, so "répète" or going back does not start it twice. */
+    val timedSteps: List<Int> = emptyList(),
+    /** Off after "pas de minuteur": a step with a duration only offers its timer. */
+    val autoTimers: Boolean = true,
+)
 
 @Serializable
 private data class RecipeBook(val current: RecipeSession? = null, val saved: List<Recipe> = emptyList())
@@ -39,20 +48,38 @@ internal fun splitItems(text: String): List<String> =
         .map { it.take(300) }
         .take(60)
 
-private val DURATION = Regex("(\\d{1,3})\\s*(?:à\\s*\\d{1,3}\\s*)?(min(?:utes?)?|h(?:eures?)?)\\b", RegexOption.IGNORE_CASE)
+private val DURATION = Regex("(\\d{1,3})\\s*(?:à\\s*\\d{1,3}\\s*)?(min(?:utes?)?\\b|h(?:eures?)?(?![a-zà-ÿ]))(?:\\s*(\\d{1,2})\\b)?", RegexOption.IGNORE_CASE)
 
-/** The minutes a step mentions ("cuire 20 minutes", "1 h"), for a timer; null when none. */
+/** The minutes a step mentions ("cuire 20 minutes", "1 h", "1 h 30"), for a timer; null when none. */
 internal fun stepMinutes(step: String): Int? = DURATION.find(step)?.let { m ->
     val n = m.groupValues[1].toInt()
-    if (m.groupValues[2].lowercase().startsWith("h")) n * 60 else n
+    if (m.groupValues[2].lowercase().startsWith("h")) n * 60 + (m.groupValues[3].toIntOrNull() ?: 0) else n
 }?.takeIf { it in 1..600 }
 
-/** "Étape 3 sur 7 : …", with a timer offered when the step has a duration, and a word when it is the last one. */
-internal fun stepText(r: Recipe, i: Int): String {
+/** The minutes of the timer step [i] should start by itself now, or null (none, already started, or switched off). */
+internal fun autoTimerMinutes(s: RecipeSession, i: Int): Int? =
+    if (!s.autoTimers || i in s.timedSteps) null else s.recipe.steps.getOrNull(i)?.let { stepMinutes(it) }
+
+/** "20 minutes", "1 heure", "1 h 30". */
+internal fun timerWords(minutes: Int): String = when {
+    minutes < 60 -> "$minutes minute${if (minutes > 1) "s" else ""}"
+    minutes % 60 == 0 -> "${minutes / 60} heure${if (minutes >= 120) "s" else ""}"
+    else -> "${minutes / 60} h ${minutes % 60}"
+}
+
+/** The timer's label, said when it rings: which recipe and which step it was for. */
+internal fun stepTimerLabel(r: Recipe, i: Int): String =
+    "${r.title.take(60)}, étape ${i + 1} : ${r.steps.getOrNull(i).orEmpty().take(120)}"
+
+/**
+ * "Étape 3 sur 7 : …", and a word when it is the last one. [timer] is what to say about the step's timer
+ * (started, already running); null offers one when the step has a duration.
+ */
+internal fun stepText(r: Recipe, i: Int, timer: String? = null): String {
     val step = r.steps.getOrNull(i) ?: return "Cette recette n'a pas d'étape ${i + 1}."
-    val timer = stepMinutes(step)?.let { " Dites « minuteur de $it minutes » si vous en voulez un." }.orEmpty()
+    val said = timer ?: stepMinutes(step)?.let { " Dites « minuteur de $it minutes » si vous en voulez un." }.orEmpty()
     val end = if (i == r.steps.lastIndex) " C'était la dernière étape : bon appétit !" else ""
-    return "Étape ${i + 1} sur ${r.steps.size} : $step$timer$end"
+    return "Étape ${i + 1} sur ${r.steps.size} : $step$said$end"
 }
 
 /** "de crêpes", "d'omelette". */

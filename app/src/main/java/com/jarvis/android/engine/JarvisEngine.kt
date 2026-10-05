@@ -781,10 +781,13 @@ class JarvisEngine(
                                 launch {
                                     while (true) {
                                         delay(5_000)
+                                        // While cooking the hands are busy: the session waits longer between two steps.
+                                        val cooking = com.jarvis.android.recipes.RecipeLive.cooking()
                                         if (container.configStore.wakeWordEnabled.first() &&
-                                            android.os.SystemClock.elapsedRealtime() - lastActivityAt > AUTO_SLEEP_MS
+                                            android.os.SystemClock.elapsedRealtime() - lastActivityAt > (if (cooking) COOKING_SLEEP_MS else AUTO_SLEEP_MS)
                                         ) {
-                                            log(tr("Mise en veille après deux minutes sans échange."))
+                                            log(if (cooking) tr("Mise en veille après dix minutes sans échange (recette en cours : dites le mot d’activation pour la suite).")
+                                                else tr("Mise en veille après deux minutes sans échange."))
                                             stop()
                                             break
                                         }
@@ -871,6 +874,7 @@ class JarvisEngine(
 
     private companion object {
         const val AUTO_SLEEP_MS = 120_000L
+        const val COOKING_SLEEP_MS = 600_000L
         const val END_SESSION_TIMEOUT_MS = 12_000L
         const val END_SESSION_GRACE_MS = 1_500L
         const val MIC_RELEASE_TIMEOUT_MS = 3_000L
