@@ -15,13 +15,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.jarvis.android.core.JarvisState
 
 /**
  * The holographic head. It redraws itself about 30 times a second while it is on screen, and stops when it leaves.
- * [outputLevel] is the 0..1 loudness of the assistant's voice, [onTap] is the same tap as the reactor's.
+ * [outputLevel] is the 0..1 loudness of the assistant's voice. The eyes follow [AvatarController.finger], given in window pixels.
  * [close]: a close-up for a small face (over a video): the face fills the square, the hair and the neck cut off, lit brighter on a
  * glow of the theme's colour, since the dark looks melt into the background at that size.
  */
@@ -39,6 +40,8 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     val cartoon = remember { CartoonRenderer() }
     val reactions = controller.reactions
     LaunchedEffect(reactions, head) { if (reactions > 0) head?.second?.react() }
+    // where the view sits in the window, to turn a finger's window position into the face's own measures
+    val place = remember { arrayOfNulls<androidx.compose.ui.layout.LayoutCoordinates>(1) }
     // a character's files (its mesh and its atlas image) are read off the main thread: the face appears when they are
     val characterFolder = avatarFace(model).character
     val character by androidx.compose.runtime.produceState<CharacterRenderer?>(null, controller, model, characterFolder) {
@@ -66,6 +69,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
                 val dt = (now - last) / 1e9f
                 last = now
                 avatar.watching = controller.watching
+                controller.finger?.let { f -> inFace(place[0], f, close)?.let { avatar.follow(it[0], it[1]) } }
                 avatar.yawOverride = controller.debugYaw; avatar.pitchOverride = controller.debugPitch
                 avatar.rollOverride = controller.debugRoll
                 avatar.mouthOverride = controller.debugMouth
@@ -88,12 +92,14 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
     val bg = scheme.background.toArgb()
     val stroke = with(LocalDensity.current) { 1.1.dp.toPx() }
 
-    Canvas(modifier.fillMaxWidth().aspectRatio(1f).then(if (close) Modifier.clipToBounds() else Modifier)) {
+    Canvas(
+        modifier.fillMaxWidth().aspectRatio(1f).then(if (close) Modifier.clipToBounds() else Modifier)
+            .onGloballyPositioned { place[0] = it },
+    ) {
         @Suppress("UNUSED_VARIABLE") val tick = frame // reading it makes the canvas redraw with every animation step
         val (renderer, avatar) = head ?: return@Canvas
-        // head half-height: the head fills about 72 % of the square, the neck fades below it; a close-up: the face fills it
-        val r = size.minDimension * (if (close) 0.58f else 0.36f)
-        val cy = size.height * (if (close) 0.47f else 0.44f)
+        val r = headRadius(size.minDimension, close)
+        val cy = size.height * headCentre(close)
         if (close) {
             drawCircle(
                 androidx.compose.ui.graphics.Brush.radialGradient(
@@ -109,6 +115,21 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
             if (close) drawContext.canvas.restore()
         }
     }
+}
+
+/** The head's half-height: the head fills about 72 % of the square, the neck fades below it; a close-up: the face fills it. */
+private fun headRadius(side: Float, close: Boolean) = side * (if (close) 0.58f else 0.36f)
+
+/** The height of the head's centre, as a share of the view's. */
+private fun headCentre(close: Boolean) = if (close) 0.47f else 0.44f
+
+/** A point given in window pixels, in head half-heights from the head's centre (x right, y down); null while the view is not placed. */
+private fun inFace(place: androidx.compose.ui.layout.LayoutCoordinates?, at: androidx.compose.ui.geometry.Offset, close: Boolean): FloatArray? {
+    if (place == null || !place.isAttached) return null
+    val p = place.windowToLocal(at)
+    val w = place.size.width.toFloat(); val h = place.size.height.toFloat()
+    val r = headRadius(kotlin.math.min(w, h), close).takeIf { it > 0f } ?: return null
+    return floatArrayOf((p.x - w / 2f) / r, (p.y - h * headCentre(close)) / r)
 }
 
 /** Brighter and a little lifted, for the small face: the dark looks otherwise melt into the background. */
