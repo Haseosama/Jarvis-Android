@@ -5,6 +5,7 @@ import com.jarvis.android.google.MailSummary
 import com.jarvis.android.space.Launch
 import com.jarvis.android.space.Trip
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Request
@@ -14,13 +15,13 @@ import java.time.ZoneId
 
 /*
  * The briefing's newer parts, each one sentence or nothing: rain coming within two hours, the important mails not read, the ISS
- * crossing the sky tonight, the user's flights today, the rocket launches today, an aurora possible tonight, today's pollens and bad air.
+ * crossing the sky tonight, the user's flights today, the rocket launches today, an aurora possible tonight, today's air (ATMO index) and pollens.
  * Each can be switched off.
  */
 
 /** The parts of the briefing, by the key the user switches off ("sans les mails"). */
 internal val BRIEFING_SECTIONS = linkedMapOf(
-    "meteo" to "la météo", "vigilance" to "les vigilances météo et crues", "pollen" to "le risque pollen et l’air pollué", "pluie" to "la pluie qui arrive", "agenda" to "l’agenda", "rappels" to "les rappels", "depenses" to "les prélèvements et budgets",
+    "meteo" to "la météo", "vigilance" to "les vigilances météo et crues", "pollen" to "la qualité de l’air et le risque pollen", "pluie" to "la pluie qui arrive", "agenda" to "l’agenda", "rappels" to "les rappels", "depenses" to "les prélèvements et budgets",
     "uv" to "les UV élevés", "electricite" to "les jours Tempo et EcoWatt", "coupures" to "les coupures prévues", "mails" to "les mails importants", "vols" to "vos vols", "iss" to "l’ISS ce soir", "fusees" to "les lancements de fusées", "aurores" to "les aurores", "sommeil" to "la nuit de sommeil",
 )
 
@@ -106,13 +107,17 @@ internal object BriefingExtras {
         }
     }
 
-    /** Today's pollens from moderate (those the user named for the air watch, else all) and the air when bad. */
-    suspend fun pollen(ctx: JarvisContainer, lat: Double, lon: Double): String? = withTimeoutOrNull(8_000) {
-        try {
-            com.jarvis.android.air.AirData.forecast(ctx, lat, lon)?.let { com.jarvis.android.air.airBriefingWords(it, LocalDate.now(), com.jarvis.android.air.AirWatch.pollens(ctx.appContext)) }
-        } catch (_: Exception) {
-            null
-        }
+    /**
+     * Today's air, every day, by the ATMO index of the commune (in France), then the pollens from moderate (those the user named for the
+     * air watch, else all); where there is no ATMO index, the European one, said only when the air is bad.
+     */
+    suspend fun pollen(ctx: JarvisContainer, lat: Double, lon: Double): String? = kotlinx.coroutines.coroutineScope {
+        val today = LocalDate.now()
+        val atmo = async { withTimeoutOrNull(8_000) { try { com.jarvis.android.air.AirData.atmo(ctx, lat, lon, today) } catch (_: Exception) { null } } }
+        val forecast = withTimeoutOrNull(8_000) { try { com.jarvis.android.air.AirData.forecast(ctx, lat, lon) } catch (_: Exception) { null } }
+        val air = atmo.await()
+        val rest = forecast?.let { try { com.jarvis.android.air.airBriefingWords(it, today, com.jarvis.android.air.AirWatch.pollens(ctx.appContext), withAir = air == null) } catch (_: Exception) { null } }
+        listOfNotNull(air?.let { com.jarvis.android.air.atmoBriefingWords(it) }, rest).joinToString(", ").ifEmpty { null }
     }
 
     suspend fun mails(ctx: JarvisContainer): String? = withTimeoutOrNull(10_000) {

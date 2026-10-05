@@ -50,6 +50,7 @@ class AirWatchTest {
         val day = LocalDate.of(2026, 9, 29)
         assertEquals("risque pollen aujourd’hui : graminées élevé, armoise moyen, air mauvais au pire (indice 72)", airBriefingWords(json, day))
         assertEquals("risque pollen aujourd’hui : armoise moyen, air mauvais au pire (indice 72)", airBriefingWords(json, day, setOf("mugwort_pollen", "birch_pollen")))
+        assertEquals("risque pollen aujourd’hui : graminées élevé, armoise moyen", airBriefingWords(json, day, withAir = false)) // the ATMO index told the air
         // 6 h is outside the day's hours; tomorrow's figures are not today's
         assertEquals("risque pollen aujourd’hui : graminées très élevé", airBriefingWords(json, LocalDate.of(2026, 9, 30)))
     }
