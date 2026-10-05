@@ -218,6 +218,11 @@ class ConfigStore(private val context: Context) {
     private val KEY_RAIN_ALERTS = booleanPreferencesKey("rain_alerts")
     private val KEY_WAKE_PAUSE_SAVER = booleanPreferencesKey("wake_pause_saver")
     private val KEY_AVATAR_MODEL = intPreferencesKey("avatar_face_model")
+    /** Set once a face is chosen in a build that has Haseo (see [avatarModelIndex]). */
+    private val KEY_AVATAR_MODEL_HASEO = booleanPreferencesKey("avatar_face_model_haseo")
+    private val KEY_AVATAR_POLYGONS = stringPreferencesKey("avatar_polygon_level")
+    private val KEY_AVATAR_HASEO = stringPreferencesKey("avatar_haseo_custom")
+    private val KEY_AVATAR_HASEO_LOOKS = stringPreferencesKey("avatar_haseo_looks")
     private val KEY_AVATAR_LIPS = intPreferencesKey("avatar_lip_colour")
     private val KEY_AVATAR_CAP = intPreferencesKey("avatar_cap")
     private val KEY_MUTE_WHILE_SPEAKING = booleanPreferencesKey("mute_mic_while_speaking")
@@ -266,7 +271,13 @@ class ConfigStore(private val context: Context) {
     val avatarHairColour: Flow<Map<String, String>> = context.dataStore.data.map { decodeHairChoices(it[KEY_AVATAR_HAIR_COLOUR].orEmpty()) }
     /** 0 = the glowing web, 1..4 = a skin of that tone over the face (light by default). */
     /** Which head: 0 = the original, 1 and 2 = the other faces (see avatar/AvatarFaces.kt). */
-    val avatarModel: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_MODEL] ?: 0 }
+    val avatarModel: Flow<Int> = context.dataStore.data.map { avatarModelIndex(it[KEY_AVATAR_MODEL] ?: 0, it[KEY_AVATAR_MODEL_HASEO] == true) }
+    /** How finely the heads are cut into triangles: a PolygonLevel id (eco, low, medium, high, ultra), medium by default. */
+    val avatarPolygonLevel: Flow<String> = context.dataStore.data.map { it[KEY_AVATAR_POLYGONS] ?: "medium" }
+    /** Haseo's creator sliders, as "faceWidth=0.3;eyeSize=-0.2" (see avatar.FaceCustomizer.encode). */
+    val avatarHaseoCustom: Flow<String> = context.dataStore.data.map { it[KEY_AVATAR_HASEO].orEmpty() }
+    /** Haseo's saved looks: name → sliders, as "name=sliders" lines. */
+    val avatarHaseoLooks: Flow<List<Pair<String, String>>> = context.dataStore.data.map { decodeLooks(it[KEY_AVATAR_HASEO_LOOKS].orEmpty()) }
     /** Off by default: when on, "send" said by the user really sends the message (SMS, WhatsApp) to a contact, without a confirmation. */
     /** Car mode (Android Auto): 0 = automatic, 1 = always, 2 = never. */
     val carAudioMode: Flow<Int> = context.dataStore.data.map { it[KEY_CAR_AUDIO] ?: 0 }
@@ -333,7 +344,11 @@ class ConfigStore(private val context: Context) {
             if (value.isEmpty()) m.remove(face) else m[face] = value
             it[key] = m.entries.joinToString(";") { (k, v) -> "$k=$v" }
         }
-    suspend fun setAvatarModel(v: Int) = context.dataStore.edit { it[KEY_AVATAR_MODEL] = v }
+    suspend fun setAvatarModel(v: Int) = context.dataStore.edit { it[KEY_AVATAR_MODEL] = v; it[KEY_AVATAR_MODEL_HASEO] = true }
+    suspend fun setAvatarPolygonLevel(v: String) = context.dataStore.edit { it[KEY_AVATAR_POLYGONS] = v }
+    suspend fun setAvatarHaseoCustom(v: String) = context.dataStore.edit { it[KEY_AVATAR_HASEO] = v }
+    suspend fun setAvatarHaseoLooks(v: List<Pair<String, String>>) =
+        context.dataStore.edit { it[KEY_AVATAR_HASEO_LOOKS] = v.takeLast(8).joinToString("\n") { (name, values) -> "${name.replace('\n', ' ').replace("=", "-")}=$values" } }
     suspend fun setKeepSessionTranscripts(v: Boolean) = context.dataStore.edit { it[KEY_KEEP_TRANSCRIPTS] = v }
     suspend fun setLocalAiEnabled(v: Boolean) = context.dataStore.edit { it[KEY_LOCAL_AI] = v }
     suspend fun setOfflineMode(v: Int) = context.dataStore.edit { it[KEY_OFFLINE_MODE] = v }
@@ -410,6 +425,15 @@ data class Voice(val name: String, val female: Boolean, val styleFr: String, val
     fun label(english: Boolean): String =
         if (english) "$name · " + (if (female) "female" else "male") + ", $styleEn" else "$name · " + (if (female) "féminine" else "masculine") + ", $styleFr"
 }
+
+/**
+ * The face chosen, as an index in avatar.AVATAR_FACES. Haseo came in as the fifth face (index 4), before the textured characters:
+ * a character chosen in an older build (4 and on) is one further now, until a face is chosen again.
+ */
+internal fun avatarModelIndex(stored: Int, savedWithHaseo: Boolean): Int = if (!savedWithHaseo && stored >= 4) stored + 1 else stored
+
+internal fun decodeLooks(s: String): List<Pair<String, String>> =
+    s.lines().mapNotNull { l -> l.split('=', limit = 2).takeIf { it.size == 2 && it[0].isNotBlank() }?.let { it[0] to it[1] } }
 
 internal fun decodeHairChoices(s: String): Map<String, String> =
     s.split(';').mapNotNull { p -> p.split('=', limit = 2).takeIf { it.size == 2 && it[0].isNotBlank() && it[1].isNotBlank() }?.let { it[0] to it[1] } }.toMap()

@@ -40,8 +40,22 @@ internal class HeadMesh(
     val lockRows: Int,
     /** How much each vertex of the hair swings as the head moves (0: fixed to the head), for a chosen hairstyle; null: from the locks. */
     val hairSway: FloatArray? = null,
+    /** The spacing of the web's nodes (see NetworkWeb): closer on a finer polygon level (see PolygonLevel). */
+    val webR0: Float = NetworkWeb.R0,
 ) {
     val vertexCount: Int get() = verts.size / 3
+
+    /** The same head with some of its arrays replaced (the ones not given are shared, never modified). */
+    fun copy(
+        verts: FloatArray = this.verts, normals: FloatArray = this.normals, jaw: FloatArray = this.jaw, brow: FloatArray = this.brow,
+        lips: FloatArray = this.lips, fade: FloatArray = this.fade, faceGroup: FloatArray = this.faceGroup, faces: IntArray = this.faces,
+        lipCentre: FloatArray = this.lipCentre, crown: Float = this.crown, bottom: Float = this.bottom, paint: IntArray = this.paint,
+        lid: FloatArray = this.lid, lipMask: FloatArray = this.lipMask, eyeCentre: FloatArray = this.eyeCentre,
+        hairSway: FloatArray? = this.hairSway, webR0: Float = this.webR0,
+    ) = HeadMesh(
+        verts, normals, jaw, brow, lips, fade, faceGroup, faces, edges, landmarks, lipCentre, nHead, nFace, crown, bottom, paint, lid,
+        lipMask, eyeFirst, eyeCount, eyeCentre, eyelidRim, mouthUpper, mouthLower, lockFirst, lockCount, lockRows, hairSway, webR0,
+    )
     val faceCount: Int get() = faces.size / 3
     val edgeCount: Int get() = edges.size / 2
 

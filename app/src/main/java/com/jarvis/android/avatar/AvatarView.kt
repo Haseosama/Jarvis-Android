@@ -27,12 +27,13 @@ import com.jarvis.android.core.JarvisState
  */
 @Composable
 internal fun AvatarView(controller: AvatarController, state: JarvisState, outputLevel: Float, modifier: Modifier = Modifier, close: Boolean = false) {
-    val model = controller.model
+    val model = controller.shownModel
     // The head (its mesh read, about a second on a phone, and its renderer built) is made off the main thread: the screen shows at
     // once and the face appears when it is ready, instead of the whole first frame waiting for it.
     val hair = controller.hair
     val hairColour = controller.hairColour
-    val head by androidx.compose.runtime.produceState<Pair<AvatarRenderer, HoloAvatar>?>(null, controller, model, hair, hairColour) {
+    val shape = controller.shapeKey
+    val head by androidx.compose.runtime.produceState<Pair<AvatarRenderer, HoloAvatar>?>(null, controller, model, hair, hairColour, shape) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { controller.head().let { (m, a) -> AvatarRenderer(m) to a } }
     }
     val cartoon = remember { CartoonRenderer() }
@@ -155,6 +156,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHead(
         renderer.halo = avatarFace(model).halo
         renderer.lipTint = avatarFace(model).lipTint
         renderer.fibreOverlay = avatarFace(model).fibres && !controller.light
+        renderer.haseoEyes = avatarFace(model).haseo
         renderer.draw(this, avatar, size.width / 2f, cy, r, primary, accent, bg, stroke)
     }
 }

@@ -205,6 +205,8 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch { configStore.skipConfirmations.collect { skipConfirmations = it } }
         appScope.launch { configStore.avatarFace.collect { avatar.enabled = it } }
         appScope.launch { configStore.avatarModel.collect { avatar.model = it } }
+        appScope.launch { configStore.avatarPolygonLevel.collect { avatar.polygonLevel = com.jarvis.android.avatar.PolygonLevel.of(it) } }
+        appScope.launch { configStore.avatarHaseoCustom.collect { avatar.custom = com.jarvis.android.avatar.FaceCustomizer.decode(it) } }
         appScope.launch { configStore.avatarLight.collect { avatar.light = it } }
         // a video: the face watches it (its small face in the video's header) and reacts when it starts and when it goes
         videoPanel.onShown = { appScope.launch(kotlinx.coroutines.Dispatchers.Main) { avatar.watching = true; avatar.reactions++ } }

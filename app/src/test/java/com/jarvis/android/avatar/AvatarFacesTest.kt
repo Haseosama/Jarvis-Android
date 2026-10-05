@@ -7,8 +7,8 @@ import org.junit.Test
 import java.io.File
 
 class AvatarFacesTest {
-    /** The faces made of a mesh; the cartoon one is drawn and only borrows a file to build its animation. */
-    private val faces = AVATAR_FACES.filter { !it.cartoon }
+    /** The faces made of a mesh of their own; the cartoon one is drawn and Haseo reshapes the Classique scan (see HaseoTest). */
+    private val faces = AVATAR_FACES.filter { !it.cartoon && !it.haseo }
 
     private val meshes: List<HeadMesh> by lazy {
         faces.map { HeadMesh.parse(File("src/main/assets/" + it.asset).readBytes()) }

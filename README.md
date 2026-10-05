@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.67 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.68 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1150,6 +1150,30 @@ also shown in the settings.
   slow breath of its own; what lies on the skull and the face never move. *Checked:* `HairSwayTest` (two identical heads, one with fixed
   hair, after the same sudden turn: the ends swing, then settle, the face and the top stay), `HairStyleTest` (recolouring changes only
   the hair and keeps its cover), the colours on the emulator on the three faces.
+- **Haseo, with his character creator and the polygon editor** (since 0.9.68; Settings > Appearance > *Visage* > Haseo, after the cartoon
+  so the faces saved before keep their place). The "Classique" avatar of [Jarvis 2.0](https://github.com/Haseosama/Jarvis-2.0) ported:
+  the Classique scan reshaped (`avatar/HaseoFace.kt`: leaner cheeks, a squarer jaw, a firmer brow and chin, wider open eyes with
+  larger globes, the left eye given the exact opening of the right), green irises and clean whites, the head centred on its eye line,
+  and near a front view the eyeballs drawn in their own pass clipped to the lid opening (`AvatarRenderer.haseoEyes`), so the corners
+  show no white teeth. Three settings come with it:
+  - *Finesse du maillage* (`avatar/PolygonLevel.kt`, for every head): Éco (~20 500 triangles) and Léger (~27 400) merge the skin's
+    vertices on a grid, Standard is the mesh as it is (the default, nothing changes for anyone who does not choose), Haute
+    définition (84 555) cuts every skin triangle in four along curved normals, Ultra (148 644) the hair too; the eyes, lids, lips and
+    landmarks are pinned, and the web's nodes get closer on the finer levels.
+  - *Créateur de personnage* (Haseo only, `avatar/FaceCustomizer.kt`, `ui/HaseoCreatorDialog.kt`): 20 sliders in four tabs (face,
+    eyes, nose, mouth) turned into one smooth displacement of the whole head, so the lids, lips, brows and hair follow; six ready-made
+    faces, a random one, up to eight saved looks (the sliders only). The face on screen shows the draft at once; « Appliquer » saves it.
+  - *Éditeur de polygones* (every head, `avatar/MeshSculpt.kt`, `ui/PolygonEditorDialog.kt`): tap a point or a triangle, drag a frame,
+    move the selection with the Move tool in the plane of the view (a soft influence along the surface, so the upper lid does not pull
+    the lower one), turn the head with the View tool, two fingers to zoom and pan; grow or shrink the selection, select the lids of an
+    eye, mirror moves, arrows for fine steps, smooth, back to origin, copy one side of the face onto the other, undo and redo. Points on a
+    seam are welded, so nothing cracks; the hair cannot be edited. The retouches are offsets per vertex kept per face in the app's files
+    (`avatar_sculpt/`), applied after the sliders; the mesh itself is never changed.
+  *Checked:* `HaseoTest` (the reshaped head against the scan, the eye openings matching, the triangle counts of each level, which are
+  those of Jarvis 2.0 exactly, the sliders, welded retouches, the soft influence, the symmetry copy, picking on screen, the index of a
+  character saved before Haseo); the reshaping, the sliders and the levels give the same positions as Jarvis 2.0's JavaScript on the
+  same scan (compared to the third decimal). *Not checked:* anything on the emulator or a phone (the screens, the touch gestures of the
+  editor, the clipped eyes, the frame rate at Haute définition and Ultra).
 - **A video in place of the avatar** (since 0.9.30, after Mark LV; `play_video`). "Joue la bande-annonce de Dune", or a YouTube link, or
   the address of a video file: it appears where the face is, with its title, a sound button and ✕. A search takes the first YouTube
   result (the same search as `youtube_video`, the title treated as data). YouTube videos play in YouTube's own embedded player

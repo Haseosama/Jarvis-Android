@@ -12,7 +12,8 @@ class CartoonAvatarTest {
     @Test fun `the cartoon face is a choice of the settings`() {
         val cartoon = AVATAR_FACES.filter { it.cartoon }
         assertEquals(1, cartoon.size)
-        assertTrue(AVATAR_FACES.indexOf(cartoon.single()) == AVATAR_FACES.lastIndex)
+        // the last face before Haseo, who came after it (the faces saved before keep their index)
+        assertTrue(AVATAR_FACES.indexOf(cartoon.single()) == HASEO_INDEX - 1)
         assertTrue(File("src/main/assets/" + cartoon.single().asset).isFile)
     }
 

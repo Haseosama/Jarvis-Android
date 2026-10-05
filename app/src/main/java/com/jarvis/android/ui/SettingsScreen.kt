@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.jarvis.android.avatar.sculptable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -118,6 +119,9 @@ fun SettingsScreen(
     val faceOn by configStore.avatarFace.collectAsState(initial = true)
     val faceModel by configStore.avatarModel.collectAsState(initial = 0)
     val faceLight by configStore.avatarLight.collectAsState(initial = false)
+    val polygonLevel by configStore.avatarPolygonLevel.collectAsState(initial = "medium")
+    var haseoCreator by remember { mutableStateOf(false) }
+    var polygonEditor by remember { mutableStateOf(false) }
     val hairChosen by configStore.avatarHair.collectAsState(initial = emptyMap())
     val hairColourChosen by configStore.avatarHairColour.collectAsState(initial = emptyMap())
     var avatarImport by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -566,6 +570,32 @@ fun SettingsScreen(
                     }
                 }
             }
+            // the heads can be cut finer or coarser, and retouched point by point; Haseo also has his character creator
+            if (chosenFace.sculptable()) {
+                val avatarController = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.avatar }
+                Text(tr("Finesse du maillage"), style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
+                    com.jarvis.android.avatar.PolygonLevel.entries.forEach { level ->
+                        FilterChip(selected = polygonLevel == level.id, onClick = { scope.launch { configStore.setAvatarPolygonLevel(level.id) } }, label = { Text(tr(level.label)) })
+                    }
+                }
+                Text(
+                    tr("Haute définition et Ultra arrondissent le visage mais demandent plus au téléphone ; Éco et Léger le soulagent."),
+                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp).horizontalScroll(rememberScrollState())) {
+                    if (chosenFace.haseo) {
+                        androidx.compose.material3.Button(onClick = { haseoCreator = true }) { Text(tr("Créateur de personnage")) }
+                    }
+                    androidx.compose.material3.OutlinedButton(onClick = { polygonEditor = true }) { Text(tr("Éditeur de polygones")) }
+                }
+                if (haseoCreator) HaseoCreatorDialog(avatarController, configStore) { haseoCreator = false }
+                if (polygonEditor) PolygonEditorDialog(
+                    avatarController, faceModel, if (chosenFace.haseo) avatarController.custom else emptyMap(), avatarController.sculptOf(chosenFace),
+                    onApply = { avatarController.saveSculpt(chosenFace, it); polygonEditor = false },
+                    onClose = { polygonEditor = false },
+                )
+            }
             androidx.compose.material3.OutlinedButton(onClick = { pickAvatar.launch(arrayOf("*/*")) }, modifier = Modifier.padding(bottom = 8.dp)) {
                 Text(tr("Importer un avatar (.glb ou .zip Sketchfab)"))
             }
@@ -603,7 +633,7 @@ fun SettingsScreen(
                 }
             }
             Text(
-                tr("Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; tête : scan de Lee Perry-Smith (CC BY 3.0) ; visage Léa : « Female Head Sculpt » d'Aconear (CC BY 4.0) ; visage Marc : « Realistic Male head » de Ouail (CC BY 4.0) ; repères du visage : MediaPipe (Apache-2.0)."),
+                tr("Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; tête : scan de Lee Perry-Smith (CC BY 3.0, aussi celle de Haseo) ; visage Léa : « Female Head Sculpt » d'Aconear (CC BY 4.0) ; visage Marc : « Realistic Male head » de Ouail (CC BY 4.0) ; repères du visage : MediaPipe (Apache-2.0)."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
