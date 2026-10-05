@@ -59,7 +59,4 @@ internal fun recolourHair(head: HeadMesh, from: HairStyle.Colours, to: HairStyle
     return head.copyWith(paint = paint)
 }
 
-internal fun HeadMesh.copyWith(paint: IntArray = this.paint, hairSway: FloatArray? = this.hairSway) = HeadMesh(
-    verts, normals, jaw, brow, lips, fade, faceGroup, faces, edges, landmarks, lipCentre, nHead, nFace, crown, bottom, paint, lid, lipMask,
-    eyeFirst, eyeCount, eyeCentre, eyelidRim, mouthUpper, mouthLower, lockFirst, lockCount, lockRows, hairSway,
-)
+internal fun HeadMesh.copyWith(paint: IntArray = this.paint, hairSway: FloatArray? = this.hairSway) = copy(paint = paint, hairSway = hairSway)

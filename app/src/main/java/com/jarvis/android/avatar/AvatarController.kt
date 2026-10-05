@@ -62,27 +62,82 @@ internal class AvatarController(private val context: Context) {
         catch (_: Exception) { emptyList() }
     }
 
+    /** Haseo's creator sliders (see FaceCustomizer), from the settings. A Compose state, as [model]. */
+    var custom by androidx.compose.runtime.mutableStateOf<Map<String, Float>>(emptyMap())
+
+    /** How finely the heads are cut into triangles (see PolygonLevel), from the settings. A Compose state, as [model]. */
+    var polygonLevel by androidx.compose.runtime.mutableStateOf(PolygonLevel.MEDIUM)
+
+    /** The polygon editor's retouches of each face (face label → offsets), kept in files (see SculptStore). */
+    private val sculpts = HashMap<String, Sculpt>()
+
+    /** Counts the changes of the retouches: the view rebuilds the head when it moves. */
+    var sculptVersion by androidx.compose.runtime.mutableIntStateOf(0)
+        private set
+
+    /**
+     * While the creator is open: the face it shows and the sliders and retouches being tried (null: the saved ones). The face on
+     * screen shows them at once, at the Standard level, and nothing is saved before the user applies them.
+     */
+    var previewModel by androidx.compose.runtime.mutableStateOf<Int?>(null)
+    var previewCustom by androidx.compose.runtime.mutableStateOf<Map<String, Float>?>(null)
+    var previewSculpt by androidx.compose.runtime.mutableStateOf<Sculpt?>(null)
+
+    /** The face drawn: the one the creator shows, else the chosen one. */
+    val shownModel: Int get() = previewModel ?: model
+
+    /** Changes whenever the shape of the head drawn changes (sliders, retouches, polygon level), for the view to rebuild it. */
+    val shapeKey: String get() = "${previewCustom ?: custom}|${previewSculpt?.let { MeshSculpt.key(it) } ?: sculptVersion}|${if (previewModel != null) "preview" else polygonLevel.id}"
+
+    fun sculptOf(face: AvatarFace): Sculpt = synchronized(sculpts) { sculpts.getOrPut(face.label) { SculptStore.load(context, face.label) } }
+
+    fun saveSculpt(face: AvatarFace, sculpt: Sculpt) {
+        val clean = MeshSculpt.normalize(sculpt)
+        synchronized(sculpts) { sculpts[face.label] = clean }
+        SculptStore.save(context, face.label, clean)
+        sculptVersion++
+    }
+
+    private data class HeadKey(val model: Int, val hair: String, val colour: String, val custom: String, val sculpt: String, val level: PolygonLevel)
+
     private val heads = HashMap<Int, HeadMesh>()
-    private val loaded = HashMap<Triple<Int, String, String>, Pair<HeadMesh, HoloAvatar>>()
+    /** The last heads built (a fitted or finely cut head is several megabytes: two are kept). */
+    private val loaded = object : LinkedHashMap<HeadKey, Pair<HeadMesh, HoloAvatar>>(4, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<HeadKey, Pair<HeadMesh, HoloAvatar>>?) = size > 2
+    }
+
+    /** The face's head before its hair and its polygon level: Haseo's proportions and sliders, then the retouches. */
+    @Synchronized
+    fun shapedHead(m: Int, customValues: Map<String, Float>, sculpt: Sculpt): HeadMesh {
+        val face = avatarFace(m)
+        var mesh = heads.getOrPut(m) {
+            val raw = HeadMesh.parse(context.assets.open(face.asset).use { it.readBytes() })
+            if (face.haseo) HaseoFace.refine(raw) else raw
+        }
+        if (face.haseo) mesh = FaceCustomizer.apply(mesh, customValues)
+        return MeshSculpt.apply(mesh, sculpt)
+    }
 
     @Synchronized
     private fun current(): Pair<HeadMesh, HoloAvatar> {
-        val m = model.coerceIn(0, AVATAR_FACES.lastIndex)
-        val key = Triple(m, hair, hairColour)
+        val m = shownModel.coerceIn(0, AVATAR_FACES.lastIndex)
+        val face = avatarFace(m)
+        val customValues = if (face.haseo) FaceCustomizer.normalize(previewCustom ?: custom) else emptyMap()
+        val sculpt = if (face.sculptable()) previewSculpt ?: sculptOf(face) else emptyMap()
+        val level = if (previewModel != null || !face.sculptable()) PolygonLevel.MEDIUM else polygonLevel
+        val key = HeadKey(m, hair, hairColour, FaceCustomizer.encode(customValues), MeshSculpt.key(sculpt), level)
         return loaded.getOrPut(key) {
-            // one head with its chosen hair or colour kept at a time besides the plain ones: a fitted head is a few megabytes
-            loaded.keys.filter { (it.second.isNotEmpty() || it.third.isNotEmpty()) && it != key }.forEach { loaded.remove(it) }
-            val base = heads.getOrPut(m) { HeadMesh.parse(context.assets.open(avatarFace(m).asset).use { it.readBytes() }) }
-            val face = avatarFace(m)
-            val shade = hairShade(key.third)
+            val base = shapedHead(m, customValues, sculpt)
+            val shade = hairShade(key.colour)
             val colours = shade?.colours ?: face.hairColours
-            val mesh = hairChoices.firstOrNull { it.id == key.second }?.let { choice ->
+            val fitted = hairChoices.firstOrNull { it.id == key.hair }?.let { choice ->
                 try {
                     HairStyle.parse(context.assets.open(choice.asset).use { it.readBytes() }).fitOn(base, colours)
                 } catch (_: Exception) {
                     null
                 }
             } ?: if (shade != null) recolourHair(base, face.hairColours, shade.colours) else base
+            val mesh = PolygonMesh.apply(fitted, level)
             mesh to HoloAvatar(mesh)
         }
     }
@@ -102,7 +157,7 @@ internal class AvatarController(private val context: Context) {
     /** The textured character of the chosen face, or null when it is a head (or its files could not be read). */
     @Synchronized
     fun character(): CharacterMesh? {
-        val folder = avatarFace(model).character ?: return null
+        val folder = avatarFace(shownModel).character ?: return null
         return characters.getOrPut(folder) {
             characters.keys.toList().forEach { characters.remove(it) }          // one atlas in memory at a time
             try { CharacterMesh.load(context.assets, folder) } catch (_: Exception) { null }

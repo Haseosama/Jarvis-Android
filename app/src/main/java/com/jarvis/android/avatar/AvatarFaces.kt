@@ -19,10 +19,15 @@ internal data class AvatarFace(
     val imported: Boolean = false,
     /** The colours a chosen hairstyle takes on this face (its own hair's colours, see tools/avatar/export_head.py's HAIR_STYLES). */
     val hairColours: HairStyle.Colours = HairStyle.Colours(0x483121, 0x20150E, 0x8E6C48),
+    /**
+     * Haseo: the Classique scan reshaped as Jarvis 2.0's "Classique" avatar (see HaseoFace), with the character creator's sliders
+     * (FaceCustomizer) and its own eye drawing (the eyeballs clipped to the lid opening, see AvatarRenderer.haseoEyes).
+     */
+    val haseo: Boolean = false,
 )
 
 /**
- * The faces, in the order of the setting. Classique is a head scan, Léa and Marc are sculpted heads (see tools/avatar/export_head.py and
+ * The faces, in the order of the setting. Classique is a head scan (Haseo is the same scan reshaped), Léa and Marc are sculpted heads (see tools/avatar/export_head.py and
  * assets/avatar/NOTICE.txt), each with a hair style and a colour of its own.
  */
 internal val BUILT_IN_FACES = listOf(
@@ -33,7 +38,15 @@ internal val BUILT_IN_FACES = listOf(
         hairColours = HairStyle.Colours(0x33302F, 0x151313, 0x4E4A46, grey = 0.12f, greyRgb = 0x77736E)),
     // a drawn character, not a mesh: the file is only what gives the animation its object (see CartoonAvatar.kt)
     AvatarFace("Dessin animé", "avatar/head_mesh.bin", 0xFF1F1614.toInt(), fibres = false, cartoon = true),
+    // the last of the built-in faces, so the faces saved before it keep their place (see ConfigStore.avatarModel)
+    AvatarFace("Haseo", "avatar/head_mesh.bin", 0xFF2E2019.toInt(), haseo = true, credit = "Adapté du Classique de Jarvis 2.0 (Mark-LIV de FatihMakes, scan de Lee Perry-Smith, CC BY 3.0)"),
 )
+
+/** Where Haseo is in [AVATAR_FACES]. */
+internal val HASEO_INDEX: Int get() = BUILT_IN_FACES.indexOfFirst { it.haseo }
+
+/** The faces whose mesh the polygon editor can retouch: the heads (not the drawn face nor the textured characters). */
+internal fun AvatarFace.sculptable(): Boolean = !cartoon && character == null
 
 /** The built-in faces, then the textured characters found in the assets (set once at start-up, see [CharacterCatalog]). */
 @Volatile internal var characterFaces: List<AvatarFace> = emptyList()

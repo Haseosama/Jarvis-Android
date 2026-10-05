@@ -50,7 +50,7 @@ internal class NetworkWeb(mesh: HeadMesh) {
             dense += floatArrayOf(x, y, z, rad * 1.5f)
         }
 
-        val r0 = R0
+        val r0 = mesh.webR0
         val rnd = Random(31)
         val accepted = ArrayList<Int>()
         val px = ArrayList<Float>(); val py = ArrayList<Float>(); val pz = ArrayList<Float>(); val pr = ArrayList<Float>()

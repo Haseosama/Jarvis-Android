@@ -50,6 +50,10 @@ private val ANDROID_GLOW = 0xFF35C9FF.toInt()
 private val SKIN_TONES = intArrayOf(0xF1C9A8, 0xD9A47C, 0xB07A54, 0x7A4E36, 0x69B4F0)   // the fifth is the light blue of the blue hologram
 internal const val DEEP_BLUE = 0xFF0C2160.toInt()   // the hologram's ink: brows, lashes, lid crease and lip line, for contrast against the warm or blue skin
 private val LIP_TONES = intArrayOf(0xD9707F, 0xC02836, 0x8E3A6B, 0xE8735A)
+/** The flat dark disc at the back of each eyeball: Haseo's eye pass leaves it out (it showed through at the lid corners). */
+private val EYE_BACK_PAINT = 0xFF2B1F1C.toInt()
+/** Haseo's irises: the scan's blue ones become green, as in Jarvis 2.0's Classique. */
+private val HASEO_IRIS = mapOf(0xFF16324F.toInt() to 0xFF0E4A36.toInt(), 0xFF3F7CA6.toInt() to 0xFF3DBE8C.toInt(), 0xFF1F4560.toInt() to 0xFF16553F.toInt())
 
 private fun withAlpha(col: Int, a: Float): Int = (col and 0x00FFFFFF) or (a.coerceIn(0f, 255f).toInt() shl 24)
 
@@ -116,6 +120,29 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     var halo = false
     /** 0 = natural lips; 1..4 = rose, red, plum, coral. */
     var lips = 0
+
+    /**
+     * Haseo's eyes (ported from Jarvis 2.0's Classique): green irises and clean whites, the head centred on its eye line, and, near a
+     * front view, the eyeballs drawn in a pass of their own clipped to the lid opening instead of being depth-sorted with the faceted
+     * skin (which left ragged white teeth at the corners).
+     */
+    var haseoEyes = false
+
+    /** The eyeballs' vertices. */
+    private val eyeMask = BooleanArray(nV).also { m ->
+        for (e in mesh.eyeFirst.indices) for (i in mesh.eyeFirst[e] until minOf(nV, mesh.eyeFirst[e] + mesh.eyeCount[e])) m[i] = true
+    }
+    /** The skin round each eye (front of the face): its facets may turn sideways in the pits at the eye corners and are kept. */
+    private val rimMask = BooleanArray(nV).also { m ->
+        val ec = mesh.eyeCentre
+        for (e in 0 until ec.size / 3) for (i in 0 until minOf(nV, if (mesh.nHead > 0) mesh.nHead else nV)) {
+            val dx = mesh.verts[3 * i] - ec[3 * e]; val dy = mesh.verts[3 * i + 1] - ec[3 * e + 1]
+            if (mesh.verts[3 * i + 2] > 0.15f && dx * dx + dy * dy < 0.26f * 0.26f) m[i] = true
+        }
+    }
+    private val eyeFaces = IntArray(maxOf(1, nF))
+    private var eyeFaceCount = 0
+    private var eyePass = false
     private var bgColor = 0
     private val web = NetworkWeb(mesh)
     private val fibres = FloatArray(HAIR_FIBRE_LOCKS * FIBRES_PER_LOCK * 4 * 16)
@@ -130,7 +157,10 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     private val lipUp = mesh.landmarks.getValue("lips_in").let { ring -> ring.copyOfRange(10, ring.size) + ring[0] }
 
     /** Draws the head centred on ([cx], [cy]); [r] is its half-height in pixels. Colours are ARGB ints. */
-    fun draw(scope: DrawScope, avatar: HoloAvatar, cx: Float, cy: Float, r: Float, primary: Int, accent: Int, bg: Int, strokePx: Float) {
+    fun draw(scope: DrawScope, avatar: HoloAvatar, centreX: Float, cy: Float, r: Float, primary: Int, accent: Int, bg: Int, strokePx: Float) {
+        // Haseo is centred on his eye line (his scan's middle is a little off x = 0)
+        val ec = mesh.eyeCentre
+        val cx = centreX - (if (haseoEyes && ec.size >= 6) 0.5f * (ec[0] + ec[3]) * r else 0f)
         avatar.pose()
         val amp = avatar.glow
         val v = avatar.pv
@@ -170,10 +200,12 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         bgColor = bg
         primaryColor = primary
         buildLut(bg, primary)
+        eyePass = haseoEyes && abs(avatar.yaw) < 0.4f && abs(avatar.pitch) < 0.45f
         val visible = shadeFaces(v, n, amp, accent)
         scope.drawIntoCanvas { canvas ->
             val nc = canvas.nativeCanvas
             drawSurface(nc, visible)
+            if (eyePass && eyeFaceCount > 0) drawClippedEyes(nc, visible, n, amp, strokePx)
             drawWeb(nc, n, amp, primary, strokePx, avatar.time)
             if (holo) drawCircuits(nc, n, amp, primary, bg, strokePx, avatar.time)
             else if (androidLook && skin > 0) drawEtched(nc, n, amp, strokePx, avatar.time)
@@ -194,6 +226,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     /** Lights every camera-facing triangle and returns how many; their colour and depth key are left in the arrays. */
     private fun shadeFaces(v: FloatArray, nrm: FloatArray, amp: Float, accent: Int): Int {
         var count = 0
+        eyeFaceCount = 0
         val f = mesh.faces
         val fade = mesh.fade
         for (t in 0 until nF) {
@@ -212,8 +245,10 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             if (nx * rx + ny * ry + nz * rz < 0f) { nx = -nx; ny = -ny; nz = -nz }
             // a chosen hairstyle (faceGroup 2.5) is thin single sheets: seen from behind, a strand is still hair
             if (nz < 0f && mesh.faceGroup[t] > 2.25f) { nx = -nx; ny = -ny; nz = -nz }
-            faceFront[t] = nz > 0.015f
-            if (nz <= 0.015f) continue
+            // in Haseo's eye pass, the skin in the pits at the eye corners is kept even turned sideways, so no hole shows the background
+            val rimFace = eyePass && rimMask[a] && rimMask[b] && rimMask[c]
+            faceFront[t] = nz > 0.015f || (rimFace && nz > -0.95f)
+            if (!faceFront[t]) continue
             val area = abs((xs[b] - xs[a]) * (ys[c] - ys[a]) - (xs[c] - xs[a]) * (ys[b] - ys[a]))
             if (area <= 3f) continue
 
@@ -241,6 +276,13 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             faceColor[t] = col
             val z = (v[3 * a + 2] + v[3 * b + 2] + v[3 * c + 2]) / 3f + mesh.faceGroup[t].let { g -> if (g > 1.5f) 0.05f else if (g > 0.5f) 0f else -1000f }
             // The neck (group 0) is drawn first: it interpenetrates the head and a pure depth sort tears the seam.
+            if (eyePass && eyeMask[a] && eyeMask[b] && eyeMask[c]) {
+                if (mesh.paint[a] != EYE_BACK_PAINT || mesh.paint[b] != EYE_BACK_PAINT || mesh.paint[c] != EYE_BACK_PAINT) {
+                    faceKey[t] = z
+                    eyeFaces[eyeFaceCount++] = t
+                }
+                continue
+            }
             val bits = java.lang.Float.floatToIntBits(z)
             val mapped = if (bits >= 0) bits else bits xor 0x7fffffff
             keys[count++] = (mapped.toLong() shl 32) or t.toLong()
@@ -256,7 +298,8 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         vx /= vl; vy /= vl; vz /= vl
         val vlam = (vx * -0.55f + vy * 0.50f + vz * 0.52f).coerceIn(0f, 1f)
         fun lit(rgb: Int, k: Float): Int = argb(255, (((rgb shr 16) and 0xFF) * k).toInt().coerceIn(0, 255), (((rgb shr 8) and 0xFF) * k).toInt().coerceIn(0, 255), ((rgb and 0xFF) * k).toInt().coerceIn(0, 255))
-        val pnt = mesh.paint[vi]
+        var pnt = mesh.paint[vi]
+        if (haseoEyes && !holo && eyeMask[vi]) pnt = HASEO_IRIS[pnt] ?: pnt
         if (pnt != 0 && ((pnt ushr 24) and 0xFF) < 255) {
             // hair: the alpha byte says how much of it there is over the skin (254 = all of it)
             val cover = (((pnt ushr 24) and 0xFF) / 254f).coerceIn(0f, 1f)
@@ -274,6 +317,11 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         }
         if (pnt != 0) {
             // the mouth's inside, the teeth and the eyeballs: their own colours, lit a little; on the web they take a cool tint
+            if (haseoEyes && eyeMask[vi]) {
+                // brighter, cleaner whites (the iris and the pupil keep their colours)
+                val sr = (pnt shr 16) and 0xFF; val sg = (pnt shr 8) and 0xFF; val sb = pnt and 0xFF
+                if (minOf(sr, sg, sb) > 0xA8 && maxOf(sr, sg, sb) - minOf(sr, sg, sb) < 0x20) return lit(mix(pnt, 0xFFF6F4EF.toInt(), 0.55f), 0.8f + 0.3f * vlam)
+            }
             val base = if (skin > 0) pnt else mix(pnt, primaryColor, 0.22f)
             return lit(base, 0.62f + 0.42f * vlam)
         }
@@ -361,6 +409,138 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
                 nc.drawPath(trianglePath, surfacePaint)
                 q += 6
             }
+        }
+    }
+
+    private val eyePath = android.graphics.Path()
+    private val eyePaint = Paint().apply { isAntiAlias = true }
+    private var eyePos = FloatArray(0)
+    private var eyeCol = IntArray(0)
+
+    /** The closed outline of one eye's lid opening on screen (upper lid, then the lower one back), slightly overscanned; null: none. */
+    private fun lidOpening(e: Int): Pair<FloatArray, FloatArray>? {
+        val nu = lidPoints(lidCurves[e][1])
+        if (nu < 2) return null
+        val ux = curveX.copyOf(nu); val uy = curveY.copyOf(nu)
+        val nl = lidPoints(lidCurves[e][0])
+        if (nl < 2) return null
+        val lx = curveX.copyOf(nl); val ly = curveY.copyOf(nl)
+        val n = nu + nl
+        val px = FloatArray(n); val py = FloatArray(n)
+        for (i in 0 until nu) { px[i] = ux[i]; py[i] = uy[i] }
+        for (i in 0 until nl) { px[nu + i] = lx[nl - 1 - i]; py[nu + i] = ly[nl - 1 - i] }
+        // both lids meet at the corners: the free ends of the lower lid are snapped to the upper one
+        px[nu] = 0.5f * (ux[nu - 1] + lx[nl - 1]); py[nu] = 0.5f * (uy[nu - 1] + ly[nl - 1])
+        px[n - 1] = 0.5f * (ux[0] + lx[0]); py[n - 1] = 0.5f * (uy[0] + ly[0])
+        px[0] = px[n - 1]; py[0] = py[n - 1]
+        px[nu - 1] = px[nu]; py[nu - 1] = py[nu]
+        var mx = 0f; var my = 0f
+        for (i in 0 until n) { mx += px[i]; my += py[i] }
+        mx /= n; my /= n
+        for (i in 0 until n) { px[i] = mx + (px[i] - mx) * 1.07f; py[i] = my + (py[i] - my) * 1.05f }
+        return px to py
+    }
+
+    /** The mean colour of the skin facets whose centre is near ([x], [y]) (within [rx] across and [ry] down), or 0 with too few. */
+    private fun skinAround(visible: Int, x: Float, y: Float, rx: Float, ry: Float, round: Boolean): Int {
+        val f = mesh.faces
+        var sr = 0; var sg = 0; var sb = 0; var cnt = 0
+        for (k in 0 until visible) {
+            val t = (keys[k] and 0x7fffffffL).toInt()
+            val a = f[3 * t]; val b = f[3 * t + 1]; val c = f[3 * t + 2]
+            val tx = (xs[a] + xs[b] + xs[c]) / 3f; val ty = (ys[a] + ys[b] + ys[c]) / 3f
+            if (if (round) kotlin.math.hypot(tx - x, ty - y) > rx else abs(tx - x) > rx || abs(ty - y) > ry) continue
+            val col = faceColor[t]
+            sr += (col shr 16) and 0xFF; sg += (col shr 8) and 0xFF; sb += col and 0xFF; cnt++
+        }
+        return if (cnt < 3) 0 else argb(255, sr / cnt, sg / cnt, sb / cnt)
+    }
+
+    /**
+     * Haseo's eyeballs, drawn after the skin and clipped to the real lid opening: a soft band of skin colour under the lower lid
+     * (its facets are lit unevenly and read as white teeth), a soft shadow in the corner pits, a sclera underlay that fills the corners
+     * the round globe never reaches, the globe itself, and a softly lit waterline.
+     */
+    private fun drawClippedEyes(nc: Canvas, visible: Int, nrm: FloatArray, amp: Float, strokePx: Float) {
+        val f = mesh.faces
+        for (e in mesh.eyeFirst.indices) {
+            if (e >= lidCurves.size) break
+            val (px, py) = lidOpening(e) ?: continue
+            val first = mesh.eyeFirst[e]; val last = first + mesh.eyeCount[e]
+            var minX = Float.MAX_VALUE; var maxX = -Float.MAX_VALUE
+            for (x in px) { minX = minOf(minX, x); maxX = maxOf(maxX, x) }
+            val wpx = max(maxX - minX, 1f)
+
+            // the band of skin under the lower lid
+            val nl = lidPoints(lidCurves[e][0])
+            val lowX = curveX.copyOf(nl); val lowY = curveY.copyOf(nl)
+            if (nl >= 2) {
+                var mx = 0f; var my = 0f
+                for (i in 0 until nl) { mx += lowX[i]; my += lowY[i] }
+                mx /= nl; my /= nl
+                val rad = 0.09f * wpx
+                val base = skinAround(visible, mx, my + 0.26f * wpx, rad * 2.2f, rad, round = false)
+                if (base != 0) {
+                    eyePaint.style = Paint.Style.STROKE; eyePaint.strokeCap = Paint.Cap.ROUND; eyePaint.strokeJoin = Paint.Join.ROUND; eyePaint.shader = null
+                    eyePaint.color = withAlpha(base, 0.62f * 255f)
+                    for (wf in floatArrayOf(0.17f, 0.13f, 0.09f, 0.05f)) {
+                        eyePaint.strokeWidth = wf * wpx
+                        eyePath.reset()
+                        for (i in 0 until nl) if (i == 0) eyePath.moveTo(lowX[i], lowY[i] + 0.06f * wpx) else eyePath.lineTo(lowX[i], lowY[i] + 0.06f * wpx)
+                        nc.drawPath(eyePath, eyePaint)
+                    }
+                }
+            }
+            // the corner pits
+            var lo = 0; var hi = 0
+            for (i in px.indices) { if (px[i] < px[lo]) lo = i; if (px[i] > px[hi]) hi = i }
+            val radius = 0.11f * wpx
+            for (corner in intArrayOf(lo, hi)) {
+                val base = skinAround(visible, px[corner], py[corner], radius * 1.8f, 0f, round = true)
+                if (base == 0) continue
+                val shaded = argb(255, (((base shr 16) and 0xFF) * 0.82f).toInt(), (((base shr 8) and 0xFF) * 0.82f).toInt(), ((base and 0xFF) * 0.82f).toInt())
+                eyePaint.style = Paint.Style.FILL
+                eyePaint.shader = android.graphics.RadialGradient(px[corner], py[corner], radius,
+                    intArrayOf(shaded, withAlpha(shaded, 0.85f * 255f), withAlpha(shaded, 0f)), floatArrayOf(0f, 0.55f, 1f), android.graphics.Shader.TileMode.CLAMP)
+                nc.drawCircle(px[corner], py[corner], radius, eyePaint)
+                eyePaint.shader = null
+            }
+
+            nc.save()
+            eyePath.reset()
+            eyePath.moveTo(px[0], py[0])
+            for (i in 1 until px.size) eyePath.lineTo(px[i], py[i])
+            eyePath.close()
+            nc.clipPath(eyePath)
+            // the sclera underlay, darker at both corners
+            var white = first
+            for (i in first until minOf(last, nV)) if ((mesh.paint[i] and 0x00FFFFFF) == 0xE3DED5) { white = i; break }
+            val sclera = vertexColour(white, nrm, amp, 0xFFD9D3CA.toInt())
+            val dark = mix(sclera, 0xFF1A2330.toInt(), 0.55f)
+            eyePaint.style = Paint.Style.FILL
+            eyePaint.shader = android.graphics.LinearGradient(minX, 0f, maxX, 0f, intArrayOf(dark, sclera, sclera, dark), floatArrayOf(0f, 0.2f, 0.8f, 1f), android.graphics.Shader.TileMode.CLAMP)
+            nc.drawRect(minX - 2f, -1e4f, maxX + 2f, 1e4f, eyePaint)
+            eyePaint.shader = null
+            // the globe, far to near
+            val list = (0 until eyeFaceCount).map { eyeFaces[it] }.filter { f[3 * it] in first until last }.sortedBy { faceKey[it] }
+            if (eyePos.size < list.size * 6) { eyePos = FloatArray(list.size * 6); eyeCol = IntArray(list.size * 3) }
+            var p = 0; var c = 0
+            for (t in list) for (corner in 0..2) {
+                val vi = f[3 * t + corner]
+                eyePos[p++] = xs[vi]; eyePos[p++] = ys[vi]
+                eyeCol[c++] = if (perVertex[t]) cornerCol[3 * t + corner] else faceColor[t]
+            }
+            if (list.isNotEmpty()) fillTriangles(nc, eyePos, eyeCol, list.size, surfacePaint)
+            // a smooth, softly lit waterline instead of the faceted skin edge
+            if (nl >= 2) {
+                eyePaint.style = Paint.Style.STROKE; eyePaint.strokeCap = Paint.Cap.ROUND; eyePaint.strokeJoin = Paint.Join.ROUND
+                eyePaint.color = withAlpha(mix(sclera, 0xFFE2A79E.toInt(), 0.45f), 0.7f * 255f)
+                eyePaint.strokeWidth = strokePx * 2.6f
+                eyePath.reset()
+                for (i in 0 until nl) if (i == 0) eyePath.moveTo(lowX[i], lowY[i]) else eyePath.lineTo(lowX[i], lowY[i])
+                nc.drawPath(eyePath, eyePaint)
+            }
+            nc.restore()
         }
     }
 
