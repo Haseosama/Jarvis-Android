@@ -193,6 +193,7 @@ internal object Energy {
         if (fresh.isEmpty()) return
         p.edit().putStringSet("told", (told + fresh.map { it.first }).toList().takeLast(60).toSet()).apply()
         val text = fresh.joinToString(". ") { it.second } + "."
+        com.jarvis.android.journal.Journal.alert(c, com.jarvis.android.journal.AlertKind.ENERGY, text)
         c.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("jarvis_energy", tr("Électricité : Tempo et EcoWatt"), NotificationManager.IMPORTANCE_DEFAULT))
         try {
             NotificationManagerCompat.from(c).notify(

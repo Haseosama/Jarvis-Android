@@ -87,6 +87,7 @@ internal object Recalls {
         c.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("jarvis_recalls", tr("Rappels de produits"), NotificationManager.IMPORTANCE_DEFAULT))
         for (r in fresh.take(5)) {
             val text = recallLine(r, ZoneId.systemDefault())
+            com.jarvis.android.journal.Journal.alert(c, com.jarvis.android.journal.AlertKind.RECALL, text)
             val open = r.link.takeIf { it.startsWith("https://") }?.let {
                 PendingIntent.getActivity(c, r.id.hashCode(), Intent(Intent.ACTION_VIEW, Uri.parse(it)), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             }
