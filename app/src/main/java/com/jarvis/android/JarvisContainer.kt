@@ -15,6 +15,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -242,6 +245,22 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch { configStore.avatarSkin.collect { avatar.skin = it } }
         appScope.launch { configStore.avatarLips.collect { avatar.lips = it } }
         appScope.launch { configStore.avatarCap.collect { avatar.cap = it } }
+        // the widget's face follows the look chosen in the settings (and the theme's colour), once the choice has settled
+        appScope.launch {
+            combine(
+                listOf<kotlinx.coroutines.flow.Flow<Any>>(
+                    configStore.avatarFace, configStore.avatarModel, configStore.avatarHair, configStore.avatarHairColour,
+                    configStore.avatarHaseoCustom, configStore.avatarPolygonLevel, configStore.avatarSkin, configStore.avatarLips,
+                    configStore.avatarCap, configStore.themeHue,
+                ),
+            ) { it.toList() }
+                .distinctUntilChanged()
+                .drop(1)
+                .collectLatest {
+                    kotlinx.coroutines.delay(2_000)
+                    try { refreshHomeWidgets(appContext) } catch (_: RuntimeException) {}
+                }
+        }
         com.jarvis.android.routines.RoutineScheduler.sync(appContext)
         // Habit alarms and geofences are gone after a force-stop: armed again at every start (both are idempotent).
         appScope.launch(Dispatchers.IO) {

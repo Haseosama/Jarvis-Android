@@ -4,22 +4,55 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
-    android:gravity="center"
+    android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="12dp">
+    android:paddingStart="8dp"
+    android:paddingTop="6dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="6dp">
 
     <ImageView
-        android:layout_width="28dp"
-        android:layout_height="28dp"
+        android:id="@+id/widget_face"
+        android:layout_width="76dp"
+        android:layout_height="76dp"
+        android:scaleType="fitCenter"
         android:src="@mipmap/ic_launcher"
-        android:contentDescription="@null" />
+        android:contentDescription="@string/widget_face" />
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
-        android:text="@string/widget_talk"
-        android:textColor="#E6F1F5"
-        android:textSize="15sp"
-        android:textStyle="bold" />
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_weather"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#E6F1F5"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/widget_reminder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:text="@string/widget_no_reminder"
+            android:textColor="#B8CDD6"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/widget_talk"
+            android:textColor="#00E5FF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 </LinearLayout>
