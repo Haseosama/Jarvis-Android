@@ -37,9 +37,10 @@ import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
 /*
- * Sunday's summary: the week gone by (sleep, steps, spending) and the week to come (appointments day by day, the weather), in a few
- * sentences, said aloud or shown, on Sunday at the hour chosen (18 h by default). Each part only when the phone knows it (Health
- * Connect allowed, expenses noted, calendar allowed, position for the weather).
+ * Sunday's summary: the week gone by (sleep, steps, spending, and from WeekRecap the drives, reminders and alerts) and the week to
+ * come (appointments day by day, the reminders set, the weather), in a few sentences, said aloud or shown, on Sunday at the hour
+ * chosen (18 h by default). Each part only when the phone knows it (Health Connect allowed, expenses noted, calendar allowed, position
+ * for the weather, driving mode used, reminders set, alerts given).
  */
 
 /** The week gone by, as the phone knows it: the nights (minutes asleep), the steps day by day, the spending by category (cents). */
@@ -113,7 +114,7 @@ internal fun nextWeekWords(days: List<NextDay>): List<String> {
 }
 
 internal fun summaryWords(past: List<String>, next: List<String>): String =
-    "Bilan de la semaine. " + (if (past.isEmpty()) "Pas de données sur la semaine passée (santé, dépenses)." else past.joinToString(". ") { it.replaceFirstChar { c -> c.uppercase() } } + ".") +
+    "Bilan de la semaine. " + (if (past.isEmpty()) "Pas de données sur la semaine passée (santé, dépenses, rappels, trajets, alertes)." else past.joinToString(". ") { it.replaceFirstChar { c -> c.uppercase() } } + ".") +
         " La semaine prochaine : " + next.mapIndexed { i, s -> if (i == 0) s else s.replaceFirstChar { c -> c.uppercase() } }.joinToString(". ") + "."
 
 internal object WeeklySummary {
@@ -184,10 +185,42 @@ internal object WeeklySummary {
         }.toMap()
     }
 
+    private fun at(ms: Long, zone: ZoneId) = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(ms), zone)
+
+    /** What Jarvis did in the week gone by: the drives, the reminders that rang, the alerts it gave. */
+    fun recapPast(c: Context, today: LocalDate, zone: ZoneId): List<String> {
+        val from = today.minusDays(6).atStartOfDay(zone).toInstant().toEpochMilli()
+        val now = System.currentTimeMillis()
+        val reminders = try { com.jarvis.android.reminders.ReminderService.list(c) } catch (_: Exception) { emptyList() }
+        val rang = reminders.filter {
+            it.triggerAt in from..now && it.status in setOf(
+                com.jarvis.android.reminders.ReminderStatus.DELIVERED, com.jarvis.android.reminders.ReminderStatus.BLOCKED, com.jarvis.android.reminders.ReminderStatus.FAILED,
+            )
+        }.map { RecapReminder(at(it.triggerAt, zone), it.text, it.status == com.jarvis.android.reminders.ReminderStatus.DELIVERED) }
+        val journal = com.jarvis.android.journal.Journal.since(c, from)
+        val drives = journal.filter { it.kind == com.jarvis.android.journal.DRIVE }.map { at(it.at, zone) to (it.endAt - it.at) / 60_000L }
+        val alerts = journal.filter { it.kind != com.jarvis.android.journal.DRIVE }.map { it.kind to it.text }
+        return listOfNotNull(drivesWords(drives), pastRemindersWords(rang), alertsWords(alerts))
+    }
+
+    /** The reminders set for the seven days after [today]. */
+    fun nextReminders(c: Context, today: LocalDate, zone: ZoneId): String? {
+        val from = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val to = today.plusDays(8).atStartOfDay(zone).toInstant().toEpochMilli()
+        val reminders = try { com.jarvis.android.reminders.ReminderService.list(c) } catch (_: Exception) { emptyList() }
+        return nextRemindersWords(
+            reminders.filter { it.status == com.jarvis.android.reminders.ReminderStatus.SCHEDULED && it.triggerAt >= from && it.triggerAt < to }
+                .map { RecapReminder(at(it.triggerAt, zone), it.text) },
+        )
+    }
+
     suspend fun compose(ctx: JarvisContainer): String {
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
-        return summaryWords(pastWeekWords(pastWeek(ctx, today, zone)), nextWeekWords(nextWeek(ctx, today, zone)))
+        val c = ctx.appContext
+        val next = nextWeekWords(nextWeek(ctx, today, zone)).toMutableList()
+        nextReminders(c, today, zone)?.let { next.add(1, it) } // after the appointments
+        return summaryWords(pastWeekWords(pastWeek(ctx, today, zone)) + recapPast(c, today, zone), next)
     }
 
     suspend fun deliver(ctx: JarvisContainer, speak: Boolean): String {
@@ -252,8 +285,9 @@ class WeeklySummaryReceiver : BroadcastReceiver() {
 object WeeklySummaryTool : Tool {
     override val name = "weekly_summary"
     override val description =
-        "Le bilan de la semaine : la semaine passée (sommeil moyen et nuit la plus courte, pas, dépenses notées par catégorie) et la " +
-            "semaine prochaine (rendez-vous de l’agenda jour par jour, météo des 7 jours). action « now » (défaut) : le bilan tout de " +
+        "Le bilan de la semaine : la semaine passée (sommeil moyen et nuit la plus courte, pas, trajets en voiture, dépenses notées par " +
+            "catégorie, rappels sonnés, alertes données par Jarvis) et la semaine prochaine (rendez-vous de l’agenda jour par jour, rappels " +
+            "prévus, météo des 7 jours). action « now » (défaut) : le bilan tout de " +
             "suite ; « set » (mode : speak à voix haute, notify en notification, off ; hour : l’heure du dimanche, 18 par défaut) : " +
             "chaque dimanche automatiquement ; « status »."
     override val parameters = objectSchema {

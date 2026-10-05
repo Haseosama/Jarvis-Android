@@ -85,6 +85,7 @@ class WatchWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
     }
 
     private fun notify(watch: Watch, text: String) {
+        com.jarvis.android.journal.Journal.alert(applicationContext, com.jarvis.android.journal.AlertKind.WATCH, text)
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, tr("Surveillances Jarvis"), NotificationManager.IMPORTANCE_DEFAULT))
         val open = PendingIntent.getActivity(applicationContext, 0, Intent(applicationContext, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)

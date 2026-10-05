@@ -233,6 +233,7 @@ internal object ParcelTracking {
     }
 
     fun notifyChange(context: Context, p: Parcel) {
+        com.jarvis.android.journal.Journal.alert(context, com.jarvis.android.journal.AlertKind.PARCEL, "${p.label.ifBlank { p.number }} : ${p.status}")
         try {
             channel(context)
             NotificationManagerCompat.from(context).notify(

@@ -81,6 +81,7 @@ internal object Outages {
         val today = LocalDate.now()
         val body = outageLine(kept, today).replaceFirstChar { it.uppercase() } + " (vue dans $app)." +
             if (kept.reminderId != null) " " + tr("Je vous le rappelle la veille au soir.") else ""
+        com.jarvis.android.journal.Journal.alert(c, com.jarvis.android.journal.AlertKind.OUTAGE, outageLine(kept, today))
         try {
             c.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel(CHANNEL, tr("Coupures prévues"), NotificationManager.IMPORTANCE_DEFAULT))
             NotificationManagerCompat.from(c).notify(

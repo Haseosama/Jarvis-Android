@@ -186,6 +186,7 @@ internal object Commutes {
         all(c).filter { cm -> nextCheck(cm, now.minusMinutes(3))?.let { !it.isAfter(now.plusMinutes(1)) } == true }.forEach { cm ->
             val found = try { look(ctx, cm) } catch (_: Exception) { null } ?: return@forEach
             val text = commuteWords(cm, found.first, found.second, onlyProblems = true) ?: return@forEach
+            com.jarvis.android.journal.Journal.alert(c, com.jarvis.android.journal.AlertKind.COMMUTE, text)
             c.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("jarvis_commutes", tr("Trajets habituels"), NotificationManager.IMPORTANCE_HIGH))
             try {
                 NotificationManagerCompat.from(c).notify(

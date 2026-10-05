@@ -160,6 +160,7 @@ internal object Quakes {
         tell.forEach { (q, place) ->
             val near = if (place.name == "vous") "près de chez vous" else "près de ${place.name}"
             val text = quakeWords(q, now).replaceFirstChar { it.uppercase() } + ", à ${distanceKm(place.lat, place.lon, q.lat, q.lon).toInt()} km de ${if (place.name == "vous") "votre position" else place.name}."
+            com.jarvis.android.journal.Journal.alert(c, com.jarvis.android.journal.AlertKind.QUAKE, text)
             c.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("jarvis_quakes", tr("Séismes"), NotificationManager.IMPORTANCE_HIGH))
             val open = PendingIntent.getActivity(c, q.id.hashCode(), Intent(Intent.ACTION_VIEW, Uri.parse(q.url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE)
             try {
