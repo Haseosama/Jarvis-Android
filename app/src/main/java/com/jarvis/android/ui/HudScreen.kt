@@ -77,6 +77,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -150,8 +152,25 @@ internal fun HudScreen(
             )
         },
     ) { padding ->
+        // the screen as the face sees it: where a finger is, wherever it touches, for the eyes to follow (watched, never taken)
+        val screen = remember { arrayOfNulls<androidx.compose.ui.layout.LayoutCoordinates>(1) }
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).imePadding().padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).imePadding().padding(horizontal = 16.dp)
+                .onGloballyPositioned { screen[0] = it }
+                .pointerInput(avatar) {
+                    val face = avatar ?: return@pointerInput
+                    try {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val e = awaitPointerEvent(PointerEventPass.Initial)
+                                val at = e.changes.firstOrNull { it.pressed }?.position
+                                face.finger = if (at == null) null else screen[0]?.takeIf { it.isAttached }?.localToWindow(at)
+                            }
+                        }
+                    } finally {
+                        face.finger = null // the screen left with a finger still down: the eyes must not stay on it
+                    }
+                },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             val onCoreTap = {

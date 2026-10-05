@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.72 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.73 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1192,6 +1192,15 @@ also shown in the settings.
   brows, the wider lids and parted jaw, the fade after the voice and asleep, the word frames driving the mouth); the four faces rendered
   from the posed mesh off the phone. *Not checked:* anything on the emulator or a phone (how it reads at the face's real size, the
   timing against Gemini's transcript, the offline voice's word marks on Haseo's phone).
+- **The face follows your finger** (since 0.9.73, every face; nothing to switch on). Wherever a finger touches the main screen (the face,
+  the buttons, the conversation, while scrolling), the eyes turn to it and the head turns a little towards it (`HoloAvatar.follow`,
+  aimed from the eyes with the screen taken as just in front of the face, `fingerGaze`), and they stay on where it lifted for under a
+  second before wandering again. A finger that arrives catches the eye: the face blinks. Asleep, the closed eyes follow nothing. The
+  touches are only watched, never taken: a tap on the face still puts Jarvis to sleep or wakes it, as before. Blinks also come two in a
+  row now and then (about one in seven), as people do. *Checked:* `FingerFollowTest` (the aim from the eyes, the pupils of the posed
+  head drawn towards a finger below and to the right with the head turning, the eyes wandering again once it lifts, the blink of a
+  finger arriving, nothing while asleep). *Not checked:* anything on the emulator or a phone (how it feels under a real finger, the small
+  face over a video, the drawn face and the textured characters).
 - **A video in place of the avatar** (since 0.9.30, after Mark LV; `play_video`). "Joue la bande-annonce de Dune", or a YouTube link, or
   the address of a video file: it appears where the face is, with its title, a sound button and ✕. A search takes the first YouTube
   result (the same search as `youtube_video`, the title treated as data). YouTube videos play in YouTube's own embedded player
