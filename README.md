@@ -816,6 +816,16 @@ still opens the app and starts a session ("Parler à Jarvis").
   proposes, then starts the chosen recipe; each step is read on demand ("étape suivante", "répète", "l'étape d'avant", "étape
   3" — offline too once it has started), a step with a duration suggests a timer, the missing ingredients go on the shopping
   list, and "garde cette recette" keeps it (50 at most) for "ma recette de crêpes". A recipe untouched for four hours is over.
+- **Hands-free cooking: timers on their own** (since 0.9.76; `recipe`, `recipes/Recipes.kt`, `actions/RecipeTool.kt`). The first time a
+  step with a duration is read ("cuire 20 minutes", "laisser reposer 1 h 30", "1h30"; the lower figure of "20 à 25 minutes"), its timer
+  starts by itself, named after the recipe and the step ("Crêpes, étape 3 : Laisser reposer 1 h"), so its spoken end says what it was
+  for. "Répète" or going back to that step does not start it twice. "Pas de minuteur" (also offline) switches this off for the recipe
+  under way, the steps then only offer their timer as before; "remets les minuteurs" switches it back on. While a recipe is under way, a
+  session opened by the wake word goes to sleep after ten minutes without exchange instead of two, so "étape suivante" can be said
+  between two steps without the wake word again. *Checked:* unit tests (the durations read in a step, a timer started once per step and
+  not when switched off, the timer's label, a recipe saved by an older version loading with timers on, the offline phrases).
+  *Not checked:* on the emulator or a real phone (the timer really started and ringing with its label, the session staying open ten
+  minutes and what that costs in battery).
 - **Parcels** (`parcel`, `parcels/Parcels.kt`, Settings > *Colis*). The carrier is recognised from the number (La Poste /
   Colissimo / Chronopost, UPS, DHL, DPD, GLS, Mondial Relay, Amazon). La Poste's own tracking API ("Suivi v2", with the
   user's free developer key, stored encrypted like the Home Assistant token) follows La Poste, Colissimo and Chronopost
@@ -1794,7 +1804,7 @@ What it understands is a fixed list of French commands, matched by rules (`offli
 - **Quiet time**: "je suis en réunion jusqu'à 15 h", "ne me dérange pas pendant une heure", "j'ai fini ma réunion".
 - **Money, parcels, trains**: "mes abonnements", "où en est mon budget ?", "où en est mon colis ?", "quel est le prochain train pour Rennes ?".
 - **Camera**: "qu'est-ce qui est écrit là ?", "lis-moi cette notice" (the text is read on the phone and said as it is).
-- **Cooking**: "ma recette de crêpes", then, while a recipe is under way, "étape suivante", "répète", "l'étape d'avant", "étape 3", "les ingrédients", "fin de la recette" ("suivant" is the next step only while cooking; otherwise it is the next song).
+- **Cooking**: "ma recette de crêpes", then, while a recipe is under way, "étape suivante", "répète", "l'étape d'avant", "étape 3", "les ingrédients", "pas de minuteur" / "remets les minuteurs", "fin de la recette" ("suivant" is the next step only while cooking; otherwise it is the next song).
 - **Photos and health**: "mes photos d'aujourd'hui / d'hier", "mes dernières photos", "combien de pas aujourd'hui ?", "comment j'ai dormi ?".
 - **Driving and safety**: "mode conduite" / "je prends la route", "arrête le mode conduite" / "je suis arrivé"; "au secours", "SOS", "à l'aide" (the SOS countdown), and "annule" / "fausse alerte" to stop it.
 - "aide", "au revoir".
