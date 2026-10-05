@@ -186,7 +186,7 @@ object ToolRegistry {
         RainSoonTool,
         BirthdaysTool,
         InterpreterTool,
-        CallLogTool, SosTool, PhotoSearchTool, ReceiptTool, PersonReminderTool, DrivingModeTool, HealthTool, QuietModeTool, SubscriptionsTool, RecipeTool, ParcelTool, BudgetTool, ReadTextTool, WakeBriefingTool, TransportTool,
+        CallLogTool, SosTool, PhotoSearchTool, ReceiptTool, PersonReminderTool, DrivingModeTool, HealthTool, QuietModeTool, SubscriptionsTool, RecipeTool, ParcelTool, BudgetTool, ReadTextTool, WakeBriefingTool, TransportTool, TidesTool,
     )
 
     private val byName = ALL.associateBy { it.name }

@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.71 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.72 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -34,7 +34,7 @@ Everything is asked by voice (French first, English too), or typed in the chat. 
   to a person: "la prochaine fois que Paul m'appelle…"), find the phone, files in a work folder.
 - **Everyday life**: lists, spending (by voice or by scanning a receipt) and monthly budgets, subscriptions and regular payments,
   recipes read step by step, parcel tracking, train and bus times, text read through the camera, a briefing when the alarm stops, medications and habits, where the car is parked, driving mode,
-  weather and rain in the next hour, air quality, fuel prices, the nearest pharmacy, bakery, cash machine, toilets or charger (open or not), planned cuts of electricity, water or gas (read from the notices received, reminded the evening before), planes overhead, birthdays, calendar, photos (by date, place, or what is on
+  weather and rain in the next hour, tides and marine weather, air quality, fuel prices, the nearest pharmacy, bakery, cash machine, toilets or charger (open or not), planned cuts of electricity, water or gas (read from the notices received, reminded the evening before), planes overhead, birthdays, calendar, photos (by date, place, or what is on
   them), health (steps, sleep, heart rate from Health Connect), an emergency SOS to chosen contacts.
 - **Knowledge and work**: web search, reading a web page, flights, translation and interpreter mode, meeting notes, documents, Gmail and
   Drive, code help, watches on prices or sites, a multi-step agent mode.
@@ -607,6 +607,25 @@ default, with the distance in the answer); it keeps only stations in that city i
 `carburants_indisponibles` list), with a price under 8 days old, cheapest first, and says how old each price is. Same
 live feed as before (data.economie.gouv.fr, no key); it has no brand names, only addresses. Checked: unit tests on a
 payload shaped like the real one, and live on the emulator for Lyon, Paris and around the phone.
+
+### Tides and marine weather (`marees`, 0.9.72)
+
+- **Tides** (`action = tides`, the default): today's and tomorrow's high and low waters at the closest French port
+  within 50 km of a named place or of the phone (about 90 ports, Dunkirk to Hendaye, the Mediterranean and Corsica;
+  elsewhere the place itself, refused when the sea is more than 30 km away), the range of each high water, and the
+  day's tide coefficients. Source: Open-Meteo's free Marine API (no key), whose sea level includes the tide; the high
+  and low waters are its turning points, refined between hourly values. Coefficients are a Brest figure for the whole
+  French coast, so they come from the same series at Brest, scaled so that the last lunar month averages 70 (the
+  long-term mean) because the model's cell off Brest has a smaller range than the harbour itself. A port whose tide
+  stays under half a metre (the Mediterranean) is said to have a very small tide, with no range given. The answer
+  says the times are good to about twenty minutes and points to the SHOM tables for navigation or shore fishing.
+- **Marine weather** (`action = sea`): wind in knots with its Beaufort force and gusts, the sea state (Douglas
+  words), waves with direction and period, water temperature, and the worst waves and gusts of the next 12 hours,
+  from the same Marine API and Open-Meteo's forecast. It says it is a model, not Météo-France's coastal bulletin.
+- *Checked*: unit tests (`marine/TidesTest`) on a synthetic two-wave tide (high waters found within ten minutes,
+  spring and neap coefficients, the model's scale not changing them, a Mediterranean port, the nearest port, the
+  marine weather sentence). *Not checked*: the live Marine API (unreachable from the build machine), so the real
+  times and coefficients have not been compared with the SHOM tables yet, nor anything on a phone.
 
 ### Four everyday helpers
 
