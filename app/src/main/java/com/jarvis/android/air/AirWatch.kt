@@ -90,9 +90,9 @@ internal fun airForecastWords(json: String, today: LocalDate): String {
 
 /**
  * The morning briefing's sentence: today's pollens from moderate between 7 h and 21 h (only those that bother the user, when they said
- * which), and the air when it gets bad (above 60), or nothing on a clean day.
+ * which), and the air when it gets bad (above 60), or nothing on a clean day. [withAir] false leaves the air out (the ATMO index told it).
  */
-internal fun airBriefingWords(json: String, today: LocalDate, pollens: Set<String> = emptySet()): String? {
+internal fun airBriefingWords(json: String, today: LocalDate, pollens: Set<String> = emptySet(), withAir: Boolean = true): String? {
     val hourly = (Json.parseToJsonElement(json) as? JsonObject)?.get("hourly") as? JsonObject ?: return null
     val times = (hourly["time"] as? JsonArray).orEmpty().map { LocalDateTime.parse((it as JsonPrimitive).content) }
     val idx = times.indices.filter { times[it].toLocalDate() == today && times[it].hour in 7..21 }
@@ -102,7 +102,7 @@ internal fun airBriefingWords(json: String, today: LocalDate, pollens: Set<Strin
         .filter { it.second >= 2 }.sortedByDescending { it.second }
     val parts = ArrayList<String>()
     if (risky.isNotEmpty()) parts += "risque pollen aujourd’hui : " + risky.joinToString(", ") { (p, l) -> "${p.name} ${levelWords(l)}" }
-    dayMax("european_aqi")?.toInt()?.takeIf { it > 60 }?.let { parts += "air ${describeEuropeanAqi(it)} au pire (indice $it)" }
+    if (withAir) dayMax("european_aqi")?.toInt()?.takeIf { it > 60 }?.let { parts += "air ${describeEuropeanAqi(it)} au pire (indice $it)" }
     return if (parts.isEmpty()) null else parts.joinToString(", ")
 }
 
@@ -131,6 +131,13 @@ internal object AirData {
 
     suspend fun forecast(ctx: JarvisContainer, lat: Double, lon: Double): String? = withContext(Dispatchers.IO) {
         get(ctx, "$BASE?latitude=%.3f&longitude=%.3f&hourly=european_aqi,${POLLENS.joinToString(",") { it.key }}&forecast_days=2&timezone=auto".format(Locale.US, lat, lon))
+    }
+
+    /** Today's ATMO index for the commune at a place (France only), or null. */
+    suspend fun atmo(ctx: JarvisContainer, lat: Double, lon: Double, today: LocalDate): AtmoDay? = withContext(Dispatchers.IO) {
+        val insee = get(ctx, "https://geo.api.gouv.fr/communes?lat=%.5f&lon=%.5f&fields=code".format(Locale.US, lat, lon))?.let { try { parseCommuneCode(it) } catch (_: Exception) { null } }
+            ?: return@withContext null
+        get(ctx, atmoUrl(insee))?.let { try { parseAtmo(it, insee, today) } catch (_: Exception) { null } }
     }
 
     suspend fun now(ctx: JarvisContainer, lat: Double, lon: Double): String? = withContext(Dispatchers.IO) {

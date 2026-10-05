@@ -1289,6 +1289,18 @@ also shown in the settings.
   asked for, nothing on a clean day or a broken answer) and the part named in words by unit tests, run on the JVM outside Android.
   *Not checked:* on the emulator or a real phone, and against Open-Meteo's live answer (not reachable from the development
   environment); the official RNSA risk by département is not used (no free open API for it).
+- **Air quality of the day in the morning briefing** (since 0.9.69; `wake_briefing`, `air/Atmo.kt`, `air/AirWatch.kt`,
+  `wakeup/BriefingExtras.kt`). The briefing now says the air every morning, not only when it is bad: the official ATMO index of the
+  commune where the user is (1 bon to 6 extrêmement mauvais), as the regional air agencies (Airparif, Atmo AuRA…) publish it each day
+  around 14 h for the day and the next, read from Atmo France's open WFS (`data.atmo-france.org/geoserver`, layer `ind_atmo_2021`, no
+  key) after `geo.api.gouv.fr` gives the commune's INSEE code. From dégradé on it names the pollutants that set the index ("Air du
+  jour : mauvais (indice Atmo 4 sur 6, à cause de l’ozone et du dioxyde d’azote), risque pollen aujourd’hui : graminées moyen.").
+  It goes in the same part as the pollens (`pollen`, "sans la qualité de l’air"); when there is no ATMO index (abroad, not published,
+  no network) the briefing falls back to what it said before, the European index only above 60. The token-protected Atmo Data API was
+  not used. *Checked:* the reading of the WFS answer (the right day and commune, the date as a day or an instant, codes 0 and 7 left
+  out, the pollutants named, the query built), and the pollen sentence without the air, by unit tests run on the JVM outside Android.
+  *Not checked:* on the emulator or a real phone, and a live call to Atmo France's WFS (not reachable from the development
+  environment; its filter parameters are standard GeoServer ones, and the answer is also filtered by commune and day on the phone).
 - **Product recalls** (since 0.9.62; `rappel_produit`, `recalls/Recalls.kt`, `recalls/RecallParse.kt`). A built-in tool now, replacing
   the catalogue plugins `rappel_produit` and `rappels_recents` (an installed copy of the first is shadowed by it; one of the second keeps
   working). RappelConso (the State's recall site, open data on data.economie.gouv.fr, free, no key): `check` by name, brand or barcode
