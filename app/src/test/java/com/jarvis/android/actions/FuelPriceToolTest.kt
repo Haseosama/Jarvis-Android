@@ -74,4 +74,45 @@ class FuelPriceToolTest {
         assertEquals(2.3, off, 0.2)
         assertEquals(111.0, along, 1.5)
     }
+
+    @Test
+    fun `the alert price is understood the ways people say it`() {
+        assertEquals(1.70, parsePriceThreshold("1,70")!!, 1e-9)
+        assertEquals(1.75, parsePriceThreshold("1.75 €")!!, 1e-9)
+        assertEquals(1.75, parsePriceThreshold("1 euro 75")!!, 1e-9)
+        assertEquals(1.8, parsePriceThreshold("1€80 le litre")!!, 1e-9)
+        assertEquals(1.69, parsePriceThreshold("169 centimes")!!, 1e-9)
+        assertEquals(2.0, parsePriceThreshold("2")!!, 1e-9)
+        assertNull(parsePriceThreshold("12"))
+        assertNull(parsePriceThreshold("pas cher"))
+    }
+
+    @Test
+    fun `the alert tells the cheapest station only when it is at or under the price`() {
+        val ranked = rankStations(parseStations(body, Fuel.GAZOLE), Fuel.GAZOLE, now, "Lyon", null)
+        assertNull(fuelAlertWords(ranked, Fuel.GAZOLE, 2.20, "à Lyon", null))
+        assertEquals(
+            "Gazole à 2,250 €/L à Lyon, sous votre seuil de 2,250 : 4 RUE D, 69003 LYON.",
+            fuelAlertWords(ranked, Fuel.GAZOLE, 2.25, "à Lyon", null),
+        )
+        val text = fuelAlertWords(ranked, Fuel.GAZOLE, 2.40, "autour de Lyon", 45.76 to 4.85)!!
+        assertTrue(text, text.endsWith("4 RUE D, 69003 LYON, à 0,0 km (1 autre sous le seuil)."))
+        assertNull(fuelAlertWords(emptyList(), Fuel.GAZOLE, 3.0, "à Lyon", null))
+    }
+
+    @Test
+    fun `the alert is not repeated for the same find, and at most once a day unless the price went down`() {
+        assertTrue(shouldTellFuel(null, null, Double.MAX_VALUE, "A|2.250", "2026-10-05", 2.25))
+        assertTrue(!shouldTellFuel("A|2.250", "2026-10-04", 2.25, "A|2.250", "2026-10-05", 2.25))
+        assertTrue(!shouldTellFuel("A|2.250", "2026-10-05", 2.25, "B|2.260", "2026-10-05", 2.26))
+        assertTrue(shouldTellFuel("A|2.250", "2026-10-05", 2.25, "A|2.200", "2026-10-05", 2.20))
+        assertTrue(shouldTellFuel("A|2.250", "2026-10-04", 2.25, "B|2.260", "2026-10-05", 2.26))
+    }
+
+    @Test
+    fun `the feed is asked by postcode, by city name or by a circle`() {
+        assertEquals("cp = \"69003\"", cityFilter("69003"))
+        assertEquals("search(ville, \"Lyon\")", cityFilter("Ly\"on"))
+        assertEquals("within_distance(geom, geom'POINT(4.85000 45.76000)', 5km)", circleFilter(45.76, 4.85, 5))
+    }
 }
