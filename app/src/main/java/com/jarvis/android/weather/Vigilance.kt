@@ -162,6 +162,7 @@ internal object Vigilance {
         p.edit().putStringSet("told", (told + fresh).toList().takeLast(100).toSet()).apply()
         val text = words(dept.second, warn, fl, ZoneId.systemDefault())
         val top = (warn.map { it.level } + fl.map { it.first.level }).maxOrNull() ?: 2
+        com.jarvis.android.journal.Journal.alert(c, com.jarvis.android.journal.AlertKind.VIGILANCE, text)
         c.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("jarvis_vigilance", tr("Vigilance météo et crues"), NotificationManager.IMPORTANCE_HIGH))
         try {
             NotificationManagerCompat.from(c).notify(

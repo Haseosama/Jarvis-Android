@@ -129,6 +129,7 @@ internal object Budgets {
     }
 
     private fun notify(context: Context, key: String, level: Int, line: String) {
+        com.jarvis.android.journal.Journal.alert(context, com.jarvis.android.journal.AlertKind.BUDGET, line)
         try {
             context.getSystemService(NotificationManager::class.java)
                 .createNotificationChannel(NotificationChannel(CHANNEL, tr("Budgets"), NotificationManager.IMPORTANCE_DEFAULT))

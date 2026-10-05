@@ -84,7 +84,10 @@ internal object DrivingMode {
     @Synchronized
     fun start(context: Context, byCar: Boolean) {
         val app = context.applicationContext
-        if (!active) startedByCar = byCar
+        if (!active) {
+            startedByCar = byCar
+            com.jarvis.android.journal.Journal.driveStarted(app) // for Sunday's summary
+        }
         active = true
         showNotification(app)
         speak(app, tr("Mode conduite activé."))
@@ -97,7 +100,10 @@ internal object DrivingMode {
         active = false
         startedByCar = false
         NotificationManagerCompat.from(app).cancel(NOTIFICATION_ID)
-        if (was) speak(app, tr("Mode conduite désactivé."), thenRelease = true)
+        if (was) {
+            com.jarvis.android.journal.Journal.driveStopped(app)
+            speak(app, tr("Mode conduite désactivé."), thenRelease = true)
+        }
     }
 
     /** A message notification arrived (from the notification listener). */
