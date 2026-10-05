@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.69 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.71 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1174,7 +1174,7 @@ also shown in the settings.
   character saved before Haseo); the reshaping, the sliders and the levels give the same positions as Jarvis 2.0's JavaScript on the
   same scan (compared to the third decimal). *Not checked:* anything on the emulator or a phone (the screens, the touch gestures of the
   editor, the clipped eyes, the frame rate at Haute définition and Ultra).
-- **Haseo who talks: expressions with the voice** (since 0.9.69, every head; nothing to switch on). The lips already followed Jarvis's
+- **Haseo who talks: expressions with the voice** (since 0.9.71, every head; nothing to switch on). The lips already followed Jarvis's
   voice (the sound’s formants and the transcript’s consonants); now the face also shows what the words mean
   (`avatar/Expressions.kt`): the corners of the mouth rise on good news or thanks (« parfait », « bon anniversaire », « pas de
   problème »), drop and the inner ends of the brows lift on bad news or a warning (« désolé », « attention », « orage »,
