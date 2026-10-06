@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.84 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.85 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1252,53 +1252,42 @@ also shown in the settings.
   head drawn towards a finger below and to the right with the head turning, the eyes wandering again once it lifts, the blink of a
   finger arriving, nothing while asleep). *Not checked:* anything on the emulator or a phone (how it feels under a real finger, the small
   face over a video, the drawn face and the textured characters).
-- **Haseo on the table, in augmented reality** (since 0.9.78; `ar/ArFaceActivity.kt`, `ar/ArLook.kt`, `haseo_realite_augmentee`). The
-  cube button at the top of the main screen (shown while the face is on), or "pose-toi sur la table", opens the back camera. With ARCore
-  ("Services Google Play pour la RA", offered for install the first time when the phone supports it), Jarvis looks for a table ("bouge
-  doucement le téléphone en visant la table"), then a touch on it puts Haseo there, standing, as a figure about 42 cm tall with a soft
-  shadow under his feet; he stays on that spot when the phone moves, grows as you come closer, and another touch moves him. Since 0.9.79
-  he has a whole body (`ar/ArBody.kt`). Since 0.9.83 it is a sculpted adult man's body, "Anatomy Basemesh Human Male Body Model
-  Sculpture" by zeroran (Sketchfab, CC BY 4.0, see `assets/avatar/NOTICE.txt`), about seven and a half heads tall (42 cm), in a bodysuit
-  over its muscles: a dark top with cuffs of the theme's colour, a belt, dark trousers and shoes, the hands in the face's skin tone. Since
-  0.9.84 its top is a high collar ending just under the chin, in a ring of the theme's colour, so the join between the head and the body
-  no longer has to match two skins; the collar, the cuffs and the skin fade into the cloth over a few millimetres (a blend per vertex,
-  not a part per vertex), so no seam follows the triangles' edges. `tools/avatar/export_body.py` welds its 1.13 million triangles, puts it in the head's units under the head (its
-  chin at the head's chin, its neck under the head's), cuts its own head off, narrows the top of its neck a little to stay inside the
-  jaw, and simplifies it once per *Finesse du maillage* level to as many triangles as the head (20 588 at Éco, 27 712 at Léger, 37 161 at
-  Standard, 84 555 at Haute définition; Ultra is the same, what it adds on the head being its hair), with what each vertex wears,
-  how much it follows the upper arm and the forearm, and the web of the dark look (`assets/avatar/body_mesh.bin`, read by `BodyModel`;
-  rebuild: `python tools/avatar/export_body.py <folder with scene.gltf> app/src/main/assets/avatar/body_mesh.bin`, needs numpy and
-  fast-simplification). The sculpt stands with its arms out; each frame the app turns them down to its sides at the shoulders and the
-  elbows, the skin round the joints following both bones. It is shaded per vertex with the head's light and its skin formulas, shared
-  (`avatar/SkinShade.kt`): the skin with its sheen, the holograms' cool contour and blue skin, and, with the dark web look, the head's
-  dark facets with a web of lines and twinkling nodes, drawn in runs from far to near so the nearer body covers it (`ar/BodyPaint.kt`;
-  each run is copied to the start of a buffer before `Canvas.drawVertices`, which crashes the app when given a vertex offset without
-  texture coordinates, as 0.9.80 did). Over the camera the body's collar is the neck: the head's own neck fades out before it
-  begins and the jaw's underside melts softly into it (`AvatarRenderer.cameraFade`); the head is drawn with no aura,
-  halo or drifting lights round it (`AvatarRenderer.onCamera`). (0.9.79's body was a few hundred flat facets, eight round each limb, and
-  0.9.80's smooth surfaces swept along its limbs.) He breathes, shifts his weight now and then, and talks
-  with his arms while the voice speaks (one hand comes up and moves, the other follows a little), then lets them fall again. It turns to you as
-  you walk round it: its body follows the camera a moment late, so you see the head turned away a little then catching up, while the eyes,
-  quicker, stay on you (with a glance aside every few seconds); from above, it lifts its face and eyes to you (`ArLook`, fed to the face
-  through `HoloAvatar.aim`, which also calms its idle sway). The face is the one chosen in the settings, drawn by the same code as on the
-  main screen and laid over the camera's picture at the head's projected place (`projectPoint`, `faceSquare`), the body under it seen
-  through the same camera (`bodyDrawList`, `ArStage`); a voice session going on
-  goes on, with the lips moving on the table. Without ARCore (a phone it does not support, its install refused, or ARCore failing to
-  start), the simple mode: Haseo stands over the camera's picture where the screen was touched (seen from a camera of his own, in
-  front and a little above), looking at you. *Checked:* `ArBodyTest` (the figure's height and width, as many triangles as the head at
-  each level and the level changing between two frames, every triangle and vertex normal facing out, a hand coming up while speaking and
-  falling back, the breathing, the figure upright on its feet with the face over the neck, the hidden triangles left out, turned round
-  its sides swapping, the web moved with the rest, the skin, seams and blue hologram colours; in `ArLookTest`, the neck's foot
-  turning with the body and the head with the head) and drawings of the body in the skin, web
-  and blue hologram looks from in front, the side and above, and with the head drawn on it (also walked round, the body lagging), off the phone (about 3 to 7 ms a frame at Standard on a PC, 10 to 16 at Haute
-  définition); `ArLookTest`
-  (the projection of a point onto the screen and its size with distance, a point behind the camera left out, the face's square around the
-  head, the angles wrapping the short way, the late turn and the eyes making up for it when walking round, the face lifting to a camera
-  above, the turn's limit, the face's eyes resting on the viewer with a glance aside now and then). *Not checked:* anything on a phone or
-  an emulator: ARCore's install prompt and table finding, how the face meets the body's neck (the fade to nothing),
-  whether a phone keeps up at Haute définition with the head and the body at once, how steady he stands on the table (it is drawn over the camera's picture a
-  frame after it, so a quick move may make it slide a little), its size, the holographic looks over a bright camera picture, the simple
-  mode's camera, and turning the phone sideways.
+- **A robot on the table, in augmented reality** (since 0.9.78; the robot since 0.9.85; `ar/ArFaceActivity.kt`, `ar/ArRobot.kt`,
+  `ar/RobotPaint.kt`, `ar/ArScene.kt`, `ar/ArLook.kt`, `haseo_realite_augmentee`). The cube button at the top of the main screen (shown
+  while the face is on), or "pose-toi sur la table", opens the back camera. With ARCore ("Services Google Play pour la RA", offered for
+  install the first time when the phone supports it), Jarvis looks for a table ("bouge doucement le téléphone en visant la table"), then
+  a touch on it puts a little chrome robot there, about 24 cm tall, with a soft shadow under its feet; it stays on that spot when the
+  phone moves, grows as you come closer, and another touch moves it. The robot is "Chrome Mini Robot – 3D Model" by PurplePoint
+  (Sketchfab, CC BY 4.0, see `assets/avatar/NOTICE.txt`): one textured surface of 40 000 triangles with no skeleton.
+  `tools/avatar/export_robot.py` welds it, bakes its texture into a colour per vertex (the mean of the texture over the triangles round
+  each vertex, so its painted lines and eyes survive), simplifies it once per *Finesse du maillage* level (10 000 triangles at Éco,
+  16 000 at Léger, 24 000 at Standard, the whole 40 000 at Haute définition and Ultra), splits it into parts (the body, the head above
+  the neck's ring, the arms out beyond the body's sides, the legs under it) with soft weights near the joints so the surface stretches a
+  little there instead of tearing, and marks its lights from the texture's colour (the eyes' teal and the green trim)
+  (`assets/avatar/robot_mesh.bin`, read by `RobotModel`; rebuild: `python tools/avatar/export_robot.py <folder with scene.gltf>
+  app/src/main/assets/avatar/robot_mesh.bin`, needs numpy, Pillow and fast-simplification). The app animates it in parts, as a robot moves
+  (`ArRobot`): its body breathes, bobs on its legs and rocks a little; its head turns at once to whoever holds the phone (up to about 60°
+  from its body's front, and up to a camera above it), tilts now and then, and nods while it talks; its arms swing gently and talk with
+  the voice (the right one leads); it waves hello with its right hand when it is put down; while its body turns to follow you round the
+  table (lazily, `ArLook`) it steps from one foot to the other; and its eyes blink now and then, sometimes twice. It is lit as chrome
+  (`robotVertexColour`): its painted colour under the face's key light, a sharp highlight and a cool rim of the theme's colour; its lights
+  are its own, drawn towards the theme's colour and brighter with the voice, the eyes going out for a blink. It is drawn over the camera's
+  picture in runs from far to near (`robotDrawList`, `FigureDrawList`; each run copied to the start of a buffer before
+  `Canvas.drawVertices`, which crashes the app when given a vertex offset without texture coordinates, as 0.9.80 did). Without ARCore (a
+  phone it does not support, its install refused, or ARCore failing to start), the simple mode: the robot stands over the camera's
+  picture where the screen was touched (seen from a camera of its own, in front and a little above), looking at you. (From 0.9.78 to
+  0.9.84 it was Haseo: his face drawn by the face's code over a body, since 0.9.83 zeroran's anatomy sculpt in a bodysuit; Haseo asked
+  for the robot instead.) *Checked:* `ArRobotTest` (two units tall on its soles at every level, the head on top, both arms and legs on
+  their sides, the eyes on the face; the triangles and normals facing out; the hello waved with the right hand and waved again when put
+  down elsewhere; the arms coming forward and the lights brightening while it speaks; the head turning as told and no further, the body
+  staying; the blinks; the steps from one foot to the other while turning, the soles staying on the table; the colours; standing on its
+  shadow in the middle of the screen; the hidden triangles left out and the runs handed over from offset 0; its sides swapping turned
+  round; nothing placed behind the camera) and drawings of it off the phone from in front, waving, talking, from the side, from above
+  and walked round; `ArLookTest` (the projection of a point onto the screen and its size with distance, a point behind the camera left
+  out, the angles wrapping the short way, the late turn when walking round). *Not checked:* anything on a phone or an emulator: ARCore's
+  install prompt and table finding, how smooth it is (Haute définition draws 40 000 triangles a frame), how steady it stands on the table
+  (it is drawn over the camera's picture a frame after it, so a quick move may make it slide a little), its size, the simple mode's
+  camera, and turning the phone sideways.
 - **A video in place of the avatar** (since 0.9.30, after Mark LV; `play_video`). "Joue la bande-annonce de Dune", or a YouTube link, or
   the address of a video file: it appears where the face is, with its title, a sound button and ✕. A search takes the first YouTube
   result (the same search as `youtube_video`, the title treated as data). YouTube videos play in YouTube's own embedded player

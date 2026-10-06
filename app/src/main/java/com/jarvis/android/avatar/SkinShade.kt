@@ -3,8 +3,8 @@ package com.jarvis.android.avatar
 import kotlin.math.pow
 
 /*
- * How a smooth surface is lit at one vertex, shared by the head (AvatarRenderer.vertexColour) and Haseo's body in augmented reality
- * (ar/ArBody.kt), so that both are the same material under the same light. Normals are unit vectors in view space (+z to the viewer).
+ * How a smooth surface is lit at one vertex: the head's (AvatarRenderer.vertexColour), and the key light the robot in augmented reality
+ * is lit by too (ar/RobotPaint.kt). Normals are unit vectors in view space (+z to the viewer).
  */
 
 /** How much a surface facing ([nx], [ny], [nz]) takes of the key light, which comes from above the viewer's left (0..1). */

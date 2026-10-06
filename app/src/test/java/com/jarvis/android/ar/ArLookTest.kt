@@ -55,16 +55,6 @@ class ArLookTest {
     }
 
     @Test
-    fun `the face square puts the head's centre on the point`() {
-        val head = ScreenPoint(500f, 900f, 0.6f, 1800f)
-        val (left, top, side) = faceSquare(head, AR_UNIT, 5000f).toList()
-        assertEquals(AR_UNIT * 1800f / FACE_HEAD_SHARE, side, 1e-2f)
-        assertEquals(500f, left + side / 2f, 1e-2f)
-        assertEquals(900f, top + FACE_CENTRE_SHARE * side, 1e-2f)
-        assertEquals(800f, faceSquare(ScreenPoint(0f, 0f, 0.01f, 1e6f), AR_UNIT, 800f)[2], 1e-3f)
-    }
-
-    @Test
     fun `angles wrap the short way round`() {
         assertEquals(0.2f, angleBetween(3.1f, 3.1f + 0.2f - 2f * Math.PI.toFloat()), 1e-4f)
         assertEquals(-0.3f, angleBetween(0.1f, -0.2f), 1e-5f)
