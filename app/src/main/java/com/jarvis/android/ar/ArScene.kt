@@ -15,11 +15,8 @@ internal class ArPlacement(
     val body: BodyDrawList,
 ) {
     /** The same moved by ([dx], [dy]) pixels. */
-    fun shifted(dx: Float, dy: Float): ArPlacement {
-        val moved = body.pos.copyOf()
-        for (i in moved.indices step 2) { moved[i] += dx; moved[i + 1] += dy }
-        return ArPlacement(left + dx, top + dy, side, shadowX + dx, shadowY + dy, shadowWidth, shadowHeight, BodyDrawList(moved, body.part, body.light))
-    }
+    fun shifted(dx: Float, dy: Float) =
+        ArPlacement(left + dx, top + dy, side, shadowX + dx, shadowY + dy, shadowWidth, shadowHeight, body.shifted(dx, dy))
 }
 
 /** Haseo standing somewhere: his look (see [ArLook]) and his body (see [ArBody]), moved on and placed a frame at a time. */
@@ -36,18 +33,19 @@ internal class ArStage {
 
     /**
      * One frame, [dt] seconds after the last, the voice at [level]: Haseo's soles at ([ax], [ay], [az]) in world metres (y up), the camera
-     * at ([ex], [ey], [ez]) seeing through [view] and [projection] (column-major) onto a [width] × [height] screen. Null when he is
-     * behind the camera.
+     * at ([ex], [ey], [ez]) seeing through [view] and [projection] (column-major) onto a [width] × [height] screen, his body drawn as
+     * the face is in [style]. Null when he is behind the camera.
      */
     fun frame(
         dt: Float, level: Float, view: FloatArray, projection: FloatArray, width: Int, height: Int,
-        ax: Float, ay: Float, az: Float, ex: Float, ey: Float, ez: Float,
+        ax: Float, ay: Float, az: Float, ex: Float, ey: Float, ez: Float, style: BodyLook = BodyLook.DEFAULT,
     ): ArPlacement? {
         val headY = ay - BODY_FEET * AR_UNIT
         aim = look.step(dt, ax, headY, az, ex, ey, ez)
         body.step(dt, level)
         val facing = look.facing ?: 0f
-        val drawn = bodyDrawList(body.build(), ax, ay, az, facing, AR_UNIT, view, projection, width, height) ?: return null
+        val drawn = bodyDrawList(body.build(style.level), ax, ay, az, facing, AR_UNIT, view, projection, width, height, style, level.coerceIn(0f, 1f), body.time)
+            ?: return null
         val head = projectPoint(view, projection, ax, headY, az, width, height) ?: return null
         val foot = projectPoint(view, projection, ax, ay, az, width, height) ?: return null
         val square = faceSquare(head, AR_UNIT, maxOf(width, height) * 3f)

@@ -53,7 +53,8 @@ internal fun angleBetween(from: Float, to: Float): Float {
  * little, then catching up), and its eyes, quicker, stay on you. The camera above the head makes it lift its face to you.
  *
  * [step] takes the head's centre and the camera's position in world metres (y up), and gives what [com.jarvis.android.avatar.HoloAvatar.aim]
- * takes: the yaw and pitch the drawn head shows towards the viewer, and where its eyes look, each -1..1.
+ * takes: the yaw and pitch the drawn head shows towards the viewer, where its eyes look (each -1..1), then the yaw and pitch its
+ * body shows, for the neck to join it.
  */
 internal class ArLook {
     /** The world angle (around the vertical, as atan2(x, z)) the body faces, or null until the first step. */
@@ -78,7 +79,8 @@ internal class ArLook {
         // the eyes make up the rest, to meet the camera
         val gazeX = (-yaw / EYE_REACH_YAW).coerceIn(-1f, 1f)
         val gazeY = (-pitch / EYE_REACH_PITCH).coerceIn(-1f, 1f)
-        return floatArrayOf(yaw, pitch, gazeX, gazeY)
+        // and the body under it, seen turned by all of it and from the camera's height: the neck's foot turns with it
+        return floatArrayOf(yaw, pitch, gazeX, gazeY, seenYaw.coerceIn(-MAX_BODY, MAX_BODY), elevation.coerceIn(-MAX_BODY, MAX_BODY))
     }
 
     /** Forgets where the body faced: the head was put down somewhere else. */
@@ -90,6 +92,7 @@ internal class ArLook {
         const val LIFT_SHARE = 0.6f        // the share of the camera's height the face lifts to
         const val MAX_YAW = 0.7f
         const val MAX_PITCH = 0.35f
+        const val MAX_BODY = 1.3f          // the most the neck's foot is turned from the head's front, so it never twists right round
         const val EYE_REACH_YAW = 0.35f    // the head turn the eyes' full reach makes up for
         const val EYE_REACH_PITCH = 0.25f
     }

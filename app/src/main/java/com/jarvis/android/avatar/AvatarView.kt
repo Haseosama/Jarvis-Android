@@ -27,7 +27,7 @@ import com.jarvis.android.core.JarvisState
  * glow of the theme's colour, since the dark looks melt into the background at that size.
  */
 @Composable
-internal fun AvatarView(controller: AvatarController, state: JarvisState, outputLevel: Float, modifier: Modifier = Modifier, close: Boolean = false) {
+internal fun AvatarView(controller: AvatarController, state: JarvisState, outputLevel: Float, modifier: Modifier = Modifier, close: Boolean = false, onCamera: Boolean = false) {
     val model = controller.shownModel
     // The head (its mesh read, about a second on a phone, and its renderer built) is made off the main thread: the screen shows at
     // once and the face appears when it is ready, instead of the whole first frame waiting for it.
@@ -109,6 +109,8 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
             )
             drawContext.canvas.saveLayer(androidx.compose.ui.geometry.Rect(androidx.compose.ui.geometry.Offset.Zero, size), CLOSE_UP_PAINT)
         }
+        // over the camera (Haseo in augmented reality), the neck fades out to nothing over his body's, not to the theme's background
+        renderer.onCamera = onCamera
         try {
             drawHead(renderer, avatar, controller, model, hairColour, characterFolder, character, cartoon, cy, r, primary, accent, bg, stroke)
         } finally {

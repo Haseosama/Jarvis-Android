@@ -135,6 +135,29 @@ class ArLookTest {
     }
 
     @Test
+    fun `on a body, the neck's foot turns with the body and the head with the head`() {
+        val a = HoloAvatar(mesh, Random(3))
+        a.aim = floatArrayOf(0.3f, 0f, 0f, 0f, -0.6f, 0f)
+        repeat(30) { a.step(1f / 30f, 0f, false, Mood.IDLE, null) }
+        a.pose()
+        val neck = BooleanArray(mesh.vertexCount).also { m -> for (t in 0 until mesh.faceCount) if (mesh.faceGroup[t] < 0.5f) for (j in 0..2) m[mesh.faces[3 * t + j]] = true }
+        // the turn of a point about the vertical, from where it was
+        fun turn(i: Int) = kotlin.math.atan2(a.pv[3 * i], a.pv[3 * i + 2]) - kotlin.math.atan2(mesh.verts[3 * i], mesh.verts[3 * i + 2])
+        fun wrapped(x: Float) = ((x + 3 * Math.PI) % (2 * Math.PI) - Math.PI).toFloat()
+        val foot = (0 until mesh.vertexCount).filter { neck[it] && mesh.verts[3 * it + 1] < -1.2f && abs(mesh.verts[3 * it]) + abs(mesh.verts[3 * it + 2]) > 0.3f }
+        val top = (0 until mesh.vertexCount).filter { mesh.verts[3 * it + 1] > 0.5f && abs(mesh.verts[3 * it]) + abs(mesh.verts[3 * it + 2]) > 0.3f }
+        assertTrue(foot.isNotEmpty() && top.isNotEmpty())
+        val footTurn = foot.map { wrapped(turn(it)) }.average()
+        val topTurn = top.map { wrapped(turn(it)) }.average()
+        assertEquals(-0.6, footTurn, 0.12)
+        assertEquals(a.yaw.toDouble(), topTurn, 0.12)
+        // with four values, the neck turns with the head as before
+        a.aim = floatArrayOf(0.3f, 0f, 0f, 0f)
+        a.pose()
+        assertEquals(a.yaw.toDouble(), foot.map { wrapped(turn(it)) }.average(), 0.12)
+    }
+
+    @Test
     fun `now and then the eyes glance aside, then come back`() {
         val a = HoloAvatar(mesh, Random(5))
         a.aim = floatArrayOf(0f, 0f, 0f, 0f)

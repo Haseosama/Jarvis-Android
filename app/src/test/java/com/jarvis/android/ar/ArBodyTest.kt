@@ -1,5 +1,6 @@
 package com.jarvis.android.ar
 
+import com.jarvis.android.avatar.PolygonLevel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -8,13 +9,12 @@ import org.junit.Test
 import kotlin.math.abs
 
 class ArBodyTest {
-    private fun ys(mesh: BodyMesh) = (0 until mesh.pos.size / 3).map { mesh.pos[3 * it + 1] }
-    private fun xs(mesh: BodyMesh) = (0 until mesh.pos.size / 3).map { mesh.pos[3 * it] }
+    private fun ys(mesh: BodyMesh) = (0 until mesh.vertexCount).map { mesh.pos[3 * it + 1] }
+    private fun xs(mesh: BodyMesh) = (0 until mesh.vertexCount).map { mesh.pos[3 * it] }
 
     @Test
     fun `a figure five and a half heads tall, under the head, standing on its soles`() {
         val mesh = ArBody().build()
-        assertTrue(mesh.triangleCount in 300..2000)
         assertEquals(BODY_FEET, ys(mesh).min(), 0.12f)
         // nothing pokes up through the face: the neck ends inside the head's lower half
         assertTrue("top ${ys(mesh).max()}", ys(mesh).max() < -0.3f)
@@ -26,25 +26,46 @@ class ArBodyTest {
     }
 
     @Test
-    fun `every facet faces out of its shape`() {
-        val b = MeshBuilder()
-        b.tube(floatArrayOf(0f, 0f, 0f), floatArrayOf(0.3f, -2f, 0.4f), 0.5f, 0.4f, JACKET)
-        b.tube(floatArrayOf(0f, 0f, 0f), floatArrayOf(0f, 0f, 1f), 0.3f, 0.2f, SHOES, squash = 0.7f)
-        val m = b.mesh()
-        val p = m.pos
-        for (t in 0 until m.triangleCount) {
-            val i = m.tris.sliceArray(3 * t until 3 * t + 3)
+    fun `as many triangles as the head at each polygon level`() {
+        // the head's (Haseo's, with his hair) at Eco, Léger, Standard and Haute définition: 20 588, 27 712, 37 161, 84 555
+        val head = mapOf(PolygonLevel.ECO to 20_588, PolygonLevel.LOW to 27_712, PolygonLevel.MEDIUM to 37_161, PolygonLevel.HIGH to 84_555)
+        for ((level, count) in head) {
+            val body = ArBody().build(level).triangleCount
+            assertTrue("$level: $body against $count", abs(body - count) < count * 0.1f)
+        }
+        assertEquals(ArBody().build(PolygonLevel.HIGH).triangleCount, ArBody().build(PolygonLevel.ULTRA).triangleCount)
+    }
+
+    @Test
+    fun `the level can change between two frames`() {
+        val body = ArBody()
+        val fine = body.build(PolygonLevel.HIGH).triangleCount
+        val coarse = body.build(PolygonLevel.ECO).triangleCount
+        assertTrue(coarse * 3 < fine)
+    }
+
+    @Test
+    fun `every triangle faces out, and so does every vertex normal`() {
+        val mesh = ArBody().build(PolygonLevel.ECO)
+        val p = mesh.pos
+        // each shape's axis is close by: compare against the normals instead, which point away from it
+        var bad = 0
+        for (t in 0 until mesh.triangleCount) {
+            val i = mesh.tris.sliceArray(3 * t until 3 * t + 3)
             val a = floatArrayOf(p[3 * i[0]], p[3 * i[0] + 1], p[3 * i[0] + 2])
             val ab = floatArrayOf(p[3 * i[1]] - a[0], p[3 * i[1] + 1] - a[1], p[3 * i[1] + 2] - a[2])
             val ac = floatArrayOf(p[3 * i[2]] - a[0], p[3 * i[2] + 1] - a[1], p[3 * i[2] + 2] - a[2])
             val n = cross(ab, ac)
-            // the shape's middle: halfway along its axis
-            val mid = if (t < m.triangleCount / 2) floatArrayOf(0.15f, -1f, 0.2f) else floatArrayOf(0f, 0f, 0.5f)
-            val centroid = (0..2).map { j -> floatArrayOf(p[3 * i[j]], p[3 * i[j] + 1], p[3 * i[j] + 2]) }
-                .reduce { x, y -> floatArrayOf(x[0] + y[0], x[1] + y[1], x[2] + y[2]) }.map { it / 3f }
-            val out = floatArrayOf(centroid[0] - mid[0], centroid[1] - mid[1], centroid[2] - mid[2])
-            assertTrue("facet $t faces in", n[0] * out[0] + n[1] * out[1] + n[2] * out[2] > 0f)
+            if (length(n) < 1e-7f) continue
+            val sum = (0..2).map { j -> floatArrayOf(mesh.nrm[3 * i[j]], mesh.nrm[3 * i[j] + 1], mesh.nrm[3 * i[j] + 2]) }
+                .reduce { x, y -> floatArrayOf(x[0] + y[0], x[1] + y[1], x[2] + y[2]) }
+            if (n[0] * sum[0] + n[1] * sum[1] + n[2] * sum[2] <= 0f) bad++
         }
+        assertEquals(0, bad)
+        // the normals are unit vectors, and on the torso's front they point forwards
+        for (v in 0 until mesh.vertexCount) assertEquals(1f, length(floatArrayOf(mesh.nrm[3 * v], mesh.nrm[3 * v + 1], mesh.nrm[3 * v + 2])), 1e-3f)
+        val front = (0 until mesh.vertexCount).maxBy { if (abs(p[3 * it + 1] + 3.4f) < 0.1f && abs(p[3 * it]) < 0.1f) p[3 * it + 2] else -9f }
+        assertTrue(mesh.nrm[3 * front + 2] > 0.9f)
     }
 
     @Test
@@ -53,8 +74,8 @@ class ArBodyTest {
         val talking = ArBody().also { repeat(60) { _ -> it.step(1f / 30f, 0.6f) } }
         assertEquals(0f, still.talk, 1e-4f)
         assertTrue(talking.talk > 0.9f)
-        // the highest point of the hands: higher, and further forward, when talking
-        fun handTop(b: ArBody) = b.build().let { m -> (0 until m.triangleCount).filter { m.part[it] == SKIN }.flatMap { t -> (0..2).map { m.tris[3 * t + it] } }.filter { m.pos[3 * it + 1] < -2f }.maxOf { m.pos[3 * it + 1] } }
+        // the highest point of the hands: higher when talking
+        fun handTop(b: ArBody) = b.build(PolygonLevel.ECO).let { m -> (0 until m.vertexCount).filter { m.part[it] == SKIN && m.pos[3 * it + 1] < -2f }.maxOf { m.pos[3 * it + 1] } }
         assertTrue("${handTop(talking)} vs ${handTop(still)}", handTop(talking) > handTop(still) + 1f)
         // and the arms go back down once the voice stops
         repeat(150) { _ -> talking.step(1f / 30f, 0f) }
@@ -64,7 +85,7 @@ class ArBodyTest {
     @Test
     fun `it breathes`() {
         val body = ArBody()
-        val widths = (0 until 90).map { body.step(1f / 30f, 0f); body.build().let { m -> (0 until m.pos.size / 3).filter { abs(m.pos[3 * it + 1] + 2f) < 0.05f }.maxOf { m.pos[3 * it] } } }
+        val widths = (0 until 90).map { body.step(1f / 30f, 0f); body.build(PolygonLevel.ECO).let { m -> (0 until m.vertexCount).filter { abs(m.pos[3 * it + 1] + 2.3f) < 0.06f && m.part[it] == JACKET && abs(m.pos[3 * it]) < 1.15f }.maxOf { m.pos[3 * it] } } }
         assertTrue(widths.max() - widths.min() > 0.01f)
     }
 
@@ -102,32 +123,31 @@ class ArBodyTest {
     }
 
     @Test
-    fun `the facets turned away are not drawn, and the nearer ones are drawn last`() {
+    fun `the triangles turned away are not drawn, and the runs cover them all`() {
         val mesh = ArBody().build()
         val list = bodyDrawList(mesh, 0f, 0f, 0f, 0f, AR_UNIT, view, proj, 1080, 2160)!!
         assertTrue(list.count in mesh.triangleCount / 4 until mesh.triangleCount)
-        assertTrue(list.light.all { it in 0f..1f })
-        // from behind the figure, the first drawn of the front is not the same as from in front
+        assertEquals(list.count, list.chunkEnd.last())
+        assertTrue(list.chunkEnd.toList().zipWithNext().all { (a, b) -> a <= b })
         val back = bodyDrawList(mesh, 0f, 0f, 0f, Math.PI.toFloat(), AR_UNIT, view, proj, 1080, 2160)!!
         assertTrue(back.count in mesh.triangleCount / 4 until mesh.triangleCount)
+        // no web with a skin
+        assertEquals(0, list.lines.size + list.nodes.size)
     }
 
     @Test
-    fun `turned round, its right goes to the other side`() {
-        val mesh = ArBody().build()
-        // the vertex furthest along +x (the figure's left hand side seen from in front)
-        val i = (0 until mesh.pos.size / 3).maxBy { mesh.pos[3 * it] }
-        val one = BodyMesh(floatArrayOf(mesh.pos[3 * i], mesh.pos[3 * i + 1], mesh.pos[3 * i + 2], 0f, -5f, 0f, 0f, -5f, 0.1f), intArrayOf(0, 1, 2), intArrayOf(0))
-        fun screenX(facing: Float) = bodyDrawListPoints(one, facing)
+    fun `turned round, its left goes to the other side`() {
+        val mesh = ArBody().build(PolygonLevel.ECO)
+        // the vertex furthest along +x (the figure's left, on the right of the screen seen from in front)
+        val i = (0 until mesh.vertexCount).maxBy { mesh.pos[3 * it] }
+        val pos = floatArrayOf(mesh.pos[3 * i], mesh.pos[3 * i + 1], mesh.pos[3 * i + 2], 0f, -5f, 0f, 0f, -5f, 0.1f)
+        fun screenX(facing: Float): Float {
+            // both windings, so the single triangle shows whichever way it faces
+            val one = BodyMesh(pos, FloatArray(9) { if (it % 3 == 2) 1f else 0f }, IntArray(3), intArrayOf(0, 1, 2, 0, 2, 1))
+            return bodyDrawList(one, 0f, 0f, 0f, facing, AR_UNIT, view, proj, 1080, 2160)!!.let { l -> l.pos[0] }
+        }
         assertTrue(screenX(0f) > 540f)
         assertTrue(screenX(Math.PI.toFloat()) < 540f)
-    }
-
-    private fun bodyDrawListPoints(mesh: BodyMesh, facing: Float): Float {
-        // both windings, so the single facet shows whichever way it faces
-        val both = BodyMesh(mesh.pos, intArrayOf(0, 1, 2, 0, 2, 1), intArrayOf(0, 0))
-        val list = bodyDrawList(both, 0f, 0f, 0f, facing, AR_UNIT, view, proj, 1080, 2160)!!
-        return list.pos[0]   // the hand's point, first in both facets
     }
 
     @Test
@@ -137,22 +157,35 @@ class ArBodyTest {
     }
 
     @Test
-    fun `moving the whole picture moves everything`() {
-        val p = ArStage().frame(1f / 30f, 0f, view, proj, 1080, 2160, 0f, 0f, 0f, 0f, 0.30f, 0.70f)!!
+    fun `moving the whole picture moves everything, the web too`() {
+        val web = BodyLook(0, 0xFF00E5FF.toInt(), 0xFF0B0F14.toInt(), PolygonLevel.ECO)
+        val p = ArStage().frame(1f / 30f, 0f, view, proj, 1080, 2160, 0f, 0f, 0f, 0f, 0.30f, 0.70f, web)!!
+        assertTrue(p.body.lines.isNotEmpty() && p.body.nodes.isNotEmpty())
+        assertEquals(p.body.lines.size, p.body.lineStart.last())
+        assertEquals(p.body.nodes.size, p.body.nodeStart.last())
         val q = p.shifted(100f, -50f)
         assertEquals(p.left + 100f, q.left, 1e-3f); assertEquals(p.shadowY - 50f, q.shadowY, 1e-3f)
         assertEquals(p.body.pos[0] + 100f, q.body.pos[0], 1e-3f); assertEquals(p.body.pos[1] - 50f, q.body.pos[1], 1e-3f)
+        assertEquals(p.body.lines[0] + 100f, q.body.lines[0], 1e-3f); assertEquals(p.body.nodes[1] - 50f, q.body.nodes[1], 1e-3f)
     }
 
     @Test
-    fun `the colours are skin on the hands, the theme on the seams, glass for the holograms`() {
+    fun `the skin is the face's, the seams the theme's, lit by the same light`() {
         val primary = 0xFF00E5FF.toInt()
-        assertEquals(0xFF, bodyColour(SKIN, 1f, 2, primary) ushr 24)
-        val skin = bodyColour(SKIN, 0.775f, 1, primary)   // lit at 1.0: the tone itself
-        assertEquals(0xF1C9A8, skin and 0xFFFFFF)
-        val seam = bodyColour(TRIM, 0.775f, 1, primary)
+        val look = BodyLook(1, primary, 0xFF0B0F14.toInt(), PolygonLevel.MEDIUM)
+        // a hand facing the light is the face's skin tone, lit as the face's skin is
+        val lit = bodyVertexColour(SKIN, -0.55f, 0.5f, 0.67f, 0.67f, look, 0f)
+        val dark = bodyVertexColour(SKIN, 0.55f, -0.5f, 0.67f, 0.67f, look, 0f)
+        assertEquals(0xFF, lit ushr 24)
+        assertTrue((lit shr 16 and 0xFF) > (dark shr 16 and 0xFF))
+        assertTrue((lit shr 16 and 0xFF) > (lit and 0xFF))   // warm
+        val seam = bodyVertexColour(TRIM, 0f, 0f, 1f, 1f, look, 0f)
         assertTrue((seam and 0xFF) > (seam shr 16 and 0xFF))   // bluish, from the cyan theme
-        assertTrue(bodyColour(JACKET, 0.5f, 5, primary) ushr 24 < 0xFF)
-        assertTrue(bodyColour(JACKET, 1f, 1, primary) and 0xFF > bodyColour(JACKET, 0f, 1, primary) and 0xFF)
+        // the blue hologram: a blue skin, its contour deep blue
+        val blue = BodyLook(7, primary, 0xFF0B0F14.toInt(), PolygonLevel.MEDIUM)
+        val face = bodyVertexColour(SKIN, 0f, 0f, 1f, 1f, blue, 0f)
+        val edge = bodyVertexColour(SKIN, 0f, 0f, 1f, 0.05f, blue, 0f)
+        assertTrue((face and 0xFF) > (face shr 16 and 0xFF))
+        assertTrue((edge and 0xFF) < (face and 0xFF))
     }
 }

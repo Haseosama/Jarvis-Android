@@ -24,6 +24,10 @@ private const val CAM_D = 4.6f
 private val CAP_COLOURS = intArrayOf(0, 0xFF1C1E24.toInt(), 0xFF23508F.toInt(), 0xFFB3282F.toInt(), 0xFFE9E9EE.toInt(), 0xFF3F5B3B.toInt(), 0xFF3B4744.toInt())
 private const val BUCKETS = 4
 private const val MIN_ALPHA = 0.05f
+/** Over the camera, where the head's neck has faded out (its fade, 1 on the head): about where it starts to flare. */
+private const val CAMERA_FADE_END = 0.7f
+/** ... and where it is whole again: the body's neck ends under it, just above. */
+private const val CAMERA_SOLID = 0.9f
 private const val LUT_N = 192
 private const val BROW_HAIRS = 160
 private const val LID_COLUMNS = 9
@@ -47,8 +51,6 @@ internal fun blend(bg: Int, col: Int, a: Float): Int {
 private val ANDROID_SKIN = 0xFFCDD2D8.toInt()
 private val ANDROID_GLOW = 0xFF35C9FF.toInt()
 
-private val SKIN_TONES = intArrayOf(0xF1C9A8, 0xD9A47C, 0xB07A54, 0x7A4E36, 0x69B4F0)   // the fifth is the light blue of the blue hologram
-internal const val DEEP_BLUE = 0xFF0C2160.toInt()   // the hologram's ink: brows, lashes, lid crease and lip line, for contrast against the warm or blue skin
 private val LIP_TONES = intArrayOf(0xD9707F, 0xC02836, 0x8E3A6B, 0xE8735A)
 /** The flat dark disc at the back of each eyeball: Haseo's eye pass leaves it out (it showed through at the lid corners). */
 private val EYE_BACK_PAINT = 0xFF2B1F1C.toInt()
@@ -116,6 +118,12 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     /** How far the natural lip colour goes from the skin towards a rose (when no lip tone is chosen): a man's lips are closer to his skin. */
     var lipTint = 0.7f
 
+    /**
+     * Drawn over the camera, on a body (Haseo in augmented reality): the neck's far end fades to transparent instead of to the
+     * background (the skin looks), and no aura, halo or drifting lights float round the head.
+     */
+    var onCamera = false
+
     /** A ring of cyan light behind the head. */
     var halo = false
     /** 0 = natural lips; 1..4 = rose, red, plum, coral. */
@@ -166,27 +174,30 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         val v = avatar.pv
         val n = avatar.pn
 
-        // aura
-        val ar = r * 1.95f
-        scope.drawCircle(
-            brush = Brush.radialGradient(
-                0f to Color(withAlpha(primary, 34f + 66f * amp)),
-                0.38f to Color(withAlpha(primary, 20f + 40f * amp)),
-                1f to Color(withAlpha(primary, 0f)),
-                center = Offset(cx, cy), radius = ar,
-            ),
-            radius = ar, center = Offset(cx, cy),
-        )
+        // the aura, the halo and the lights (not over the camera: on a body, a glow round the head cuts it off from the shoulders)
+        if (!onCamera) {
+            // aura
+            val ar = r * 1.95f
+            scope.drawCircle(
+                brush = Brush.radialGradient(
+                    0f to Color(withAlpha(primary, 34f + 66f * amp)),
+                    0.38f to Color(withAlpha(primary, 20f + 40f * amp)),
+                    1f to Color(withAlpha(primary, 0f)),
+                    center = Offset(cx, cy), radius = ar,
+                ),
+                radius = ar, center = Offset(cx, cy),
+            )
 
-        if (halo) drawHalo(scope, cx, cy, r, amp, avatar.time)
+            if (halo) drawHalo(scope, cx, cy, r, amp, avatar.time)
 
-        // a few drifting points of light in the dark, as in the reference photos
-        for (k in 0 until 26) {
-            val h = ((k * -1640531535) ushr 8) and 0xFFFF
-            val ang = (h % 628) / 100f + 0.05f * avatar.time * (if (k % 2 == 0) 1f else -1f)
-            val dist = r * (1.15f + 0.85f * ((h / 7) % 100) / 100f)
-            val tw = 0.35f + 0.65f * (0.5f + 0.5f * kotlin.math.sin(avatar.time * (0.8f + (h % 5) * 0.3f) + k))
-            scope.drawCircle(Color(withAlpha(primary, 150f * tw)), radius = 1.2f + (h % 3), center = Offset(cx + cos(ang) * dist * 0.8f, cy + kotlin.math.sin(ang) * dist * 1.05f))
+            // a few drifting points of light in the dark, as in the reference photos
+            for (k in 0 until 26) {
+                val h = ((k * -1640531535) ushr 8) and 0xFFFF
+                val ang = (h % 628) / 100f + 0.05f * avatar.time * (if (k % 2 == 0) 1f else -1f)
+                val dist = r * (1.15f + 0.85f * ((h / 7) % 100) / 100f)
+                val tw = 0.35f + 0.65f * (0.5f + 0.5f * kotlin.math.sin(avatar.time * (0.8f + (h % 5) * 0.3f) + k))
+                scope.drawCircle(Color(withAlpha(primary, 150f * tw)), radius = 1.2f + (h % 3), center = Offset(cx + cos(ang) * dist * 0.8f, cy + kotlin.math.sin(ang) * dist * 1.05f))
+            }
         }
 
         // project
@@ -258,7 +269,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             if (cap > 0 && capGeo.hiddenFace[t]) continue
             if ((skin == 0 || (holo && !holoHair)) && mesh.faceGroup[t] > 1.5f) continue // the hair belongs to the skin looks, not to the web or the hologram
             val fadeAvg = (fade[a] + fade[b] + fade[c]) / 3f
-            val cutoff = if (skin > 0) 0.15f else 0.4f
+            val cutoff = if (onCamera) CAMERA_FADE_END else if (skin > 0) 0.15f else 0.4f
             if (fadeAvg < cutoff) continue // the far end of the neck is left out: it would end on a ragged cut
             bright *= (fade[a] * fade[a] + fade[b] * fade[b] + fade[c] * fade[c]) / 3f
             bright *= 0.88f + 0.24f * amp
@@ -311,7 +322,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             var hair = argb(255, (((hairLit shr 16) and 0xFF) + sheen).coerceAtMost(255), (((hairLit shr 8) and 0xFF) + sheen).coerceAtMost(255), ((hairLit and 0xFF) + (sheen * 0.9f).toInt()).coerceAtMost(255))
             if (holoHair) hair = lit(0xFF0D1B2B.toInt(), 0.55f + 0.9f * vlam)
             if (cover > 0.995f) return hair
-            val skinRgb = if (androidLook && !holo) ANDROID_SKIN else 0xFF000000.toInt() or SKIN_TONES[skin - 1]
+            val skinRgb = if (androidLook && !holo) ANDROID_SKIN else skinTone(skin)
             val ks = (0.30f + 0.85f * vlam + 0.10f * vz.coerceIn(0f, 1f)).coerceIn(0.15f, 1.15f) * (0.94f + 0.12f * amp)
             return mix(lit(skinRgb, ks), hair, cover)
         }
@@ -327,21 +338,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         }
         val lipW = mesh.lipMask[vi]
         if (skin == 0) return if (lipW > 0.02f && lips > 0) mix(flat, lit(0xFF000000.toInt() or LIP_TONES[lips - 1], 0.75f + 0.3f * vlam), lipW) else flat
-        val k = (0.30f + 0.85f * vlam + 0.10f * vz.coerceIn(0f, 1f)).coerceIn(0.15f, 1.15f) * (0.94f + 0.12f * amp)
-        val skinRgb = if (androidLook && !holo) ANDROID_SKIN else 0xFF000000.toInt() or SKIN_TONES[skin - 1]
-        var c = lit(skinRgb, k)
-        if (!holo) {
-            // a faint natural sheen (skin is not matte) and a touch of warmth where the light lands most, like blood under thin skin
-            val spec = Math.pow((vx * -0.22f + vy * 0.28f + vz * 0.93f).coerceIn(0f, 1f).toDouble(), 30.0).toFloat()
-            val sheen = (spec * 26f).toInt()
-            val blush = if (androidLook) 0 else (vlam * vlam * 9f).toInt()        // porcelain: no warmth under the skin
-            c = argb(
-                255,
-                (((c shr 16) and 0xFF) + sheen + blush).coerceAtMost(255),
-                (((c shr 8) and 0xFF) + (sheen * 0.9f).toInt() + (blush * 0.35f).toInt()).coerceAtMost(255),
-                (((c and 0xFF) + (sheen * 0.8f).toInt()).coerceAtMost(255)),
-            )
-        }
+        val skinRgb = if (androidLook && !holo) ANDROID_SKIN else skinTone(skin)
+        // the skin is shaded as Haseo's body in augmented reality is (SkinShade.kt): a sheen, and warmth unless porcelain
+        var c = shadeSkin(skinRgb, vx, vy, vz, amp, matte = holo, porcelain = androidLook)
         if (lipW > 0.02f) {
             val lipRgb = if (lips > 0) 0xFF000000.toInt() or LIP_TONES[lips - 1] else if (androidLook) 0xFF8E7C87.toInt() else mix(skinRgb, 0xFFB04A5A.toInt(), lipTint)
             // the lips are lit less unevenly than the skin: the upper one faces the light and would otherwise come out pale
@@ -349,18 +348,21 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
         }
         if (holo) {
             // a solid skin: a little brighter than the plain looks, a faint cool light at the contour only, and no melting into the background
-            val edge = Math.pow((1f - vz.coerceIn(0f, 1f)).toDouble(), 2.4).toFloat()          // 0 facing the viewer, 1 at the contour
-            c = if (blueMix) {
-                // light blue, deeper in the hollows (away from the light) and with a deep blue edge all round
-                val hollow = mix(lit(c, 1.16f), DEEP_BLUE, 0.55f * (1f - vlam))
-                mix(hollow, DEEP_BLUE, 0.80f * edge)
-            } else {
-                mix(lit(c, 1.16f), mix(primaryColor, 0xFFFFFFFF.toInt(), 0.45f), 0.62f * edge)   // a soft bright edge instead of dots
-            }
-            return mix(bgColor, c, (mesh.fade[vi] * 1.9f).coerceIn(0f, 1f))
+            c = holoSkin(c, vlam, vz, blueMix, primaryColor)
+            return faded(c, (mesh.fade[vi] * 1.9f).coerceIn(0f, 1f), vi)
         }
         val fv = (mesh.fade[vi] * mesh.fade[vi]).coerceIn(0f, 1f)
-        return mix(bgColor, c, fv)
+        return faded(c, fv, vi)
+    }
+
+    /**
+     * [c] at vertex [vi] fading out by [f] (1: all of it) to the background; [onCamera], to nothing instead, and sooner: the body's
+     * neck carries on below, so the head's neck ends before it flares out towards the shoulders.
+     */
+    private fun faded(c: Int, f: Float, vi: Int): Int {
+        if (!onCamera) return mix(bgColor, c, f)
+        val u = ((mesh.fade[vi] - CAMERA_FADE_END) / (CAMERA_SOLID - CAMERA_FADE_END)).coerceIn(0f, 1f)
+        return withAlpha(c, 255f * u * u * (3f - 2f * u))
     }
 
     private fun mix(base: Int, other: Int, f: Float): Int {
