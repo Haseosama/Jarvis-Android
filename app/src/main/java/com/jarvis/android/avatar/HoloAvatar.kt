@@ -44,6 +44,9 @@ private const val MOUTH_INSIDE_WEIGHT = 0.7f   // about the lips' own weight at 
 // stay on where the finger was once it lifts; how far the head turns towards it. And how often a blink comes twice in a row.
 private const val FINGER_DEPTH = 1.3f
 private const val FOLLOW_HOLD = 0.9f
+// the neck's span, in head half-heights: from where it leaves the head (turning with it) to its foot (turning with the body under it)
+private const val NECK_TOP = -0.85f
+private const val NECK_FOOT = -1.3f
 private const val AIM_SWAY = 0.35f   // the idle sway kept while looking at someone
 private const val AIM_HOLD = 3f      // the eyes stay on someone 3 to 6 s between two glances aside
 private const val AIM_AWAY = 0.45f   // how long a glance aside lasts
@@ -73,7 +76,9 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
 
     /**
      * Someone to look at, set from outside every frame (the face standing on a table in augmented reality, see ar/ArLook.kt), or null:
-     * yaw and pitch the head turns by on top of its idle sway (which shrinks), then where the eyes look (each -1..1, as [gaze]).
+     * yaw and pitch the head turns by on top of its idle sway (which shrinks), then where the eyes look (each -1..1, as [gaze]); and,
+     * when there are six, the yaw and pitch the body under the head is seen turned by: the neck's lower end then turns with the body
+     * rather than with the head, so it meets the body's neck (see [pose]).
      */
     @Volatile var aim: FloatArray? = null
     private var lookAwayUntil = -10f
@@ -163,6 +168,10 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
 
     /** Posed vertices and normals of the last [pose] call. */
     val pv = FloatArray(mesh.verts.size)
+    /** The neck's own vertices (on its triangles, group 0), not the chin's above it. */
+    private val neckMask: BooleanArray by lazy {
+        BooleanArray(mesh.vertexCount).also { m -> for (t in 0 until mesh.faceCount) if (mesh.faceGroup[t] < 0.5f) for (j in 0..2) m[mesh.faces[3 * t + j]] = true }
+    }
     val pn = FloatArray(mesh.normals.size)
 
     /**
@@ -539,7 +548,13 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
         // Roll (head tilt) is composed last, around the axis pointing out of the screen: it mixes the already
         // yaw/pitch-rotated x and y, leaving z (depth) alone — a simple 2D turn of the posed head in the viewing plane.
         val cr = cos(roll); val sr = sin(roll)
+        val body = aim?.takeIf { it.size >= 6 }
         for (i in 0 until n) {
+            if (body != null && neckMask[i] && mesh.verts[3 * i + 1] < NECK_TOP) {
+                // the neck, from the head down to the body: turned less and less with the head, more and more with the body
+                turnNeck(i, body[4], body[5])
+                continue
+            }
             val x = v[3 * i]; val y = v[3 * i + 1]; val z = v[3 * i + 2]
             val rx = m00 * x + m01 * y + m02 * z
             val ry = m10 * x + m11 * y + m12 * z
@@ -555,6 +570,26 @@ internal class HoloAvatar(val mesh: HeadMesh, private val random: Random = Rando
             pn[3 * i + 1] = rnx * sr + rny * cr
             pn[3 * i + 2] = rnz
         }
+    }
+
+    /** Turns neck vertex [i] (posed, not yet turned) between the body's turn ([bodyYaw], [bodyPitch]) at the neck's foot and the head's above. */
+    private fun turnNeck(i: Int, bodyYaw: Float, bodyPitch: Float) {
+        val u = ((mesh.verts[3 * i + 1] - NECK_FOOT) / (NECK_TOP - NECK_FOOT)).coerceIn(0f, 1f)
+        val w = u * u * (3f - 2f * u)
+        val ny = bodyYaw + (yaw - bodyYaw) * w
+        val np = bodyPitch + (pitch - bodyPitch) * w
+        val nr = roll * w
+        val cy = cos(ny); val sy = sin(ny); val cp = cos(np); val sp = sin(np); val cr = cos(nr); val sr = sin(nr)
+        val x = pv[3 * i]; val y = pv[3 * i + 1]; val z = pv[3 * i + 2]
+        val rx = cy * x + sy * z
+        val ry = sp * sy * x + cp * y - sp * cy * z
+        val rz = -cp * sy * x + sp * y + cp * cy * z
+        pv[3 * i] = rx * cr - ry * sr; pv[3 * i + 1] = rx * sr + ry * cr; pv[3 * i + 2] = rz
+        val nx = mesh.normals[3 * i]; val nyv = mesh.normals[3 * i + 1]; val nz = mesh.normals[3 * i + 2]
+        val qx = cy * nx + sy * nz
+        val qy = sp * sy * nx + cp * nyv - sp * cy * nz
+        val qz = -cp * sy * nx + sp * nyv + cp * cy * nz
+        pn[3 * i] = qx * cr - qy * sr; pn[3 * i + 1] = qx * sr + qy * cr; pn[3 * i + 2] = qz
     }
 }
 

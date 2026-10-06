@@ -53,7 +53,8 @@ internal class ArBody {
         val parts = ArrayList<List<Key>>()
 
         // the torso from the crotch to the neck: trousers, a belt, the jacket rounding over the shoulders into a collar of the
-        // theme's colour, then the neck, whose round end is inside the head (whose own neck fades out over it)
+        // theme's colour, then the neck. The neck is the head's own, carried on down: as thick and as far back as the head's neck
+        // where that one fades out over it (its keys are in the head's units, the rest of the body set back by BODY_BACK under it)
         parts += listOf(
             Key(shift, -5.10f, 0f, 0.55f, 0.42f, TROUSERS),
             Key(shift, -4.85f, 0f, 0.96f, 0.62f, TROUSERS),
@@ -62,12 +63,16 @@ internal class ArBody {
             Key(shift, -3.40f, 0f, 0.86f, 0.56f, JACKET),
             Key(shift, -2.60f, 0.03f, 1.02f * chest, 0.64f * chest, JACKET),
             Key(shift, -2.00f + lift, 0.01f, 1.12f * chest, 0.62f * chest, JACKET),
-            Key(shift, -1.68f + lift, -0.01f, 1.02f, 0.52f, JACKET),
-            Key(shift * 0.8f, -1.50f + lift, -0.02f, 0.50f, 0.40f, TRIM),
-            Key(shift * 0.7f, -1.40f + lift, -0.03f, 0.37f, 0.33f, SKIN),
-            Key(shift * 0.6f, -1.28f + lift, -0.03f, 0.31f, 0.30f, SKIN),
-            Key(shift * 0.3f, -1.08f, -0.05f, 0.30f, 0.29f, SKIN),
-            Key(0f, -0.85f, -0.07f, 0.29f, 0.28f, SKIN),
+            Key(shift, -1.70f + lift, -0.04f, 1.04f, 0.56f, JACKET),
+            Key(shift * 0.6f, -1.52f + lift, -0.10f, 0.74f, 0.64f, TRIM),
+        ).map { it.back() } + listOf(
+            Key(shift * 0.4f, -1.42f + lift, -0.62f, 0.66f, 0.61f, SKIN),
+            Key(shift * 0.2f, -1.22f, -0.62f, 0.60f, 0.59f, SKIN),
+            Key(0f, -1.05f, -0.58f, 0.55f, 0.60f, SKIN),
+            // narrowing inside the head's neck, which covers it from there on: whole higher up, turned with the body and not with
+            // the head, it would show past the head's nape when the head turns
+            Key(0f, -0.92f, -0.54f, 0.47f, 0.52f, SKIN),
+            Key(0f, -0.80f, -0.50f, 0.32f, 0.36f, SKIN),
         )
 
         // the legs: a little apart, straight, the knee and the calf marked; the shoes from the heel to the toe, flat
@@ -114,8 +119,11 @@ internal class ArBody {
                 key(add(wrist, fore, HAND), 0.07f, 0.11f, SKIN),
             )
         }
-        return parts
+        return parts.mapIndexed { i, keys -> if (i == 0) keys else keys.map { it.back() } }
     }
+
+    /** The key set back under the head (see BODY_BACK). */
+    private fun Key.back() = Key(x, y, z + BODY_BACK, ru, rv, part)
 
     /** A point the surface passes through, [ru] its radius across and [rv] front to back (for an upright path), [part] its material up to the next key. */
     class Key(val x: Float, val y: Float, val z: Float, val ru: Float, val rv: Float, val part: Int)
@@ -140,6 +148,12 @@ internal class ArBody {
 
 /** Where the soles are, in head half-heights below the head's centre: the figure is about 5.5 heads tall. */
 internal const val BODY_FEET = -10.05f
+
+/**
+ * How far the body stands behind the head's centre, in head half-heights: the head's origin is near the front of the face (its eye
+ * line), its neck well behind it, so the shoulders and all go back with the neck. It turns about the same upright line as the head.
+ */
+internal const val BODY_BACK = -0.5f
 
 // what each part of the surface is made of (see bodyVertexColour)
 internal const val JACKET = 0
@@ -238,6 +252,8 @@ internal class BodyShape(val level: PolygonLevel, firstPose: List<List<ArBody.Ke
                 val r = l.cap0 + j
                 mat[r] = path.at(path.length * j / (l.tube - 1), sample)
                 for (q in 0..2) { c[3 * r + q] = sample[q]; d[3 * r + q] = sample[3 + q] }
+                // the torso's rings stay level: where its middle moves back towards the neck, tilted rings this wide would fold
+                if (index == 0) { d[3 * r] = 0f; d[3 * r + 1] = 1f; d[3 * r + 2] = 0f }
                 ru[r] = sample[6]; rv[r] = sample[7]
             }
             // the round ends: rings shrinking as on a ball, out to a point beyond the first and the last key

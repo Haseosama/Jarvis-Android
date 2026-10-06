@@ -1264,8 +1264,11 @@ also shown in the settings.
   Léger, 37 700 at Standard, 84 200 at Haute définition; Ultra is the same, what it adds on the head being its hair), shaded per vertex
   with the head's light and its skin formulas, now shared (`avatar/SkinShade.kt`): the skin with its sheen, the holograms' cool contour
   and blue skin, and, with the dark web look, the head's dark facets with a web of lines and twinkling nodes along the rings and down the
-  sides, drawn in runs from far to near so the nearer body covers it (`ar/BodyPaint.kt`). Over the camera the head's neck now fades out
-  to nothing over the body's (`AvatarRenderer.fadeToClear`) instead of to the theme's background. (0.9.79's body was a few hundred flat
+  sides, drawn in runs from far to near so the nearer body covers it (`ar/BodyPaint.kt`). The bust is one with the body: the body's neck
+  carries the head's own on down (as thick and as far back, the body set back under it by `BODY_BACK`) and closes up inside it; the
+  head's neck turns less and less with the head towards its foot, which turns with the body as the camera sees it (`HoloAvatar.aim`'s
+  fifth and sixth values, from `ArLook`), and over the camera it fades out to nothing over the body's before it flares towards the
+  shoulders, with no aura, halo or drifting lights round the head (`AvatarRenderer.onCamera`). (0.9.79's body was a few hundred flat
   facets, eight round each limb.) He breathes, shifts his weight now and then, and talks
   with his arms while the voice speaks (one hand comes up and moves, the other follows a little), then lets them fall again. It turns to you as
   you walk round it: its body follows the camera a moment late, so you see the head turned away a little then catching up, while the eyes,
@@ -1278,8 +1281,9 @@ also shown in the settings.
   front and a little above), looking at you. *Checked:* `ArBodyTest` (the figure's height and width, as many triangles as the head at
   each level and the level changing between two frames, every triangle and vertex normal facing out, a hand coming up while speaking and
   falling back, the breathing, the figure upright on its feet with the face over the neck, the hidden triangles left out, turned round
-  its sides swapping, the web moved with the rest, the skin, seams and blue hologram colours) and drawings of the body in the skin, web
-  and blue hologram looks from in front, the side and above off the phone (about 3 to 7 ms a frame at Standard on a PC, 10 to 16 at Haute
+  its sides swapping, the web moved with the rest, the skin, seams and blue hologram colours; in `ArLookTest`, the neck's foot
+  turning with the body and the head with the head) and drawings of the body in the skin, web
+  and blue hologram looks from in front, the side and above, and with the head drawn on it (also walked round, the body lagging), off the phone (about 3 to 7 ms a frame at Standard on a PC, 10 to 16 at Haute
   définition); `ArLookTest`
   (the projection of a point onto the screen and its size with distance, a point behind the camera left out, the face's square around the
   head, the angles wrapping the short way, the late turn and the eyes making up for it when walking round, the face lifting to a camera

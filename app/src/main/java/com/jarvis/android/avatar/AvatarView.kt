@@ -110,7 +110,7 @@ internal fun AvatarView(controller: AvatarController, state: JarvisState, output
             drawContext.canvas.saveLayer(androidx.compose.ui.geometry.Rect(androidx.compose.ui.geometry.Offset.Zero, size), CLOSE_UP_PAINT)
         }
         // over the camera (Haseo in augmented reality), the neck fades out to nothing over his body's, not to the theme's background
-        renderer.fadeToClear = onCamera
+        renderer.onCamera = onCamera
         try {
             drawHead(renderer, avatar, controller, model, hairColour, characterFolder, character, cartoon, cy, r, primary, accent, bg, stroke)
         } finally {
