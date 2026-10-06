@@ -444,15 +444,12 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStage(p: ArPlac
     val stroke = density * 1.1f
     drawIntoCanvas { canvas ->
         val nc = canvas.nativeCanvas
-        var from = 0
+        if (runPos.size < b.count * 6) { runPos = FloatArray(b.count * 6); runColour = IntArray(b.count * 3) }
         for (c in 0 until BodyDrawList.CHUNKS) {
-            val to = b.chunkEnd[c]
-            if (to > from) {
-                nc.drawVertices(
-                    android.graphics.Canvas.VertexMode.TRIANGLES, (to - from) * 6, b.pos, from * 6, null, 0, b.colour, from * 3, null, 0, 0, BODY_PAINT,
-                )
+            val n = b.chunk(c, runPos, runColour)
+            if (n > 0) {
+                nc.drawVertices(android.graphics.Canvas.VertexMode.TRIANGLES, n * 6, runPos, 0, null, 0, runColour, 0, null, 0, 0, BODY_PAINT)
             }
-            from = to
             BODY_WEB.strokeCap = android.graphics.Paint.Cap.BUTT
             BODY_WEB.strokeWidth = maxOf(0.8f, stroke * 0.6f)
             for (bk in 0 until BodyDrawList.LINE_BUCKETS) {
@@ -474,6 +471,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStage(p: ArPlac
     }
 }
 
+// one run of the body's triangles at a time, from offset 0 (see BodyDrawList.chunk); drawn on the main thread only
+private var runPos = FloatArray(0)
+private var runColour = IntArray(0)
 private val BODY_PAINT = android.graphics.Paint().apply { isAntiAlias = false }
 private val BODY_WEB = android.graphics.Paint().apply { isAntiAlias = true; style = android.graphics.Paint.Style.STROKE }
 // the web's nodes, as the head's: sizes and alphas of the three brightnesses

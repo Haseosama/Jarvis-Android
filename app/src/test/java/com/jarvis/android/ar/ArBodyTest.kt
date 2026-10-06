@@ -136,6 +136,20 @@ class ArBodyTest {
     }
 
     @Test
+    fun `each run is handed to the canvas from offset 0, and together they are the whole body`() {
+        val list = bodyDrawList(ArBody().build(), 0f, 0f, 0f, 0f, AR_UNIT, view, proj, 1080, 2160)!!
+        val pos = FloatArray(list.count * 6); val colour = IntArray(list.count * 3)
+        var done = 0
+        for (c in 0 until BodyDrawList.CHUNKS) {
+            val n = list.chunk(c, pos, colour)
+            for (k in 0 until n * 6) assertEquals(list.pos[done * 6 + k], pos[k])
+            for (k in 0 until n * 3) assertEquals(list.colour[done * 3 + k], colour[k])
+            done += n
+        }
+        assertEquals(list.count, done)
+    }
+
+    @Test
     fun `turned round, its left goes to the other side`() {
         val mesh = ArBody().build(PolygonLevel.ECO)
         // the vertex furthest along +x (the figure's left, on the right of the screen seen from in front)

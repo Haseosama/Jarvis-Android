@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.80 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.81 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1264,7 +1264,7 @@ also shown in the settings.
   Léger, 37 700 at Standard, 84 200 at Haute définition; Ultra is the same, what it adds on the head being its hair), shaded per vertex
   with the head's light and its skin formulas, now shared (`avatar/SkinShade.kt`): the skin with its sheen, the holograms' cool contour
   and blue skin, and, with the dark web look, the head's dark facets with a web of lines and twinkling nodes along the rings and down the
-  sides, drawn in runs from far to near so the nearer body covers it (`ar/BodyPaint.kt`). The bust is one with the body: the body's neck
+  sides, drawn in runs from far to near so the nearer body covers it (`ar/BodyPaint.kt`; each run is copied to the start of a buffer before `Canvas.drawVertices`, which crashes the app when given a vertex offset without texture coordinates, as 0.9.80 did). The bust is one with the body: the body's neck
   carries the head's own on down (as thick and as far back, the body set back under it by `BODY_BACK`) and closes up inside it; the
   head's neck turns less and less with the head towards its foot, which turns with the body as the camera sees it (`HoloAvatar.aim`'s
   fifth and sixth values, from `ArLook`), and over the camera it fades out to nothing over the body's before it flares towards the

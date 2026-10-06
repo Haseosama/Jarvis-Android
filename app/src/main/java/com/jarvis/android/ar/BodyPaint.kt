@@ -47,6 +47,20 @@ internal class BodyDrawList(
 ) {
     val count: Int get() = colour.size / 3
 
+    /**
+     * Copies run [c]'s triangles to the start of [toPos] and [toColour] (at least [count] triangles long) and returns how many there
+     * are. Canvas.drawVertices takes them from offset 0 only: with a vertex offset and no texture coordinates, Android reads texture
+     * coordinates from a bad address and the app crashes.
+     */
+    fun chunk(c: Int, toPos: FloatArray, toColour: IntArray): Int {
+        val from = if (c == 0) 0 else chunkEnd[c - 1]
+        val n = chunkEnd[c] - from
+        if (n <= 0) return 0
+        System.arraycopy(pos, from * 6, toPos, 0, n * 6)
+        System.arraycopy(colour, from * 3, toColour, 0, n * 3)
+        return n
+    }
+
     /** The same moved by ([dx], [dy]) pixels. */
     fun shifted(dx: Float, dy: Float) = BodyDrawList(moved(pos, dx, dy), colour, chunkEnd, moved(lines, dx, dy), lineStart, moved(nodes, dx, dy), nodeStart)
 
