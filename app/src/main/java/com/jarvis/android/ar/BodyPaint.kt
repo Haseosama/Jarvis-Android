@@ -179,7 +179,7 @@ internal fun bodyDrawList(
             pos[6 * k + 2 * j + 1] = sy[vi] + dy * grow
             colour[3 * k + j] = if (web) flat[t] else {
                 if (!done[vi]) {
-                    vcol[vi] = bodyVertexColour(mesh.part[vi], en[3 * vi], en[3 * vi + 1], en[3 * vi + 2], vz[vi], look, amp)
+                    vcol[vi] = bodyVertexColour(mesh.part[vi], en[3 * vi], en[3 * vi + 1], en[3 * vi + 2], vz[vi], look, amp, mesh.trim[vi], mesh.bare[vi])
                     done[vi] = true
                 }
                 vcol[vi]
@@ -225,32 +225,32 @@ internal fun bodyDrawList(
 }
 
 /**
- * The colour at a vertex of [part] facing ([nx], [ny], [nz]) in the eye's space, [vz] towards the camera, in [look] (not the web),
- * the voice at [amp]: the neck and the hands are the face's own skin; the clothes are lit by the same light (the jacket dark, its
- * collar and cuffs of the theme's colour, the belt and the shoes with a little shine), and the holograms put the same cool light on
- * the contour of all of it.
+ * The colour at a vertex wearing [part] under [trim] of the collar's colour and [bare] of bare skin (both 0..1), facing
+ * ([nx], [ny], [nz]) in the eye's space, [vz] towards the camera, in [look] (not the web), the voice at [amp]: the neck and the hands
+ * are the face's own skin; the clothes are lit by the same light (the jacket dark, its collar and cuffs of the theme's colour, the
+ * belt and the shoes with a little shine), and the holograms put the same cool light on the contour of all of it. The collar, the
+ * cuffs and the skin fade into the cloth over a few millimetres, so no seam follows the triangles' edges.
  */
-internal fun bodyVertexColour(part: Int, nx: Float, ny: Float, nz: Float, vz: Float, look: BodyLook, amp: Float): Int {
+internal fun bodyVertexColour(part: Int, nx: Float, ny: Float, nz: Float, vz: Float, look: BodyLook, amp: Float, trim: Float = 0f, bare: Float = 0f): Int {
     val vlam = keyLight(nx, ny, nz)
-    val c = if (part == SKIN) {
-        shadeSkin(skinTone(look.tone), nx, ny, nz, amp, matte = look.holo, porcelain = false)
-    } else {
-        val base = when (part) {
-            JACKET -> 0xFF262A33.toInt()
-            TRIM -> mixRgbOpaque(0xFF2E3440.toInt(), look.primary, 0.65f)
-            TROUSERS -> 0xFF1C1F26.toInt()
-            BELT -> 0xFF3A2A1E.toInt()
-            else -> 0xFF121317.toInt()
-        }
-        val cloth = if (look.holo && part != TRIM) mixRgbOpaque(0xFF0D1B2B.toInt(), look.primary, 0.18f) else base
-        val k = (0.30f + 0.85f * vlam + 0.10f * nz.coerceIn(0f, 1f)).coerceIn(0.15f, 1.15f) * (0.94f + 0.12f * amp)
-        val lit = litRgb(cloth, k * 1.25f)
-        if (part == BELT || part == SHOES) {
-            val shine = ((nx * -0.22f + ny * 0.28f + nz * 0.93f).coerceIn(0f, 1f).pow(30f) * 60f).toInt()
-            (lit and 0xFF000000.toInt()) or (((lit shr 16 and 0xFF) + shine).coerceAtMost(255) shl 16) or
-                (((lit shr 8 and 0xFF) + shine).coerceAtMost(255) shl 8) or ((lit and 0xFF) + shine).coerceAtMost(255)
-        } else lit
+    val garment = when (part) {
+        JACKET -> 0xFF262A33.toInt()
+        TROUSERS -> 0xFF1C1F26.toInt()
+        BELT -> 0xFF3A2A1E.toInt()
+        else -> 0xFF121317.toInt()
     }
+    val seam = mixRgbOpaque(0xFF2E3440.toInt(), look.primary, 0.65f)
+    val worn = if (look.holo) mixRgbOpaque(0xFF0D1B2B.toInt(), look.primary, 0.18f) else garment
+    val cloth = if (trim > 0f) mixRgbOpaque(worn, seam, trim.coerceIn(0f, 1f)) else worn
+    val k = (0.30f + 0.85f * vlam + 0.10f * nz.coerceIn(0f, 1f)).coerceIn(0.15f, 1.15f) * (0.94f + 0.12f * amp)
+    val lit = litRgb(cloth, k * 1.25f)
+    val dressed = if ((part == BELT || part == SHOES) && trim < 0.5f) {
+        val shine = ((nx * -0.22f + ny * 0.28f + nz * 0.93f).coerceIn(0f, 1f).pow(30f) * 60f).toInt()
+        (lit and 0xFF000000.toInt()) or (((lit shr 16 and 0xFF) + shine).coerceAtMost(255) shl 16) or
+            (((lit shr 8 and 0xFF) + shine).coerceAtMost(255) shl 8) or ((lit and 0xFF) + shine).coerceAtMost(255)
+    } else lit
+    val skin = if (bare > 0f) shadeSkin(skinTone(look.tone), nx, ny, nz, amp, matte = look.holo, porcelain = false) else dressed
+    val c = if (bare >= 1f) skin else if (bare > 0f) mixRgbOpaque(dressed, skin, bare) else dressed
     return if (look.holo) holoSkin(c, vlam, vz, look.blueMix, look.primary) else c
 }
 

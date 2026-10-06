@@ -9,12 +9,13 @@ The sculpt is 1.13 million triangles in eleven pieces, 1.80 m tall, standing in 
 head's units (its head, chin to crown, as tall as the app's: 2; its chin at the app's chin, its neck under the app's neck, see ar/ArBody.kt),
 its own head cut off a little above its chin (the app's head is drawn over it there), the top of its neck narrowed a little so it stays
 inside the app's jaw, then simplified once per polygon level to as many triangles as the head has at that level.
-Each vertex gets what it is made of (jacket, collar, trousers, belt, shoes, skin: a bodysuit over the sculpted muscles) and how much it
+Each vertex gets the garment under it (jacket, trousers, belt, shoes: a bodysuit over the sculpted muscles) with how much of the
+collar or cuff colour and of bare skin is blended over it and how much it
 follows the arm's bones (the upper arm, the forearm with the hand), for the app to pose the arms; each level gets the web of the dark
 look: the edges and nodes of the same surface simplified four times more, laid on its own vertices.
 
-File (little-endian): "JHB1", int32 levels; per side (left, then right; x > 0 is the figure's left) the shoulder, elbow and wrist,
-3 float32 each; then per level: int32 vertices V, int32 triangles T, V x 3 float32 positions, V x 3 int8 normals (x127), V uint8 part,
+File (little-endian): "JHB2", int32 levels; per side (left, then right; x > 0 is the figure's left) the shoulder, elbow and wrist,
+3 float32 each; then per level: int32 vertices V, int32 triangles T, V x 3 float32 positions, V x 3 int8 normals (x127), V uint8 part, V uint8 trim, V uint8 bare (x255),
 V int8 side (-1, 0, 1), V uint8 arm weight, V uint8 forearm weight (x255), T x 3 uint16 vertex indices, int32 web edges E, E x (int32
 triangle, uint16 a, uint16 b), int32 nodes N, N x (int32 triangle, uint16 vertex).
 """
@@ -32,6 +33,7 @@ SHOULDER, ELBOW, WRIST = (0.215, 1.445, -0.08), (0.39, 1.255, -0.11), (0.55, 1.1
 APP_CHIN, APP_NECK_Z = -0.90, -0.50
 K = 2.0 / (CROWN - CHIN)
 CUT = -0.80                     # the sculpt's head is cut off above this
+COLLAR = -0.96                  # where the bodysuit's neck ends, just under the app's chin, in the app's units
 # the head's triangle counts at Eco, Léger, Standard and Haute définition (Ultra is Haute définition here, as before)
 LEVELS = [20_588, 27_712, 37_161, 84_555]
 JACKET, TRIM, TROUSERS, BELT, SHOES, SKIN = range(6)
@@ -102,6 +104,8 @@ def arm_weights(Q):
 
 
 def parts(Q, side, arm, fore):
+    """What each vertex wears: the garment under it, then how much of the collar or cuff colour (trim) and of bare skin (bare) shows
+    over it, both 0..1 and blended so no edge follows the triangles."""
     x, y, z = Q[:, 0], Q[:, 1], Q[:, 2]
     part = np.full(len(Q), JACKET)
     hand_d = (W_ - E_) / np.linalg.norm(W_ - E_)
@@ -113,15 +117,16 @@ def parts(Q, side, arm, fore):
     belt = (y >= to_units((0, 0.955, 0))[1]) & (y < to_units((0, 0.99, 0))[1]) & ~on_arm
     part[belt] = BELT
     part[(y < to_units((0, 0.085, 0))[1])] = SHOES
-    # the neck above a crew collar
-    re = np.sqrt((x / 0.80) ** 2 + ((z - APP_NECK_Z) / 0.72) ** 2)
-    neck_top = y > to_units((0, 1.455, 0))[1]
-    part[neck_top & (re < 1.16)] = TRIM
-    part[neck_top & (re < 1.0)] = SKIN
-    # cuffs, then the hands
-    part[on_arm & (past_wrist > -0.22)] = TRIM
-    part[on_arm & (past_wrist > -0.02)] = SKIN
-    return part
+    # the bodysuit's neck up to just under the chin, ending in a thin ring of the theme's colour: no skin of its own on the neck, so
+    # the head's neck (drawn over it) only has to fade into cloth, never into another skin
+    tz = np.clip((z - APP_NECK_Z) / 0.55, -1.0, 1.0)
+    s = y - (COLLAR - 0.05 * tz)
+    ring = smoothstep(-0.26, -0.08, s)
+    bare = np.zeros(len(Q))
+    # the cuffs, then the hands out of them
+    hand = smoothstep(-0.06, 0.04, past_wrist) * on_arm
+    cuff = np.maximum(smoothstep(-0.26, -0.14, past_wrist) * on_arm - hand, 0.0)
+    return part, np.maximum(ring, cuff), np.maximum(bare, hand)
 
 
 def web(Pl, Fl, T):
@@ -158,7 +163,7 @@ def web(Pl, Fl, T):
     return E, N
 
 
-out = bytearray(b"JHB1") + struct.pack("<i", len(LEVELS))
+out = bytearray(b"JHB2") + struct.pack("<i", len(LEVELS))
 for s in (1, -1):
     for j in (S_, E_, W_): out += struct.pack("<3f", j[0] * s, j[1], j[2])
 for T in LEVELS:
@@ -166,7 +171,7 @@ for T in LEVELS:
     pl, fl = compact(pl.astype(np.float64), fl.astype(np.int64))
     nl = normals(pl, fl)
     side, arm, fore = arm_weights(pl)
-    part = parts(pl, side, arm, fore)
+    part, trim, bare = parts(pl, side, arm, fore)
     E, N = web(pl, fl, max(2000, T // 4))
     print(f"level {T}: {len(pl)} vertices, {len(fl)} triangles, web {len(E)} edges {len(N)} nodes")
     assert len(pl) < 65536
@@ -174,6 +179,8 @@ for T in LEVELS:
     out += pl.astype("<f4").tobytes()
     out += np.round(nl * 127).astype(np.int8).tobytes()
     out += part.astype(np.uint8).tobytes()
+    out += np.round(trim * 255).astype(np.uint8).tobytes()
+    out += np.round(bare * 255).astype(np.uint8).tobytes()
     out += side.astype(np.int8).tobytes()
     out += np.round(arm * 255).astype(np.uint8).tobytes()
     out += np.round(fore * 255).astype(np.uint8).tobytes()

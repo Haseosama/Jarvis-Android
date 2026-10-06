@@ -161,13 +161,14 @@ internal class ArBody(private val model: BodyModel) {
  */
 internal class BodyModel(val levels: List<Level>, val joints: List<FloatArray>) {
     class Level(
-        val pos: FloatArray, val nrm: FloatArray, val part: IntArray, val side: IntArray, val arm: FloatArray, val fore: FloatArray,
+        val pos: FloatArray, val nrm: FloatArray, val part: IntArray, val trim: FloatArray, val bare: FloatArray,
+        val side: IntArray, val arm: FloatArray, val fore: FloatArray,
         val tris: IntArray, val webA: IntArray, val webB: IntArray, val webNode: IntArray,
     ) {
         val vertexCount: Int get() = pos.size / 3
 
         /** A mesh to pose this level into: its own positions and normals, the rest shared. */
-        fun newMesh() = BodyMesh(pos.copyOf(), nrm.copyOf(), part, tris, webA, webB, webNode)
+        fun newMesh() = BodyMesh(pos.copyOf(), nrm.copyOf(), part, trim, bare, tris, webA, webB, webNode)
     }
 
     companion object {
@@ -181,7 +182,7 @@ internal class BodyModel(val levels: List<Level>, val joints: List<FloatArray>) 
 
         fun parse(bytes: ByteArray): BodyModel {
             val b = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
-            require(b.get() == 'J'.code.toByte() && b.get() == 'H'.code.toByte() && b.get() == 'B'.code.toByte() && b.get() == '1'.code.toByte()) { "not a body mesh" }
+            require(b.get() == 'J'.code.toByte() && b.get() == 'H'.code.toByte() && b.get() == 'B'.code.toByte() && b.get() == '2'.code.toByte()) { "not a body mesh" }
             val count = b.int
             val joints = List(2) { FloatArray(9) { b.float } }
             val levels = List(count) {
@@ -194,6 +195,8 @@ internal class BodyModel(val levels: List<Level>, val joints: List<FloatArray>) 
                     nrm[3 * i] = x / l; nrm[3 * i + 1] = y / l; nrm[3 * i + 2] = z / l
                 }
                 val part = IntArray(v) { b.get().toInt() and 0xFF }
+                val trim = FloatArray(v) { (b.get().toInt() and 0xFF) / 255f }
+                val bare = FloatArray(v) { (b.get().toInt() and 0xFF) / 255f }
                 val side = IntArray(v) { b.get().toInt() }
                 val arm = FloatArray(v) { (b.get().toInt() and 0xFF) / 255f }
                 val fore = FloatArray(v) { (b.get().toInt() and 0xFF) / 255f }
@@ -201,7 +204,7 @@ internal class BodyModel(val levels: List<Level>, val joints: List<FloatArray>) 
                 val webA = IntArray(t) { -1 }; val webB = IntArray(t) { -1 }; val webNode = IntArray(t) { -1 }
                 repeat(b.int) { val tri = b.int; webA[tri] = b.short.toInt() and 0xFFFF; webB[tri] = b.short.toInt() and 0xFFFF }
                 repeat(b.int) { val tri = b.int; webNode[tri] = b.short.toInt() and 0xFFFF }
-                Level(pos, nrm, part, side, arm, fore, tris, webA, webB, webNode)
+                Level(pos, nrm, part, trim, bare, side, arm, fore, tris, webA, webB, webNode)
             }
             return BodyModel(levels, joints)
         }
@@ -211,21 +214,21 @@ internal class BodyModel(val levels: List<Level>, val joints: List<FloatArray>) 
 /** Where the soles are, in head half-heights below the head's centre: the figure is about seven and a half heads tall. */
 internal const val BODY_FEET = -13.8f
 
-// what each part of the surface is made of (see bodyVertexColour)
+// the garment under each vertex (see bodyVertexColour); the collar, the cuffs and the bare skin are blended over them
 internal const val JACKET = 0
-internal const val TRIM = 1
 internal const val TROUSERS = 2
 internal const val BELT = 3
 internal const val SHOES = 4
-internal const val SKIN = 5
 
 /**
- * The surface: [pos] x, y, z and [nrm] the smooth outward normal per vertex, [part] per vertex, [tris] three vertex indices each
+ * The surface: [pos] x, y, z and [nrm] the smooth outward normal per vertex, per vertex the garment under it ([part]) with how much
+ * of the collar or cuff colour ([trim]) and of bare skin ([bare]) shows over it, [tris] three vertex indices each
  * (counter-clockwise seen from outside). The web of the dark look: [webA]-[webB] is the stretch of it a triangle carries (-1: none),
  * [webNode] its node (-1: none).
  */
 internal class BodyMesh(
-    val pos: FloatArray, val nrm: FloatArray, val part: IntArray, val tris: IntArray,
+    val pos: FloatArray, val nrm: FloatArray, val part: IntArray,
+    val trim: FloatArray, val bare: FloatArray, val tris: IntArray,
     val webA: IntArray = IntArray(tris.size / 3) { -1 }, val webB: IntArray = IntArray(tris.size / 3) { -1 },
     val webNode: IntArray = IntArray(tris.size / 3) { -1 },
 ) {
