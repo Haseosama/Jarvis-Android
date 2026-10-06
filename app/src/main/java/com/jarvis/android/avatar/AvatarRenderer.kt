@@ -25,13 +25,14 @@ private val CAP_COLOURS = intArrayOf(0, 0xFF1C1E24.toInt(), 0xFF23508F.toInt(), 
 private const val BUCKETS = 4
 private const val MIN_ALPHA = 0.05f
 /*
- * Over the camera the body's neck (ar/ArBody.kt) is the neck and goes on up inside the head: the head's own neck fades out from
- * CAMERA_NECK_GONE to CAMERA_NECK_WHOLE (heights in head half-heights), just under the jaw, and so does the jaw's underside behind
+ * Over the camera the body wears a high collar ending just under the chin (ar/ArBody.kt), so the head's own neck is not needed: it
+ * fades out from CAMERA_NECK_GONE to CAMERA_NECK_WHOLE (heights in head half-heights), gone before the collar begins, and so does the
+ * jaw's underside behind
  * the chin (behind CAMERA_CHIN_Z), from CAMERA_JAW_GONE to CAMERA_JAW_WHOLE, higher at the back of the head (behind CAMERA_NAPE_Z, up
  * to CAMERA_NAPE_WHOLE), so its ragged lower edge melts into the body's neck.
  */
-private const val CAMERA_NECK_GONE = -1.02f
-private const val CAMERA_NECK_WHOLE = -0.92f
+private const val CAMERA_NECK_GONE = -0.92f
+private const val CAMERA_NECK_WHOLE = -0.78f
 private const val CAMERA_JAW_GONE = -0.96f
 private const val CAMERA_JAW_WHOLE = -0.82f
 private const val CAMERA_NAPE_WHOLE = -0.55f

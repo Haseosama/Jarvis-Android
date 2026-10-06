@@ -24,7 +24,13 @@ class ArBodyTest {
         val width = xs(mesh).max() - xs(mesh).min()
         assertTrue("width $width", width in 3.6f..5.6f)
         assertEquals(0f, xs(mesh).max() + xs(mesh).min(), 0.25f)
-        assertTrue(mesh.part.all { it in JACKET..SKIN })
+        assertTrue(mesh.part.all { it == JACKET || it == TROUSERS || it == BELT || it == SHOES })
+        assertTrue(mesh.trim.all { it in 0f..1f } && mesh.bare.all { it in 0f..1f })
+        // the collar: a ring of the theme's colour round the neck under the chin, and no bare skin above it (the head's own neck is faded)
+        val collar = (0 until mesh.vertexCount).filter { mesh.trim[it] > 0.5f && mesh.pos[3 * it + 1] > -2f }
+        assertTrue("collar ${collar.size}", collar.size > 20)
+        assertTrue(collar.all { mesh.pos[3 * it + 1] in -1.4f..-0.2f })
+        assertTrue((0 until mesh.vertexCount).none { mesh.bare[it] > 0.1f && mesh.pos[3 * it + 1] > -2f })
     }
 
     @Test
@@ -78,7 +84,7 @@ class ArBodyTest {
         assertEquals(0f, still.talk, 1e-4f)
         assertTrue(talking.talk > 0.9f)
         // the highest point of the hands: higher when talking
-        fun handTop(b: ArBody) = b.build(PolygonLevel.ECO).let { m -> (0 until m.vertexCount).filter { m.part[it] == SKIN && m.pos[3 * it + 1] < -2f }.maxOf { m.pos[3 * it + 1] } }
+        fun handTop(b: ArBody) = b.build(PolygonLevel.ECO).let { m -> (0 until m.vertexCount).filter { m.bare[it] > 0.5f && m.pos[3 * it + 1] < -2f }.maxOf { m.pos[3 * it + 1] } }
         assertTrue("${handTop(talking)} vs ${handTop(still)}", handTop(talking) > handTop(still) + 1f)
         // and the arms go back down once the voice stops
         repeat(150) { _ -> talking.step(1f / 30f, 0f) }
@@ -160,7 +166,7 @@ class ArBodyTest {
         val pos = floatArrayOf(mesh.pos[3 * i], mesh.pos[3 * i + 1], mesh.pos[3 * i + 2], 0f, -5f, 0f, 0f, -5f, 0.1f)
         fun screenX(facing: Float): Float {
             // both windings, so the single triangle shows whichever way it faces
-            val one = BodyMesh(pos, FloatArray(9) { if (it % 3 == 2) 1f else 0f }, IntArray(3), intArrayOf(0, 1, 2, 0, 2, 1))
+            val one = BodyMesh(pos, FloatArray(9) { if (it % 3 == 2) 1f else 0f }, IntArray(3), FloatArray(3), FloatArray(3), intArrayOf(0, 1, 2, 0, 2, 1))
             return bodyDrawList(one, 0f, 0f, 0f, facing, AR_UNIT, view, proj, 1080, 2160)!!.let { l -> l.pos[0] }
         }
         assertTrue(screenX(0f) > 540f)
@@ -191,17 +197,21 @@ class ArBodyTest {
         val primary = 0xFF00E5FF.toInt()
         val look = BodyLook(1, primary, 0xFF0B0F14.toInt(), PolygonLevel.MEDIUM)
         // a hand facing the light is the face's skin tone, lit as the face's skin is
-        val lit = bodyVertexColour(SKIN, -0.55f, 0.5f, 0.67f, 0.67f, look, 0f)
-        val dark = bodyVertexColour(SKIN, 0.55f, -0.5f, 0.67f, 0.67f, look, 0f)
+        val lit = bodyVertexColour(JACKET, -0.55f, 0.5f, 0.67f, 0.67f, look, 0f, bare = 1f)
+        val dark = bodyVertexColour(JACKET, 0.55f, -0.5f, 0.67f, 0.67f, look, 0f, bare = 1f)
         assertEquals(0xFF, lit ushr 24)
         assertTrue((lit shr 16 and 0xFF) > (dark shr 16 and 0xFF))
         assertTrue((lit shr 16 and 0xFF) > (lit and 0xFF))   // warm
-        val seam = bodyVertexColour(TRIM, 0f, 0f, 1f, 1f, look, 0f)
+        val seam = bodyVertexColour(JACKET, 0f, 0f, 1f, 1f, look, 0f, trim = 1f)
+        // and half way out of the collar, half way between the cloth and it: the edge fades instead of following the triangles
+        val half = bodyVertexColour(JACKET, 0f, 0f, 1f, 1f, look, 0f, trim = 0.5f)
+        val cloth = bodyVertexColour(JACKET, 0f, 0f, 1f, 1f, look, 0f)
+        assertTrue((half and 0xFF) in (cloth and 0xFF)..(seam and 0xFF))
         assertTrue((seam and 0xFF) > (seam shr 16 and 0xFF))   // bluish, from the cyan theme
         // the blue hologram: a blue skin, its contour deep blue
         val blue = BodyLook(7, primary, 0xFF0B0F14.toInt(), PolygonLevel.MEDIUM)
-        val face = bodyVertexColour(SKIN, 0f, 0f, 1f, 1f, blue, 0f)
-        val edge = bodyVertexColour(SKIN, 0f, 0f, 1f, 0.05f, blue, 0f)
+        val face = bodyVertexColour(JACKET, 0f, 0f, 1f, 1f, blue, 0f, bare = 1f)
+        val edge = bodyVertexColour(JACKET, 0f, 0f, 1f, 0.05f, blue, 0f, bare = 1f)
         assertTrue((face and 0xFF) > (face shr 16 and 0xFF))
         assertTrue((edge and 0xFF) < (face and 0xFF))
     }
