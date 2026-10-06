@@ -24,10 +24,24 @@ private const val CAM_D = 4.6f
 private val CAP_COLOURS = intArrayOf(0, 0xFF1C1E24.toInt(), 0xFF23508F.toInt(), 0xFFB3282F.toInt(), 0xFFE9E9EE.toInt(), 0xFF3F5B3B.toInt(), 0xFF3B4744.toInt())
 private const val BUCKETS = 4
 private const val MIN_ALPHA = 0.05f
-/** Over the camera, where the head's neck has faded out (its fade, 1 on the head): about where it starts to flare. */
-private const val CAMERA_FADE_END = 0.7f
-/** ... and where it is whole again: the body's neck ends under it, just above. */
-private const val CAMERA_SOLID = 0.9f
+/*
+ * Over the camera the body's neck (ar/ArBody.kt) is the neck and goes on up inside the head: the head's own neck fades out from
+ * CAMERA_NECK_GONE to CAMERA_NECK_WHOLE (heights in head half-heights), just under the jaw, and so does the jaw's underside behind
+ * the chin (behind CAMERA_CHIN_Z), from CAMERA_JAW_GONE to CAMERA_JAW_WHOLE, higher at the back of the head (behind CAMERA_NAPE_Z, up
+ * to CAMERA_NAPE_WHOLE), so its ragged lower edge melts into the body's neck.
+ */
+private const val CAMERA_NECK_GONE = -1.02f
+private const val CAMERA_NECK_WHOLE = -0.92f
+private const val CAMERA_JAW_GONE = -0.96f
+private const val CAMERA_JAW_WHOLE = -0.82f
+private const val CAMERA_NAPE_WHOLE = -0.55f
+private const val CAMERA_CHIN_Z = 0.15f
+private const val CAMERA_NAPE_Z = -0.25f
+/** Over the camera, a flat-coloured triangle (no skin: no fading) is drawn when this much of it shows, a shaded one as soon as any does. */
+private const val CAMERA_FLAT_SHOWN = 0.5f
+private const val CAMERA_SHOWN = 0.02f
+/** The facing of a web node or circuit point left out over the camera: away from the viewer, so nothing is drawn there. */
+private const val HIDDEN = -2f
 private const val LUT_N = 192
 private const val BROW_HAIRS = 160
 private const val LID_COLUMNS = 9
@@ -123,6 +137,27 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
      * background (the skin looks), and no aura, halo or drifting lights float round the head.
      */
     var onCamera = false
+
+    /** How much of each vertex shows over the camera ([onCamera]), 0..1: see CAMERA_NECK_GONE. */
+    private val cameraFade: FloatArray by lazy {
+        val neck = BooleanArray(nV); val head = BooleanArray(nV)
+        for (t in 0 until nF) for (j in 0..2) { val i = mesh.faces[3 * t + j]; if (mesh.faceGroup[t] < 0.5f) neck[i] = true else head[i] = true }
+        FloatArray(nV) { i ->
+            val y = mesh.verts[3 * i + 1]; val z = mesh.verts[3 * i + 2]
+            when {
+                neck[i] && !head[i] -> smooth01(CAMERA_NECK_GONE, CAMERA_NECK_WHOLE, y)
+                z < CAMERA_CHIN_Z -> smooth01(CAMERA_JAW_GONE, if (z < CAMERA_NAPE_Z) CAMERA_NAPE_WHOLE else CAMERA_JAW_WHOLE, y)
+                else -> 1f
+            }
+        }
+    }
+
+    /** Over the camera, whether the triangle on vertices [a], [b], [c] shows enough to be drawn (always, off the camera). */
+    private fun shownOnCamera(a: Int, b: Int, c: Int, flat: Boolean): Boolean {
+        if (!onCamera) return true
+        val k = (cameraFade[a] + cameraFade[b] + cameraFade[c]) / 3f
+        return k >= if (flat) CAMERA_FLAT_SHOWN else CAMERA_SHOWN
+    }
 
     /** A ring of cyan light behind the head. */
     var halo = false
@@ -269,8 +304,9 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             if (cap > 0 && capGeo.hiddenFace[t]) continue
             if ((skin == 0 || (holo && !holoHair)) && mesh.faceGroup[t] > 1.5f) continue // the hair belongs to the skin looks, not to the web or the hologram
             val fadeAvg = (fade[a] + fade[b] + fade[c]) / 3f
-            val cutoff = if (onCamera) CAMERA_FADE_END else if (skin > 0) 0.15f else 0.4f
-            if (fadeAvg < cutoff) continue // the far end of the neck is left out: it would end on a ragged cut
+            if (onCamera) {
+                if (!shownOnCamera(a, b, c, flat = skin == 0)) { faceFront[t] = false; continue }
+            } else if (fadeAvg < if (skin > 0) 0.15f else 0.4f) continue // the far end of the neck is left out: it would end on a ragged cut
             bright *= (fade[a] * fade[a] + fade[b] * fade[b] + fade[c] * fade[c]) / 3f
             bright *= 0.88f + 0.24f * amp
             var col = lut[(bright * LUT_N).toInt().coerceIn(0, LUT_N - 1)]
@@ -356,14 +392,10 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
     }
 
     /**
-     * [c] at vertex [vi] fading out by [f] (1: all of it) to the background; [onCamera], to nothing instead, and sooner: the body's
-     * neck carries on below, so the head's neck ends before it flares out towards the shoulders.
+     * [c] at vertex [vi] fading out by [f] (1: all of it) to the background; [onCamera], to nothing instead, under the jaw, where the
+     * body's neck goes on (see CAMERA_NECK_GONE).
      */
-    private fun faded(c: Int, f: Float, vi: Int): Int {
-        if (!onCamera) return mix(bgColor, c, f)
-        val u = ((mesh.fade[vi] - CAMERA_FADE_END) / (CAMERA_SOLID - CAMERA_FADE_END)).coerceIn(0f, 1f)
-        return withAlpha(c, 255f * u * u * (3f - 2f * u))
-    }
+    private fun faded(c: Int, f: Float, vi: Int): Int = if (onCamera) withAlpha(c, 255f * cameraFade[vi]) else mix(bgColor, c, f)
 
     private fun mix(base: Int, other: Int, f: Float): Int {
         fun ch(shift: Int): Int {
@@ -596,14 +628,14 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val u = w.wu[i]; val q = w.wv[i]; val s = 1f - u - q
             wx[i] = s * xs[a] + u * xs[b] + q * xs[c]
             wy[i] = s * ys[a] + u * ys[b] + q * ys[c]
-            wz[i] = s * nrm[3 * a + 2] + u * nrm[3 * b + 2] + q * nrm[3 * c + 2]
+            wz[i] = if (shownOnCamera(a, b, c, flat = true)) s * nrm[3 * a + 2] + u * nrm[3 * b + 2] + q * nrm[3 * c + 2] else HIDDEN
         }
         webLineCounts.fill(0); webNodeCounts.fill(0)
         val e = w.edges
         for (k in 0 until e.size / 2) {
             val i = e[2 * k]; val j = e[2 * k + 1]
             val nzi = wz[i]; val nzj = wz[j]
-            if (nzi < 0.05f && nzj < 0.05f) continue
+            if ((nzi < 0.05f && nzj < 0.05f) || nzi == HIDDEN || nzj == HIDDEN) continue
             val fres = Math.pow((1f - 0.5f * (nzi + nzj)).coerceIn(0f, 1f).toDouble(), 2.4).toFloat()
             var a = (0.30f + 0.55f * fres) * 0.5f * (w.fade[i] * w.fade[i] + w.fade[j] * w.fade[j]) * gain
             if (nzi < 0.15f || nzj < 0.15f) a *= 0.6f
@@ -775,7 +807,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val u = c.wu[i]; val q = c.wv[i]; val w = 1f - u - q
             cx[i] = w * xs[a] + u * xs[b] + q * xs[d]
             cy[i] = w * ys[a] + u * ys[b] + q * ys[d]
-            cz[i] = w * nrm[3 * a + 2] + u * nrm[3 * b + 2] + q * nrm[3 * d + 2]
+            cz[i] = if (shownOnCamera(a, b, d, flat = true)) w * nrm[3 * a + 2] + u * nrm[3 * b + 2] + q * nrm[3 * d + 2] else HIDDEN
         }
         circuitLineCounts.fill(0)
         val gain = 0.8f + 0.4f * amp
@@ -850,7 +882,7 @@ internal class AvatarRenderer(private val mesh: HeadMesh) {
             val u = c.wu[i]; val q = c.wv[i]; val w = 1f - u - q
             cx[i] = w * xs[a] + u * xs[b] + q * xs[d]
             cy[i] = w * ys[a] + u * ys[b] + q * ys[d]
-            cz[i] = w * nrm[3 * a + 2] + u * nrm[3 * b + 2] + q * nrm[3 * d + 2]
+            cz[i] = if (shownOnCamera(a, b, d, flat = true)) w * nrm[3 * a + 2] + u * nrm[3 * b + 2] + q * nrm[3 * d + 2] else HIDDEN
         }
         return c
     }

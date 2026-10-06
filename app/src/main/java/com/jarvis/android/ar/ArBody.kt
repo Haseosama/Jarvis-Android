@@ -1,30 +1,29 @@
 package com.jarvis.android.ar
 
 import com.jarvis.android.avatar.PolygonLevel
-import kotlin.math.PI
-import kotlin.math.ceil
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.cos
 import kotlin.math.exp
-import kotlin.math.max
-import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Haseo's body for the table: a figure about five and a half heads tall, in the head's own units: the head's half-height is 1, its centre
- * at the origin, +y up, +z to the front, +x to the right of someone facing it; the soles stand at y = [BODY_FEET].
- * Each limb, the torso with the neck, the shoes and the hands is one smooth surface swept along a curve through its joints (a ring of
- * points every [bodySpacing], closed by round ends), cut as finely as the head is at the chosen polygon level and shaded per vertex
- * as its skin is (see bodyDrawList), so the body is the same kind of mesh as the head on top of it.
- * It breathes, shifts its weight now and then, and moves its arms while the voice speaks.
+ * Haseo's body for the table: a sculpted adult man's body (assets/avatar/body_mesh.bin, see [BodyModel]) about seven and a half heads
+ * tall in a bodysuit, in the head's own units: the head's half-height is 1, its centre at the origin, +y up, +z to the front, +x to
+ * the right of someone facing it; the soles stand at y = [BODY_FEET]. Its own head is cut off under the app's, which is drawn over it.
+ * It has as many triangles as the head at each polygon level and is shaded per vertex as its skin is (see bodyDrawList), so the body
+ * is the same kind of mesh as the head on top of it.
+ * It breathes, shifts its weight now and then, and moves its arms while the voice speaks: the sculpt stands with its arms out (an
+ * A-pose), and each frame turns them down to the sides at the shoulders and the elbows, the skin round the joints following both bones.
  */
-internal class ArBody {
+internal class ArBody(private val model: BodyModel) {
     var time = 0f
         private set
     /** 0..1: how much the arms are talking, eased from the voice's loudness. */
     var talk = 0f
         private set
-    private var shape: BodyShape? = null
+    private val meshes = HashMap<Int, BodyMesh>()
 
     /** Moves the animation on by [dt] seconds, the voice at [level] (0..1). */
     fun step(dt: Float, level: Float) {
@@ -36,124 +35,181 @@ internal class ArBody {
 
     /** The body in its pose at the current time, cut for [level]. The mesh's arrays are overwritten by the next call. */
     fun build(level: PolygonLevel = PolygonLevel.MEDIUM): BodyMesh {
-        val parts = pose()
-        val s = shape?.takeIf { it.level == level } ?: BodyShape(level, parts).also { shape = it }
-        s.place(parts)
-        return s.mesh
+        val index = BodyModel.levelIndex(level)
+        val shape = model.levels[index]
+        val mesh = meshes.getOrPut(index) { shape.newMesh() }
+        pose(shape, mesh)
+        return mesh
     }
 
-    /** Every shape in its pose: a path of keys from one end to the other, the surface passing smoothly through them. */
-    fun pose(): List<List<Key>> {
+    private fun pose(shape: BodyModel.Level, mesh: BodyMesh) {
         val t = time
         val breath = sin(t * 1.5f)
-        // the weight shifting from one leg to the other, slowly: the whole upper body sways a little
+        // the weight shifting from one leg to the other, slowly: the upper body sways a little over the hips
         val shift = 0.06f * sin(t * 0.35f)
-        val chest = 1f + 0.022f * breath
-        val lift = 0.03f * breath
-        val parts = ArrayList<List<Key>>()
-
-        // the torso from the crotch to the neck: trousers, a belt, the jacket rounding over the shoulders into a collar of the
-        // theme's colour, then the neck. The neck is the head's own, carried on down: as thick and as far back as the head's neck
-        // where that one fades out over it (its keys are in the head's units, the rest of the body set back by BODY_BACK under it)
-        parts += listOf(
-            Key(shift, -5.10f, 0f, 0.55f, 0.42f, TROUSERS),
-            Key(shift, -4.85f, 0f, 0.96f, 0.62f, TROUSERS),
-            Key(shift, -4.42f, 0f, 0.95f, 0.60f, BELT),
-            Key(shift, -4.20f, 0f, 0.92f, 0.59f, JACKET),
-            Key(shift, -3.40f, 0f, 0.86f, 0.56f, JACKET),
-            Key(shift, -2.60f, 0.03f, 1.02f * chest, 0.64f * chest, JACKET),
-            Key(shift, -2.00f + lift, 0.01f, 1.12f * chest, 0.62f * chest, JACKET),
-            Key(shift, -1.70f + lift, -0.04f, 1.04f, 0.56f, JACKET),
-            Key(shift * 0.6f, -1.52f + lift, -0.10f, 0.74f, 0.64f, TRIM),
-        ).map { it.back() } + listOf(
-            Key(shift * 0.4f, -1.42f + lift, -0.62f, 0.66f, 0.61f, SKIN),
-            Key(shift * 0.2f, -1.22f, -0.62f, 0.60f, 0.59f, SKIN),
-            Key(0f, -1.05f, -0.58f, 0.55f, 0.60f, SKIN),
-            // narrowing inside the head's neck, which covers it from there on: whole higher up, turned with the body and not with
-            // the head, it would show past the head's nape when the head turns
-            Key(0f, -0.92f, -0.54f, 0.47f, 0.52f, SKIN),
-            Key(0f, -0.80f, -0.50f, 0.32f, 0.36f, SKIN),
-        )
-
-        // the legs: a little apart, straight, the knee and the calf marked; the shoes from the heel to the toe, flat
-        for (s in SIDES) {
-            parts += listOf(
-                Key(s * 0.46f + shift * 0.3f, -4.70f, 0f, 0.47f, 0.45f, TROUSERS),
-                Key(s * 0.45f + shift * 0.15f, -6.00f, 0.01f, 0.41f, 0.40f, TROUSERS),
-                Key(s * 0.44f, -7.35f, 0.04f, 0.33f, 0.33f, TROUSERS),
-                Key(s * 0.43f, -8.20f, -0.02f, 0.35f, 0.34f, TROUSERS),
-                Key(s * 0.42f, -9.55f, 0f, 0.24f, 0.24f, TROUSERS),
-            )
-            parts += listOf(
-                Key(s * 0.42f, -9.80f, -0.24f, 0.25f, 0.21f, SHOES),
-                Key(s * 0.43f, -9.81f, 0.22f, 0.27f, 0.21f, SHOES),
-                Key(s * 0.44f, -9.84f, 0.70f, 0.21f, 0.16f, SHOES),
-            )
-        }
-
-        // the arms: at rest a little out from the body; speaking, one gestures and the other follows a little
-        for (s in SIDES) {
-            val shoulder = v(s * 1.16f + shift, -1.98f + lift, -0.02f)
+        // per side: the turn of the upper arm at the shoulder (r1) and of the forearm at the elbow after it (r2 · r1)
+        val r1 = Array(2) { FloatArray(9) }; val r21 = Array(2) { FloatArray(9) }; val elbow = Array(2) { FloatArray(3) }
+        for (k in 0..1) {
+            val s = if (k == 0) 1f else -1f
+            val j = model.joints[k]
             val lead = if (s > 0f) 1f else 0.35f
             val wave = sin(t * (2.1f + 0.4f * s) + s)
-            val abduct = 0.13f + 0.02f * sin(t * 0.7f + s) + talk * lead * 0.16f
+            val abduct = REST_ABDUCT + 0.02f * sin(t * 0.7f + s) + talk * lead * 0.16f
             val flex = 0.05f + talk * lead * (0.32f + 0.14f * wave)
-            val bend = 0.20f + talk * lead * (0.85f + 0.30f * sin(t * 3.3f + 2f * s))
-            val upper = limbDirection(s, abduct, flex)
-            val elbow = add(shoulder, upper, UPPER_ARM)
-            val fore = limbDirection(s, abduct * 0.6f, flex + bend)
-            val wrist = add(elbow, fore, FOREARM)
-            parts += listOf(
-                key(shoulder, 0.35f, 0.35f, JACKET),
-                key(add(shoulder, upper, UPPER_ARM * 0.5f), 0.34f, 0.33f, JACKET),
-                key(elbow, 0.28f, 0.28f, JACKET),
-                key(add(elbow, fore, FOREARM * 0.5f), 0.27f, 0.26f, JACKET),
-                key(add(wrist, fore, -0.20f), 0.23f, 0.23f, TRIM),
-                key(wrist, 0.245f, 0.245f, TRIM),
-            )
-            // the hand: flat, its palm to the thigh (thin across, wide front to back)
-            parts += listOf(
-                key(add(wrist, fore, -0.05f), 0.10f, 0.14f, SKIN),
-                key(add(wrist, fore, HAND * 0.35f), 0.11f, 0.21f, SKIN),
-                key(add(wrist, fore, HAND * 0.75f), 0.09f, 0.18f, SKIN),
-                key(add(wrist, fore, HAND), 0.07f, 0.11f, SKIN),
-            )
+            val bend = 0.22f + talk * lead * (0.85f + 0.30f * sin(t * 3.3f + 2f * s))
+            val upper0 = floatArrayOf(j[3] - j[0], j[4] - j[1], j[5] - j[2])
+            val fore0 = floatArrayOf(j[6] - j[3], j[7] - j[4], j[8] - j[5])
+            turn(upper0, limbDirection(s, abduct, flex), r1[k])
+            val e = apply(r1[k], upper0)
+            elbow[k][0] = j[0] + e[0]; elbow[k][1] = j[1] + e[1]; elbow[k][2] = j[2] + e[2]
+            val r2 = FloatArray(9)
+            turn(apply(r1[k], fore0), limbDirection(s, abduct * 0.5f, flex + bend), r2)
+            times(r2, r1[k], r21[k])
         }
-        return parts.mapIndexed { i, keys -> if (i == 0) keys else keys.map { it.back() } }
+        val rest = shape.pos; val restN = shape.nrm
+        val pos = mesh.pos; val nrm = mesh.nrm
+        for (i in 0 until shape.vertexCount) {
+            var x = rest[3 * i]; var y = rest[3 * i + 1]; var z = rest[3 * i + 2]
+            var nx = restN[3 * i]; var ny = restN[3 * i + 1]; var nz = restN[3 * i + 2]
+            val arm = shape.arm[i]
+            if (arm > 0f) {
+                val k = if (shape.side[i] > 0) 0 else 1
+                val j = model.joints[k]
+                val fore = shape.fore[i]
+                // with the upper arm: about the shoulder
+                val ux = x - j[0]; val uy = y - j[1]; val uz = z - j[2]
+                val a = r1[k]
+                val upX = j[0] + a[0] * ux + a[1] * uy + a[2] * uz
+                val upY = j[1] + a[3] * ux + a[4] * uy + a[5] * uz
+                val upZ = j[2] + a[6] * ux + a[7] * uy + a[8] * uz
+                // with the forearm: about the elbow, wherever the upper arm took it
+                val fx = x - j[3]; val fy = y - j[4]; val fz = z - j[5]
+                val b = r21[k]; val e = elbow[k]
+                val foX = e[0] + b[0] * fx + b[1] * fy + b[2] * fz
+                val foY = e[1] + b[3] * fx + b[4] * fy + b[5] * fz
+                val foZ = e[2] + b[6] * fx + b[7] * fy + b[8] * fz
+                val wu = arm * (1f - fore); val wf = arm * fore; val w0 = 1f - arm
+                x = w0 * x + wu * upX + wf * foX; y = w0 * y + wu * upY + wf * foY; z = w0 * z + wu * upZ + wf * foZ
+                val anx = a[0] * nx + a[1] * ny + a[2] * nz; val any = a[3] * nx + a[4] * ny + a[5] * nz; val anz = a[6] * nx + a[7] * ny + a[8] * nz
+                val bnx = b[0] * nx + b[1] * ny + b[2] * nz; val bny = b[3] * nx + b[4] * ny + b[5] * nz; val bnz = b[6] * nx + b[7] * ny + b[8] * nz
+                nx = w0 * nx + wu * anx + wf * bnx; ny = w0 * ny + wu * any + wf * bny; nz = w0 * nz + wu * anz + wf * bnz
+                val l = sqrt(nx * nx + ny * ny + nz * nz).coerceAtLeast(1e-9f)
+                nx /= l; ny /= l; nz /= l
+            }
+            // breathing: the chest and the shoulders over it widen and rise a little
+            val chest = smooth(CHEST_LOW, CHEST_MID, rest[3 * i + 1]) * (1f - smooth(CHEST_MID, CHEST_HIGH, rest[3 * i + 1]))
+            val grow = 1f + 0.022f * breath * chest
+            x *= grow
+            z = BREATH_AXIS_Z + (z - BREATH_AXIS_Z) * grow
+            y += 0.03f * breath * smooth(CHEST_LOW, CHEST_HIGH, rest[3 * i + 1])
+            // the sway: nothing at the feet, all of it from the hips up
+            x += shift * smooth(BODY_FEET, HIPS, rest[3 * i + 1])
+            pos[3 * i] = x; pos[3 * i + 1] = y; pos[3 * i + 2] = z
+            nrm[3 * i] = nx; nrm[3 * i + 1] = ny; nrm[3 * i + 2] = nz
+        }
     }
 
-    /** The key set back under the head (see BODY_BACK). */
-    private fun Key.back() = Key(x, y, z + BODY_BACK, ru, rv, part)
-
-    /** A point the surface passes through, [ru] its radius across and [rv] front to back (for an upright path), [part] its material up to the next key. */
-    class Key(val x: Float, val y: Float, val z: Float, val ru: Float, val rv: Float, val part: Int)
-
     companion object {
-        const val UPPER_ARM = 1.75f
-        const val FOREARM = 1.55f
-        const val HAND = 0.55f
         const val TALK_ATTACK = 0.12f
         const val TALK_RELEASE = 0.7f
-        private val SIDES = floatArrayOf(1f, -1f)
+        /** How far out from the sides the arms hang at rest (radians): clear of the sculpt's broad back and hips. */
+        const val REST_ABDUCT = 0.17f
+        // where the chest breathes, in the head's units (from the waist up through the chest to the collar), and about which depth
+        private const val CHEST_LOW = -4.7f
+        private const val CHEST_MID = -3.0f
+        private const val CHEST_HIGH = -1.6f
+        private const val BREATH_AXIS_Z = -0.4f
+        private const val HIPS = -6.0f
 
         /** Down, swung out to the side [s] by [abduct] and forwards by [flex] (radians). */
         fun limbDirection(s: Float, abduct: Float, flex: Float): FloatArray =
             floatArrayOf(s * sin(abduct), -cos(abduct) * cos(flex), cos(abduct) * sin(flex))
 
-        private fun v(x: Float, y: Float, z: Float) = floatArrayOf(x, y, z)
-        private fun add(p: FloatArray, d: FloatArray, k: Float) = floatArrayOf(p[0] + d[0] * k, p[1] + d[1] * k, p[2] + d[2] * k)
-        private fun key(p: FloatArray, ru: Float, rv: Float, part: Int) = Key(p[0], p[1], p[2], ru, rv, part)
+        private fun smooth(e0: Float, e1: Float, x: Float): Float {
+            val u = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f)
+            return u * u * (3f - 2f * u)
+        }
+
+        /** The shortest turn taking direction [from] to [to], into [out] (3 × 3, row-major). */
+        private fun turn(from: FloatArray, to: FloatArray, out: FloatArray) {
+            val a = normalise(from); val b = normalise(to)
+            val v = cross(a, b)
+            val s = length(v); val c = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+            out.fill(0f); out[0] = 1f; out[4] = 1f; out[8] = 1f
+            if (s < 1e-6f) return
+            val kx = v[0] / s; val ky = v[1] / s; val kz = v[2] / s
+            val q = 1f - c
+            out[0] = c + kx * kx * q; out[1] = kx * ky * q - kz * s; out[2] = kx * kz * q + ky * s
+            out[3] = ky * kx * q + kz * s; out[4] = c + ky * ky * q; out[5] = ky * kz * q - kx * s
+            out[6] = kz * kx * q - ky * s; out[7] = kz * ky * q + kx * s; out[8] = c + kz * kz * q
+        }
+
+        private fun apply(m: FloatArray, v: FloatArray) = floatArrayOf(
+            m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[3] * v[0] + m[4] * v[1] + m[5] * v[2], m[6] * v[0] + m[7] * v[1] + m[8] * v[2],
+        )
+
+        private fun times(a: FloatArray, b: FloatArray, out: FloatArray) {
+            for (r in 0..2) for (c in 0..2) out[3 * r + c] = a[3 * r] * b[c] + a[3 * r + 1] * b[3 + c] + a[3 * r + 2] * b[6 + c]
+        }
     }
 }
 
-/** Where the soles are, in head half-heights below the head's centre: the figure is about 5.5 heads tall. */
-internal const val BODY_FEET = -10.05f
-
 /**
- * How far the body stands behind the head's centre, in head half-heights: the head's origin is near the front of the face (its eye
- * line), its neck well behind it, so the shoulders and all go back with the neck. It turns about the same upright line as the head.
+ * The sculpted body, as tools/avatar/export_body.py wrote it: per polygon level its rest pose (arms out), what each vertex is made of,
+ * how much it follows the upper arm and the forearm, its triangles and the web of the dark look; and each side's shoulder, elbow
+ * and wrist ([joints], left side first: x > 0).
  */
-internal const val BODY_BACK = -0.5f
+internal class BodyModel(val levels: List<Level>, val joints: List<FloatArray>) {
+    class Level(
+        val pos: FloatArray, val nrm: FloatArray, val part: IntArray, val side: IntArray, val arm: FloatArray, val fore: FloatArray,
+        val tris: IntArray, val webA: IntArray, val webB: IntArray, val webNode: IntArray,
+    ) {
+        val vertexCount: Int get() = pos.size / 3
+
+        /** A mesh to pose this level into: its own positions and normals, the rest shared. */
+        fun newMesh() = BodyMesh(pos.copyOf(), nrm.copyOf(), part, tris, webA, webB, webNode)
+    }
+
+    companion object {
+        /** Eco, Léger, Standard, Haute définition; Ultra is Haute définition (what it adds on the head is the hair's own triangles). */
+        fun levelIndex(level: PolygonLevel) = when (level) {
+            PolygonLevel.ECO -> 0
+            PolygonLevel.LOW -> 1
+            PolygonLevel.MEDIUM -> 2
+            PolygonLevel.HIGH, PolygonLevel.ULTRA -> 3
+        }
+
+        fun parse(bytes: ByteArray): BodyModel {
+            val b = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+            require(b.get() == 'J'.code.toByte() && b.get() == 'H'.code.toByte() && b.get() == 'B'.code.toByte() && b.get() == '1'.code.toByte()) { "not a body mesh" }
+            val count = b.int
+            val joints = List(2) { FloatArray(9) { b.float } }
+            val levels = List(count) {
+                val v = b.int; val t = b.int
+                val pos = FloatArray(v * 3) { b.float }
+                val nrm = FloatArray(v * 3)
+                for (i in 0 until v) {
+                    val x = b.get() / 127f; val y = b.get() / 127f; val z = b.get() / 127f
+                    val l = sqrt(x * x + y * y + z * z).coerceAtLeast(1e-6f)
+                    nrm[3 * i] = x / l; nrm[3 * i + 1] = y / l; nrm[3 * i + 2] = z / l
+                }
+                val part = IntArray(v) { b.get().toInt() and 0xFF }
+                val side = IntArray(v) { b.get().toInt() }
+                val arm = FloatArray(v) { (b.get().toInt() and 0xFF) / 255f }
+                val fore = FloatArray(v) { (b.get().toInt() and 0xFF) / 255f }
+                val tris = IntArray(t * 3) { b.short.toInt() and 0xFFFF }
+                val webA = IntArray(t) { -1 }; val webB = IntArray(t) { -1 }; val webNode = IntArray(t) { -1 }
+                repeat(b.int) { val tri = b.int; webA[tri] = b.short.toInt() and 0xFFFF; webB[tri] = b.short.toInt() and 0xFFFF }
+                repeat(b.int) { val tri = b.int; webNode[tri] = b.short.toInt() and 0xFFFF }
+                Level(pos, nrm, part, side, arm, fore, tris, webA, webB, webNode)
+            }
+            return BodyModel(levels, joints)
+        }
+    }
+}
+
+/** Where the soles are, in head half-heights below the head's centre: the figure is about seven and a half heads tall. */
+internal const val BODY_FEET = -13.8f
 
 // what each part of the surface is made of (see bodyVertexColour)
 internal const val JACKET = 0
@@ -164,21 +220,9 @@ internal const val SHOES = 4
 internal const val SKIN = 5
 
 /**
- * How far apart the body's rings, and the points round each, are at the head's polygon [level], in head half-heights: about the
- * length of the head's own skin edges at that level (a little more, since a ring's quad cut in two also has a diagonal), the finer
- * levels halving it as the head's cut each triangle in four. Ultra is High: what it adds on the head is the hair's own triangles.
- */
-internal fun bodySpacing(level: PolygonLevel): Float = when (level) {
-    PolygonLevel.ECO -> 0.098f
-    PolygonLevel.LOW -> 0.084f
-    PolygonLevel.MEDIUM -> 0.072f
-    PolygonLevel.HIGH, PolygonLevel.ULTRA -> 0.048f
-}
-
-/**
  * The surface: [pos] x, y, z and [nrm] the smooth outward normal per vertex, [part] per vertex, [tris] three vertex indices each
- * (counter-clockwise seen from outside). The web of the dark look runs round the rings and down the sides: [webA]-[webB] is the
- * stretch of it a triangle carries (-1: none), [webNode] its node (-1: none).
+ * (counter-clockwise seen from outside). The web of the dark look: [webA]-[webB] is the stretch of it a triangle carries (-1: none),
+ * [webNode] its node (-1: none).
  */
 internal class BodyMesh(
     val pos: FloatArray, val nrm: FloatArray, val part: IntArray, val tris: IntArray,
@@ -187,202 +231,6 @@ internal class BodyMesh(
 ) {
     val triangleCount: Int get() = tris.size / 3
     val vertexCount: Int get() = pos.size / 3
-}
-
-/** The body's points and triangles for one polygon [level], laid out once from a first pose; [place] moves them to each new pose. */
-internal class BodyShape(val level: PolygonLevel, firstPose: List<List<ArBody.Key>>) {
-    private class Layout(val keys: Int, val sides: Int, val tube: Int, val cap0: Int, val cap1: Int, val first: Int) {
-        val rings get() = cap0 + tube + cap1
-        val pole0 get() = first + rings * sides
-        val pole1 get() = pole0 + 1
-        val cosA = FloatArray(sides) { cos(2f * PI.toFloat() * it / sides) }
-        val sinA = FloatArray(sides) { sin(2f * PI.toFloat() * it / sides) }
-    }
-
-    private val layouts: List<Layout>
-    val mesh: BodyMesh
-
-    init {
-        val sp = bodySpacing(level)
-        var first = 0
-        val ls = ArrayList<Layout>()
-        for (keys in firstPose) {
-            val length = Path(keys).length
-            val perimeter = keys.maxOf { PI.toFloat() * (it.ru + it.rv) }
-            val sides = max(12, ceil(perimeter / sp).toInt())
-            val tube = max(2, ceil(length / sp).toInt() + 1)
-            fun cap(k: ArBody.Key) = max(1, ceil(PI.toFloat() / 2f * 0.5f * (k.ru + k.rv) / sp).toInt() - 1)
-            val l = Layout(keys.size, sides, tube, cap(keys.first()), cap(keys.last()), first)
-            ls += l
-            first = l.pole1 + 1
-        }
-        layouts = ls
-        val stride = max(1, (WEB_SPACING / sp).roundToInt())
-        val tris = ArrayList<Int>()
-        val webA = ArrayList<Int>(); val webB = ArrayList<Int>(); val webNode = ArrayList<Int>()
-        fun tri(a: Int, b: Int, c: Int, wa: Int = -1, wb: Int = -1, node: Int = -1) { tris += a; tris += b; tris += c; webA += wa; webB += wb; webNode += node }
-        for (l in layouts) {
-            val s = l.sides
-            fun at(r: Int, k: Int) = l.first + r * s + (k % s)
-            for (r in 0 until l.rings - 1) for (k in 0 until s) {
-                val ringLine = r % stride == 0
-                val sideLine = k % stride == 0
-                tri(at(r, k), at(r, k + 1), at(r + 1, k + 1), if (ringLine) at(r, k) else -1, if (ringLine) at(r, k + 1) else -1, if (ringLine && sideLine) at(r, k) else -1)
-                tri(at(r, k), at(r + 1, k + 1), at(r + 1, k), if (sideLine) at(r, k) else -1, if (sideLine) at(r + 1, k) else -1)
-            }
-            for (k in 0 until s) {
-                tri(l.pole0, at(0, k + 1), at(0, k))
-                tri(l.pole1, at(l.rings - 1, k), at(l.rings - 1, k + 1))
-            }
-        }
-        mesh = BodyMesh(FloatArray(first * 3), FloatArray(first * 3), IntArray(first), tris.toIntArray(), webA.toIntArray(), webB.toIntArray(), webNode.toIntArray())
-    }
-
-    /** Moves every point to the shapes of [pose] (the same shapes, with as many keys each, as the first). */
-    fun place(pose: List<List<ArBody.Key>>) {
-        val pos = mesh.pos; val nrm = mesh.nrm; val part = mesh.part
-        val sample = FloatArray(8)
-        for ((index, l) in layouts.withIndex()) {
-            val keys = pose[index]
-            require(keys.size == l.keys)
-            val path = Path(keys)
-            val rings = l.rings
-            val c = FloatArray(rings * 3); val d = FloatArray(rings * 3); val ru = FloatArray(rings); val rv = FloatArray(rings); val mat = IntArray(rings)
-            for (j in 0 until l.tube) {
-                val r = l.cap0 + j
-                mat[r] = path.at(path.length * j / (l.tube - 1), sample)
-                for (q in 0..2) { c[3 * r + q] = sample[q]; d[3 * r + q] = sample[3 + q] }
-                // the torso's rings stay level: where its middle moves back towards the neck, tilted rings this wide would fold
-                if (index == 0) { d[3 * r] = 0f; d[3 * r + 1] = 1f; d[3 * r + 2] = 0f }
-                ru[r] = sample[6]; rv[r] = sample[7]
-            }
-            // the round ends: rings shrinking as on a ball, out to a point beyond the first and the last key
-            val start = l.cap0; val end = l.cap0 + l.tube - 1
-            val e0 = 0.5f * (ru[start] + rv[start]); val e1 = 0.5f * (ru[end] + rv[end])
-            for (m in 1..l.cap0) {
-                val a = PI.toFloat() / 2f * m / (l.cap0 + 1)
-                val r = start - m
-                for (q in 0..2) { c[3 * r + q] = c[3 * start + q] - d[3 * start + q] * e0 * sin(a); d[3 * r + q] = d[3 * start + q] }
-                ru[r] = ru[start] * cos(a); rv[r] = rv[start] * cos(a); mat[r] = mat[start]
-            }
-            for (m in 1..l.cap1) {
-                val a = PI.toFloat() / 2f * m / (l.cap1 + 1)
-                val r = end + m
-                for (q in 0..2) { c[3 * r + q] = c[3 * end + q] + d[3 * end + q] * e1 * sin(a); d[3 * r + q] = d[3 * end + q] }
-                ru[r] = ru[end] * cos(a); rv[r] = rv[end] * cos(a); mat[r] = mat[end]
-            }
-            // each ring's own axes, carried along the path so that the rings do not twist
-            var u = sideAxis(d[0], d[1], d[2])
-            for (r in 0 until rings) {
-                val dx = d[3 * r]; val dy = d[3 * r + 1]; val dz = d[3 * r + 2]
-                if (r > 0) {
-                    val k = u[0] * dx + u[1] * dy + u[2] * dz
-                    val moved = floatArrayOf(u[0] - dx * k, u[1] - dy * k, u[2] - dz * k)
-                    u = if (length(moved) > 1e-4f) normalise(moved) else sideAxis(dx, dy, dz)
-                }
-                val w = cross(floatArrayOf(dx, dy, dz), u)   // d × u: with u, w, d right-handed the rings wind so the facets face out
-                for (k in 0 until l.sides) {
-                    val cu = l.cosA[k] * ru[r]; val sw = l.sinA[k] * rv[r]
-                    val vi = l.first + r * l.sides + k
-                    pos[3 * vi] = c[3 * r] + u[0] * cu + w[0] * sw
-                    pos[3 * vi + 1] = c[3 * r + 1] + u[1] * cu + w[1] * sw
-                    pos[3 * vi + 2] = c[3 * r + 2] + u[2] * cu + w[2] * sw
-                    part[vi] = mat[r]
-                }
-            }
-            for (q in 0..2) {
-                pos[3 * l.pole0 + q] = c[3 * start + q] - d[3 * start + q] * e0
-                pos[3 * l.pole1 + q] = c[3 * end + q] + d[3 * end + q] * e1
-                nrm[3 * l.pole0 + q] = -d[3 * start + q]
-                nrm[3 * l.pole1 + q] = d[3 * end + q]
-            }
-            part[l.pole0] = mat[0]; part[l.pole1] = mat[rings - 1]
-            // smooth normals, from the neighbours round the ring and along the path (the poles past the ends): (round) × (along)
-            for (r in 0 until rings) for (k in 0 until l.sides) {
-                val vi = l.first + r * l.sides + k
-                val next = l.first + r * l.sides + (k + 1) % l.sides
-                val prev = l.first + r * l.sides + (k + l.sides - 1) % l.sides
-                val up = if (r + 1 < rings) vi + l.sides else l.pole1
-                val down = if (r > 0) vi - l.sides else l.pole0
-                val tx = pos[3 * next] - pos[3 * prev]; val ty = pos[3 * next + 1] - pos[3 * prev + 1]; val tz = pos[3 * next + 2] - pos[3 * prev + 2]
-                val bx = pos[3 * up] - pos[3 * down]; val by = pos[3 * up + 1] - pos[3 * down + 1]; val bz = pos[3 * up + 2] - pos[3 * down + 2]
-                val nx = ty * bz - tz * by; val ny = tz * bx - tx * bz; val nz = tx * by - ty * bx
-                val len = sqrt(nx * nx + ny * ny + nz * nz).coerceAtLeast(1e-9f)
-                nrm[3 * vi] = nx / len; nrm[3 * vi + 1] = ny / len; nrm[3 * vi + 2] = nz / len
-            }
-        }
-    }
-
-    companion object {
-        /** How far apart the lines of the web are on the body: about as the nodes of the head's (NetworkWeb). */
-        const val WEB_SPACING = 0.058f
-
-        /** A side axis square to ([dx], [dy], [dz]): across (x) when the path stands up, so ru is the width and rv the depth. */
-        private fun sideAxis(dx: Float, dy: Float, dz: Float): FloatArray {
-            val d = floatArrayOf(dx, dy, dz)
-            var u = cross(d, floatArrayOf(0f, 0f, 1f))
-            if (length(u) < 0.3f) u = cross(cross(d, floatArrayOf(1f, 0f, 0f)), d)
-            u = normalise(u)
-            if (u[0] < 0f || (u[0] == 0f && u[1] < 0f)) u = floatArrayOf(-u[0], -u[1], -u[2])
-            return u
-        }
-    }
-}
-
-/** A smooth curve through [keys] (Catmull-Rom), measured along its length; [at] reads the centre, direction and radii at a distance. */
-private class Path(private val keys: List<ArBody.Key>) {
-    private val n = keys.size
-    private val table = FloatArray((n - 1) * SUB + 1)     // the distance along the curve at each of SUB steps per segment
-    val length: Float
-
-    init {
-        val p = FloatArray(3); val q = FloatArray(3)
-        point(0f, p)
-        for (i in 1 until table.size) {
-            point(i.toFloat() / SUB, q)
-            table[i] = table[i - 1] + sqrt((q[0] - p[0]) * (q[0] - p[0]) + (q[1] - p[1]) * (q[1] - p[1]) + (q[2] - p[2]) * (q[2] - p[2]))
-            p[0] = q[0]; p[1] = q[1]; p[2] = q[2]
-        }
-        length = table.last()
-    }
-
-    /** At [distance] along the curve: [out] gets x, y, z, the unit direction, then the two radii; returns the material there. */
-    fun at(distance: Float, out: FloatArray): Int {
-        var i = 0
-        while (i < table.size - 2 && table[i + 1] < distance) i++
-        val span = (table[i + 1] - table[i]).coerceAtLeast(1e-9f)
-        val last = (n - 1).toFloat()
-        val param = ((i + ((distance - table[i]) / span).coerceIn(0f, 1f)) / SUB).coerceIn(0f, last)
-        point(param, out)
-        val a = FloatArray(3); val b = FloatArray(3)
-        point((param - 0.02f).coerceAtLeast(0f), a); point((param + 0.02f).coerceAtMost(last), b)
-        val dir = normalise(floatArrayOf(b[0] - a[0], b[1] - a[1], b[2] - a[2]))
-        out[3] = dir[0]; out[4] = dir[1]; out[5] = dir[2]
-        val seg = param.toInt().coerceAtMost(n - 2)
-        val u = param - seg
-        out[6] = spline(seg, u) { it.ru }.coerceAtLeast(0.02f)
-        out[7] = spline(seg, u) { it.rv }.coerceAtLeast(0.02f)
-        return keys[if (u > 0.999f) seg + 1 else seg].part
-    }
-
-    private fun point(param: Float, out: FloatArray) {
-        val seg = param.toInt().coerceIn(0, n - 2)
-        val u = param - seg
-        out[0] = spline(seg, u) { it.x }; out[1] = spline(seg, u) { it.y }; out[2] = spline(seg, u) { it.z }
-    }
-
-    /** One value of the keys along the curve, from key [seg] to the next at [u] (0..1); past the ends the curve goes straight on. */
-    private inline fun spline(seg: Int, u: Float, value: (ArBody.Key) -> Float): Float {
-        val p1 = value(keys[seg]); val p2 = value(keys[seg + 1])
-        val p0 = if (seg > 0) value(keys[seg - 1]) else 2f * p1 - p2
-        val p3 = if (seg + 2 < n) value(keys[seg + 2]) else 2f * p2 - p1
-        val u2 = u * u; val u3 = u2 * u
-        return 0.5f * (2f * p1 + (p2 - p0) * u + (2f * p0 - 5f * p1 + 4f * p2 - p3) * u2 + (3f * p1 - p0 - 3f * p2 + p3) * u3)
-    }
-
-    companion object {
-        const val SUB = 16
-    }
 }
 
 internal fun cross(a: FloatArray, b: FloatArray) = floatArrayOf(a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])

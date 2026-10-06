@@ -97,6 +97,9 @@ class ArFaceActivity : ComponentActivity() {
         if (!granted) mode.value = Mode.NO_CAMERA
     }
 
+    /** Haseo's body (assets/avatar/body_mesh.bin), read once for both modes. */
+    private val bodyModel: BodyModel by lazy { BodyModel.parse(assets.open("avatar/body_mesh.bin").use { it.readBytes() }) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -261,7 +264,7 @@ class ArFaceActivity : ComponentActivity() {
         }, modifier = Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { spot.value = it } })
         // a camera of its own looking at him from in front, a little above, as a phone held over a table would
         val size = androidx.compose.runtime.remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
-        val stage = androidx.compose.runtime.remember { ArStage() }
+        val stage = androidx.compose.runtime.remember { ArStage(bodyModel) }
         val placed = androidx.compose.runtime.remember { mutableStateOf<ArPlacement?>(null) }
         val voice by androidx.compose.runtime.rememberUpdatedState(level)
         val look by androidx.compose.runtime.rememberUpdatedState(bodyLookOf(controller))
@@ -328,7 +331,7 @@ class ArFaceActivity : ComponentActivity() {
     /** Draws the camera's picture and works out where the face stands, on the GL thread, at the camera's pace. */
     private inner class ArRenderer(private val view: GLSurfaceView) : GLSurfaceView.Renderer {
         private val background = ArBackground()
-        private val stage = ArStage()
+        private val stage = ArStage(bodyModel)
         private val viewMatrix = FloatArray(16)
         private val projection = FloatArray(16)
         private var anchor: Anchor? = null
@@ -444,15 +447,12 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStage(p: ArPlac
     val stroke = density * 1.1f
     drawIntoCanvas { canvas ->
         val nc = canvas.nativeCanvas
-        var from = 0
+        if (runPos.size < b.count * 6) { runPos = FloatArray(b.count * 6); runColour = IntArray(b.count * 3) }
         for (c in 0 until BodyDrawList.CHUNKS) {
-            val to = b.chunkEnd[c]
-            if (to > from) {
-                nc.drawVertices(
-                    android.graphics.Canvas.VertexMode.TRIANGLES, (to - from) * 6, b.pos, from * 6, null, 0, b.colour, from * 3, null, 0, 0, BODY_PAINT,
-                )
+            val n = b.chunk(c, runPos, runColour)
+            if (n > 0) {
+                nc.drawVertices(android.graphics.Canvas.VertexMode.TRIANGLES, n * 6, runPos, 0, null, 0, runColour, 0, null, 0, 0, BODY_PAINT)
             }
-            from = to
             BODY_WEB.strokeCap = android.graphics.Paint.Cap.BUTT
             BODY_WEB.strokeWidth = maxOf(0.8f, stroke * 0.6f)
             for (bk in 0 until BodyDrawList.LINE_BUCKETS) {
@@ -474,6 +474,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStage(p: ArPlac
     }
 }
 
+// one run of the body's triangles at a time, from offset 0 (see BodyDrawList.chunk); drawn on the main thread only
+private var runPos = FloatArray(0)
+private var runColour = IntArray(0)
 private val BODY_PAINT = android.graphics.Paint().apply { isAntiAlias = false }
 private val BODY_WEB = android.graphics.Paint().apply { isAntiAlias = true; style = android.graphics.Paint.Style.STROKE }
 // the web's nodes, as the head's: sizes and alphas of the three brightnesses

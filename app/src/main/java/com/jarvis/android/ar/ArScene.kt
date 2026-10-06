@@ -20,9 +20,9 @@ internal class ArPlacement(
 }
 
 /** Haseo standing somewhere: his look (see [ArLook]) and his body (see [ArBody]), moved on and placed a frame at a time. */
-internal class ArStage {
+internal class ArStage(model: BodyModel) {
     private val look = ArLook()
-    private val body = ArBody()
+    private val body = ArBody(model)
 
     /** What [com.jarvis.android.avatar.HoloAvatar.aim] takes, from the last [frame]; null before the first. */
     var aim: FloatArray? = null
