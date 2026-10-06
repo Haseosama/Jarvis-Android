@@ -97,6 +97,9 @@ class ArFaceActivity : ComponentActivity() {
         if (!granted) mode.value = Mode.NO_CAMERA
     }
 
+    /** Haseo's body (assets/avatar/body_mesh.bin), read once for both modes. */
+    private val bodyModel: BodyModel by lazy { BodyModel.parse(assets.open("avatar/body_mesh.bin").use { it.readBytes() }) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -261,7 +264,7 @@ class ArFaceActivity : ComponentActivity() {
         }, modifier = Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { spot.value = it } })
         // a camera of its own looking at him from in front, a little above, as a phone held over a table would
         val size = androidx.compose.runtime.remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
-        val stage = androidx.compose.runtime.remember { ArStage() }
+        val stage = androidx.compose.runtime.remember { ArStage(bodyModel) }
         val placed = androidx.compose.runtime.remember { mutableStateOf<ArPlacement?>(null) }
         val voice by androidx.compose.runtime.rememberUpdatedState(level)
         val look by androidx.compose.runtime.rememberUpdatedState(bodyLookOf(controller))
@@ -328,7 +331,7 @@ class ArFaceActivity : ComponentActivity() {
     /** Draws the camera's picture and works out where the face stands, on the GL thread, at the camera's pace. */
     private inner class ArRenderer(private val view: GLSurfaceView) : GLSurfaceView.Renderer {
         private val background = ArBackground()
-        private val stage = ArStage()
+        private val stage = ArStage(bodyModel)
         private val viewMatrix = FloatArray(16)
         private val projection = FloatArray(16)
         private var anchor: Anchor? = null

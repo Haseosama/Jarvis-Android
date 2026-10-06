@@ -48,3 +48,10 @@ Hairstyles (assets/avatar/hair, chosen in Settings > Appearance > Hairstyle): ta
 and "12 Real-time woman Hairstyles collection 09" (https://sketchfab.com/3d-models/12-real-time-woman-hairstyles-collection-09-a2464050ef6f447dbff9ecde1fdb36ca).
 Changes: each style taken off its head (tools/avatar/prepare_hair.py), the parts hidden inside the head left out, the heaviest thinned by
 leaving out some strands (tools/avatar/export_hair.py), fitted onto the chosen face and coloured in the app (avatar/HairStyle.kt).
+
+Haseo's body in augmented reality (assets/avatar/body_mesh.bin) is based on "Anatomy Basemesh Human Male Body Model Sculpture"
+(https://sketchfab.com/3d-models/anatomy-basemesh-human-male-body-model-sculpture-8c49edd7e9bd4dc7ba3c4b493b00d7ab) by zeroran
+(https://sketchfab.com/zeroran), licensed under Creative Commons Attribution 4.0 (CC BY 4.0, http://creativecommons.org/licenses/by/4.0/).
+Changes: welded, put in the head's units, its head cut off and the top of its neck narrowed, simplified from 1.13 million triangles to
+the head's count at each polygon level, given materials (a bodysuit), arm weights and a web (tools/avatar/export_body.py); the app turns
+its arms down from the A-pose and animates them.

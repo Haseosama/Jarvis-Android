@@ -633,7 +633,7 @@ fun SettingsScreen(
                 }
             }
             Text(
-                tr("Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; tête : scan de Lee Perry-Smith (CC BY 3.0, aussi celle de Haseo) ; visage Léa : « Female Head Sculpt » d'Aconear (CC BY 4.0) ; visage Marc : « Realistic Male head » de Ouail (CC BY 4.0) ; repères du visage : MediaPipe (Apache-2.0)."),
+                tr("Visage adapté de Mark-LIV (FatihMakes, licence CC BY-NC 4.0 : usage non commercial) ; tête : scan de Lee Perry-Smith (CC BY 3.0, aussi celle de Haseo) ; visage Léa : « Female Head Sculpt » d'Aconear (CC BY 4.0) ; visage Marc : « Realistic Male head » de Ouail (CC BY 4.0) ; corps de Haseo en réalité augmentée : « Anatomy Basemesh Human Male Body Model Sculpture » de zeroran (CC BY 4.0) ; repères du visage : MediaPipe (Apache-2.0)."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(bottom = 8.dp),
             )

@@ -1255,17 +1255,26 @@ also shown in the settings.
 - **Haseo on the table, in augmented reality** (since 0.9.78; `ar/ArFaceActivity.kt`, `ar/ArLook.kt`, `haseo_realite_augmentee`). The
   cube button at the top of the main screen (shown while the face is on), or "pose-toi sur la table", opens the back camera. With ARCore
   ("Services Google Play pour la RA", offered for install the first time when the phone supports it), Jarvis looks for a table ("bouge
-  doucement le téléphone en visant la table"), then a touch on it puts Haseo there, standing, as a figure about 40 cm tall with a soft
+  doucement le téléphone en visant la table"), then a touch on it puts Haseo there, standing, as a figure about 42 cm tall with a soft
   shadow under his feet; he stays on that spot when the phone moves, grows as you come closer, and another touch moves him. Since 0.9.79
-  he has a whole body (`ar/ArBody.kt`): since 0.9.81 about seven heads tall as an adult (the thigh full at the top, knee, calf, the shoulder's round, the forearm fuller near the elbow, a hand with its thumb, about 42 cm in all), a dark jacket with seams of the theme's colour, a belt, dark
-  trousers and shoes, the neck and hands in the face's skin tone. Since 0.9.80 the body is the same kind of mesh as the head: each limb,
-  the torso with its neck, the shoes and the hands is one smooth surface swept along a curve through the joints (`BodyShape`, rings of
-  points closed by round ends), with as many triangles as the head at each *Finesse du maillage* level (about 20 200 at Éco, 27 700 at
-  Léger, 37 700 at Standard, 84 200 at Haute définition; Ultra is the same, what it adds on the head being its hair), shaded per vertex
-  with the head's light and its skin formulas, now shared (`avatar/SkinShade.kt`): the skin with its sheen, the holograms' cool contour
-  and blue skin, and, with the dark web look, the head's dark facets with a web of lines and twinkling nodes along the rings and down the
-  sides, drawn in runs from far to near so the nearer body covers it (`ar/BodyPaint.kt`; each run is copied to the start of a buffer before `Canvas.drawVertices`, which crashes the app when given a vertex offset without texture coordinates, as 0.9.80 did). The bust is one with the body: since 0.9.81 the shoulders are broader and slope up to a crew collar, and over the camera the body's neck is the neck, slimmer than the head's and leaning forward a little, going on up inside the head (the body set back under it by `BODY_BACK`), while the head's own neck fades out just under the jaw and the jaw's underside melts softly into it (`AvatarRenderer.cameraFade`); the head is drawn with no aura, halo or drifting lights round it (`AvatarRenderer.onCamera`). (0.9.79's body was a few hundred flat
-  facets, eight round each limb.) He breathes, shifts his weight now and then, and talks
+  he has a whole body (`ar/ArBody.kt`). Since 0.9.81 it is a sculpted adult man's body, "Anatomy Basemesh Human Male Body Model
+  Sculpture" by zeroran (Sketchfab, CC BY 4.0, see `assets/avatar/NOTICE.txt`), about seven and a half heads tall (42 cm), in a bodysuit
+  over its muscles: a dark top with a crew collar and cuffs of the theme's colour, a belt, dark trousers and shoes, the neck and hands in
+  the face's skin tone. `tools/avatar/export_body.py` welds its 1.13 million triangles, puts it in the head's units under the head (its
+  chin at the head's chin, its neck under the head's), cuts its own head off, narrows the top of its neck a little to stay inside the
+  jaw, and simplifies it once per *Finesse du maillage* level to as many triangles as the head (20 588 at Éco, 27 712 at Léger, 37 161 at
+  Standard, 84 555 at Haute définition; Ultra is the same, what it adds on the head being its hair), with what each vertex is made of,
+  how much it follows the upper arm and the forearm, and the web of the dark look (`assets/avatar/body_mesh.bin`, read by `BodyModel`;
+  rebuild: `python tools/avatar/export_body.py <folder with scene.gltf> app/src/main/assets/avatar/body_mesh.bin`, needs numpy and
+  fast-simplification). The sculpt stands with its arms out; each frame the app turns them down to its sides at the shoulders and the
+  elbows, the skin round the joints following both bones. It is shaded per vertex with the head's light and its skin formulas, shared
+  (`avatar/SkinShade.kt`): the skin with its sheen, the holograms' cool contour and blue skin, and, with the dark web look, the head's
+  dark facets with a web of lines and twinkling nodes, drawn in runs from far to near so the nearer body covers it (`ar/BodyPaint.kt`;
+  each run is copied to the start of a buffer before `Canvas.drawVertices`, which crashes the app when given a vertex offset without
+  texture coordinates, as 0.9.80 did). Over the camera the body's neck is the neck, going on up inside the head, while the head's own neck
+  fades out just under the jaw and the jaw's underside melts softly into it (`AvatarRenderer.cameraFade`); the head is drawn with no aura,
+  halo or drifting lights round it (`AvatarRenderer.onCamera`). (0.9.79's body was a few hundred flat facets, eight round each limb, and
+  0.9.80's smooth surfaces swept along its limbs.) He breathes, shifts his weight now and then, and talks
   with his arms while the voice speaks (one hand comes up and moves, the other follows a little), then lets them fall again. It turns to you as
   you walk round it: its body follows the camera a moment late, so you see the head turned away a little then catching up, while the eyes,
   quicker, stay on you (with a glance aside every few seconds); from above, it lifts its face and eyes to you (`ArLook`, fed to the face

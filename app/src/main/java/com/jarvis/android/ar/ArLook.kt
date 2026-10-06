@@ -6,10 +6,10 @@ import kotlin.math.exp
 import kotlin.math.sqrt
 
 /**
- * The head's half-height on the table, in metres, and so the unit the body is built in (see ArBody): a head 6 cm tall on a figure
+ * The head's half-height on the table, in metres, and so the unit the body is built in (see ArBody): a head 5.6 cm tall on a figure
  * about 42 cm tall.
  */
-internal const val AR_UNIT = 0.030f
+internal const val AR_UNIT = 0.028f
 
 /**
  * Where a world point falls on the screen: [x], [y] in pixels (y down), [depth] in metres in front of the camera, and [scale] the pixels
