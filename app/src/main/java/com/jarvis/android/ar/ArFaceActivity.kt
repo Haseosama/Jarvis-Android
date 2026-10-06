@@ -85,6 +85,8 @@ class ArFaceActivity : ComponentActivity() {
     private val simpleWhy = mutableStateOf("")
     private val hint = MutableStateFlow(HINT_LOOK)
     private val placement = MutableStateFlow<ArPlacement?>(null)
+    /** How the face is drawn (its look, the theme, its polygon level), for the GL thread to draw the body the same way. */
+    @Volatile private var bodyLook = BodyLook.DEFAULT
 
     private var session: Session? = null
     private var installRequested = false
@@ -221,11 +223,11 @@ class ArFaceActivity : ComponentActivity() {
         val placed by placement.collectAsState()
         val line by hint.collectAsState()
         val shown = placed
+        val look = bodyLookOf(controller)
+        androidx.compose.runtime.SideEffect { bodyLook = look }
         if (shown != null) {
-            val skin = controller.skin
-            val primary = MaterialTheme.colorScheme.primary.toArgb()
-            Canvas(Modifier.fillMaxSize()) { drawStage(shown, skin, primary) }
-            AvatarView(controller, state, level, Modifier.layout { measurable, _ ->
+            Canvas(Modifier.fillMaxSize()) { drawStage(shown, look.primary) }
+            AvatarView(controller, state, level, onCamera = true, modifier = Modifier.layout { measurable, _ ->
                 // read in the layout step: the head moves with the camera without the screen being composed again
                 val p = placement.value ?: shown
                 val side = p.side.roundToInt().coerceAtLeast(1)
@@ -262,6 +264,7 @@ class ArFaceActivity : ComponentActivity() {
         val stage = androidx.compose.runtime.remember { ArStage() }
         val placed = androidx.compose.runtime.remember { mutableStateOf<ArPlacement?>(null) }
         val voice by androidx.compose.runtime.rememberUpdatedState(level)
+        val look by androidx.compose.runtime.rememberUpdatedState(bodyLookOf(controller))
         androidx.compose.runtime.LaunchedEffect(stage) {
             var last = 0L
             while (true) {
@@ -272,17 +275,15 @@ class ArFaceActivity : ComponentActivity() {
                     if (w == 0 || h == 0) return@withFrameNanos
                     val view = lookAt(0f, SIMPLE_EYE_HEIGHT, SIMPLE_EYE_DISTANCE, 0f, SIMPLE_TARGET_HEIGHT, 0f)
                     val frame = stage.frame(dt, voice, view,
-                        perspective(SIMPLE_FOV, w.toFloat() / h), w, h, 0f, 0f, 0f, 0f, SIMPLE_EYE_HEIGHT, SIMPLE_EYE_DISTANCE)
+                        perspective(SIMPLE_FOV, w.toFloat() / h), w, h, 0f, 0f, 0f, 0f, SIMPLE_EYE_HEIGHT, SIMPLE_EYE_DISTANCE, look)
                     controller.avatar.aim = stage.aim
                     placed.value = frame?.let { p -> spot.value?.let { at -> p.shifted(at.x - p.shadowX, at.y - p.shadowY) } ?: p }
                 }
             }
         }
-        val skin = controller.skin
-        val primary = MaterialTheme.colorScheme.primary.toArgb()
-        Canvas(Modifier.fillMaxSize().onSizeChanged { size.value = it }) { placed.value?.let { drawStage(it, skin, primary) } }
+        Canvas(Modifier.fillMaxSize().onSizeChanged { size.value = it }) { placed.value?.let { drawStage(it, look.primary) } }
         placed.value?.let { p ->
-            AvatarView(controller, state, level, Modifier.layout { measurable, _ ->
+            AvatarView(controller, state, level, onCamera = true, modifier = Modifier.layout { measurable, _ ->
                 val q = placed.value ?: p
                 val side = q.side.roundToInt().coerceAtLeast(1)
                 val placeable = measurable.measure(Constraints.fixed(side, side))
@@ -396,7 +397,7 @@ class ArFaceActivity : ComponentActivity() {
             val base = a.pose
             val eye = camera.pose
             val level = (application as JarvisApp).container.engine.outputLevel.value
-            val placed = stage.frame(dt, level, viewMatrix, projection, width, height, base.tx(), base.ty(), base.tz(), eye.tx(), eye.ty(), eye.tz())
+            val placed = stage.frame(dt, level, viewMatrix, projection, width, height, base.tx(), base.ty(), base.tz(), eye.tx(), eye.ty(), eye.tz(), bodyLook)
             (application as JarvisApp).container.avatar.avatar.aim = stage.aim
             if (placed == null) {
                 placement.value = null
@@ -421,8 +422,18 @@ class ArFaceActivity : ComponentActivity() {
     }
 }
 
-/** Draws the shadow on the table and the body over it (the face view goes on top). */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStage(p: ArPlacement, skin: Int, primary: Int) {
+/** How the face is drawn now, for the body: its look, the theme's colours and the head's polygon level. */
+@Composable
+private fun bodyLookOf(controller: com.jarvis.android.avatar.AvatarController): BodyLook {
+    val scheme = MaterialTheme.colorScheme
+    return BodyLook(controller.skin, scheme.primary.toArgb(), scheme.background.toArgb(), controller.polygonLevel)
+}
+
+/**
+ * Draws the shadow on the table and the body over it (the face view goes on top): the body's triangles run by run, far to near,
+ * each run's web (the dark look) right after it, as the head's web is drawn over its surface.
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStage(p: ArPlacement, primary: Int) {
     val w = p.shadowWidth; val h = p.shadowHeight
     drawOval(
         Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.45f), Color.Transparent), center = Offset(p.shadowX, p.shadowY), radius = w / 2f),
@@ -430,16 +441,41 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStage(p: ArPlac
     )
     val b = p.body
     if (b.count == 0) return
-    val colours = IntArray(b.count * 3)
-    for (t in 0 until b.count) {
-        val c = bodyColour(b.part[t], b.light[t], skin, primary)
-        colours[3 * t] = c; colours[3 * t + 1] = c; colours[3 * t + 2] = c
-    }
+    val stroke = density * 1.1f
     drawIntoCanvas { canvas ->
-        canvas.nativeCanvas.drawVertices(
-            android.graphics.Canvas.VertexMode.TRIANGLES, b.count * 6, b.pos, 0, null, 0, colours, 0, null, 0, 0, BODY_PAINT,
-        )
+        val nc = canvas.nativeCanvas
+        var from = 0
+        for (c in 0 until BodyDrawList.CHUNKS) {
+            val to = b.chunkEnd[c]
+            if (to > from) {
+                nc.drawVertices(
+                    android.graphics.Canvas.VertexMode.TRIANGLES, (to - from) * 6, b.pos, from * 6, null, 0, b.colour, from * 3, null, 0, 0, BODY_PAINT,
+                )
+            }
+            from = to
+            BODY_WEB.strokeCap = android.graphics.Paint.Cap.BUTT
+            BODY_WEB.strokeWidth = maxOf(0.8f, stroke * 0.6f)
+            for (bk in 0 until BodyDrawList.LINE_BUCKETS) {
+                val s = b.lineStart[c * BodyDrawList.LINE_BUCKETS + bk]; val e = b.lineStart[c * BodyDrawList.LINE_BUCKETS + bk + 1]
+                if (e <= s) continue
+                BODY_WEB.color = (primary and 0xFFFFFF) or (((bk + 0.5f) / 4f * 0.95f * 255f).toInt() shl 24)
+                nc.drawLines(b.lines, s, e - s, BODY_WEB)
+            }
+            BODY_WEB.strokeCap = android.graphics.Paint.Cap.ROUND
+            for (bk in 0 until BodyDrawList.NODE_BUCKETS) {
+                val s = b.nodeStart[c * BodyDrawList.NODE_BUCKETS + bk]; val e = b.nodeStart[c * BodyDrawList.NODE_BUCKETS + bk + 1]
+                if (e <= s) continue
+                BODY_WEB.strokeWidth = NODE_SIZES[bk] * (stroke / 2.5f).coerceIn(0.8f, 1.6f)
+                val alpha = NODE_ALPHAS[bk] shl 24
+                BODY_WEB.color = if (bk == 2) com.jarvis.android.avatar.mixRgbOpaque(primary, 0xFFFFFFFF.toInt(), 0.55f) else (primary and 0xFFFFFF) or alpha
+                nc.drawPoints(b.nodes, s, e - s, BODY_WEB)
+            }
+        }
     }
 }
 
-private val BODY_PAINT = android.graphics.Paint().apply { isAntiAlias = true }
+private val BODY_PAINT = android.graphics.Paint().apply { isAntiAlias = false }
+private val BODY_WEB = android.graphics.Paint().apply { isAntiAlias = true; style = android.graphics.Paint.Style.STROKE }
+// the web's nodes, as the head's: sizes and alphas of the three brightnesses
+private val NODE_SIZES = floatArrayOf(1.3f, 2.1f, 3.4f)
+private val NODE_ALPHAS = intArrayOf(160, 208, 255)
