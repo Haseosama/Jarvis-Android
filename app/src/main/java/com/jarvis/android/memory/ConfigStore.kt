@@ -206,6 +206,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_AVATAR_HAIR = stringPreferencesKey("avatar_hair")
     private val KEY_AVATAR_HAIR_COLOUR = stringPreferencesKey("avatar_hair_colour")
     private val KEY_GOOGLE = booleanPreferencesKey("google_connected")
+    private val KEY_GOOGLE_CLEANUP = booleanPreferencesKey("google_cleanup")
     private val KEY_AVATAR_SKIN = intPreferencesKey("avatar_face_skin")
     private val KEY_MESSAGE_AUTO_SEND = booleanPreferencesKey("message_auto_send")
     private val KEY_GMAIL_AUTO_SEND = booleanPreferencesKey("gmail_auto_send")
@@ -262,6 +263,9 @@ class ConfigStore(private val context: Context) {
     /** True (default): the HUD shows the holographic face; false: the reactor core. */
     /** Whether the user connected their Google account for Gmail and Drive. */
     val googleConnected: Flow<Boolean> = context.dataStore.data.map { it[KEY_GOOGLE] ?: false }
+
+    /** The user once allowed sorting the mail: every later « Reconnecter Google » asks for it again, so it is not lost on the way. */
+    val googleCleanup: Flow<Boolean> = context.dataStore.data.map { it[KEY_GOOGLE_CLEANUP] ?: false }
     val avatarFace: Flow<Boolean> = context.dataStore.data.map { it[KEY_AVATAR_FACE] ?: true }
     /** The light avatar: half the frame rate and no fine hair strands, for a phone that struggles (or to save battery). */
     val avatarLight: Flow<Boolean> = context.dataStore.data.map { it[KEY_AVATAR_LIGHT] ?: false }
@@ -333,6 +337,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setChatHistoryEnabled(v: Boolean) = context.dataStore.edit { it[KEY_CHAT_HISTORY] = v }
     suspend fun snapshotChatHistoryEnabled() = chatHistoryEnabled.first()
     suspend fun setGoogleConnected(v: Boolean) = context.dataStore.edit { it[KEY_GOOGLE] = v }
+    suspend fun setGoogleCleanup(v: Boolean) = context.dataStore.edit { it[KEY_GOOGLE_CLEANUP] = v }
     suspend fun setAvatarFace(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_FACE] = v }
     suspend fun setAvatarLight(v: Boolean) = context.dataStore.edit { it[KEY_AVATAR_LIGHT] = v }
     suspend fun setAvatarHair(face: String, hair: String) = setPerFace(KEY_AVATAR_HAIR, face, hair)

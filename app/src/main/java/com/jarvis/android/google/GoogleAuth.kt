@@ -56,8 +56,10 @@ internal object GoogleAuth {
         val token = result.accessToken
         when {
             token != null -> Result.success(token)
-            // the sorting scopes were never granted: the rest of Google still works
-            cleanup && result.hasResolution() -> Result.failure(GoogleException(NO_CLEANUP))
+            // the sorting scopes are missing: never granted, or the whole grant expired (then say so, the fix is to reconnect)
+            cleanup && result.hasResolution() ->
+                if (authorize(context).accessToken == null) Result.failure(GoogleException(EXPIRED, needsReconnect = true))
+                else Result.failure(GoogleException(NO_CLEANUP))
             // Google wants the consent again: the grant was withdrawn, or it expired (about a week in test mode)
             result.hasResolution() -> Result.failure(GoogleException(EXPIRED, needsReconnect = true))
             else -> Result.failure(GoogleException(NOT_CONNECTED, needsReconnect = true))
