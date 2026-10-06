@@ -17,7 +17,7 @@ class ArBodyTest {
         val mesh = ArBody().build()
         assertEquals(BODY_FEET, ys(mesh).min(), 0.12f)
         // nothing pokes up through the face: the neck ends inside the head's lower half
-        assertTrue("top ${ys(mesh).max()}", ys(mesh).max() < -0.3f)
+        assertTrue("top ${ys(mesh).max()}", ys(mesh).max() < -0.2f)
         // shoulders and arms about as wide as two and a half heads
         val width = xs(mesh).max() - xs(mesh).min()
         assertTrue("width $width", width in 2.6f..4.2f)

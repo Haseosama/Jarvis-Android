@@ -1264,11 +1264,7 @@ also shown in the settings.
   Léger, 37 700 at Standard, 84 200 at Haute définition; Ultra is the same, what it adds on the head being its hair), shaded per vertex
   with the head's light and its skin formulas, now shared (`avatar/SkinShade.kt`): the skin with its sheen, the holograms' cool contour
   and blue skin, and, with the dark web look, the head's dark facets with a web of lines and twinkling nodes along the rings and down the
-  sides, drawn in runs from far to near so the nearer body covers it (`ar/BodyPaint.kt`; each run is copied to the start of a buffer before `Canvas.drawVertices`, which crashes the app when given a vertex offset without texture coordinates, as 0.9.80 did). The bust is one with the body: the body's neck
-  carries the head's own on down (as thick and as far back, the body set back under it by `BODY_BACK`) and closes up inside it; the
-  head's neck turns less and less with the head towards its foot, which turns with the body as the camera sees it (`HoloAvatar.aim`'s
-  fifth and sixth values, from `ArLook`), and over the camera it fades out to nothing over the body's before it flares towards the
-  shoulders, with no aura, halo or drifting lights round the head (`AvatarRenderer.onCamera`). (0.9.79's body was a few hundred flat
+  sides, drawn in runs from far to near so the nearer body covers it (`ar/BodyPaint.kt`; each run is copied to the start of a buffer before `Canvas.drawVertices`, which crashes the app when given a vertex offset without texture coordinates, as 0.9.80 did). The bust is one with the body: since 0.9.81 the shoulders are broader and slope up to a crew collar, and over the camera the body's neck is the neck, slimmer than the head's and leaning forward a little, going on up inside the head (the body set back under it by `BODY_BACK`), while the head's own neck fades out just under the jaw and the jaw's underside melts softly into it (`AvatarRenderer.cameraFade`); the head is drawn with no aura, halo or drifting lights round it (`AvatarRenderer.onCamera`). (0.9.79's body was a few hundred flat
   facets, eight round each limb.) He breathes, shifts his weight now and then, and talks
   with his arms while the voice speaks (one hand comes up and moves, the other follows a little), then lets them fall again. It turns to you as
   you walk round it: its body follows the camera a moment late, so you see the head turned away a little then catching up, while the eyes,

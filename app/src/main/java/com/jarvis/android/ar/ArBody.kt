@@ -52,27 +52,28 @@ internal class ArBody {
         val lift = 0.03f * breath
         val parts = ArrayList<List<Key>>()
 
-        // the torso from the crotch to the neck: trousers, a belt, the jacket rounding over the shoulders into a collar of the
-        // theme's colour, then the neck. The neck is the head's own, carried on down: as thick and as far back as the head's neck
-        // where that one fades out over it (its keys are in the head's units, the rest of the body set back by BODY_BACK under it)
+        // the torso from the crotch to the neck: trousers, a belt, the jacket broad at the shoulders and sloping up over them to a
+        // crew collar of the theme's colour, then the neck. Over the camera the head's own neck is not drawn: this one is the neck,
+        // leaning forward a little as a real one, and it ends inside the head (its keys are in the head's units, the rest of the
+        // body set back by BODY_BACK under it), where the head drawn over it hides its top whichever way the head turns
         parts += listOf(
             Key(shift, -5.10f, 0f, 0.55f, 0.42f, TROUSERS),
             Key(shift, -4.85f, 0f, 0.96f, 0.62f, TROUSERS),
             Key(shift, -4.42f, 0f, 0.95f, 0.60f, BELT),
             Key(shift, -4.20f, 0f, 0.92f, 0.59f, JACKET),
-            Key(shift, -3.40f, 0f, 0.86f, 0.56f, JACKET),
-            Key(shift, -2.60f, 0.03f, 1.02f * chest, 0.64f * chest, JACKET),
-            Key(shift, -2.00f + lift, 0.01f, 1.12f * chest, 0.62f * chest, JACKET),
-            Key(shift, -1.70f + lift, -0.04f, 1.04f, 0.56f, JACKET),
-            Key(shift * 0.6f, -1.52f + lift, -0.10f, 0.74f, 0.64f, TRIM),
+            Key(shift, -3.40f, 0f, 0.88f, 0.56f, JACKET),
+            Key(shift, -2.60f, 0.03f, 1.12f * chest, 0.64f * chest, JACKET),
+            Key(shift, -2.05f + lift, 0.01f, 1.30f * chest, 0.62f * chest, JACKET),
+            Key(shift, -1.82f + lift, -0.03f, 1.16f, 0.56f, JACKET),
+            Key(shift * 0.8f, -1.68f + lift, -0.06f, 0.88f, 0.52f, JACKET),
+            Key(shift * 0.6f, -1.59f + lift, -0.08f, 0.58f, 0.52f, TRIM),
         ).map { it.back() } + listOf(
-            Key(shift * 0.4f, -1.42f + lift, -0.62f, 0.66f, 0.61f, SKIN),
-            Key(shift * 0.2f, -1.22f, -0.62f, 0.60f, 0.59f, SKIN),
-            Key(0f, -1.05f, -0.58f, 0.55f, 0.60f, SKIN),
-            // narrowing inside the head's neck, which covers it from there on: whole higher up, turned with the body and not with
-            // the head, it would show past the head's nape when the head turns
-            Key(0f, -0.92f, -0.54f, 0.47f, 0.52f, SKIN),
-            Key(0f, -0.80f, -0.50f, 0.32f, 0.36f, SKIN),
+            Key(shift * 0.4f, -1.50f + lift, -0.60f, 0.49f, 0.48f, SKIN),
+            Key(shift * 0.2f, -1.30f, -0.56f, 0.44f, 0.46f, SKIN),
+            Key(0f, -1.12f, -0.50f, 0.43f, 0.47f, SKIN),
+            Key(0f, -0.92f, -0.46f, 0.44f, 0.52f, SKIN),
+            Key(0f, -0.72f, -0.44f, 0.42f, 0.50f, SKIN),
+            Key(0f, -0.58f, -0.40f, 0.30f, 0.34f, SKIN),
         )
 
         // the legs: a little apart, straight, the knee and the calf marked; the shoes from the heel to the toe, flat
@@ -93,7 +94,7 @@ internal class ArBody {
 
         // the arms: at rest a little out from the body; speaking, one gestures and the other follows a little
         for (s in SIDES) {
-            val shoulder = v(s * 1.16f + shift, -1.98f + lift, -0.02f)
+            val shoulder = v(s * 1.40f + shift, -2.02f + lift, -0.02f)
             val lead = if (s > 0f) 1f else 0.35f
             val wave = sin(t * (2.1f + 0.4f * s) + s)
             val abduct = 0.13f + 0.02f * sin(t * 0.7f + s) + talk * lead * 0.16f
@@ -104,7 +105,7 @@ internal class ArBody {
             val fore = limbDirection(s, abduct * 0.6f, flex + bend)
             val wrist = add(elbow, fore, FOREARM)
             parts += listOf(
-                key(shoulder, 0.35f, 0.35f, JACKET),
+                key(shoulder, 0.37f, 0.37f, JACKET),
                 key(add(shoulder, upper, UPPER_ARM * 0.5f), 0.34f, 0.33f, JACKET),
                 key(elbow, 0.28f, 0.28f, JACKET),
                 key(add(elbow, fore, FOREARM * 0.5f), 0.27f, 0.26f, JACKET),
