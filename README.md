@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.81 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.83 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1257,7 +1257,7 @@ also shown in the settings.
   ("Services Google Play pour la RA", offered for install the first time when the phone supports it), Jarvis looks for a table ("bouge
   doucement le téléphone en visant la table"), then a touch on it puts Haseo there, standing, as a figure about 42 cm tall with a soft
   shadow under his feet; he stays on that spot when the phone moves, grows as you come closer, and another touch moves him. Since 0.9.79
-  he has a whole body (`ar/ArBody.kt`). Since 0.9.81 it is a sculpted adult man's body, "Anatomy Basemesh Human Male Body Model
+  he has a whole body (`ar/ArBody.kt`). Since 0.9.83 it is a sculpted adult man's body, "Anatomy Basemesh Human Male Body Model
   Sculpture" by zeroran (Sketchfab, CC BY 4.0, see `assets/avatar/NOTICE.txt`), about seven and a half heads tall (42 cm), in a bodysuit
   over its muscles: a dark top with a crew collar and cuffs of the theme's colour, a belt, dark trousers and shoes, the neck and hands in
   the face's skin tone. `tools/avatar/export_body.py` welds its 1.13 million triangles, puts it in the head's units under the head (its
@@ -1782,6 +1782,10 @@ also shown in the settings.
   button), *trash* (to the bin: 30 days to take them back), *block* (a Gmail filter sends its next mails to the bin) need two more
   scopes (`gmail.modify`, `gmail.settings.basic`), asked for only with Settings > Google > « Autoriser le tri des mails »: added to the
   scopes asked at connection, they would have made every connected account look disconnected. Nothing is ever deleted for good.
+  Since 0.9.82: *empty_spam* ("supprime mes spams") sends the whole spam folder to the bin (200 at a time, confirmed once). Jarvis
+  remembers that sorting was allowed, so « Reconnecter Google » (needed about weekly while the consent screen is in test mode) asks
+  for the sorting scopes again; before, a reconnect silently dropped them and Jarvis answered that it could not sort the spam. When the
+  whole grant has expired, the tool now says to reconnect rather than to allow sorting.
   Every action is confirmed on screen, whatever the confirmation setting (it acts on the mail and speaks for the user). If Google
   refuses the new scopes, add them to the consent screen's "Data access" in Google Cloud. *Checked:* `UnsubscribeTest` (one click
   only with its header and https, http / credentials / broken addresses left out, mailto decoded, Gmail's DMARC or an aligned DKIM
