@@ -193,7 +193,7 @@ internal fun GoogleCard(configStore: ConfigStore) {
                     checking = false
                 }
             }) { Text(tr("Vérifier la connexion")) }
-            if (connected) OutlinedButton(onClick = { scope.launch { configStore.setGoogleConnected(false) } }) { Text(tr("Oublier")) }
+            if (connected) OutlinedButton(onClick = { scope.launch { configStore.setGoogleConnected(false); configStore.setGoogleCleanup(false) } }) { Text(tr("Oublier")) }
         }
         checkResult?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp)) }
         if (connected) {

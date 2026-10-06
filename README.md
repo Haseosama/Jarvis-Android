@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.80 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.82 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1777,6 +1777,10 @@ also shown in the settings.
   button), *trash* (to the bin: 30 days to take them back), *block* (a Gmail filter sends its next mails to the bin) need two more
   scopes (`gmail.modify`, `gmail.settings.basic`), asked for only with Settings > Google > « Autoriser le tri des mails »: added to the
   scopes asked at connection, they would have made every connected account look disconnected. Nothing is ever deleted for good.
+  Since 0.9.82: *empty_spam* ("supprime mes spams") sends the whole spam folder to the bin (200 at a time, confirmed once). Jarvis
+  remembers that sorting was allowed, so « Reconnecter Google » (needed about weekly while the consent screen is in test mode) asks
+  for the sorting scopes again; before, a reconnect silently dropped them and Jarvis answered that it could not sort the spam. When the
+  whole grant has expired, the tool now says to reconnect rather than to allow sorting.
   Every action is confirmed on screen, whatever the confirmation setting (it acts on the mail and speaks for the user). If Google
   refuses the new scopes, add them to the consent screen's "Data access" in Google Cloud. *Checked:* `UnsubscribeTest` (one click
   only with its header and https, http / credentials / broken addresses left out, mailto decoded, Gmail's DMARC or an aligned DKIM

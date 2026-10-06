@@ -12,6 +12,7 @@ import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.ApiException
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.i18n.tr
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -26,7 +27,10 @@ class GoogleConnectActivity : ComponentActivity() {
         const val EXTRA_CLEANUP = "cleanup"
     }
 
-    private val cleanup: Boolean get() = intent.getBooleanExtra(EXTRA_CLEANUP, false)
+    /** Asked for with the button, or allowed once before: a plain « Reconnecter Google » must not drop it (it did, and Jarvis then said it could not sort the spam). */
+    private var cleanup = false
+
+    private val configStore get() = (applicationContext as JarvisApp).container.configStore
 
     private val consent = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         try {
@@ -41,6 +45,7 @@ class GoogleConnectActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
             try {
+                cleanup = intent.getBooleanExtra(EXTRA_CLEANUP, false) || configStore.googleCleanup.first()
                 val result = GoogleAuth.authorize(this@GoogleConnectActivity, cleanup)
                 val pending = result.pendingIntent
                 if (result.hasResolution() && pending != null) consent.launch(IntentSenderRequest.Builder(pending.intentSender).build()) else done(result)
@@ -60,8 +65,10 @@ class GoogleConnectActivity : ComponentActivity() {
             return
         }
         lifecycleScope.launch {
-            (applicationContext as JarvisApp).container.configStore.setGoogleConnected(true)
-            Toast.makeText(this@GoogleConnectActivity, if (cleanup) tr("Tri des mails autorisé.") else tr("Google connecté."), Toast.LENGTH_SHORT).show()
+            configStore.setGoogleConnected(true)
+            if (cleanup) configStore.setGoogleCleanup(true)
+            val sortingAsked = intent.getBooleanExtra(EXTRA_CLEANUP, false)
+            Toast.makeText(this@GoogleConnectActivity, if (sortingAsked) tr("Tri des mails autorisé.") else tr("Google connecté."), Toast.LENGTH_SHORT).show()
             finish()
         }
     }
