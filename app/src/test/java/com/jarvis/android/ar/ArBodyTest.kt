@@ -13,14 +13,14 @@ class ArBodyTest {
     private fun xs(mesh: BodyMesh) = (0 until mesh.vertexCount).map { mesh.pos[3 * it] }
 
     @Test
-    fun `a figure five and a half heads tall, under the head, standing on its soles`() {
+    fun `a figure seven heads tall, under the head, standing on its soles`() {
         val mesh = ArBody().build()
         assertEquals(BODY_FEET, ys(mesh).min(), 0.12f)
         // nothing pokes up through the face: the neck ends inside the head's lower half
         assertTrue("top ${ys(mesh).max()}", ys(mesh).max() < -0.2f)
-        // shoulders and arms about as wide as two and a half heads
+        // shoulders and arms about as wide as two and a half to three heads
         val width = xs(mesh).max() - xs(mesh).min()
-        assertTrue("width $width", width in 2.6f..4.2f)
+        assertTrue("width $width", width in 3.4f..5.0f)
         assertEquals(0f, xs(mesh).max() + xs(mesh).min(), 0.25f)
         assertTrue(mesh.part.all { it in JACKET..SKIN })
     }

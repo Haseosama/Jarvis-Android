@@ -11,7 +11,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Haseo's body for the table: a figure about five and a half heads tall, in the head's own units: the head's half-height is 1, its centre
+ * Haseo's body for the table: a figure about seven heads tall, an adult's proportions, in the head's own units: the head's half-height is 1, its centre
  * at the origin, +y up, +z to the front, +x to the right of someone facing it; the soles stand at y = [BODY_FEET].
  * Each limb, the torso with the neck, the shoes and the hands is one smooth surface swept along a curve through its joints (a ring of
  * points every [bodySpacing], closed by round ends), cut as finely as the head is at the chosen polygon level and shaded per vertex
@@ -52,20 +52,24 @@ internal class ArBody {
         val lift = 0.03f * breath
         val parts = ArrayList<List<Key>>()
 
-        // the torso from the crotch to the neck: trousers, a belt, the jacket broad at the shoulders and sloping up over them to a
-        // crew collar of the theme's colour, then the neck. Over the camera the head's own neck is not drawn: this one is the neck,
-        // leaning forward a little as a real one, and it ends inside the head (its keys are in the head's units, the rest of the
-        // body set back by BODY_BACK under it), where the head drawn over it hides its top whichever way the head turns
+        // the torso from the crotch to the neck, as an adult's: trousers closing between the thighs, the hips, a belt at the top of
+        // them, the waist, the chest, the jacket broad at the shoulders and sloping up over them to a crew collar of the theme's
+        // colour, then the neck. Over the camera the head's own neck is not drawn: this one is the neck, leaning forward a little as
+        // a real one, and it ends inside the head (its keys are in the head's units, the rest of the body set back by BODY_BACK under
+        // it), where the head drawn over it hides its top whichever way the head turns
         parts += listOf(
-            Key(shift, -5.10f, 0f, 0.55f, 0.42f, TROUSERS),
-            Key(shift, -4.85f, 0f, 0.96f, 0.62f, TROUSERS),
-            Key(shift, -4.42f, 0f, 0.95f, 0.60f, BELT),
-            Key(shift, -4.20f, 0f, 0.92f, 0.59f, JACKET),
-            Key(shift, -3.40f, 0f, 0.88f, 0.56f, JACKET),
-            Key(shift, -2.60f, 0.03f, 1.12f * chest, 0.64f * chest, JACKET),
-            Key(shift, -2.05f + lift, 0.01f, 1.30f * chest, 0.62f * chest, JACKET),
-            Key(shift, -1.82f + lift, -0.03f, 1.16f, 0.56f, JACKET),
-            Key(shift * 0.8f, -1.68f + lift, -0.06f, 0.88f, 0.52f, JACKET),
+            Key(shift, -6.60f, -0.02f, 0.46f, 0.36f, TROUSERS),
+            Key(shift, -6.40f, -0.02f, 1.04f, 0.62f, TROUSERS),
+            Key(shift, -6.00f, -0.04f, 1.24f, 0.72f, TROUSERS),
+            Key(shift, -5.40f, -0.02f, 1.15f, 0.68f, TROUSERS),
+            Key(shift, -5.05f, 0f, 1.10f, 0.66f, BELT),
+            Key(shift, -4.80f, 0f, 1.06f, 0.64f, JACKET),
+            Key(shift, -4.25f, 0f, 1.02f, 0.62f, JACKET),
+            Key(shift, -3.50f, 0.03f, 1.12f, 0.68f, JACKET),
+            Key(shift, -2.85f, 0.05f, 1.24f * chest, 0.74f * chest, JACKET),
+            Key(shift, -2.25f + lift, 0.02f, 1.34f * chest, 0.68f * chest, JACKET),
+            Key(shift, -1.90f + lift, -0.03f, 1.20f, 0.58f, JACKET),
+            Key(shift * 0.8f, -1.70f + lift, -0.06f, 0.90f, 0.53f, JACKET),
             Key(shift * 0.6f, -1.59f + lift, -0.08f, 0.58f, 0.52f, TRIM),
         ).map { it.back() } + listOf(
             Key(shift * 0.4f, -1.50f + lift, -0.60f, 0.49f, 0.48f, SKIN),
@@ -76,48 +80,65 @@ internal class ArBody {
             Key(0f, -0.58f, -0.40f, 0.30f, 0.34f, SKIN),
         )
 
-        // the legs: a little apart, straight, the knee and the calf marked; the shoes from the heel to the toe, flat
+        // the legs: a little apart and closing in towards the ankles, the thigh full at the top, the knee, the calf rounder at the
+        // back; the shoes from the heel to the toe, flat
         for (s in SIDES) {
             parts += listOf(
-                Key(s * 0.46f + shift * 0.3f, -4.70f, 0f, 0.47f, 0.45f, TROUSERS),
-                Key(s * 0.45f + shift * 0.15f, -6.00f, 0.01f, 0.41f, 0.40f, TROUSERS),
-                Key(s * 0.44f, -7.35f, 0.04f, 0.33f, 0.33f, TROUSERS),
-                Key(s * 0.43f, -8.20f, -0.02f, 0.35f, 0.34f, TROUSERS),
-                Key(s * 0.42f, -9.55f, 0f, 0.24f, 0.24f, TROUSERS),
+                Key(s * 0.58f + shift * 0.3f, -6.15f, -0.02f, 0.58f, 0.62f, TROUSERS),
+                Key(s * 0.58f + shift * 0.2f, -7.70f, 0.02f, 0.52f, 0.54f, TROUSERS),
+                Key(s * 0.54f + shift * 0.1f, -9.10f, 0.04f, 0.40f, 0.42f, TROUSERS),
+                Key(s * 0.52f, -9.65f, 0.05f, 0.39f, 0.41f, TROUSERS),
+                Key(s * 0.51f, -10.45f, -0.04f, 0.42f, 0.45f, TROUSERS),
+                Key(s * 0.49f, -11.40f, -0.01f, 0.31f, 0.32f, TROUSERS),
+                Key(s * 0.48f, -12.30f, 0f, 0.24f, 0.25f, TROUSERS),
             )
             parts += listOf(
-                Key(s * 0.42f, -9.80f, -0.24f, 0.25f, 0.21f, SHOES),
-                Key(s * 0.43f, -9.81f, 0.22f, 0.27f, 0.21f, SHOES),
-                Key(s * 0.44f, -9.84f, 0.70f, 0.21f, 0.16f, SHOES),
+                Key(s * 0.48f, -12.62f, -0.30f, 0.27f, 0.24f, SHOES),
+                Key(s * 0.49f, -12.64f, 0.20f, 0.30f, 0.24f, SHOES),
+                Key(s * 0.51f, -12.67f, 0.80f, 0.23f, 0.18f, SHOES),
             )
         }
 
-        // the arms: at rest a little out from the body; speaking, one gestures and the other follows a little
+        // the arms: at rest a little out from the body and a little bent, the wrists by the top of the thighs; speaking, one
+        // gestures and the other follows a little
         for (s in SIDES) {
-            val shoulder = v(s * 1.40f + shift, -2.02f + lift, -0.02f)
+            val shoulder = v(s * 1.38f + shift, -2.22f + lift, -0.04f)
             val lead = if (s > 0f) 1f else 0.35f
             val wave = sin(t * (2.1f + 0.4f * s) + s)
-            val abduct = 0.13f + 0.02f * sin(t * 0.7f + s) + talk * lead * 0.16f
+            val abduct = 0.11f + 0.02f * sin(t * 0.7f + s) + talk * lead * 0.16f
             val flex = 0.05f + talk * lead * (0.32f + 0.14f * wave)
-            val bend = 0.20f + talk * lead * (0.85f + 0.30f * sin(t * 3.3f + 2f * s))
+            val bend = 0.22f + talk * lead * (0.85f + 0.30f * sin(t * 3.3f + 2f * s))
             val upper = limbDirection(s, abduct, flex)
             val elbow = add(shoulder, upper, UPPER_ARM)
-            val fore = limbDirection(s, abduct * 0.6f, flex + bend)
+            val fore = limbDirection(s, abduct * 0.5f, flex + bend)
             val wrist = add(elbow, fore, FOREARM)
+            // the sleeve: the shoulder's round, the upper arm, the elbow, the forearm fuller near the elbow, a cuff at the wrist
             parts += listOf(
-                key(shoulder, 0.37f, 0.37f, JACKET),
-                key(add(shoulder, upper, UPPER_ARM * 0.5f), 0.34f, 0.33f, JACKET),
-                key(elbow, 0.28f, 0.28f, JACKET),
-                key(add(elbow, fore, FOREARM * 0.5f), 0.27f, 0.26f, JACKET),
-                key(add(wrist, fore, -0.20f), 0.23f, 0.23f, TRIM),
-                key(wrist, 0.245f, 0.245f, TRIM),
+                key(shoulder, 0.43f, 0.43f, JACKET),
+                key(add(shoulder, upper, UPPER_ARM * 0.30f), 0.38f, 0.39f, JACKET),
+                key(add(shoulder, upper, UPPER_ARM * 0.80f), 0.31f, 0.32f, JACKET),
+                key(elbow, 0.30f, 0.30f, JACKET),
+                key(add(elbow, fore, FOREARM * 0.28f), 0.31f, 0.31f, JACKET),
+                key(add(wrist, fore, -0.24f), 0.24f, 0.24f, TRIM),
+                key(wrist, 0.25f, 0.25f, TRIM),
             )
-            // the hand: flat, its palm to the thigh (thin across, wide front to back)
+            // the hand: its palm to the thigh (narrower across than front to back), the fingers together and a little curled
+            val curl = limbDirection(s, abduct * 0.3f, flex + bend + 0.35f)
+            val knuckles = add(wrist, fore, HAND * 0.55f)
             parts += listOf(
-                key(add(wrist, fore, -0.05f), 0.10f, 0.14f, SKIN),
-                key(add(wrist, fore, HAND * 0.35f), 0.11f, 0.21f, SKIN),
-                key(add(wrist, fore, HAND * 0.75f), 0.09f, 0.18f, SKIN),
-                key(add(wrist, fore, HAND), 0.07f, 0.11f, SKIN),
+                key(add(wrist, fore, -0.06f), 0.15f, 0.18f, SKIN),
+                key(add(wrist, fore, HAND * 0.25f), 0.18f, 0.25f, SKIN),
+                key(knuckles, 0.17f, 0.25f, SKIN),
+                key(add(knuckles, curl, HAND * 0.30f), 0.13f, 0.21f, SKIN),
+                key(add(knuckles, curl, HAND * 0.45f), 0.07f, 0.12f, SKIN),
+            )
+            // the thumb, along the front of the hand
+            val base = add(add(wrist, fore, HAND * 0.12f), v(s * 0.05f, 0f, 1f), 0.15f)
+            val thumb = limbDirection(s, abduct * 0.3f, flex + bend + 0.55f)
+            parts += listOf(
+                key(base, 0.085f, 0.085f, SKIN),
+                key(add(base, thumb, HAND * 0.28f), 0.072f, 0.072f, SKIN),
+                key(add(base, thumb, HAND * 0.42f), 0.055f, 0.055f, SKIN),
             )
         }
         return parts.mapIndexed { i, keys -> if (i == 0) keys else keys.map { it.back() } }
@@ -130,9 +151,9 @@ internal class ArBody {
     class Key(val x: Float, val y: Float, val z: Float, val ru: Float, val rv: Float, val part: Int)
 
     companion object {
-        const val UPPER_ARM = 1.75f
-        const val FOREARM = 1.55f
-        const val HAND = 0.55f
+        const val UPPER_ARM = 2.55f
+        const val FOREARM = 2.15f
+        const val HAND = 1.40f
         const val TALK_ATTACK = 0.12f
         const val TALK_RELEASE = 0.7f
         private val SIDES = floatArrayOf(1f, -1f)
@@ -147,8 +168,8 @@ internal class ArBody {
     }
 }
 
-/** Where the soles are, in head half-heights below the head's centre: the figure is about 5.5 heads tall. */
-internal const val BODY_FEET = -10.05f
+/** Where the soles are, in head half-heights below the head's centre: the figure is about seven heads tall, as an adult. */
+internal const val BODY_FEET = -12.88f
 
 /**
  * How far the body stands behind the head's centre, in head half-heights: the head's origin is near the front of the face (its eye
@@ -170,10 +191,10 @@ internal const val SKIN = 5
  * levels halving it as the head's cut each triangle in four. Ultra is High: what it adds on the head is the hair's own triangles.
  */
 internal fun bodySpacing(level: PolygonLevel): Float = when (level) {
-    PolygonLevel.ECO -> 0.098f
-    PolygonLevel.LOW -> 0.084f
-    PolygonLevel.MEDIUM -> 0.072f
-    PolygonLevel.HIGH, PolygonLevel.ULTRA -> 0.048f
+    PolygonLevel.ECO -> 0.121f
+    PolygonLevel.LOW -> 0.104f
+    PolygonLevel.MEDIUM -> 0.0895f
+    PolygonLevel.HIGH, PolygonLevel.ULTRA -> 0.059f
 }
 
 /**

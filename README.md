@@ -1257,7 +1257,7 @@ also shown in the settings.
   ("Services Google Play pour la RA", offered for install the first time when the phone supports it), Jarvis looks for a table ("bouge
   doucement le téléphone en visant la table"), then a touch on it puts Haseo there, standing, as a figure about 40 cm tall with a soft
   shadow under his feet; he stays on that spot when the phone moves, grows as you come closer, and another touch moves him. Since 0.9.79
-  he has a whole body (`ar/ArBody.kt`): about five and a half heads tall, a dark jacket with seams of the theme's colour, a belt, dark
+  he has a whole body (`ar/ArBody.kt`): since 0.9.81 about seven heads tall as an adult (the thigh full at the top, knee, calf, the shoulder's round, the forearm fuller near the elbow, a hand with its thumb, about 42 cm in all), a dark jacket with seams of the theme's colour, a belt, dark
   trousers and shoes, the neck and hands in the face's skin tone. Since 0.9.80 the body is the same kind of mesh as the head: each limb,
   the torso with its neck, the shoes and the hands is one smooth surface swept along a curve through the joints (`BodyShape`, rings of
   points closed by round ends), with as many triangles as the head at each *Finesse du maillage* level (about 20 200 at Éco, 27 700 at
