@@ -41,6 +41,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -64,15 +68,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import java.util.concurrent.ConcurrentLinkedQueue
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
-import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * Haseo in augmented reality: the face put down on a table seen through the camera, turning to you as you walk round it (see [ArLook]).
- * With ARCore ("Services Google Play pour la RA"), a touch on a table found by the camera puts the head there, at the size of a small
- * bust; it stays on that spot when the phone moves. Without ARCore (a phone it does not support, or its install refused), the simple
- * mode: the face floats over the camera's picture where the screen is touched, looking at you. A voice session going on goes on: the face
- * speaks and moves its lips on the table as on the main screen.
+ * Haseo in augmented reality: a figure about 40 cm tall (his face on a body, see [ArBody]) standing on a table seen through the camera,
+ * turning to you as you walk round him (see [ArLook]). With ARCore ("Services Google Play pour la RA"), a touch on a table found by the
+ * camera puts him there; he stays on that spot when the phone moves. Without ARCore (a phone it does not support, or its install
+ * refused), the simple mode: he stands over the camera's picture where the screen is touched, seen from a camera of his own, looking at
+ * you. A voice session going on goes on: he speaks with his lips and his arms on the table as on the main screen.
  */
 class ArFaceActivity : ComponentActivity() {
     private enum class Mode { CHECKING, AR, SIMPLE, NO_CAMERA }
@@ -212,20 +215,16 @@ class ArFaceActivity : ComponentActivity() {
         }
     }
 
-    /** The face on the table, where the GL thread last placed it, with its soft shadow under it. */
+    /** Haseo on the table, where the GL thread last placed him: his shadow, his body, and his face on top. */
     @Composable
     private fun ArFace(controller: com.jarvis.android.avatar.AvatarController, state: JarvisState, level: Float) {
         val placed by placement.collectAsState()
         val line by hint.collectAsState()
         val shown = placed
         if (shown != null) {
-            Canvas(Modifier.fillMaxSize()) {
-                val w = shown.shadowWidth; val h = shown.shadowHeight
-                drawOval(
-                    Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.45f), Color.Transparent), center = Offset(shown.shadowX, shown.shadowY), radius = w / 2f),
-                    topLeft = Offset(shown.shadowX - w / 2f, shown.shadowY - h / 2f), size = Size(w, h),
-                )
-            }
+            val skin = controller.skin
+            val primary = MaterialTheme.colorScheme.primary.toArgb()
+            Canvas(Modifier.fillMaxSize()) { drawStage(shown, skin, primary) }
             AvatarView(controller, state, level, Modifier.layout { measurable, _ ->
                 // read in the layout step: the head moves with the camera without the screen being composed again
                 val p = placement.value ?: shown
@@ -237,15 +236,12 @@ class ArFaceActivity : ComponentActivity() {
         if (line.isNotEmpty()) Hint(line)
     }
 
-    /** No ARCore: the camera's picture, and the face floating where the screen was last touched, looking at you. */
+    /** No ARCore: the camera's picture, and Haseo standing where the screen was last touched, looking at you. */
     @Composable
     private fun SimpleFace(controller: com.jarvis.android.avatar.AvatarController, state: JarvisState, level: Float) {
         val owner = LocalLifecycleOwner.current
         val spot = androidx.compose.runtime.remember { mutableStateOf<Offset?>(null) }
-        DisposableEffect(controller) {
-            controller.avatar.aim = floatArrayOf(0f, 0f, 0f, 0f)
-            onDispose { controller.avatar.aim = null }
-        }
+        DisposableEffect(controller) { onDispose { controller.avatar.aim = null } }
         AndroidView(factory = { context ->
             PreviewView(context).also { view ->
                 val future = ProcessCameraProvider.getInstance(context)
@@ -261,15 +257,38 @@ class ArFaceActivity : ComponentActivity() {
                 }, ContextCompat.getMainExecutor(context))
             }
         }, modifier = Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { spot.value = it } })
-        val at by spot
-        AvatarView(controller, state, level, Modifier.layout { measurable, constraints ->
-            val side = (SIMPLE_SHARE * constraints.maxWidth).roundToInt().coerceAtLeast(1)
-            val placeable = measurable.measure(Constraints.fixed(side, side))
-            val centre = at ?: Offset(constraints.maxWidth / 2f, constraints.maxHeight * 0.62f)
-            layout(constraints.maxWidth, constraints.maxHeight) {
-                placeable.place((centre.x - side / 2f).roundToInt(), (centre.y - FACE_CENTRE_SHARE * side).roundToInt())
+        // a camera of its own looking at him from in front, a little above, as a phone held over a table would
+        val size = androidx.compose.runtime.remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+        val stage = androidx.compose.runtime.remember { ArStage() }
+        val placed = androidx.compose.runtime.remember { mutableStateOf<ArPlacement?>(null) }
+        val voice by androidx.compose.runtime.rememberUpdatedState(level)
+        androidx.compose.runtime.LaunchedEffect(stage) {
+            var last = 0L
+            while (true) {
+                androidx.compose.runtime.withFrameNanos { nanos ->
+                    val dt = if (last == 0L) 0f else ((nanos - last) / 1e9f).coerceAtMost(0.2f)
+                    last = nanos
+                    val (w, h) = size.value.let { it.width to it.height }
+                    if (w == 0 || h == 0) return@withFrameNanos
+                    val view = lookAt(0f, SIMPLE_EYE_HEIGHT, SIMPLE_EYE_DISTANCE, 0f, SIMPLE_TARGET_HEIGHT, 0f)
+                    val frame = stage.frame(dt, voice, view,
+                        perspective(SIMPLE_FOV, w.toFloat() / h), w, h, 0f, 0f, 0f, 0f, SIMPLE_EYE_HEIGHT, SIMPLE_EYE_DISTANCE)
+                    controller.avatar.aim = stage.aim
+                    placed.value = frame?.let { p -> spot.value?.let { at -> p.shifted(at.x - p.shadowX, at.y - p.shadowY) } ?: p }
+                }
             }
-        })
+        }
+        val skin = controller.skin
+        val primary = MaterialTheme.colorScheme.primary.toArgb()
+        Canvas(Modifier.fillMaxSize().onSizeChanged { size.value = it }) { placed.value?.let { drawStage(it, skin, primary) } }
+        placed.value?.let { p ->
+            AvatarView(controller, state, level, Modifier.layout { measurable, _ ->
+                val q = placed.value ?: p
+                val side = q.side.roundToInt().coerceAtLeast(1)
+                val placeable = measurable.measure(Constraints.fixed(side, side))
+                layout(0, 0) { placeable.place(q.left.roundToInt(), q.top.roundToInt()) }
+            })
+        }
         val why by simpleWhy
         Hint(if (why.isEmpty()) tr("Touche l'écran pour déplacer Haseo.") else why + " " + tr("Touche l'écran pour déplacer Haseo."))
     }
@@ -308,7 +327,7 @@ class ArFaceActivity : ComponentActivity() {
     /** Draws the camera's picture and works out where the face stands, on the GL thread, at the camera's pace. */
     private inner class ArRenderer(private val view: GLSurfaceView) : GLSurfaceView.Renderer {
         private val background = ArBackground()
-        private val look = ArLook()
+        private val stage = ArStage()
         private val viewMatrix = FloatArray(16)
         private val projection = FloatArray(16)
         private var anchor: Anchor? = null
@@ -359,7 +378,7 @@ class ArFaceActivity : ComponentActivity() {
                 if (hit != null) {
                     anchor?.detach()
                     anchor = hit.createAnchor()
-                    look.reset()
+                    stage.reset()
                 }
             }
             val a = anchor
@@ -375,22 +394,16 @@ class ArFaceActivity : ComponentActivity() {
             camera.getViewMatrix(viewMatrix, 0)
             camera.getProjectionMatrix(projection, 0, 0.05f, 50f)
             val base = a.pose
-            val hx = base.tx(); val hy = base.ty() + AR_HEAD_LIFT; val hz = base.tz()
             val eye = camera.pose
-            (application as JarvisApp).container.avatar.avatar.aim = look.step(dt, hx, hy, hz, eye.tx(), eye.ty(), eye.tz())
-            val head = projectPoint(viewMatrix, projection, hx, hy, hz, width, height)
-            val foot = projectPoint(viewMatrix, projection, base.tx(), base.ty(), base.tz(), width, height)
-            if (head == null || foot == null) {
+            val level = (application as JarvisApp).container.engine.outputLevel.value
+            val placed = stage.frame(dt, level, viewMatrix, projection, width, height, base.tx(), base.ty(), base.tz(), eye.tx(), eye.ty(), eye.tz())
+            (application as JarvisApp).container.avatar.avatar.aim = stage.aim
+            if (placed == null) {
                 placement.value = null
                 hint.value = HINT_BEHIND
                 return
             }
-            val square = faceSquare(head, max(width, height) * 3f)
-            // the shadow: a disc on the table seen from the camera's height, flatter the lower the camera
-            val flat = kotlin.math.hypot(eye.tx() - base.tx(), eye.tz() - base.tz())
-            val squash = (kotlin.math.sin(kotlin.math.atan2(eye.ty() - base.ty(), flat))).coerceIn(0.2f, 1f)
-            val shadow = 2.2f * AR_HEAD_HALF * foot.scale
-            placement.value = ArPlacement(square[0], square[1], square[2], foot.x, foot.y, shadow, shadow * squash)
+            placement.value = placed
             hint.value = ""
         }
     }
@@ -400,12 +413,33 @@ class ArFaceActivity : ComponentActivity() {
         val HINT_TOUCH = tr("Touche la table pour y poser Haseo.")
         val HINT_LOST = tr("Je ne vois plus bien la pièce : vise à nouveau la table.")
         val HINT_BEHIND = tr("Haseo est derrière toi : retourne-toi vers la table.")
-        const val SIMPLE_SHARE = 0.62f
+        // the simple mode's own camera, in metres from Haseo's feet: a phone 70 cm in front and 30 cm above them
+        const val SIMPLE_EYE_HEIGHT = 0.30f
+        const val SIMPLE_EYE_DISTANCE = 0.70f
+        const val SIMPLE_TARGET_HEIGHT = 0.19f
+        const val SIMPLE_FOV = 0.75f
     }
 }
 
-/** Where the face's square view goes on the screen ([left], [top], [side] in pixels) and its shadow on the table (centre, width, height). */
-internal data class ArPlacement(
-    val left: Float, val top: Float, val side: Float,
-    val shadowX: Float, val shadowY: Float, val shadowWidth: Float, val shadowHeight: Float,
-)
+/** Draws the shadow on the table and the body over it (the face view goes on top). */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStage(p: ArPlacement, skin: Int, primary: Int) {
+    val w = p.shadowWidth; val h = p.shadowHeight
+    drawOval(
+        Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.45f), Color.Transparent), center = Offset(p.shadowX, p.shadowY), radius = w / 2f),
+        topLeft = Offset(p.shadowX - w / 2f, p.shadowY - h / 2f), size = Size(w, h),
+    )
+    val b = p.body
+    if (b.count == 0) return
+    val colours = IntArray(b.count * 3)
+    for (t in 0 until b.count) {
+        val c = bodyColour(b.part[t], b.light[t], skin, primary)
+        colours[3 * t] = c; colours[3 * t + 1] = c; colours[3 * t + 2] = c
+    }
+    drawIntoCanvas { canvas ->
+        canvas.nativeCanvas.drawVertices(
+            android.graphics.Canvas.VertexMode.TRIANGLES, b.count * 6, b.pos, 0, null, 0, colours, 0, null, 0, 0, BODY_PAINT,
+        )
+    }
+}
+
+private val BODY_PAINT = android.graphics.Paint().apply { isAntiAlias = true }
