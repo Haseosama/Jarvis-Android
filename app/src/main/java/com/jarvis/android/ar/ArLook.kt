@@ -6,12 +6,6 @@ import kotlin.math.exp
 import kotlin.math.sqrt
 
 /**
- * The head's half-height on the table, in metres, and so the unit the body is built in (see ArBody): a head 5.6 cm tall on a figure
- * about 42 cm tall.
- */
-internal const val AR_UNIT = 0.028f
-
-/**
  * Where a world point falls on the screen: [x], [y] in pixels (y down), [depth] in metres in front of the camera, and [scale] the pixels
  * one metre spans at that depth.
  */
@@ -97,16 +91,3 @@ internal class ArLook {
         const val EYE_REACH_PITCH = 0.25f
     }
 }
-
-/**
- * Where to lay the face's square view so its head, [half] metres in half-height, stands on [head] (the head's centre projected on the
- * screen): the square's left, top and side in pixels. The face view draws the head 0.36 of its side high (in half-heights) with its
- * centre at 0.44 of its height (see AvatarView's headRadius and headCentre); the side is kept under [maxSide].
- */
-internal fun faceSquare(head: ScreenPoint, half: Float, maxSide: Float): FloatArray {
-    val side = (half * head.scale / FACE_HEAD_SHARE).coerceIn(1f, maxSide)
-    return floatArrayOf(head.x - side / 2f, head.y - FACE_CENTRE_SHARE * side, side)
-}
-
-internal const val FACE_HEAD_SHARE = 0.36f
-internal const val FACE_CENTRE_SHARE = 0.44f

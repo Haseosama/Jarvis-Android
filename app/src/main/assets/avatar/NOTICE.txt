@@ -49,9 +49,8 @@ and "12 Real-time woman Hairstyles collection 09" (https://sketchfab.com/3d-mode
 Changes: each style taken off its head (tools/avatar/prepare_hair.py), the parts hidden inside the head left out, the heaviest thinned by
 leaving out some strands (tools/avatar/export_hair.py), fitted onto the chosen face and coloured in the app (avatar/HairStyle.kt).
 
-Haseo's body in augmented reality (assets/avatar/body_mesh.bin) is based on "Anatomy Basemesh Human Male Body Model Sculpture"
-(https://sketchfab.com/3d-models/anatomy-basemesh-human-male-body-model-sculpture-8c49edd7e9bd4dc7ba3c4b493b00d7ab) by zeroran
-(https://sketchfab.com/zeroran), licensed under Creative Commons Attribution 4.0 (CC BY 4.0, http://creativecommons.org/licenses/by/4.0/).
-Changes: welded, put in the head's units, its head cut off and the top of its neck narrowed, simplified from 1.13 million triangles to
-the head's count at each polygon level, given materials (a bodysuit), arm weights and a web (tools/avatar/export_body.py); the app turns
-its arms down from the A-pose and animates them.
+The robot in augmented reality (assets/avatar/robot_mesh.bin) is based on "Chrome Mini Robot – 3D Model"
+(https://sketchfab.com/3d-models/chrome-mini-robot-3d-model-fc76081a321f4ac1acb6b60e046a6a94) by PurplePoint
+(https://sketchfab.com/tyajik), licensed under Creative Commons Attribution 4.0 (CC BY 4.0, http://creativecommons.org/licenses/by/4.0/).
+Changes: welded, its texture baked into a colour per vertex, simplified to four polygon levels, split into parts (body, head, arms,
+legs) with soft joints and its lights (eyes, trim) marked (tools/avatar/export_robot.py); the app lights it and animates it.

@@ -149,7 +149,7 @@ internal fun HudScreen(
                     if (avatar != null) {
                         val context = androidx.compose.ui.platform.LocalContext.current
                         IconButton(onClick = { context.startActivity(android.content.Intent(context, com.jarvis.android.ar.ArFaceActivity::class.java)) }) {
-                            Icon(Icons.Filled.ViewInAr, contentDescription = tr("Haseo sur la table (réalité augmentée)"), tint = tint)
+                            Icon(Icons.Filled.ViewInAr, contentDescription = tr("Le robot sur la table (réalité augmentée)"), tint = tint)
                         }
                     }
                     IconButton(onClick = onOpenChat) { Icon(Icons.Filled.Chat, contentDescription = tr("Chat texte"), tint = tint) }

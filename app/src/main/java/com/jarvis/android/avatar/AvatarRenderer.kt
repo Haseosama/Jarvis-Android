@@ -25,11 +25,11 @@ private val CAP_COLOURS = intArrayOf(0, 0xFF1C1E24.toInt(), 0xFF23508F.toInt(), 
 private const val BUCKETS = 4
 private const val MIN_ALPHA = 0.05f
 /*
- * Over the camera the body wears a high collar ending just under the chin (ar/ArBody.kt), so the head's own neck is not needed: it
- * fades out from CAMERA_NECK_GONE to CAMERA_NECK_WHOLE (heights in head half-heights), gone before the collar begins, and so does the
- * jaw's underside behind
- * the chin (behind CAMERA_CHIN_Z), from CAMERA_JAW_GONE to CAMERA_JAW_WHOLE, higher at the back of the head (behind CAMERA_NAPE_Z, up
- * to CAMERA_NAPE_WHOLE), so its ragged lower edge melts into the body's neck.
+ * Over the camera (onCamera: the face drawn alone over a camera's picture, as the augmented reality mode did up to 0.9.84 with Haseo's
+ * body under it, which wore a high collar ending just under the chin), the head's own neck is not needed: it fades out from
+ * CAMERA_NECK_GONE to CAMERA_NECK_WHOLE (heights in head half-heights), and so does the jaw's underside behind the chin (behind
+ * CAMERA_CHIN_Z), from CAMERA_JAW_GONE to CAMERA_JAW_WHOLE, higher at the back of the head (behind CAMERA_NAPE_Z, up to
+ * CAMERA_NAPE_WHOLE), so its ragged lower edge melts away.
  */
 private const val CAMERA_NECK_GONE = -0.92f
 private const val CAMERA_NECK_WHOLE = -0.78f
