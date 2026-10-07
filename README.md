@@ -1872,11 +1872,11 @@ search the web, and the system prompt given to the model (`offline/LocalPrompt.k
 | Qwen 2.5 0.5B (`…_q8_ekv1280.task`), fast and light | ≈ 547 MB | none (Apache 2.0) |
 | Qwen 2.5 1.5B (`…_q8_ekv1280.task`), smarter, for a recent phone (6 GB of memory or more) | ≈ 1.6 GB | none (Apache 2.0) |
 | Gemma 3 270M (`gemma3-270m-it-q8.task`), tiny, basic answers | ≈ 304 MB | Hugging Face token |
-| Uncensored: Qwen 2.5 1.5B ([Shaurya2020](https://huggingface.co/Shaurya2020/Qwen2.5-1.5B-Instruct-uncensored-litert), `.litertlm`) | ≈ 1.8 GB | none |
 | Uncensored: Gemma 4 E2B abliterated ([DuoNeural](https://huggingface.co/DuoNeural/Gemma-4-Abliterated-LiteRT), `.litertlm`) | ≈ 2.6 GB | none |
 
 No uncensored model exists as a MediaPipe `.task` file worth offering (the one found keeps only about a third of its abliteration after
-quantisation), so 0.9.88 also adds Google's newer on-device engine, [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM)
+quantisation), and community `.litertlm` conversions made for LiteRT-LM 0.17 (such as an uncensored Qwen 2.5 1.5B) are left out because
+this project's Kotlin 2.2 cannot use LiteRT-LM 0.17 (built with Kotlin 2.4), so it stays on 0.16.1. 0.9.88 also adds Google's newer on-device engine, [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM)
 (`com.google.ai.edge.litertlm:litertlm-android`), next to MediaPipe: `offline/LocalLlm.kt` gives a `.litertlm` file to LiteRT-LM (CPU backend,
 one `Conversation` per answer) and a `.task` file to MediaPipe as before. The store tells the two apart by their first bytes (`PK` for a `.task` zip,
 `LITERTLM` for the other) and keeps the model as `model.task` or `model.litertlm`; both can be imported too.

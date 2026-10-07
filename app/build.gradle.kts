@@ -162,7 +162,7 @@ dependencies {
 
     // Local AI for the offline mode: a small Gemma model run entirely on the phone (the user imports the .task file themselves; see README)
     implementation("com.google.mediapipe:tasks-genai:0.10.27")
-    implementation("com.google.ai.edge.litertlm:litertlm-android:0.17.1")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.16.1") // 0.17 is built with Kotlin 2.4, which this project's Kotlin 2.2 compiler cannot read
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

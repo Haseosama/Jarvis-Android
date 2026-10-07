@@ -41,7 +41,7 @@ class LocalModelCatalogTest {
     }
 
     @Test fun `a download is only accepted with the exact size, the right header and the right hash`() {
-        val lm = localModelChoice("qwen2.5-1.5b-uncensored")!!
+        val lm = localModelChoice("gemma4-e2b-abliterated")!!
         assertNull(checkDownloadedModel(lm, lm.bytes, litertlm) { lm.sha256 })
         assertNotNull("a task file where a litertlm one is expected", checkDownloadedModel(lm, lm.bytes, zip) { lm.sha256 })
         val m = LOCAL_MODEL_CATALOG.first { it.sha256 != null && it.installedName == LOCAL_MODEL_FILE }
