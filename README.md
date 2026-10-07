@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.85 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.86 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -308,18 +308,19 @@ Safeguards (`device/ScreenModel.kt`, `actions/ScreenTools.kt`):
   model so.
 - What is read on screen is sent to Gemini to process your request.
 
-**Turning confirmations off** (Settings > *Contrôle du téléphone* > *Ne jamais demander de confirmation*,
-off by default). Once on, the confirmation notification above is skipped for sensitive taps, and the same
-setting also skips it for the volume confirmation (`device_settings`) and for file writes/deletes/organising
-(`file_manager`) — Jarvis acts the moment it decides to, with nothing to tap, including while the phone is
-out of sight. The **one exception that this setting cannot remove**: a tap inside Settings, the permission
-dialogs, the package installer or the system UI still always asks, whatever this is set to — that check
-exists specifically so the assistant can never grant itself a permission or an install, including if a
-malicious web page or message it read tried to talk it into tapping through one. `send_message`'s own
-*envoi automatique* toggle (see "Sending messages on your word") is separate and already worked this way
-before this setting existed. Checked: unit tests do not cover this (it needs a live `JarvisContainer`, like
-the rest of this section); reasoned through by inspection and exercised with the compiled app's test suite
-and a debug build, not with a real confirmation banner suppressed end to end on a device.
+**No confirmations by default** (since 0.9.86, at the owner's request; Settings > *Contrôle du téléphone* >
+*Ne jamais demander de confirmation*, now **on by default**). The confirmation notification above is skipped for
+every sensitive tap, **system screens included** (Settings, permission dialogs, package installer, system UI),
+for the volume (`device_settings`), for file writes/deletes/organising (`file_manager`), for the mail cleanup
+(`mail_cleanup`: delete spam, report, bin, block a sender, unsubscribe) and for installing or removing a plugin
+(`plugin_manage`). Messages (SMS, WhatsApp, Messenger), Gmail mails and calendar events also go out directly by
+default: their three switches (*Envoyer les messages / les mails sans confirmation*, *Créer les événements sans
+confirmation*) are now on too. The four settings took new storage keys (`…_v2` in `memory/ConfigStore.kt`) so an
+"off" saved by an older version does not survive the update. Irreversible without a confirmation: a message or a
+mail sent, an unsubscribe (it writes to the sender in your name), a "pay" tap, and a permission or install granted
+on a system screen — including if a web page or a message Jarvis read tried to talk it into one. Turning the main
+switch off brings every confirmation back, with every tap on a system screen asking again. *Checked:* unit tests
+(`SelfKnowledgeTest`); not checked on a real phone.
 
 Checked on an emulator with the service switched on, through a debug-only adb trigger: reading the
 Clock and Settings apps, tapping a tab by its text, an unknown text refused, swipe, scroll, home,
@@ -1756,7 +1757,7 @@ also shown in the settings.
 - **Plugins by voice and from a link** (since 0.9.36; `plugin_manage`). "Crée un plugin qui me dit l'âge moyen des Kevin": the assistant
   writes the plugin file itself (the tool's description carries the format), with parameters to try it; it is checked like an imported file,
   an http one is run for real (a link or a routine is only shown: it would act at once), and the user sees its summary and the test's answer
-  and confirms before it is installed (whatever the confirmation setting); a failed test installs nothing and says what to fix. "Installe le
+  and confirms before it is installed (only when confirmations are switched back on, since 0.9.86); a failed test installs nothing and says what to fix. "Installe le
   plugin de ce lien": an https link (a GitHub page gives its raw file; the local network is refused), at most 20 000 characters, checked,
   confirmed, installed; also in Settings > Plugins, with a link field. "list" and "remove" (confirmed). *Checked:* `PodcastFeedTest` (the link
   rules); on the emulator a plugin created (agify.io: Kevin, 34 years, 52 709 people), confirmed and installed, one imported from this

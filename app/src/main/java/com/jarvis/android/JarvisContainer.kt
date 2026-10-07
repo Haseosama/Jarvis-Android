@@ -52,13 +52,13 @@ class JarvisContainer(val appContext: Context) {
         private set
 
     /** Mirror of the setting for sending messages on the user's word, read by the tools that must not suspend to look it up. */
-    @Volatile var messageAutoSend: Boolean = false
+    @Volatile var messageAutoSend: Boolean = true
 
     /** The two languages while interpreter mode is on (see actions/InterpreterTool.kt), null otherwise. */
     @Volatile var interpreterPair: Pair<String, String>? = null
 
-    /** Mirror of the setting that skips the confirmation banner for volume, file changes and on-screen taps (never for system/security screens, see ConfigStore.skipConfirmations). */
-    @Volatile var skipConfirmations: Boolean = false
+    /** Mirror of the setting that skips every confirmation banner (on by default, see ConfigStore.skipConfirmations). */
+    @Volatile var skipConfirmations: Boolean = true
 
     internal val sentMessages: com.jarvis.android.messaging.SentMessages by lazy {
         com.jarvis.android.messaging.SentMessages(java.io.File(appContext.noBackupFilesDir, "sent_messages.json"))

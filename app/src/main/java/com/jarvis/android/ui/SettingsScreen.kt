@@ -112,7 +112,7 @@ fun SettingsScreen(
     val hue by configStore.themeHue.collectAsState(initial = 190f)
     val wakeWordEnabled by configStore.wakeWordEnabled.collectAsState(initial = false)
     val deviceControl by configStore.deviceControlEnabled.collectAsState(initial = true)
-    val skipConfirmations by configStore.skipConfirmations.collectAsState(initial = false)
+    val skipConfirmations by configStore.skipConfirmations.collectAsState(initial = true)
     val briefingOn by configStore.briefingEnabled.collectAsState(initial = true)
     val muteWhileSpeaking by configStore.muteMicWhileSpeaking.collectAsState(initial = true)
     val chatHistoryOn by configStore.chatHistoryEnabled.collectAsState(initial = true)
@@ -893,7 +893,7 @@ fun SettingsScreen(
             val askCalendarWrite = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
                 calendarWriteGranted = granted
             }
-            val calendarAutoCreate by configStore.calendarAutoCreate.collectAsState(initial = false)
+            val calendarAutoCreate by configStore.calendarAutoCreate.collectAsState(initial = true)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -906,7 +906,7 @@ fun SettingsScreen(
                 })
             }
             Text(
-                tr("Toujours désactivé par défaut. Une fois activé et une fois l’agenda modifiable autorisé, l’événement est ajouté directement à votre agenda principal (celui dont vous êtes le propriétaire) au lieu d’ouvrir le formulaire à valider vous-même."),
+                tr("Activé par défaut : une fois l’agenda modifiable autorisé, l’événement est ajouté directement à votre agenda principal (celui dont vous êtes le propriétaire). Désactivé, Jarvis ouvre le formulaire à valider vous-même."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -1155,7 +1155,7 @@ fun SettingsScreen(
                 }
             }
             Text(
-                tr("Jarvis peut lister, lire, chercher, créer, modifier, renommer, déplacer, copier, supprimer (corbeille dans le dossier) et ranger des fichiers, seulement dans ce dossier. La suppression, l’écriture et le rangement demandent votre confirmation ; tout peut être annulé."),
+                tr("Jarvis peut lister, lire, chercher, créer, modifier, renommer, déplacer, copier, supprimer (corbeille dans le dossier) et ranger des fichiers, seulement dans ce dossier. Il le fait directement, sans confirmation (sauf si vous la réactivez dans Contrôle du téléphone) ; tout peut être annulé."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -1399,10 +1399,10 @@ fun SettingsScreen(
                 tr("Android n’autorise le contrôle des autres applications que via un service d’accessibilité, à activer vous-même : Paramètres > Accessibilité > Jarvis : contrôle du téléphone. ") +
                     tr("Sur Xiaomi (MIUI), si l’option est grisée : Paramètres > Applications > Jarvis > menu ⋮ > Autoriser les paramètres restreints. ") +
                     (if (skipConfirmations)
-                        tr("Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et le volume ne demandent plus votre confirmation (réglage ci-dessous). ")
+                        tr("Les actions sensibles (envoyer, payer, supprimer, installer, autoriser), y compris sur les écrans système, et le volume ne demandent pas votre confirmation (réglage ci-dessous). ")
                     else
                         tr("Les actions sensibles (envoyer, payer, supprimer, installer, autoriser) et le volume demandent votre confirmation dans une notification. ")) +
-                    tr("Tout ce qui touche aux réglages système, aux autorisations ou à l’installation d’applications demande toujours votre confirmation, quel que soit ce réglage. ") +
+                    (if (skipConfirmations) "" else tr("Tout ce qui touche aux réglages système, aux autorisations ou à l’installation d’applications demande alors toujours votre confirmation. ")) +
                     tr("Jarvis ne remplit jamais un mot de passe. Le contenu lu à l’écran est transmis à Gemini pour traiter votre demande."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
@@ -1412,11 +1412,11 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             ) {
-                Text(tr("Ne jamais demander de confirmation (volume, fichiers, actions sur l’écran)"), modifier = Modifier.weight(1f))
+                Text(tr("Ne jamais demander de confirmation (volume, fichiers, mails, plugins, actions sur l’écran)"), modifier = Modifier.weight(1f))
                 Switch(checked = skipConfirmations, onCheckedChange = { scope.launch { configStore.setSkipConfirmations(it) } })
             }
             Text(
-                tr("Toujours désactivé par défaut. Une fois activé, Jarvis agit du premier coup, sans bannière à valider, y compris à distance ou pendant que vous ne regardez pas le téléphone. Les écrans système (réglages, autorisations, installation d’applications) continuent, eux, à toujours demander confirmation : ce garde-fou n’est pas désactivable, c’est ce qui empêche Jarvis de s’accorder lui-même un accès qu’il n’a pas."),
+                tr("Activé par défaut : Jarvis agit du premier coup, sans bannière à valider, y compris sur les écrans système (réglages, autorisations, installation d’applications), à distance ou pendant que vous ne regardez pas le téléphone. Désactivé, chaque action sensible redemande votre accord, et les écrans système le demandent à chaque appui."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
             )

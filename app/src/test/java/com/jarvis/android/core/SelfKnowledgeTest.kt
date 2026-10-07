@@ -82,16 +82,17 @@ class SelfKnowledgeTest {
     }
 
     @Test
-    fun `by default sensitive taps, volume and file changes ask to confirm`() {
+    fun `when the user turns confirmations back on, sensitive taps, volume and file changes ask to confirm`() {
         val text = buildSelfKnowledge(inputs())
         assertTrue(text.contains("ask the user to confirm on their phone"))
         assertFalse(text.contains("go ahead directly"))
     }
 
     @Test
-    fun `with confirmations switched off, it is told to act at once except on system screens`() {
+    fun `with confirmations switched off, it is told to act at once, system screens included`() {
         val text = buildSelfKnowledge(inputs(skipConfirmations = true))
-        assertTrue(text.contains("go ahead directly, do not warn them or ask them to confirm again"))
-        assertTrue(text.contains("system settings, permissions or installing an app still always ask"))
+        assertTrue(text.contains("go ahead directly. Do not warn them or ask them to confirm"))
+        assertTrue(text.contains("system settings, permissions and installs included"))
+        assertFalse(text.contains("still always ask"))
     }
 }

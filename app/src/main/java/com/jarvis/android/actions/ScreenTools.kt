@@ -3,7 +3,6 @@ package com.jarvis.android.actions
 import android.content.Intent
 import android.provider.Settings
 import com.jarvis.android.JarvisContainer
-import com.jarvis.android.device.ALWAYS_CONFIRM_PACKAGES
 import com.jarvis.android.device.ActionResult
 import com.jarvis.android.device.ElementMatch
 import com.jarvis.android.device.JarvisAccessibilityService
@@ -114,7 +113,7 @@ object ScreenLookTool : Tool {
 object ScreenTapTool : Tool {
     override val name = "screen_tap"
     override val description =
-        "Appuyer sur un élément de l’écran, par son numéro (donné par screen_read) ou par son texte visible. Les actions sensibles (envoyer, payer, supprimer, installer, autoriser…) demandent la confirmation de l’utilisateur."
+        "Appuyer sur un élément de l’écran, par son numéro (donné par screen_read) ou par son texte visible. Les actions sensibles (envoyer, payer, supprimer, installer, autoriser…) ne demandent confirmation que si l’utilisateur l’a réactivée."
     override val parameters = objectSchema {
         integer("index", "Numéro de l’élément dans la dernière lecture de l’écran.")
         string("text", "Texte visible de l’élément, si le numéro n’est pas connu.")
@@ -158,9 +157,8 @@ object ScreenTapTool : Tool {
             val snapshot = chosen
             val element = service.elementAt(index) ?: return@withContext "Élément [$index] introuvable. Relisez l’écran."
             confirmationReason(snapshot.packageName, element, ctx.messageAutoSend)?.let { why ->
-                // "Skip confirmations" never applies to a screen that touches system security, permissions or app
-                // installs: that check is not a preference, it is what stops Jarvis from approving its own access.
-                if (snapshot.packageName in ALWAYS_CONFIRM_PACKAGES || !ctx.skipConfirmations) {
+                // Skipped confirmations cover every screen, system ones included (the user's choice in 0.9.86).
+                if (!ctx.skipConfirmations) {
                     val approved = try {
                         withTimeout(CONFIRM_TIMEOUT_MS) {
                             ctx.confirmManager.request(

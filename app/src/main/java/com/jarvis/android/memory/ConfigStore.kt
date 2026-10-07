@@ -208,14 +208,14 @@ class ConfigStore(private val context: Context) {
     private val KEY_GOOGLE = booleanPreferencesKey("google_connected")
     private val KEY_GOOGLE_CLEANUP = booleanPreferencesKey("google_cleanup")
     private val KEY_AVATAR_SKIN = intPreferencesKey("avatar_face_skin")
-    private val KEY_MESSAGE_AUTO_SEND = booleanPreferencesKey("message_auto_send")
-    private val KEY_GMAIL_AUTO_SEND = booleanPreferencesKey("gmail_auto_send")
-    private val KEY_CALENDAR_AUTO_CREATE = booleanPreferencesKey("calendar_auto_create")
+    private val KEY_MESSAGE_AUTO_SEND = booleanPreferencesKey("message_auto_send_v2")
+    private val KEY_GMAIL_AUTO_SEND = booleanPreferencesKey("gmail_auto_send_v2")
+    private val KEY_CALENDAR_AUTO_CREATE = booleanPreferencesKey("calendar_auto_create_v2")
     private val KEY_CAR_AUDIO = intPreferencesKey("car_audio_mode")
     private val KEY_OFFLINE_MODE = intPreferencesKey("offline_mode")
     private val KEY_KEEP_TRANSCRIPTS = booleanPreferencesKey("keep_session_transcripts")
     private val KEY_LOCAL_AI = booleanPreferencesKey("local_ai_enabled")
-    private val KEY_SKIP_CONFIRMATIONS = booleanPreferencesKey("skip_confirmations")
+    private val KEY_SKIP_CONFIRMATIONS = booleanPreferencesKey("skip_confirmations_v2")
     private val KEY_RAIN_ALERTS = booleanPreferencesKey("rain_alerts")
     private val KEY_WAKE_PAUSE_SAVER = booleanPreferencesKey("wake_pause_saver")
     private val KEY_AVATAR_MODEL = intPreferencesKey("avatar_face_model")
@@ -282,7 +282,6 @@ class ConfigStore(private val context: Context) {
     val avatarHaseoCustom: Flow<String> = context.dataStore.data.map { it[KEY_AVATAR_HASEO].orEmpty() }
     /** Haseo's saved looks: name → sliders, as "name=sliders" lines. */
     val avatarHaseoLooks: Flow<List<Pair<String, String>>> = context.dataStore.data.map { decodeLooks(it[KEY_AVATAR_HASEO_LOOKS].orEmpty()) }
-    /** Off by default: when on, "send" said by the user really sends the message (SMS, WhatsApp) to a contact, without a confirmation. */
     /** Car mode (Android Auto): 0 = automatic, 1 = always, 2 = never. */
     val carAudioMode: Flow<Int> = context.dataStore.data.map { it[KEY_CAR_AUDIO] ?: 0 }
     /** Offline mode: 0 = automatic (when there is no network or Gemini cannot be reached), 1 = always, 2 = never. */
@@ -291,22 +290,27 @@ class ConfigStore(private val context: Context) {
     val keepSessionTranscripts: Flow<Boolean> = context.dataStore.data.map { it[KEY_KEEP_TRANSCRIPTS] ?: true }
     /** Whether the offline mode may use the local model, once one is installed, for what is not a fixed command. On by default. */
     val localAiEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_LOCAL_AI] ?: true }
-    val messageAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_MESSAGE_AUTO_SEND] ?: false }
-    /** Off by default: when on, and the user has just asked clearly, gmail's send action really sends the mail instead of only drafting it. */
-    val gmailAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_GMAIL_AUTO_SEND] ?: false }
-    /** Off by default: when on, and the user has just asked clearly, calendar's add action really creates the event instead of only opening the form. */
-    val calendarAutoCreate: Flow<Boolean> = context.dataStore.data.map { it[KEY_CALENDAR_AUTO_CREATE] ?: false }
+    /*
+     * Since 0.9.86 Jarvis asks no confirmation by default (the user asked for all of them to go): the four switches below
+     * are on unless the user turns one off. Their keys took a "_v2" suffix so that an "off" saved by an older version
+     * does not keep the confirmation alive.
+     */
+    /** On by default: "send" said by the user really sends the message (SMS, WhatsApp, Messenger) to a contact, without a confirmation. */
+    val messageAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_MESSAGE_AUTO_SEND] ?: true }
+    /** On by default: when the user has just asked clearly, gmail's send action really sends the mail instead of only drafting it. */
+    val gmailAutoSend: Flow<Boolean> = context.dataStore.data.map { it[KEY_GMAIL_AUTO_SEND] ?: true }
+    /** On by default: when the user has just asked clearly, calendar's add action really creates the event instead of only opening the form. */
+    val calendarAutoCreate: Flow<Boolean> = context.dataStore.data.map { it[KEY_CALENDAR_AUTO_CREATE] ?: true }
     /** Off by default: a notification when rain is about to start where the phone is (see weather/RainSoon.kt). */
     val rainAlerts: Flow<Boolean> = context.dataStore.data.map { it[KEY_RAIN_ALERTS] ?: false }
     /** On by default: the wake word stops listening while Android's battery saver is on (the microphone is the costliest part). */
     val wakePauseInSaver: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_PAUSE_SAVER] ?: true }
     /**
-     * Off by default: when on, volume changes, file writes/deletes/organising and any other on-screen action Jarvis would
-     * normally ask about go ahead without a confirmation banner. Screens that touch system security, permissions or
-     * app installs (settings, permission controller, package installer…) still always ask, whatever this is set to —
-     * that one check is not a preference, it is what stops Jarvis from ever approving its own system-level access.
+     * On by default: volume changes, file writes/deletes/organising, mail cleanup, plugin installs and every on-screen
+     * action (system, permission and install screens included) go ahead without a confirmation banner. Turned off, they
+     * all ask again (see device/ScreenModel.kt ALWAYS_CONFIRM_PACKAGES for the screens where every tap then asks).
      */
-    val skipConfirmations: Flow<Boolean> = context.dataStore.data.map { it[KEY_SKIP_CONFIRMATIONS] ?: false }
+    val skipConfirmations: Flow<Boolean> = context.dataStore.data.map { it[KEY_SKIP_CONFIRMATIONS] ?: true }
     val avatarSkin: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_SKIN] ?: 7 }   // 7 = the blue hologram (avatar.BLUE_HOLO_SKIN), unless the user chose another look
     /** 0 = natural, 1..4 = a lip colour (rose, red, plum, coral). */
     val avatarLips: Flow<Int> = context.dataStore.data.map { it[KEY_AVATAR_LIPS] ?: 0 }

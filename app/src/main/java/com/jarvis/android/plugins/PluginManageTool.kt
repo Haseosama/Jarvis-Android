@@ -120,8 +120,8 @@ object PluginManageTool : Tool {
         }
     }
 
-    /** Always asked, whatever the confirmation setting: a plugin is a skill the assistant will use by itself. */
-    private suspend fun confirm(ctx: JarvisContainer, label: String, detail: String): Boolean = try {
+    /** Asked only when the user turned confirmations back on: a plugin is a skill the assistant will use by itself. */
+    private suspend fun confirm(ctx: JarvisContainer, label: String, detail: String): Boolean = ctx.skipConfirmations || try {
         withTimeout(60_000L) { ctx.confirmManager.request(label, detail) }
     } catch (_: TimeoutCancellationException) {
         false
