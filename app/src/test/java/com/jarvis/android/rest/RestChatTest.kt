@@ -12,6 +12,8 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import com.jarvis.android.engine.MAX_TOOL_ROUNDS
+import com.jarvis.android.engine.ROUND_LIMIT_RESULT
 import com.jarvis.android.engine.RestChatSession
 
 class RestChatTest {
@@ -90,8 +92,25 @@ class RestChatTest {
     }
 
     @Test
-    fun `endless tool calls stop after the round limit and roll back`() {
-        val replies = MutableList(20) { { callResponse("loop") } }
+    fun `at the round limit the model sums up with tools switched off`() = runBlocking {
+        val replies: MutableList<() -> JsonObject> = MutableList(MAX_TOOL_ROUNDS + 1) { { callResponse("loop") } }
+        replies += { textResponse("Fait en partie") }
+        val transport = FakeTransport(replies)
+        var runs = 0
+        val s = session(transport) { _, _ -> runs++; "ok" }
+        assertEquals("Fait en partie", s.send("go"))
+        assertEquals(MAX_TOOL_ROUNDS, runs)
+        val last = transport.requests.last()
+        assertEquals("NONE", last["toolConfig"]!!.jsonObject["functionCallingConfig"]!!.jsonObject["mode"]!!.jsonPrimitive.content)
+        val pending = last["contents"]!!.jsonArray.last().jsonObject["parts"]!!.jsonArray[0].jsonObject["functionResponse"]!!.jsonObject
+        assertEquals(ROUND_LIMIT_RESULT, pending["response"]!!.jsonObject["result"]!!.jsonPrimitive.content)
+        assertEquals("model", s.snapshot().last()["role"]!!.jsonPrimitive.content)
+        assertFalse(transport.requests.first().containsKey("toolConfig"))
+    }
+
+    @Test
+    fun `a model that still calls a tool after the limit gives the error and rolls back`() {
+        val replies: MutableList<() -> JsonObject> = MutableList(MAX_TOOL_ROUNDS + 2) { { callResponse("loop") } }
         val s = session(FakeTransport(replies))
         assertEquals(ERROR_TOO_MANY_TOOLS, failure { runBlocking { s.send("go") } })
         assertTrue(s.snapshot().isEmpty())
