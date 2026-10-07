@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.89 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.90 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -38,7 +38,7 @@ Everything is asked by voice (French first, English too), or typed in the chat. 
   them), health (steps, sleep, heart rate from Health Connect), an emergency SOS to chosen contacts.
 - **Knowledge and work**: web search, reading a web page, flights, translation and interpreter mode, meeting notes, documents, Gmail and
   Drive, code help, watches on prices or sites, a multi-step agent mode.
-- **Without a network**: an offline mode with fixed French commands (and an optional local Gemma model), and an offline wake word.
+- **Without a network**: an offline mode with fixed French commands (and an optional local model, picked from a list and downloaded by Jarvis), and an offline wake word.
 - **Extensible**: declarative JSON plugins, Home Assistant, Spotify and Liberty Music.
 
 ## Build variants
@@ -1889,12 +1889,38 @@ of a real answer only when there is none. With one installed, the phone runs a s
 `com.google.mediapipe:tasks-genai`) to answer in French, entirely on the device — nothing about the question or the answer is sent anywhere. It only talks: it cannot open an app, place a call, change a setting or
 search the web, and the system prompt given to the model (`offline/LocalPrompt.kt`) tells it so, so it says it cannot rather than pretending it did it.
 
-**Getting the model.** Gemma's own weights are gated by a Google licence on Hugging Face, so the app cannot fetch them the automatic way it fetches the (open) wake-word models. On a computer or the phone's own browser:
-open [huggingface.co/litert-community/Gemma3-1B-IT](https://huggingface.co/litert-community/Gemma3-1B-IT), log in, accept the Gemma licence, and download `gemma3-1b-it-int4.task` (≈ 530 MB). Then, in Jarvis, Settings >
-"IA locale (hors ligne)" > "Importer le modèle (.task)", and pick that file — the same way a custom wake-word model, trained outside the app, is imported. The file is copied into the app's own storage (checked first:
-a plausible size and the zip header every MediaPipe `.task` bundle has); nothing is downloaded by Jarvis itself.
+**Getting the model** (a list since 0.9.90, at the owner's request). Settings > "IA locale (hors ligne)" shows the models Jarvis can download by itself
+(`offline/LocalModelCatalog.kt`): official ones from Google's [LiteRT community](https://huggingface.co/litert-community) on Hugging Face, then, under
+"Non censurés" with a warning, community conversions that were abliterated or fine-tuned so they refuse no topic:
 
-**How it is used.** `offline/LocalModelStore.kt` holds the imported file; `offline/LocalLlm.kt` wraps MediaPipe's `LlmInference`, loaded only the first time an offline question actually needs it (not at the start of
+| Model | Size | Account |
+|---|---|---|
+| Gemma 4 E2B (`gemma-4-E2B-it.litertlm`), the most capable, for a recent phone (8 GB of memory advised) | ≈ 2.6 GB | none (Apache 2.0) |
+| Gemma 3 1B (`gemma3-1b-it-int4.task`), the recommended one, best French for its size | ≈ 555 MB | Hugging Face token |
+| Qwen 2.5 0.5B (`…_q8_ekv1280.task`), fast and light | ≈ 547 MB | none (Apache 2.0) |
+| Qwen 2.5 1.5B (`…_q8_ekv1280.task`), smarter, for a recent phone (6 GB of memory or more) | ≈ 1.6 GB | none (Apache 2.0) |
+| Gemma 3 270M (`gemma3-270m-it-q8.task`), tiny, basic answers | ≈ 304 MB | Hugging Face token |
+| Uncensored: Gemma 4 E2B abliterated ([DuoNeural](https://huggingface.co/DuoNeural/Gemma-4-Abliterated-LiteRT), `.litertlm`) | ≈ 2.6 GB | none |
+
+No uncensored model exists as a MediaPipe `.task` file worth offering (the one found keeps only about a third of its abliteration after
+quantisation), and community `.litertlm` conversions made for LiteRT-LM 0.17 (such as an uncensored Qwen 2.5 1.5B) are left out because
+this project's Kotlin 2.2 cannot use LiteRT-LM 0.17 (built with Kotlin 2.4), so it stays on 0.16.1. 0.9.90 also adds Google's newer on-device engine, [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM)
+(`com.google.ai.edge.litertlm:litertlm-android`), next to MediaPipe: `offline/LocalLlm.kt` gives a `.litertlm` file to LiteRT-LM (CPU backend,
+one `Conversation` per answer) and a `.task` file to MediaPipe as before. The store tells the two apart by their first bytes (`PK` for a `.task` zip,
+`LITERTLM` for the other) and keeps the model as `model.task` or `model.litertlm`; both can be imported too.
+
+The user picks one and taps "Télécharger". `offline/LocalModelDownloads.kt` hands the file to Android's own download manager, which carries on with Jarvis closed or the
+screen off, resumes after a network cut and shows its progress notification; the settings screen shows the percentage and can cancel. Once it is done (the
+`DOWNLOAD_COMPLETE` broadcast, or the settings screen if it is open), the file is checked (exact published size, the header of its format, and the SHA-256 for
+every file whose hash Hugging Face shows publicly, that is all but the gated Gemma 3 ones) and becomes the model where it is, in the app's external files folder, so a 2.6 GB model never needs twice its size free.
+Gemma's weights are gated by Google's licence: Hugging Face serves them only to an account that accepted it on the model's page. For those entries the screen has a button
+to that page and a field for the account's "Read" access token; Jarvis uses the token once to get the signed link Hugging Face redirects to, and only that link goes to the
+download manager, so the token is never saved. Installing one model replaces the previous one. Importing a `.task` file fetched elsewhere ("Ou importer un fichier .task")
+still works as before: the file is copied into the app's own storage after the same size and header check.
+**Not checked:** I could not build or run the app in this environment (no Android SDK) nor download from Hugging Face, so the download itself, the token flow, LiteRT-LM
+loading a real model and the installed models' answers (including how uncensored the community ones really are) are untested on a phone; the unit tests cover the list, the checks on a finished download, and installing, replacing and removing a model.
+
+**How it is used.** `offline/LocalModelStore.kt` holds the downloaded or imported file; `offline/LocalLlm.kt` wraps MediaPipe's `LlmInference`, loaded only the first time an offline question actually needs it (not at the start of
 every offline session) and unloaded when the offline session ends, to give its memory back. `offline/LocalPrompt.kt` builds the one block of text sent to the model: a short instruction, the last three exchanges of the
 *offline* session only (never the online conversation, never the long-term memory, never a tool's answer), and the new question — plain labelled turns ("Utilisateur : … / Jarvis : …"), not the model's own special
 tokens, since I could not confirm against the real weights whether the `.task` bundle already wraps a query in its expected chat template. A reply is capped at 512 tokens and 60 seconds; past that, or on any error
