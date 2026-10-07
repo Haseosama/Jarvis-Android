@@ -9,16 +9,16 @@ import com.jarvis.android.text.normalize
  */
 
 internal enum class SettingsGroup(val french: String, val frenchHint: String) {
-    JARVIS("Jarvis", "Nom, apparence, historique, mémoire"),
-    VOICE("Voix et écoute", "Voix, mot d’activation, micro et casque"),
+    JARVIS("Jarvis", "Nom, apparence, mémoire"),
+    VOICE("Voix et écoute", "Voix, mot d’activation, audio"),
     AI("IA et clés API", "Clés Gemini, modèles, IA hors ligne"),
-    PHONE("Téléphone", "Contrôle, contacts, notifications, messages"),
+    PHONE("Téléphone", "Contrôle, contacts, messages"),
     ORGANISE("Organisation", "Agenda, rappels, listes, dépenses"),
     BRIEFINGS("Briefings et alertes", "Briefings, surveillances, électricité"),
     HEALTH("Santé et sécurité", "Santé, médicaments, urgence"),
     CAR("Voiture et trajets", "Voiture garée, conduite, transports"),
     FILES("Fichiers et notes", "Dossier de travail, photos, Obsidian"),
-    SERVICES("Services connectés", "Google, maison, PC, plugins, connecteurs"),
+    SERVICES("Services connectés", "Google, maison, PC, connecteurs"),
 }
 
 /** The cards of each category, by French title, in the order the menu lists them. */
