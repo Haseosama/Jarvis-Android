@@ -74,6 +74,9 @@ class ConfigStore(private val context: Context) {
     /** The Jarvis PC pairing (address, pinned certificate, tokens), a credential too: see pc/PcLink.kt. */
     private val pcPairingStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_pc_pairing.enc", keys = keystoreKey)
 
+    /** The connectors (remote MCP servers) with their tokens and logins: see connectors/ConnectorManager.kt. */
+    private val connectorsStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_connectors.enc", keys = keystoreKey)
+
     private var slotCache: List<String?>? = null
 
     @Synchronized
@@ -177,6 +180,9 @@ class ConfigStore(private val context: Context) {
     fun getPcPairing(): String? = pcPairingStore.read()
     fun savePcPairing(json: String): Boolean = pcPairingStore.write(json)
     fun deletePcPairing(): Boolean = pcPairingStore.delete()
+
+    fun getConnectors(): String? = connectorsStore.read()
+    fun saveConnectors(json: String): Boolean = connectorsStore.write(json)
 
     fun getHomeAssistantToken(): String? = homeAssistantTokenStore.read()
     fun hasHomeAssistantToken(): Boolean = !getHomeAssistantToken().isNullOrBlank()

@@ -22,6 +22,8 @@ internal data class SelfKnowledgeInputs(
     val proactiveEnabled: Boolean,
     val messageAutoSend: Boolean = true,
     val skipConfirmations: Boolean = true,
+    /** The user's connectors (remote MCP servers), each with what it offers, e.g. "Notion (12 tools)". */
+    val connectors: List<String> = emptyList(),
 )
 
 private fun onOff(on: Boolean) = if (on) "ON" else "OFF"
@@ -47,6 +49,7 @@ internal fun buildSelfKnowledge(i: SelfKnowledgeInputs): String {
         appendLine("You are ${i.assistantName}, an assistant app running on an Android phone (${i.deviceModel}, Android ${i.androidRelease}).")
         appendLine("Tools available right now (${i.builtInTools.size}): ${i.builtInTools.joinToString(", ")}.")
         appendLine("User plugins installed: $plugins.")
+        if (i.connectors.isNotEmpty()) appendLine("Connectors (remote MCP servers, their tools are named after them): ${i.connectors.joinToString(", ")}. The tool `connecteurs` lists them and reaches the tools not declared one by one.")
         appendLine("Current status:")
         appendLine("- Phone control (read the screen, tap, type, scroll, photos, screenshots): $phoneControl.")
         appendLine("- File manager: " + if (i.workFolderSet) "ON (a work folder is set; nothing outside it can be touched)." else "OFF (no work folder chosen in the settings).")

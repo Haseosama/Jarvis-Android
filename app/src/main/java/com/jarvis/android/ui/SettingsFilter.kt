@@ -40,7 +40,7 @@ private val GROUPS: Map<String, SettingsGroup> = buildMap {
     put(SettingsGroup.DAILY, "Agenda", "Rappels", "Listes", "Dépenses", "Médicaments et habitudes", "Rappels selon le lieu", "Briefing du matin",
         "Briefing au réveil", "Vérifications en arrière-plan", "Santé", "Notes de réunion")
     put(SettingsGroup.CAR, "Voiture garée", "Mode conduite", "Urgence / SOS")
-    put(SettingsGroup.SERVICES, "Plugins", "Surveillances", "Google (Gmail, Drive)", "Colis", "Transports", "Maison connectée", "Jarvis PC")
+    put(SettingsGroup.SERVICES, "Plugins", "Connecteurs", "Surveillances", "Google (Gmail, Drive)", "Colis", "Transports", "Maison connectée", "Jarvis PC")
 }
 
 /** Words a card is also found by, beyond its title ("clé" finds the API keys, "batterie" the wake word…). */
@@ -53,6 +53,7 @@ private val KEYWORDS: Map<String, String> = mapOf(
     "Colis" to "la poste suivi cle",
     "Transports" to "train sncf bus tram metro cle navitia departs horaires transitous",
     "Maison connectée" to "home assistant domotique lumiere",
+    "Connecteurs" to "mcp serveur notion github zapier n8n outils jeton oauth connexion",
     "Jarvis PC" to "ordinateur pc controle distance qr appairer",
     "Médicaments et habitudes" to "medicament pilule",
     "Urgence / SOS" to "secours alerte",

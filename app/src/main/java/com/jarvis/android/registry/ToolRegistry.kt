@@ -1,6 +1,7 @@
 package com.jarvis.android.registry
 
 import com.jarvis.android.JarvisContainer
+import com.jarvis.android.connectors.InstalledConnectors
 import com.jarvis.android.plugins.InstalledPlugins
 import com.jarvis.android.plugins.MAX_DECLARED_PLUGINS
 import kotlinx.serialization.json.JsonObject
@@ -191,6 +192,7 @@ object ToolRegistry {
         InterpreterTool,
         CallLogTool, SosTool, PhotoSearchTool, ReceiptTool, PersonReminderTool, DrivingModeTool, HealthTool, QuietModeTool, SubscriptionsTool, RecipeTool, ParcelTool, BudgetTool, ReadTextTool, WakeBriefingTool, TransportTool, TidesTool, PcControlTool,
         com.jarvis.android.actions.HaseoArTool,
+        com.jarvis.android.connectors.ConnectorTool,
     )
 
     private val byName = ALL.associateBy { it.name }
@@ -211,10 +213,17 @@ object ToolRegistry {
     /** The names a plugin cannot take: the built-in tools and `plugin_run`. */
     internal fun builtInNames(): Set<String> = byName.keys + com.jarvis.android.plugins.PluginRunTool.name
 
+    /** The tools of the user's connectors (remote MCP servers, see the connectors package). */
+    internal fun connectorTools(): List<Tool> = InstalledConnectors.all()
+
     fun get(name: String): Tool? = byName[name] ?: plugins.firstOrNull { it.name == name }
         ?: com.jarvis.android.plugins.PluginRunTool.takeIf { name == it.name && plugins.size > MAX_DECLARED_PLUGINS }
+        ?: InstalledConnectors.all().firstOrNull { it.name == name }
 
-    fun declarations(): List<JsonObject> = (ALL + declaredPlugins() + listOfNotNull(com.jarvis.android.plugins.PluginRunTool.takeIf { plugins.size > MAX_DECLARED_PLUGINS })).map { tool ->
+    fun declarations(): List<JsonObject> = (
+        ALL + declaredPlugins() + listOfNotNull(com.jarvis.android.plugins.PluginRunTool.takeIf { plugins.size > MAX_DECLARED_PLUGINS }) +
+            InstalledConnectors.declared()
+        ).map { tool ->
         buildJsonObject {
             put("name", tool.name)
             put("description", tool.description)

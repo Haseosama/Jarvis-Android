@@ -129,6 +129,19 @@ class JarvisContainer(val appContext: Context) {
         pluginStore.reload()
     }
 
+    /** The user's connectors (remote MCP servers), their tokens kept encrypted; their tools join the registry's. */
+    internal val connectors = com.jarvis.android.connectors.ConnectorManager(
+        http = http,
+        load = { configStore.getConnectors() },
+        save = { configStore.saveConnectors(it) },
+        reservedNames = { ToolRegistry.builtInNames() + ToolRegistry.pluginTools().map { it.name } },
+        clientVersion = try { appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName } catch (_: Exception) { null } ?: "1",
+    )
+
+    init {
+        connectors.loadCached()
+    }
+
     internal val sessionLog = com.jarvis.android.core.SessionLog(java.io.File(appContext.noBackupFilesDir, "session_log.json"))
 
     /** What was said in the voice sessions, kept on the phone (see SessionTranscripts.kt). */
@@ -211,6 +224,11 @@ class JarvisContainer(val appContext: Context) {
         appScope.launch(Dispatchers.IO) {
             kotlinx.coroutines.delay(8_000)   // the container is fully built by then
             com.jarvis.android.engine.retryPendingTranscripts(this@JarvisContainer)
+        }
+        // the connectors' tools as their servers give them today (the last known ones are already in use)
+        appScope.launch(Dispatchers.IO) {
+            kotlinx.coroutines.delay(5_000)
+            connectors.refreshAll()
         }
         appScope.launch {
             configStore.proactiveEnabled.collect { com.jarvis.android.proactive.ProactiveScheduler.apply(appContext, it) }
