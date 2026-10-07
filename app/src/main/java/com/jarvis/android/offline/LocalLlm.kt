@@ -21,7 +21,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  * user downloaded or imported. Unverified on a real phone beyond the APIs compiling: I could not run either engine with real weights.
  */
 
-internal const val LOCAL_LLM_MAX_TOKENS = 512
+/** MediaPipe's room for the prompt and the answer together: the tools and the conversation need more than a bare question did. The
+ * Qwen .task files are built with a 1280-token cache, so more would not load; the prompt is kept to fit (see LOCAL_BUDGET_SMALL). */
+internal const val LOCAL_LLM_MAX_TOKENS = 1280
 internal const val LOCAL_LLM_TIMEOUT_MS = 60_000L
 
 internal class LocalLlm(private val context: Context) {
@@ -65,7 +67,7 @@ internal class LocalLlm(private val context: Context) {
     }
 
     /**
-     * One answer to [prompt] (see [buildLocalPrompt]). Null when the model could not answer in time or at all; [reason] then explains why.
+     * One answer to [prompt] (see buildLocalAgentPrompt in LocalAgent.kt). Null when the model could not answer in time or at all; [reason] then explains why.
      */
     suspend fun reply(prompt: String, modelPath: String): LocalReply {
         ensureLoaded(modelPath)?.let { return LocalReply(null, it) }

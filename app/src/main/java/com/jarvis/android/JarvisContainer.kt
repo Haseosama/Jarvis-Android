@@ -139,6 +139,9 @@ class JarvisContainer(val appContext: Context) {
     /** The offline mode's local model (downloaded from the list or imported by the user; see LocalModelStore.kt). */
     internal val localModelStore = com.jarvis.android.offline.LocalModelStore(appContext)
 
+    /** The local model with Jarvis's tools and conversation, for the voice and the text chat without the network (see LocalBrain.kt). */
+    internal val localBrain by lazy { com.jarvis.android.engine.LocalBrain(this) }
+
     /** Downloads of the models in the offline model list (see LocalModelDownloads.kt). */
     internal val localModelDownloads by lazy { com.jarvis.android.offline.LocalModelDownloads(appContext, http, localModelStore) }
 
