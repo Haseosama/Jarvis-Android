@@ -60,10 +60,13 @@ fun SettingsCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val french = frenchOf(title)
-    var expanded by rememberSaveable(french) { mutableStateOf(initiallyExpanded) }
-    // The search and theme chips at the top of the settings page hide the cards that do not match.
+    // The settings page opens on its categories: a card shows only inside its category, or when a search finds it.
     val filter = LocalSettingsFilter.current
-    if (!filter.accepts(french, title)) return
+    // A category of one or two cards, or a search that finds only this card, opens it straight away.
+    val alone = filter.group?.let { GROUP_CARDS[it].orEmpty().size <= 2 } == true ||
+        (filter.query.isNotBlank() && filter.matches { tr(it) } == listOf(french))
+    var expanded by rememberSaveable(french, filter.group, alone) { mutableStateOf(initiallyExpanded || alone) }
+    if (!filter.shows(french, title)) return
     val arrow by animateFloatAsState(if (expanded) 180f else 0f, label = "arrow")
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).animateContentSize(),
@@ -75,12 +78,7 @@ fun SettingsCard(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
-            Box(
-                Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
-            }
+            SettingsIcon(icon, CARD_GROUP[french]?.color ?: MaterialTheme.colorScheme.primary, size = 36)
             Spacer(Modifier.size(12.dp))
             Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             Icon(
