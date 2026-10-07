@@ -180,6 +180,7 @@ internal fun buildGenerateRequest(
     systemInstruction: String,
     contents: List<JsonObject>,
     tools: List<JsonObject>,
+    allowCalls: Boolean = true,
 ): JsonObject = buildJsonObject {
     putJsonObject("systemInstruction") {
         putJsonArray("parts") { addJsonObject { put("text", systemInstruction) } }
@@ -191,6 +192,8 @@ internal fun buildGenerateRequest(
                 putJsonArray("functionDeclarations") { tools.forEach { add(it) } }
             }
         }
+        // the tools stay declared (the history holds calls to them) but the model must answer in words
+        if (!allowCalls) putJsonObject("toolConfig") { putJsonObject("functionCallingConfig") { put("mode", "NONE") } }
     }
 }
 

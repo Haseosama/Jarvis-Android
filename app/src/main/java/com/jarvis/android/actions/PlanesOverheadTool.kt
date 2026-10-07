@@ -100,7 +100,7 @@ object PlanesOverheadTool : Tool {
     override val description =
         "Les avions en vol autour de la position du téléphone en ce moment (réseau OpenSky : la plupart des avions de ligne, pas forcément " +
             "tous les petits avions ni les vols militaires). Pour « quel est cet avion au-dessus de moi », « il y a des avions autour ? ». " +
-            "Les satellites ne sont pas disponibles."
+            "Pour les satellites (ISS, Starlink…), utilisez satellites ou sky_view."
     override val parameters = objectSchema {
         integer("radius_km", "Rayon de recherche en km, de 5 à 200 (défaut $PLANES_DEFAULT_RADIUS_KM).")
     }
