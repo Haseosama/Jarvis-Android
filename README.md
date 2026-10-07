@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.97 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.98 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -124,7 +124,7 @@ a message into the running voice session.
 | `dashboard` | the phone is its client: `jarvis_pc` |
 
 Added here and not in the original: `alarm`, `calendar`, `call_contact`, `call_log`, `notifications`, `routine`, `timer`, `liberty_music`,
-`meeting_notes`, `create_document`, `gmail`, `drive`, `watch`, `end_session`, `undo`, `task_list`, `translate`, `interpreter`, `smart_home`,
+`meeting_notes`, `create_document`, `edit_document`, `gmail`, `drive`, `watch`, `end_session`, `undo`, `task_list`, `translate`, `interpreter`, `smart_home`,
 `spotify_search`, `air_quality`, `planes_overhead`, `prix_carburant`, `rain_soon`, `expenses`, `receipt`, `habits`, `find_phone`,
 `place_reminder`, `person_reminder`, `parking`, `driving_mode`, `birthdays`, `photos`, `health`, `sos`, `quiet_mode`,
 `subscriptions`, `recipe`, `parcel`, `budget`, `read_text`, `wake_briefing`, `transport`, `jarvis_pc`, `navigateur_pc`, plus the widgets, the avatar, the
@@ -706,6 +706,28 @@ never a password or an unofficial API (those get accounts blocked).
 
 Checked: unit tests for the crop and size, the metadata check, the caption, the choice of the outing, and the Graph API answers and
 errors (`InstagramPublishTest`). **Not checked against the real API** (no account in the build environment) nor on a phone.
+
+### Document editor, pictures included (0.9.98)
+
+At the owner's request ("un module intégré pour la création de documents permettant d'insérer des images et tout autre type de
+contenu", and "intégrer les images dans les PDF également"), documents become something Jarvis and the owner write together:
+
+- **Editor** (the document icon at the top of the main screen): a list of documents, each edited as blocks that can be moved up and
+  down: section headings (3 levels), paragraphs, **pictures from the gallery** (caption, width from 10 to 100 %), bulleted and
+  numbered lists, check boxes, tables (add/remove rows and columns), quotes, code, separators and page breaks. Saved as you type
+  (`document-drafts/` in the app's private storage; picked pictures are copied there upright, at most 1600 px, without metadata).
+  The share button exports to **PDF, Word, PowerPoint, a web page (HTML, one file), Markdown or text**, then opens or shares it.
+- **Pictures in every format**: drawn into the PDF, embedded in the Word file (`word/media`) and on picture slides in PowerPoint
+  (titled by their section, caption under), and inlined in the HTML page. A picture that cannot be found is marked in its place.
+- **By voice**: `create_document` takes the same light Markdown, now with `![légende](source)` pictures (`galerie:dernière`,
+  `galerie:3`, `galerie:2026-10-05#2`, an `https://` image, or a file/content address), `- [ ]` check boxes, `>` quotes, code
+  fences, `---` and `[saut de page]`, and the HTML type. Every text document it writes also lands in the editor. `edit_document`
+  lists, reads, adds to (a section, a photo), rewrites, creates and exports those documents ("ajoute ma dernière photo au rapport
+  et exporte-le en PDF").
+
+Checked: unit tests for the new Markdown blocks and their round trip, image sources, picture sizing, the Word and PowerPoint files
+with their pictures, the HTML page and the drafts (`DocumentEditorTest`). **Not checked on a phone yet** (PDF drawing and the editor
+screen run only on Android).
 
 ### More voices, online and offline (0.9.97)
 

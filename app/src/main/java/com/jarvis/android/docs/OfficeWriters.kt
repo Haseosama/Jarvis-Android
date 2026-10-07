@@ -8,12 +8,13 @@ internal fun xmlEscape(text: String): String =
     text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
         .filter { it == '\n' || it == '\t' || it == '\r' || it.code >= 0x20 }
 
-private fun zip(entries: List<Pair<String, String>>): ByteArray {
+/** A zip of text [entries] (UTF-8) and [binary] ones (pictures). */
+internal fun zip(entries: List<Pair<String, String>>, binary: List<Pair<String, ByteArray>> = emptyList()): ByteArray {
     val out = ByteArrayOutputStream()
     ZipOutputStream(out).use { zip ->
-        for ((name, content) in entries) {
+        for ((name, content) in entries.map { (n, t) -> n to t.toByteArray(Charsets.UTF_8) } + binary) {
             zip.putNextEntry(ZipEntry(name))
-            zip.write(content.toByteArray(Charsets.UTF_8))
+            zip.write(content)
             zip.closeEntry()
         }
     }
@@ -25,14 +26,48 @@ private const val W_NS = "xmlns:w=\"http://schemas.openxmlformats.org/wordproces
 
 // ── Word ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-private fun wPara(text: String, style: String? = null, indent: Int = 0, bold: Boolean = false): String {
+private fun wPara(
+    text: String, style: String? = null, indent: Int = 0, bold: Boolean = false, italic: Boolean = false, center: Boolean = false,
+    size: Int? = null, color: String? = null, font: String? = null, extraProps: String = "",
+): String {
     val props = buildString {
         if (style != null) append("<w:pStyle w:val=\"$style\"/>")
+        append(extraProps)
         if (indent > 0) append("<w:ind w:left=\"$indent\" w:hanging=\"280\"/>")
+        if (center) append("<w:jc w:val=\"center\"/>")
     }
-    val run = if (bold) "<w:rPr><w:b/></w:rPr>" else ""
+    val run = buildString {
+        if (font != null) append("<w:rFonts w:ascii=\"$font\" w:hAnsi=\"$font\" w:cs=\"$font\"/>")
+        if (bold) append("<w:b/>")
+        if (italic) append("<w:i/>")
+        if (color != null) append("<w:color w:val=\"$color\"/>")
+        if (size != null) append("<w:sz w:val=\"$size\"/>")
+    }.let { if (it.isEmpty()) "" else "<w:rPr>$it</w:rPr>" }
     val body = text.split('\n').joinToString("<w:br/>") { "<w:t xml:space=\"preserve\">${xmlEscape(it)}</w:t>" }
     return "<w:p>" + (if (props.isNotEmpty()) "<w:pPr>$props</w:pPr>" else "") + "<w:r>$run$body</w:r></w:p>"
+}
+
+private const val WP_NS = "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\""
+private const val R_NS = "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\""
+private const val EMU_PER_PIXEL = 9525
+
+/** Space for a picture on the A4 page between the margins, in EMU (11906 − 2 × 1134 twips wide, a little under the height). */
+private const val DOCX_MAX_WIDTH = 9638 * 635
+private const val DOCX_MAX_HEIGHT = 12000 * 635
+
+/** A centred picture, embedded as relationship [rel] (the [n]-th picture of the document). */
+private fun wPicture(n: Int, rel: String, image: DocImage, widthPercent: Int, description: String): String {
+    val (w, h) = fitBox(image.width, image.height, DOCX_MAX_WIDTH * widthPercent / 100f, DOCX_MAX_HEIGHT.toFloat())
+    val cx = w.toLong()
+    val cy = h.toLong()
+    return "<w:p><w:pPr><w:jc w:val=\"center\"/><w:keepNext/></w:pPr><w:r><w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">" +
+        "<wp:extent cx=\"$cx\" cy=\"$cy\"/><wp:docPr id=\"$n\" name=\"Image $n\" descr=\"${xmlEscape(description)}\"/>" +
+        "<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" noChangeAspect=\"1\"/></wp:cNvGraphicFramePr>" +
+        "<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">" +
+        "<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:nvPicPr><pic:cNvPr id=\"$n\" name=\"image$n.jpeg\"/><pic:cNvPicPr/></pic:nvPicPr>" +
+        "<pic:blipFill><a:blip r:embed=\"$rel\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>" +
+        "<pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"$cx\" cy=\"$cy\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>" +
+        "</a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>"
 }
 
 private fun wTable(rows: List<List<String>>): String {
@@ -58,8 +93,12 @@ private fun wTable(rows: List<List<String>>): String {
     }
 }
 
-/** A Word (.docx) file: the title, then headings, paragraphs, lists (with "•" or numbers) and tables. */
-internal fun buildDocx(title: String, blocks: List<Block>): ByteArray {
+/**
+ * A Word (.docx) file: the title, then headings, paragraphs, lists, check lists, tables, pictures (from [images], by source; embedded
+ * in the file), quotes, code, separators and page breaks.
+ */
+internal fun buildDocx(title: String, blocks: List<Block>, images: Map<String, DocImage> = emptyMap()): ByteArray {
+    val media = mutableListOf<DocImage>()
     val body = buildString {
         if (title.isNotBlank()) append(wPara(title, "Title"))
         for (block in blocks) when (block) {
@@ -68,10 +107,37 @@ internal fun buildDocx(title: String, blocks: List<Block>): ByteArray {
             is Block.Bullets -> block.items.forEachIndexed { i, item ->
                 append(wPara((if (block.numbered) "${i + 1}. " else "•  ") + item, indent = 420))
             }
+            is Block.Checklist -> block.items.forEach { item ->
+                append(wPara((if (item.done) "☑  " else "☐  ") + item.text, indent = 420, color = if (item.done) "808080" else null))
+            }
             is Block.Table -> if (block.rows.isNotEmpty()) { append(wTable(block.rows)); append(wPara("")) }
+            is Block.Image -> {
+                val picture = images[block.source]
+                if (picture == null) {
+                    append(wPara("[Image introuvable : ${block.caption.ifBlank { block.source }}]", italic = true, center = true, color = "808080"))
+                } else {
+                    media += picture
+                    append(wPicture(media.size, "rIdImg${media.size}", picture, block.widthPercent, block.caption))
+                    if (block.caption.isNotBlank()) append(wPara(block.caption, italic = true, center = true, size = 19, color = "666666"))
+                }
+            }
+            is Block.Quote -> append(
+                wPara(
+                    block.text, italic = true, color = "444444",
+                    extraProps = "<w:pBdr><w:left w:val=\"single\" w:sz=\"18\" w:space=\"8\" w:color=\"2E75B6\"/></w:pBdr><w:ind w:left=\"360\"/>",
+                )
+            )
+            is Block.Code -> append(
+                wPara(
+                    block.text, font = "Consolas", size = 19,
+                    extraProps = "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"F2F2F2\"/><w:spacing w:before=\"60\" w:after=\"120\"/>",
+                )
+            )
+            Block.Divider -> append(wPara("", extraProps = "<w:pBdr><w:bottom w:val=\"single\" w:sz=\"6\" w:space=\"1\" w:color=\"999999\"/></w:pBdr>"))
+            Block.PageBreak -> append("<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>")
         }
     }
-    val document = "$XML<w:document $W_NS><w:body>$body<w:sectPr><w:pgSz w:w=\"11906\" w:h=\"16838\"/>" +
+    val document = "$XML<w:document $W_NS $R_NS $WP_NS><w:body>$body<w:sectPr><w:pgSz w:w=\"11906\" w:h=\"16838\"/>" +
         "<w:pgMar w:top=\"1134\" w:right=\"1134\" w:bottom=\"1134\" w:left=\"1134\"/></w:sectPr></w:body></w:document>"
     fun style(id: String, name: String, size: Int, bold: Boolean, after: Int) =
         "<w:style w:type=\"paragraph\" w:styleId=\"$id\"><w:name w:val=\"$name\"/><w:basedOn w:val=\"Normal\"/>" +
@@ -81,20 +147,25 @@ internal fun buildDocx(title: String, blocks: List<Block>): ByteArray {
         "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>" +
         style("Title", "Title", 44, true, 240) + style("Heading1", "heading 1", 32, true, 120) +
         style("Heading2", "heading 2", 28, true, 100) + style("Heading3", "heading 3", 24, true, 80) + "</w:styles>"
+    val pictureRels = media.indices.joinToString("") {
+        "<Relationship Id=\"rIdImg${it + 1}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"media/image${it + 1}.jpeg\"/>"
+    }
     return zip(
         listOf(
             "[Content_Types].xml" to "$XML<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">" +
                 "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>" +
                 "<Default Extension=\"xml\" ContentType=\"application/xml\"/>" +
+                "<Default Extension=\"jpeg\" ContentType=\"image/jpeg\"/>" +
                 "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/>" +
                 "<Override PartName=\"/word/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml\"/></Types>",
             "_rels/.rels" to "$XML<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" +
                 "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/></Relationships>",
             "word/_rels/document.xml.rels" to "$XML<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" +
-                "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/></Relationships>",
+                "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/>$pictureRels</Relationships>",
             "word/document.xml" to document,
             "word/styles.xml" to styles,
-        )
+        ),
+        media.mapIndexed { i, picture -> "word/media/image${i + 1}.jpeg" to picture.jpeg },
     )
 }
 

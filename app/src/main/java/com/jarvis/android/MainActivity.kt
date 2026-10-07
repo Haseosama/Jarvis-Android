@@ -253,6 +253,7 @@ class MainActivity : ComponentActivity() {
                             onCancelConfirm = { container.confirmManager.cancel() },
                             onOpenSettings = { navController.navigate("settings") },
                             onOpenMemory = { navController.navigate("memory") },
+                            onOpenDocuments = { navController.navigate("documents") },
                             onOpenChat = { navController.navigate("chat") },
                             outputLevel = outputLevel,
                             videoSource = videoSource,
@@ -294,6 +295,9 @@ class MainActivity : ComponentActivity() {
                             onCancelConfirm = { container.confirmManager.cancel() },
                             onBack = { navController.popBackStack() },
                         )
+                    }
+                    composable("documents") {
+                        com.jarvis.android.ui.DocumentsScreen(http = container.http, onBack = { navController.popBackStack() })
                     }
                     composable("memory") {
                         MemoryScreen(memoryManager = container.memoryManager, onBack = { navController.popBackStack() })

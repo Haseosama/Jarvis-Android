@@ -25,6 +25,7 @@ import com.jarvis.android.actions.CodeHelperTool
 import com.jarvis.android.actions.ContactTool
 import com.jarvis.android.actions.DeviceSettingsTool
 import com.jarvis.android.actions.DocumentTool
+import com.jarvis.android.actions.EditDocumentTool
 import com.jarvis.android.actions.DriveTool
 import com.jarvis.android.actions.DrivingModeTool
 import com.jarvis.android.actions.EndSessionTool
@@ -174,6 +175,7 @@ object ToolRegistry {
         VisionStreamTool,
         FileManagerTool,
         DocumentTool,
+        EditDocumentTool,
         MeetingTool,
         WatchTool,
         GmailTool,
