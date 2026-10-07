@@ -27,7 +27,7 @@ import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.X509TrustManager
 
 /**
- * Drives Jarvis PC from the phone (protocol in PcLink.kt). The pairing lives in [load]/[save]/[clear], which the caller backs
+ * Drives Jarvis on the PC (Jarvis 2.0, or Mark-LIV) from the phone (protocol in PcLink.kt). The pairing lives in [load]/[save]/[clear], which the caller backs
  * with encrypted storage. Every answer is a sentence for the model to say, never an exception.
  */
 class PcRemote(
@@ -42,9 +42,9 @@ class PcRemote(
     /** Pairs with the PC from the QR link or an address plus the key it shows; trusts the certificate it presents now, and only that one afterwards. */
     suspend fun pair(address: String, code: String = ""): String = withContext(Dispatchers.IO) {
         val target = pairingTarget(address, code)
-            ?: return@withContext "Il faut l'adresse du PC (par exemple 192.168.1.20) et le code à 6 caractères affiché par Jarvis PC (⚙ → Remote Control), ou scanner son QR code."
+            ?: return@withContext "Il faut l'adresse du PC (par exemple 192.168.1.20) et le code à 6 caractères affiché sur le PC (Jarvis 2.0 : Poste de Contrôle PC → « Appairer un téléphone »), ou scanner son QR code."
         if (target.baseUrl.startsWith("http://")) {
-            return@withContext "Jarvis PC sert ici en HTTP simple, qu'Android refuse. Sur le PC : pip install cryptography, puis relancez Jarvis PC (il passe alors en HTTPS)."
+            return@withContext "Ce PC répond en HTTP simple, qu'Android refuse : il faut l'adresse en https (Jarvis 2.0 sert toujours en HTTPS ; pour Mark-LIV, installez le paquet cryptography)."
         }
         var seen: X509Certificate? = null
         val client = client(trust = { chain -> seen = chain.firstOrNull() })
@@ -52,7 +52,7 @@ class PcRemote(
             client.newCall(Request.Builder().url(target.autoLoginUrl).build()).execute().use { r ->
                 val html = r.body?.string().orEmpty()
                 val login = parseAutoLogin(html)
-                    ?: return@withContext "Code refusé ou expiré : sur le PC, rouvrez ⚙ → Remote Control pour un nouveau code (il vaut 10 minutes et ne sert qu'une fois)."
+                    ?: return@withContext "Code refusé ou expiré : sur le PC, redemandez un code (Jarvis 2.0 : « Appairer un téléphone ») (il vaut 10 minutes et ne sert qu'une fois)."
                 val cert = seen ?: return@withContext "Le PC n'a pas présenté de certificat : appairage annulé."
                 save(PcPairing(target.baseUrl, sha256Hex(cert.encoded), login.sessionKey, login.token, login.deviceToken))
                 "PC appairé (${target.baseUrl.substringAfter("://")}). Je peux maintenant lui transmettre des ordres."
@@ -60,7 +60,7 @@ class PcRemote(
         } catch (e: CancellationException) {
             throw e
         } catch (_: IOException) {
-            "PC injoignable à ${target.baseUrl.substringAfter("://")} : vérifiez que Jarvis PC est lancé et que le téléphone est sur le même réseau Wi-Fi."
+            "PC injoignable à ${target.baseUrl.substringAfter("://")} : vérifiez que Jarvis 2.0 est lancé avec le contrôle à distance activé et que le téléphone est sur le même réseau Wi-Fi."
         }
     }
 
@@ -75,7 +75,7 @@ class PcRemote(
         try {
             when (authorized(p)) {
                 null -> NEEDS_PAIRING
-                else -> "Jarvis PC répond et ce téléphone est reconnu (${p.baseUrl.substringAfter("://")})."
+                else -> "Le PC répond et ce téléphone est reconnu (${p.baseUrl.substringAfter("://")})."
             }
         } catch (e: CancellationException) {
             throw e
@@ -122,8 +122,8 @@ class PcRemote(
                 ).execute().use { it.code }
                 when {
                     sent == 401 -> return@withContext NEEDS_PAIRING
-                    sent !in 200..299 -> return@withContext "Jarvis PC a refusé l'ordre (code $sent)."
-                    !opened -> return@withContext "Ordre transmis à Jarvis PC (sa réponse n'a pas pu être lue)."
+                    sent !in 200..299 -> return@withContext "Le PC a refusé l'ordre (code $sent)."
+                    !opened -> return@withContext "Ordre transmis au PC (sa réponse n'a pas pu être lue)."
                 }
                 val said = mutableListOf<String>()
                 withTimeoutOrNull(waitMs) {
@@ -138,7 +138,7 @@ class PcRemote(
                         }
                     }
                 }
-                if (said.isEmpty()) "Ordre transmis à Jarvis PC ; il n'a encore rien répondu." else "Jarvis PC : " + joinAnswer(said)
+                if (said.isEmpty()) "Ordre transmis au PC ; Jarvis n'y a encore rien répondu." else "Jarvis sur le PC : " + joinAnswer(said)
             } finally {
                 ws.close(1000, null)
             }
@@ -165,9 +165,9 @@ class PcRemote(
 
     private fun failure(e: IOException, p: PcPairing): String =
         if (e is SSLHandshakeException || e.cause is CertificateException) {
-            "Le PC à ${p.baseUrl.substringAfter("://")} ne présente plus le certificat appairé : connexion refusée par sécurité. Si Jarvis PC a été réinstallé, appairez-le de nouveau."
+            "Le PC à ${p.baseUrl.substringAfter("://")} ne présente plus le certificat appairé : connexion refusée par sécurité. Si Jarvis a été réinstallé sur le PC, appairez-le de nouveau."
         } else {
-            "PC injoignable (${p.baseUrl.substringAfter("://")}) : il est éteint, Jarvis PC est fermé, ou le téléphone n'est pas sur le même réseau. Si son adresse IP a changé, appairez-le de nouveau."
+            "PC injoignable (${p.baseUrl.substringAfter("://")}) : il est éteint, Jarvis 2.0 est fermé ou son contrôle à distance est désactivé, ou le téléphone n'est pas sur le même réseau. Si son adresse IP a changé, appairez-le de nouveau."
         }
 
     /**
@@ -198,8 +198,8 @@ class PcRemote(
         val JSON = "application/json".toMediaType()
         const val QUIET_MS = 6_000L
         const val NOT_PAIRED =
-            "Aucun PC appairé. Sur le PC, ouvrez Jarvis PC ⚙ → Remote Control, puis dans Jarvis Android : Réglages > Jarvis PC, scannez le QR code (ou dites l'adresse et le code affichés)."
+            "Aucun PC appairé. Sur le PC, dans Jarvis 2.0 : Poste de Contrôle PC → « Appairer un téléphone », puis dans Jarvis Android : Réglages > Jarvis PC, scannez le QR code (ou dites l'adresse et le code affichés)."
         const val NEEDS_PAIRING =
-            "Jarvis PC ne reconnaît plus ce téléphone (il a sans doute redémarré) : sur le PC, ⚙ → Remote Control, puis scannez de nouveau le QR code dans Réglages > Jarvis PC."
+            "Le PC ne reconnaît plus ce téléphone (téléphones oubliés sur le PC) : sur le PC, « Appairer un téléphone », puis scannez de nouveau le QR code dans Réglages > Jarvis PC."
     }
 }

@@ -7,25 +7,25 @@ import com.jarvis.android.tool.stringArg
 import kotlinx.serialization.json.JsonObject
 
 /*
- * Controls the user's computer through Jarvis PC (Mark-LIV), which already has the hands for it: apps, volume, brightness,
- * windows, keyboard and mouse, browser, files, screen reading, power. The phone pairs with Jarvis PC's remote dashboard once and
- * forwards the instruction in plain words; Jarvis PC carries it out and its answer comes back (pc/PcRemote.kt).
+ * Controls the user's computer through Jarvis on the PC (Jarvis 2.0, or Mark-LIV), which already has the hands for it: apps, volume, brightness,
+ * windows, keyboard and mouse, browser, files, screen reading, power. The phone pairs with its remote-control server once and
+ * forwards the instruction in plain words; the PC carries it out and its answer comes back (pc/PcRemote.kt).
  */
 object PcControlTool : Tool {
     override val name = "jarvis_pc"
     override val description =
-        "Contrôle l'ordinateur de l'utilisateur via Jarvis PC (l'assistant sur le PC, sur le même réseau Wi-Fi). action « command » " +
-            "(défaut) : transmet « instruction » en langage naturel à Jarvis PC, qui l'exécute sur le PC et répond (ouvrir une appli ou " +
+        "Contrôle l'ordinateur de l'utilisateur via Jarvis sur le PC (Jarvis 2.0, sur le même réseau Wi-Fi). action « command » " +
+            "(défaut) : transmet « instruction » en langage naturel à Jarvis sur le PC, qui l'exécute sur le PC et répond (ouvrir une appli ou " +
             "un site, volume, luminosité, fenêtres, taper du texte, fichiers, lancer une vidéo, décrire l'écran, verrouiller, mettre en " +
             "veille, éteindre…) ; formulez l'ordre complet, comme si l'utilisateur le disait au PC. action « status » : le PC répond-il. " +
-            "action « pair » : appairer avec « address » (IP du PC, ou le lien du QR code) et « code » (6 caractères affichés par " +
-            "Jarvis PC ⚙ → Remote Control). action « forget » : oublier le PC. Pour tout ce qui concerne le PC, utilisez cet outil, " +
+            "action « pair » : appairer avec « address » (IP du PC, ou le lien du QR code) et « code » (6 caractères affichés sur " +
+            "le PC par « Appairer un téléphone »). action « forget » : oublier le PC. Pour tout ce qui concerne le PC, utilisez cet outil, " +
             "pas les outils du téléphone."
     override val parameters = objectSchema {
         string("action", "command (défaut), status, pair ou forget.")
         string("instruction", "Pour command : l'ordre pour le PC, en français, complet.")
         string("address", "Pour pair : adresse IP du PC (ex. 192.168.1.20 ou 192.168.1.20:8000) ou lien du QR code.")
-        string("code", "Pour pair : le code à 6 caractères affiché par Jarvis PC.")
+        string("code", "Pour pair : le code à 6 caractères affiché sur le PC.")
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String {

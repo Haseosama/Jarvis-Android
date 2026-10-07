@@ -2056,7 +2056,7 @@ fun SettingsScreen(
             }
             SettingsCard(tr("Jarvis PC"), Icons.Filled.Computer, initiallyExpanded = false) {
             Text(
-                tr("Contrôler votre ordinateur par la voix depuis le téléphone, via Jarvis PC (même réseau Wi-Fi). Sur le PC, ouvrez Jarvis PC ⚙ → Remote Control : scannez le QR code affiché, ou tapez l’adresse et le code à 6 caractères. Ensuite, dites par exemple « sur le PC, ouvre Chrome » ou « mets le PC en veille »."),
+                tr("Contrôler votre ordinateur par la voix depuis le téléphone, via Jarvis 2.0 sur le PC (même réseau Wi-Fi). Sur le PC, ouvrez Poste de Contrôle PC → « Appairer un téléphone » : scannez le QR code affiché, ou tapez l’adresse et le code à 6 caractères. Ensuite, dites par exemple « sur le PC, ouvre Chrome » ou « mets le PC en veille »."),
                 style = MaterialTheme.typography.bodySmall,
             )
             fun pairWith(address: String, code: String) {
@@ -2141,7 +2141,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 8.dp),
             )
             Text(
-                tr("Le téléphone retient le certificat du PC à l’appairage et refuse ensuite tout autre appareil. Jarvis PC oublie les téléphones quand il redémarre : il faut alors scanner un nouveau QR code. Ce qui demande un bouton sur le PC (extinction, redémarrage, Wi-Fi) attend toujours qu’on appuie là-bas."),
+                tr("Le téléphone retient le certificat du PC à l’appairage et refuse ensuite tout autre appareil. Il reste appairé après un redémarrage du PC ; si son adresse IP change, appairez-le de nouveau. Fonctionne aussi avec Mark-LIV (⚙ → Remote Control), qui oublie le téléphone à chaque redémarrage."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
             )

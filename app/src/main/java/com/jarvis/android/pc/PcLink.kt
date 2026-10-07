@@ -15,11 +15,11 @@ import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 /*
- * The phone side of Jarvis PC's remote dashboard (Mark-LIV `dashboard/server.py`), which already lets a phone drive the PC
- * assistant: nothing has to change on the PC. Its protocol, as that file implements it:
- *  - the PC shows a one-time 6-character key (⚙ → Remote Control, valid 10 minutes) and a QR code of
- *    `https://<ip>:8000/auto-login?key=<key>`; that page hands back an auth token, the key, and a device token that gets a
- *    fresh auth token later (POST /api/device-login) without a new key, until Jarvis PC restarts;
+ * The phone side of the PC assistant's remote control: Jarvis 2.0's `electron/remoteServer.cjs`, which speaks the protocol of
+ * Mark-LIV's remote dashboard (`dashboard/server.py`), so either PC assistant works. The protocol:
+ *  - the PC shows a one-time 6-character key (valid 10 minutes) and a QR code of `https://<ip>:8000/auto-login?key=<key>`;
+ *    that page hands back an auth token, the key, and a device token that gets a fresh auth token later
+ *    (POST /api/device-login) without a new key (Jarvis 2.0 keeps it across restarts, Mark-LIV forgets it when it restarts);
  *  - a command is POST /api/command {"enc": base64(IV ‖ AES-256-CBC(text))}, the AES key being SHA-256(key ‖ "JARVIS-DASHBOARD-v1");
  *  - its answers come back on the /ws?token= WebSocket as {"type":"log","speaker":"jarvis","text":…}.
  * The PC serves HTTPS with a certificate it made itself, so the phone pins that certificate's SHA-256 at pairing time and

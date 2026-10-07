@@ -545,30 +545,30 @@ only way to be sure a specific server's devices behave exactly as expected.
 
 ### Controlling the PC (`jarvis_pc`, 0.9.89)
 
-`jarvis_pc` (`actions/PcControlTool.kt`, `pc/`) drives the user's computer through **Jarvis PC** (Mark-LIV,
-[Haseosama/Jarvis-Pc](https://github.com/Haseosama/Jarvis-Pc)), which already has the hands for it: apps, volume, brightness, windows,
-keyboard and mouse, browser, files, screen reading, power. Nothing changes on the PC: the phone uses Jarvis PC's own remote dashboard
-(`dashboard/server.py`, port 8000), the one its ⚙ → *Remote Control* button opens for a phone browser.
+`jarvis_pc` (`actions/PcControlTool.kt`, `pc/`) drives the user's computer through Jarvis on the PC, which already has the hands for
+it (apps, volume, brightness, windows, keyboard and mouse, browser, files, screen reading, power):
+**[Jarvis 2.0](https://github.com/Haseosama/Jarvis-2.0)** from its 2.0.32 (its `electron/remoteServer.cjs`), or Mark-LIV
+([Haseosama/Jarvis-Pc](https://github.com/Haseosama/Jarvis-Pc), its `dashboard/server.py`). Both speak the same protocol on port 8000.
 
-- **Pairing**, in Settings > *Jarvis PC*: scan the QR code Jarvis PC shows (Google's scanner screen, so the app needs no camera permission),
-  or type the PC's address and the 6-character code, or say both. The code is single-use and valid 10 minutes. Jarvis PC answers with a
-  device token that later gets a fresh session without a new code.
-- **Security**: Jarvis PC serves HTTPS with a certificate it made itself; the phone records that certificate's SHA-256 at pairing and from
+- **Pairing**, in Settings > *Jarvis PC*: on the PC, Jarvis 2.0's *Poste de Contrôle PC* → *Appairer un téléphone* (Mark-LIV:
+  ⚙ → *Remote Control*) shows a QR code, the address and a 6-character code (single use, 10 minutes). Scan the QR code (Google's scanner
+  screen, so the app needs no camera permission), or type the address and code, or say both. The PC answers with a device token that
+  later gets a fresh session without a new code; Jarvis 2.0 keeps it across restarts, Mark-LIV forgets it when it restarts.
+- **Security**: the PC serves HTTPS with a certificate it made itself; the phone records that certificate's SHA-256 at pairing and from
   then on talks only to a server presenting exactly that certificate (a different machine at the same address is refused, and said so).
-  The commands are also AES-256-CBC encrypted with the pairing code, as the dashboard expects. The pairing is stored encrypted like the
-  Gemini key. A PC on plain HTTP (no `cryptography` package) is refused with the fix, since Android blocks clear-text traffic anyway.
-- **A command** is the instruction in plain words ("ouvre Chrome", "mets le volume à 30", "verrouille la session"), sent as if typed in
-  Jarvis PC; the phone listens on the dashboard WebSocket and returns what Jarvis PC says back (an acknowledgement and the result, until
-  6 s of silence, at most 35 s), which the phone Jarvis then says. A sleeping Jarvis PC is woken by the command itself.
-- **Limits** (from Jarvis PC, not changeable from the phone): it forgets paired phones when it restarts, so the QR code must be scanned
-  again (the tool says so); its own confirmation buttons (shutdown, restart, Wi-Fi) still wait for a click on the PC; the PC must be on,
-  Jarvis PC running, and the phone on the same network. If the PC's IP address changes, pair again.
+  The commands are also AES-256-CBC encrypted with the pairing code. The pairing is stored encrypted like the Gemini key. A PC on plain
+  HTTP is refused with the fix, since Android blocks clear-text traffic anyway.
+- **A command** is the instruction in plain words ("ouvre Chrome", "mets le volume à 30", "verrouille la session"), handled on the PC as
+  if typed there; the phone listens on the WebSocket and returns what Jarvis on the PC says back (an acknowledgement and the result,
+  until 6 s of silence, at most 35 s), which the phone Jarvis then says.
+- **Limits**: the PC must be on, Jarvis running with remote control switched on, and the phone on the same network. If the PC's IP address
+  changes, pair again. With Mark-LIV, its own confirmation buttons (shutdown, restart, Wi-Fi) still wait for a click on the PC.
 
 Checked: unit tests for the pure part (`pc/PcLink.kt`: QR link and address parsing, the auto-login page, the encryption against a vector
-made with `openssl` and decrypted by the dashboard's own code, the WebSocket messages), and `PcRemote` run on the JVM against the real
-`dashboard/server.py` (with a stand-in for the Gemini session): pairing, a reused code refused, the status check, a stale token
-refreshed with the device token, a command and its two-part answer with the replayed history dropped, a changed certificate refused,
-an unreachable PC. **Not checked on a real phone and PC yet**, nor the QR scanner screen.
+made with `openssl`, the WebSocket messages), and `PcRemote` run on the JVM against both real servers, Jarvis 2.0's
+`remoteServer.cjs` and Mark-LIV's `dashboard/server.py` (each with a stand-in for the AI): pairing, a reused code refused, the status
+check, a stale token refreshed with the device token, a command and its two-part answer with the replayed history dropped, a changed
+certificate refused, an unreachable PC. **Not checked on a real phone and PC yet**, nor the QR scanner screen.
 
 ### Spotify search, and why it stops there
 

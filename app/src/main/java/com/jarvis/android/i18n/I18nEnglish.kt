@@ -1059,7 +1059,7 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Le robot est derrière toi : retourne-toi vers la table." to "The robot is behind you: turn back to the table.",
     "Le robot sur la table (réalité augmentée)" to "The robot on the table (augmented reality)",
     "Jarvis PC" to "Jarvis PC",
-    "Contrôler votre ordinateur par la voix depuis le téléphone, via Jarvis PC (même réseau Wi-Fi). Sur le PC, ouvrez Jarvis PC ⚙ → Remote Control : scannez le QR code affiché, ou tapez l’adresse et le code à 6 caractères. Ensuite, dites par exemple « sur le PC, ouvre Chrome » ou « mets le PC en veille »." to "Control your computer by voice from the phone, through Jarvis PC (same Wi-Fi network). On the PC, open Jarvis PC ⚙ → Remote Control: scan the QR code shown, or type the address and the 6-character code. Then say for example “on the PC, open Chrome” or “put the PC to sleep”.",
+    "Contrôler votre ordinateur par la voix depuis le téléphone, via Jarvis 2.0 sur le PC (même réseau Wi-Fi). Sur le PC, ouvrez Poste de Contrôle PC → « Appairer un téléphone » : scannez le QR code affiché, ou tapez l’adresse et le code à 6 caractères. Ensuite, dites par exemple « sur le PC, ouvre Chrome » ou « mets le PC en veille »." to "Control your computer by voice from the phone, through Jarvis 2.0 on the PC (same Wi-Fi network). On the PC, open PC Control → “Appairer un téléphone”: scan the QR code shown, or type the address and the 6-character code. Then say for example “on the PC, open Chrome” or “put the PC to sleep”.",
     "Scanner indisponible : tapez l’adresse et le code." to "Scanner unavailable: type the address and the code.",
     "Scanner le QR code du PC" to "Scan the PC's QR code",
     "Adresse du PC" to "PC address",
@@ -1068,5 +1068,5 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Connexion au PC…" to "Connecting to the PC…",
     "Un PC est appairé." to "A PC is paired.",
     "Aucun PC appairé." to "No PC paired.",
-    "Le téléphone retient le certificat du PC à l’appairage et refuse ensuite tout autre appareil. Jarvis PC oublie les téléphones quand il redémarre : il faut alors scanner un nouveau QR code. Ce qui demande un bouton sur le PC (extinction, redémarrage, Wi-Fi) attend toujours qu’on appuie là-bas." to "The phone remembers the PC's certificate when pairing and refuses any other device afterwards. Jarvis PC forgets phones when it restarts: a new QR code must then be scanned. Anything that needs a button on the PC (shutdown, restart, Wi-Fi) still waits for someone to press it there.",
+    "Le téléphone retient le certificat du PC à l’appairage et refuse ensuite tout autre appareil. Il reste appairé après un redémarrage du PC ; si son adresse IP change, appairez-le de nouveau. Fonctionne aussi avec Mark-LIV (⚙ → Remote Control), qui oublie le téléphone à chaque redémarrage." to "The phone remembers the PC's certificate when pairing and refuses any other device afterwards. It stays paired after the PC restarts; if the PC's IP address changes, pair again. Also works with Mark-LIV (⚙ → Remote Control), which forgets the phone on every restart.",
 )
