@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.91 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.92 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -39,7 +39,7 @@ Everything is asked by voice (French first, English too), or typed in the chat. 
 - **Knowledge and work**: web search, reading a web page, flights, translation and interpreter mode, meeting notes, documents, Gmail and
   Drive, code help, watches on prices or sites, a multi-step agent mode.
 - **Without a network**: an offline mode with fixed French commands (and an optional local model, picked from a list and downloaded by Jarvis), and an offline wake word.
-- **Extensible**: declarative JSON plugins, Home Assistant, Spotify and Liberty Music.
+- **Extensible**: declarative JSON plugins, connectors to remote MCP servers (Notion, GitHub, Zapier…, with a token or a login in the browser), Home Assistant, Spotify and Liberty Music.
 
 ## Build variants
 
@@ -569,6 +569,37 @@ made with `openssl`, the WebSocket messages), and `PcRemote` run on the JVM agai
 `remoteServer.cjs` and Mark-LIV's `dashboard/server.py` (each with a stand-in for the AI): pairing, a reused code refused, the status
 check, a stale token refreshed with the device token, a command and its two-part answer with the replayed history dropped, a changed
 certificate refused, an unreachable PC. **Not checked on a real phone and PC yet**, nor the QR scanner screen.
+
+### Connectors (MCP servers, 0.9.92)
+
+At the owner's request, Jarvis can be plugged into other services through **connectors**: remote servers speaking the
+[Model Context Protocol](https://modelcontextprotocol.io) (MCP), the standard many services now offer (Notion, GitHub, Linear,
+Atlassian, Home Assistant, Zapier, n8n…). Each server's tools join Jarvis's own, for Gemini Live, the text chat, the agent and the
+offline AI alike. Code: `connectors/`.
+
+- **Adding one**, in Settings > *Connecteurs*: a name, the server's **https** address, and an access token if the service gives one
+  (GitHub's `https://api.githubcopilot.com/mcp/` with a personal token, Home Assistant's `https://…/mcp_server/sse` with a long-lived
+  token, a Zapier or n8n address that carries its own secret). By voice too: « ajoute le connecteur Notion, adresse … ».
+- **Login in the browser** when the server asks for one (HTTP 401) and no token was pasted, as the MCP authorization spec describes:
+  the server's protected-resource metadata (RFC 9728) names its authorization server, whose metadata (RFC 8414 / OpenID) gives the
+  endpoints; Jarvis registers itself there (dynamic client registration, RFC 7591), opens the login page with PKCE (S256) and the
+  `resource` parameter, and the browser comes back to `com.jarvis.android.mcp:/oauth` (`McpOAuthActivity`). Tokens are refreshed
+  before they expire and once more when the server refuses one. A server without client registration needs a pasted token instead.
+- **Transports**: Streamable HTTP (one POST per JSON-RPC message, answers as JSON or a short event stream, `Mcp-Session-Id` kept and
+  renewed when the server forgets it), and the older HTTP+SSE transport (an address ending in `/sse`, as Home Assistant's), opened per
+  exchange so that nothing stays connected in the background.
+- **Tools**: named `<connector>_<tool>` (letters, digits and `_`, 64 at most); their JSON Schema is turned into what Gemini accepts
+  (upper-case types, `anyOf` with null → `nullable`, local `$ref` followed, a free-form or very deep object asked as JSON text and parsed
+  back before the call). The first 30 connector tools are declared one by one; beyond that, the `connecteurs` tool lists the others and
+  runs them (`appeler`), and also lists, adds, removes, refreshes and logs in connectors. Answers are cut at 12,000 characters.
+- **Storage**: the connectors, their tokens and their last known tools are kept in one encrypted file (like the Gemini key), so a session
+  starts with them at once; the tools are asked again a few seconds after the app starts. A connector can be switched off without
+  being removed. No confirmation is asked before a connector's tool runs (the owner wants none).
+
+Checked: unit tests on the JVM (`app/src/test/.../connectors/`): the schema conversion and its contract with Gemini's declarations, names,
+results, event streams, a fake MCP server (MockWebServer) over JSON, over an event stream and over the old SSE transport, a refused
+token, the whole OAuth login (discovery, registration, PKCE, code exchange) against a fake authorization server, storage and reload, the
+30-tool limit. **Not checked yet against a real service nor on a phone**, nor the browser coming back to the app after a login.
 
 ### Spotify search, and why it stops there
 
