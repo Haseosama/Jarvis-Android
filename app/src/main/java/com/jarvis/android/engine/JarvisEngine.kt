@@ -62,6 +62,14 @@ import com.jarvis.android.core.pcm16Level
 
 internal const val MAX_CONSECUTIVE_DROPS = 3
 
+/** The phone has a network that reaches the internet (true when it cannot tell, so the online path is tried as before). */
+internal fun phoneOnline(context: android.content.Context): Boolean = try {
+    val cm = context.getSystemService(android.net.ConnectivityManager::class.java)
+    cm?.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+} catch (_: Exception) {
+    true
+}
+
 /** The offline mode setting: 0 = automatic, 1 = always, 2 = never. */
 internal const val OFFLINE_AUTO = 0
 internal const val OFFLINE_ALWAYS = 1
@@ -147,8 +155,8 @@ class JarvisEngine(
     private var lastActivityAt = 0L
     /** The time the running session started: the name under which its exchanges are kept. */
     @Volatile private var sessionId = 0L
-    /** The offline mode's local model, loaded only once a question actually needs it, unloaded when the offline session ends. */
-    private var localLlm: com.jarvis.android.offline.LocalLlm? = null
+    /** The tools the local model used in this offline session, newest first, so a follow-up still reaches them. */
+    private val localRecentTools = ArrayDeque<String>()
     private val endOfSession = EndOfSession()
     /** Runs once, when a requested end of session is done and the microphone is free (see [requestEndSession]). */
     @Volatile private var afterSession: (() -> Unit)? = null
@@ -539,6 +547,11 @@ class JarvisEngine(
                     )
                 ) {
                     ReconnectDecision.GiveUp -> {
+                        if (offlineMode == OFFLINE_AUTO && drop.wasReady && !isOnline()) {
+                            log(trf("Connexion perdue ({0}) : la conversation continue hors ligne.", drop.detail))
+                            runOfflineSession(resumed = true)
+                            return
+                        }
                         if (!drop.wasReady && offlineMode == OFFLINE_AUTO) {
                             log(trf("Connexion à Gemini impossible ({0}) : mode hors ligne.", drop.detail))
                             runOfflineSession()
@@ -550,6 +563,12 @@ class JarvisEngine(
                         return
                     }
                     is ReconnectDecision.Retry -> {
+                        // no network at all: waiting for it would leave the user talking to nobody, the local model takes over
+                        if (offlineMode == OFFLINE_AUTO && !isOnline()) {
+                            log(trf("Connexion perdue ({0}) : la conversation continue hors ligne.", drop.detail))
+                            runOfflineSession(resumed = drop.wasReady)
+                            return
+                        }
                         consecutiveDrops = decision.drops
                         if (!decision.useHandle) resumeHandle = null
                         handleToSend = if (decision.useHandle) resumeHandle else null
@@ -577,18 +596,14 @@ class JarvisEngine(
         }
     }
 
-    private fun isOnline(): Boolean = try {
-        val cm = container.appContext.getSystemService(android.net.ConnectivityManager::class.java)
-        cm?.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
-    } catch (_: Exception) {
-        true
-    }
+    private fun isOnline(): Boolean = phoneOnline(container.appContext)
 
     /**
      * The session without the network: the phone's own speech recognition and voice, and the commands of [interpret] (see the offline
-     * package). It ends by itself after a few silences, or when asked.
+     * package), then the local model with the same tools for the rest. It ends by itself after a few silences, or when asked. [resumed]:
+     * the online session was cut mid-conversation, which goes on here (its messages stay in the conversation the local model reads).
      */
-    private suspend fun runOfflineSession() {
+    private suspend fun runOfflineSession(resumed: Boolean = false) {
         val language = container.configStore.speechLanguage.first().ifBlank { "fr-FR" }
         val locale = java.util.Locale.forLanguageTag(language)
         val voice = com.jarvis.android.offline.OfflineVoice(container.appContext)
@@ -599,7 +614,9 @@ class JarvisEngine(
                 _state.value = JarvisState.ERROR
                 return
             }
-            offlineSay(voice, "Mode hors ligne. Je vous écoute.")   // spoken in French, like what it understands
+            localRecentTools.clear()
+            // spoken in French, like what it understands
+            offlineSay(voice, if (resumed) "Connexion perdue, je continue hors ligne." else "Mode hors ligne. Je vous écoute.")
             var silences = 0
             while (currentCoroutineContext().isActive) {
                 _state.value = JarvisState.LISTENING
@@ -630,8 +647,8 @@ class JarvisEngine(
         } finally {
             withContext(NonCancellable) {
                 voice.shutdown()
-                localLlm?.unload()
-                localLlm = null
+                container.localBrain.unload()
+                localRecentTools.clear()
                 _outputLevel.value = 0f
             }
         }
@@ -643,6 +660,7 @@ class JarvisEngine(
             is com.jarvis.android.offline.OfflineAction.Say -> action.text to action.end
             is com.jarvis.android.offline.OfflineAction.ToolCall -> {
                 log(trf("Hors ligne : {0}.", action.name))
+                rememberLocalTool(action.name)
                 val args = kotlinx.serialization.json.JsonObject(action.args.mapValues { kotlinx.serialization.json.JsonPrimitive(it.value) })
                 val result = ToolRegistry.run(action.name, args, container)
                 com.jarvis.android.offline.spokenResult(action, result) to false
@@ -653,21 +671,29 @@ class JarvisEngine(
 
     /**
      * What is not one of the fixed commands: the local model's answer when one is installed and switched on, otherwise the same
-     * "not understood" as before. The local model never sees more than a short window of the offline exchanges, never the online
-     * memory or the tool results — it only talks, it takes no action.
+     * "not understood" as before. The local model gets the same tools as online (see LocalBrain.kt) and the whole conversation of this
+     * session, the part said online before the network went included.
      */
     private suspend fun offlineUnknown(text: String): String {
-        val store = container.localModelStore
-        if (!store.installed() || !container.configStore.localAiEnabled.first()) {
+        val brain = container.localBrain
+        if (!brain.available()) {
             return "Je n’ai pas compris. Hors ligne, je ne connais que certaines commandes : dites « aide » pour les connaître."
         }
-        val llm = localLlm ?: com.jarvis.android.offline.LocalLlm(container.appContext).also { localLlm = it }
-        val history = com.jarvis.android.offline.recentOfflineExchanges(_conversation.value)
-        val prompt = com.jarvis.android.offline.buildLocalPrompt(history, text)
-        val result = llm.reply(prompt, store.file.absolutePath)
+        // the question was just added to the conversation: the history is what came before it
+        val history = _conversation.value.let { all -> if (all.lastOrNull()?.text == text) all.dropLast(1) else all }
+        val result = brain.answer(text, history, localRecentTools.toList(), onStep = { name ->
+            log(trf("IA locale : {0}.", name))
+            rememberLocalTool(name)
+        })
         result.reason?.let { log(trf("IA locale : {0}", it)) }
         return result.text?.trim()?.takeIf { it.isNotBlank() }
             ?: "Je n’ai pas pu réfléchir à une réponse. Réessayez, ou dites « aide » pour les commandes."
+    }
+
+    private fun rememberLocalTool(name: String) {
+        localRecentTools.remove(name)
+        localRecentTools.addFirst(name)
+        while (localRecentTools.size > 3) localRecentTools.removeAt(localRecentTools.lastIndex)
     }
 
     /** Speaks [text], with the avatar's mouth following the words and its face their feeling. */

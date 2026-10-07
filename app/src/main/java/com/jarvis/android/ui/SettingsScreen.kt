@@ -502,7 +502,7 @@ fun SettingsScreen(
             SettingsCard(tr("IA locale (hors ligne)"), Icons.Filled.Memory, initiallyExpanded = false) {
             val localAiEnabled by configStore.localAiEnabled.collectAsState(initial = true)
             Text(
-                tr("Sans réseau, Jarvis ne connaît que les commandes fixes ci-dessus. Pour qu’il puisse aussi répondre à une vraie question hors ligne, il peut utiliser un petit modèle installé sur le téléphone : tout tourne sur l’appareil, rien n’est envoyé où que ce soit. Nettement moins capable que Gemini."),
+                tr("Sans réseau, Jarvis ne connaît que les commandes fixes ci-dessus. Avec un petit modèle installé sur le téléphone, il garde ses outils, sa mémoire et la conversation en cours, à la voix comme dans le chat : tout tourne sur l’appareil, rien n’est envoyé où que ce soit. Nettement moins capable que Gemini."),
                 style = MaterialTheme.typography.bodySmall,
             )
             if (localInstalled) {
@@ -512,7 +512,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(top = 8.dp),
                 )
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    Text(tr("L’utiliser pour ce qui n’est pas une commande connue"), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(tr("L’utiliser quand le réseau manque"), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Switch(checked = localAiEnabled, onCheckedChange = { scope.launch { configStore.setLocalAiEnabled(it) } })
                 }
                 OutlinedButton(

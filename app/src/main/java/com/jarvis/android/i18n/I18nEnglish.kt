@@ -341,7 +341,6 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Retirer ce qui est coché" to "Remove what is checked off",
     "IA locale : {0}" to "Local AI: {0}",
     "IA locale (hors ligne)" to "Local AI (offline)",
-    "Sans réseau, Jarvis ne connaît que les commandes fixes ci-dessus. Pour qu’il puisse aussi répondre à une vraie question hors ligne, il peut utiliser un petit modèle installé sur le téléphone : tout tourne sur l’appareil, rien n’est envoyé où que ce soit. Nettement moins capable que Gemini." to "Without a network, Jarvis only knows the fixed commands above. For it to also answer a real question offline, it can use a small model installed on the phone: everything runs on the device, nothing is sent anywhere. Clearly less capable than Gemini.",
     "Modèle installé : {0} (≈ {1} Mo)." to "Model installed: {0} (≈ {1} MB).",
     "Téléchargement de {0} en attente du réseau…" to "Download of {0} waiting for the network…",
     "Téléchargement de {0} : {1} %" to "Downloading {0}: {1} %",
@@ -358,7 +357,6 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Télécharger ({0})" to "Download ({0})",
     "Ou importer un fichier .task" to "Or import a .task file",
     "Modèle installé (≈ {0} Mo)." to "Model installed (≈ {0} MB).",
-    "L’utiliser pour ce qui n’est pas une commande connue" to "Use it for what is not a known command",
     "Supprimer le modèle" to "Remove the model",
     "Import en cours…" to "Importing…",
     "Hologramme bleu" to "Blue hologram",
@@ -380,6 +378,12 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Pas de connexion : mode hors ligne." to "No connection: offline mode.",
     "Connexion à Gemini impossible ({0}) : mode hors ligne." to "Cannot reach Gemini ({0}): offline mode.",
     "Hors ligne : {0}." to "Offline: {0}.",
+    "IA locale : {0}." to "Local AI: {0}.",
+    "Sans réseau, Jarvis ne connaît que les commandes fixes ci-dessus. Avec un petit modèle installé sur le téléphone, il garde ses outils, sa mémoire et la conversation en cours, à la voix comme dans le chat : tout tourne sur l’appareil, rien n’est envoyé où que ce soit. Nettement moins capable que Gemini." to "Without a network, Jarvis only knows the fixed commands above. With a small model installed on the phone, it keeps its tools, its memory and the conversation under way, by voice and in the chat: everything runs on the device, nothing is sent anywhere. Far less capable than Gemini.",
+    "L’utiliser quand le réseau manque" to "Use it when there is no network",
+    "Connexion perdue ({0}) : la conversation continue hors ligne." to "Connection lost ({0}): the conversation goes on offline.",
+    "Mode hors ligne : aucun modèle local n’est installé ou l’IA locale est coupée (Paramètres > IA locale)." to "Offline mode: no local model is installed or the local AI is switched off (Settings > Local AI).",
+    "L’IA locale n’a pas pu répondre. Réessayez." to "The local AI could not answer. Try again.",
 
 
     "Synthèse vocale hors ligne indisponible : la voix française du téléphone n’est pas installée." to "Offline speech synthesis unavailable: the phone's French voice is not installed.",
