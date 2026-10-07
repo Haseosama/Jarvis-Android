@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.animation.AnimatedVisibility
@@ -259,6 +260,12 @@ fun SettingsScreen(
     var haBusy by remember { mutableStateOf(false) }
     var haTesting by remember { mutableStateOf(false) }
     var haTestResult by remember { mutableStateOf<String?>(null) }
+    val pcRemote = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.pcRemote }
+    var pcPaired by remember { mutableStateOf<Boolean?>(null) }
+    var pcAddressField by remember { mutableStateOf("") }
+    var pcCodeField by remember { mutableStateOf("") }
+    var pcBusy by remember { mutableStateOf(false) }
+    var pcStatus by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     LaunchedEffect(Unit) {
@@ -282,6 +289,9 @@ fun SettingsScreen(
     }
     LaunchedEffect(Unit) {
         hasHaToken = withContext(Dispatchers.IO) { try { configStore.hasHomeAssistantToken() } catch (_: Exception) { null } }
+    }
+    LaunchedEffect(Unit) {
+        pcPaired = withContext(Dispatchers.IO) { try { pcRemote.isPaired } catch (_: Exception) { null } }
     }
     LaunchedEffect(Unit) {
         loadingReminders = true
@@ -2040,6 +2050,98 @@ fun SettingsScreen(
             }
             Text(
                 tr("Un seul garde-fou : les écrans de réglages, d’autorisations ou d’installation restent hors de portée de Jarvis, mais Home Assistant n’a pas cette limite — tout appareil que vous y avez relié devient contrôlable par la voix. Non testé contre un vrai serveur ici (l’environnement de développement n’y a pas accès) : le code suit fidèlement l’API REST documentée de Home Assistant, mais une vérification chez vous reste utile."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            }
+            SettingsCard(tr("Jarvis PC"), Icons.Filled.Computer, initiallyExpanded = false) {
+            Text(
+                tr("Contrôler votre ordinateur par la voix depuis le téléphone, via Jarvis 2.0 sur le PC (même réseau Wi-Fi). Sur le PC, ouvrez Poste de Contrôle PC → « Appairer un téléphone » : scannez le QR code affiché, ou tapez l’adresse et le code à 6 caractères. Ensuite, dites par exemple « sur le PC, ouvre Chrome » ou « mets le PC en veille »."),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            fun pairWith(address: String, code: String) {
+                pcBusy = true
+                pcStatus = null
+                scope.launch {
+                    try {
+                        pcStatus = pcRemote.pair(address, code)
+                        pcPaired = pcRemote.isPaired
+                        if (pcPaired == true) { pcCodeField = "" }
+                    } finally {
+                        pcBusy = false
+                    }
+                }
+            }
+            OutlinedButton(
+                onClick = {
+                    pcStatus = null
+                    try {
+                        com.google.mlkit.vision.codescanner.GmsBarcodeScanning.getClient(
+                            context0,
+                            com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions.Builder()
+                                .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_QR_CODE).build(),
+                        ).startScan()
+                            .addOnSuccessListener { code -> code.rawValue?.let { pairWith(it, "") } }
+                            .addOnFailureListener { pcStatus = tr("Scanner indisponible : tapez l’adresse et le code.") }
+                    } catch (_: Exception) {
+                        pcStatus = tr("Scanner indisponible : tapez l’adresse et le code.")
+                    }
+                },
+                enabled = !pcBusy,
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text(tr("Scanner le QR code du PC")) }
+            OutlinedTextField(
+                value = pcAddressField,
+                onValueChange = { pcAddressField = it },
+                label = { Text(tr("Adresse du PC")) },
+                placeholder = { Text("192.168.1.20") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+            OutlinedTextField(
+                value = pcCodeField,
+                onValueChange = { pcCodeField = it.take(8) },
+                label = { Text(tr("Code à 6 caractères")) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+            Row(modifier = Modifier.padding(top = 8.dp)) {
+                Button(
+                    onClick = { pairWith(pcAddressField, pcCodeField) },
+                    enabled = pcAddressField.isNotBlank() && pcCodeField.isNotBlank() && !pcBusy,
+                ) { Text(tr("Appairer")) }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        pcBusy = true
+                        pcStatus = null
+                        scope.launch { try { pcStatus = pcRemote.status() } finally { pcBusy = false } }
+                    },
+                    enabled = pcPaired == true && !pcBusy,
+                ) { Text(tr("Tester")) }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            pcStatus = withContext(Dispatchers.IO) { pcRemote.forget() }
+                            pcPaired = false
+                        }
+                    },
+                    enabled = pcPaired == true && !pcBusy,
+                ) { Text(tr("Oublier")) }
+            }
+            Text(
+                pcStatus ?: when {
+                    pcBusy -> tr("Connexion au PC…")
+                    pcPaired == true -> tr("Un PC est appairé.")
+                    pcPaired == false -> tr("Aucun PC appairé.")
+                    else -> tr("Lecture du stockage sécurisé…")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Text(
+                tr("Le téléphone retient le certificat du PC à l’appairage et refuse ensuite tout autre appareil. Il reste appairé après un redémarrage du PC ; si son adresse IP change, appairez-le de nouveau. Fonctionne aussi avec Mark-LIV (⚙ → Remote Control), qui oublie le téléphone à chaque redémarrage."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
             )

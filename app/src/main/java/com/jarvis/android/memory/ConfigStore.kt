@@ -71,6 +71,9 @@ class ConfigStore(private val context: Context) {
     /** The RTE data portal key (EcoWatt), a credential too. */
     private val rteKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_rte_key.enc", keys = keystoreKey)
 
+    /** The Jarvis PC pairing (address, pinned certificate, tokens), a credential too: see pc/PcLink.kt. */
+    private val pcPairingStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_pc_pairing.enc", keys = keystoreKey)
+
     private var slotCache: List<String?>? = null
 
     @Synchronized
@@ -170,6 +173,10 @@ class ConfigStore(private val context: Context) {
             stores[slot - 1].delete()
         }
     }
+
+    fun getPcPairing(): String? = pcPairingStore.read()
+    fun savePcPairing(json: String): Boolean = pcPairingStore.write(json)
+    fun deletePcPairing(): Boolean = pcPairingStore.delete()
 
     fun getHomeAssistantToken(): String? = homeAssistantTokenStore.read()
     fun hasHomeAssistantToken(): Boolean = !getHomeAssistantToken().isNullOrBlank()
