@@ -328,20 +328,29 @@ fun SettingsScreen(
         }
     }
 
+    // The page opens on its menu of categories; a category or a search shows its cards, and « back » returns to the menu.
+    var filterQuery by rememberSaveable { mutableStateOf("") }
+    var filterGroup by rememberSaveable { mutableStateOf<String?>(null) }
+    val settingsFilter = SettingsFilter(filterQuery, filterGroup?.let { name -> SettingsGroup.entries.firstOrNull { it.name == name } })
+    fun setFilter(f: SettingsFilter) { filterQuery = f.query; filterGroup = f.group?.name }
+    val settingsScroll = rememberScrollState()
+    LaunchedEffect(settingsFilter.group) { settingsScroll.scrollTo(0) }
+    androidx.activity.compose.BackHandler(enabled = settingsFilter.active) { setFilter(SettingsFilter()) }
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
-                title = { Text(tr("Paramètres"), style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, tr("Retour")) } },
+                title = { Text(settingsFilter.group?.let { tr(it.french) } ?: tr("Paramètres"), style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = {
+                    IconButton(onClick = { if (settingsFilter.active) setFilter(SettingsFilter()) else onBack() }) { Icon(Icons.Filled.ArrowBack, tr("Retour")) }
+                },
             )
         }
     ) { padding ->
-        var settingsFilter by remember { mutableStateOf(SettingsFilter()) }
-        Column(Modifier.fillMaxSize().padding(padding).imePadding().padding(16.dp).verticalScroll(rememberScrollState())) {
-            SettingsFilterBar(settingsFilter) { settingsFilter = it }
+        Column(Modifier.fillMaxSize().padding(padding).imePadding().padding(horizontal = 16.dp).verticalScroll(settingsScroll)) {
+            SettingsHome(settingsFilter, assistantName) { setFilter(it) }
             androidx.compose.runtime.CompositionLocalProvider(LocalSettingsFilter provides settingsFilter) {
             SettingsCard(tr("Identité"), Icons.Filled.Person, initiallyExpanded = true) {
             OutlinedTextField(
@@ -2246,14 +2255,6 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 8.dp),
             )
             }
-            }
-            if (settingsFilter.active) {
-                Text(
-                    tr("Seuls les réglages qui correspondent sont affichés."),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
             }
             Spacer(Modifier.height(32.dp))
         }

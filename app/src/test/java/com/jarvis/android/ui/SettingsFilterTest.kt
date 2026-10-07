@@ -1,6 +1,7 @@
 package com.jarvis.android.ui
 
 import com.jarvis.android.actions.readTextAnswer
+import com.jarvis.android.i18n.ENGLISH
 import com.jarvis.android.actions.spokenReadText
 import com.jarvis.android.offline.OfflineAction
 import com.jarvis.android.offline.interpret
@@ -8,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class SettingsFilterTest {
     @Test
@@ -23,6 +25,28 @@ class SettingsFilterTest {
         assertTrue(SettingsFilter(group = SettingsGroup.CAR).accepts("Mode conduite", "Driving mode"))
         assertFalse(SettingsFilter(group = SettingsGroup.CAR).accepts("Colis", "Parcels"))
         assertFalse(SettingsFilter("colis", SettingsGroup.CAR).accepts("Colis", "Parcels"))
+    }
+
+    @Test
+    fun `the menu shows no card, a category or a search does`() {
+        assertFalse(SettingsFilter().shows("Transports", "Transports"))
+        assertTrue(SettingsFilter(group = SettingsGroup.CAR).shows("Transports", "Transports"))
+        assertTrue(SettingsFilter("train").shows("Transports", "Transports"))
+        assertEquals(listOf("Transports"), SettingsFilter("sncf").matches { it })
+        assertEquals(emptyList<String>(), SettingsFilter("zzz").matches { it })
+    }
+
+    @Test
+    fun `every settings card belongs to exactly one category, in both languages`() {
+        val card = Regex("SettingsCard\\((?:tr\\()?\"([^\"]+)\"")
+        val titles = File("src/main/java/com/jarvis/android/ui").listFiles()!!.filter { it.extension == "kt" }
+            .flatMap { f -> card.findAll(f.readText()).map { it.groupValues[1] } }.toSet()
+        assertTrue(titles.size > 30)
+        assertEquals("cartes sans catégorie", emptySet<String>(), titles - CARD_GROUP.keys)
+        assertEquals("catégories qui citent une carte absente", emptySet<String>(), CARD_GROUP.keys - titles)
+        assertEquals(CARD_GROUP.size, GROUP_CARDS.values.sumOf { it.size })
+        val texts = SettingsGroup.entries.flatMap { listOf(it.french, it.frenchHint) } + CARD_GROUP.keys - "Plugins"
+        assertEquals("textes sans traduction", emptyList<String>(), texts.filter { it !in ENGLISH })
     }
 
     @Test

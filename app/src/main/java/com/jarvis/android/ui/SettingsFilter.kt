@@ -1,47 +1,44 @@
 package com.jarvis.android.ui
 
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.jarvis.android.i18n.tr
 import com.jarvis.android.text.normalize
 
 /*
- * The settings page has some forty cards: a search field and a few themes to narrow them down. The cards are not
- * moved in the code; each card finds its theme from its (French) title here, and hides itself when it does not match.
+ * The settings page has some forty cards. It opens on a menu of categories (and a search field); a category shows only
+ * its cards. The cards are not moved in the code: each card finds its category from its (French) title here, and hides
+ * itself when it does not match. SettingsFilterTest checks that every card has a category.
  */
 
-internal enum class SettingsGroup(val french: String) {
-    VOICE("Voix et IA"), PHONE("Téléphone"), DAILY("Vie quotidienne"), CAR("Voiture et sécurité"), SERVICES("Services et données"),
+internal enum class SettingsGroup(val french: String, val frenchHint: String) {
+    JARVIS("Jarvis", "Nom, apparence, mémoire"),
+    VOICE("Voix et écoute", "Voix, mot d’activation, audio"),
+    AI("IA et clés API", "Clés Gemini, modèles, IA hors ligne"),
+    PHONE("Téléphone", "Contrôle, contacts, messages"),
+    ORGANISE("Organisation", "Agenda, rappels, listes, dépenses"),
+    BRIEFINGS("Briefings et alertes", "Briefings, surveillances, électricité"),
+    HEALTH("Santé et sécurité", "Santé, médicaments, urgence"),
+    CAR("Voiture et trajets", "Voiture garée, conduite, transports"),
+    FILES("Fichiers et notes", "Dossier de travail, photos, Obsidian"),
+    SERVICES("Services connectés", "Google, maison, PC, connecteurs"),
 }
 
-/** The theme of each card, by its French title; a card not listed is only found by the search. */
-private val GROUPS: Map<String, SettingsGroup> = buildMap {
-    fun put(g: SettingsGroup, vararg titles: String) = titles.forEach { put(it, g) }
-    put(SettingsGroup.VOICE, "Identité", "Voix", "Périphériques audio", "IA locale (hors ligne)", "Apparence", "Mot d’activation (« Hey Jarvis »)",
-        "Apprendre mon mot d’activation", "Clés API et modèles", "Historique des sessions", "Sauvegarde de la mémoire")
-    put(SettingsGroup.PHONE, "Contrôle du téléphone", "Contacts (appels et SMS)", "Notifications", "Envoi de messages", "Ne pas déranger",
-        "Accès rapide", "Dossier de travail (fichiers)", "Photos", "Mise à jour", "Position (météo)")
-    put(SettingsGroup.DAILY, "Agenda", "Rappels", "Listes", "Dépenses", "Médicaments et habitudes", "Rappels selon le lieu", "Briefing du matin",
-        "Briefing au réveil", "Vérifications en arrière-plan", "Santé", "Notes de réunion")
-    put(SettingsGroup.CAR, "Voiture garée", "Mode conduite", "Urgence / SOS")
-    put(SettingsGroup.SERVICES, "Plugins", "Connecteurs", "Surveillances", "Google (Gmail, Drive)", "Colis", "Transports", "Maison connectée", "Jarvis PC")
-}
+/** The cards of each category, by French title, in the order the menu lists them. */
+internal val GROUP_CARDS: Map<SettingsGroup, List<String>> = mapOf(
+    SettingsGroup.JARVIS to listOf("Identité", "Apparence", "Historique des sessions", "Sauvegarde de la mémoire"),
+    SettingsGroup.VOICE to listOf("Voix", "Mot d’activation (« Hey Jarvis »)", "Apprendre mon mot d’activation", "Périphériques audio"),
+    SettingsGroup.AI to listOf("Clés API et modèles", "IA locale (hors ligne)"),
+    SettingsGroup.PHONE to listOf("Contrôle du téléphone", "Contacts (appels et SMS)", "Notifications", "Envoi de messages", "Ne pas déranger",
+        "Accès rapide", "Position (météo)", "Mise à jour"),
+    SettingsGroup.ORGANISE to listOf("Agenda", "Rappels", "Listes", "Dépenses", "Rappels selon le lieu", "Notes de réunion"),
+    SettingsGroup.BRIEFINGS to listOf("Briefing du matin", "Briefing au réveil", "Vérifications en arrière-plan", "Surveillances",
+        "Électricité (Tempo, EcoWatt)"),
+    SettingsGroup.HEALTH to listOf("Santé", "Médicaments et habitudes", "Urgence / SOS"),
+    SettingsGroup.CAR to listOf("Voiture garée", "Mode conduite", "Transports"),
+    SettingsGroup.FILES to listOf("Dossier de travail (fichiers)", "Photos", "Notes Obsidian"),
+    SettingsGroup.SERVICES to listOf("Google (Gmail, Drive)", "Colis", "Maison connectée", "Jarvis PC", "Plugins", "Connecteurs"),
+)
+
+/** The category of each card, by its French title. */
+internal val CARD_GROUP: Map<String, SettingsGroup> = GROUP_CARDS.flatMap { (g, titles) -> titles.map { it to g } }.toMap()
 
 /** Words a card is also found by, beyond its title ("clé" finds the API keys, "batterie" the wake word…). */
 private val KEYWORDS: Map<String, String> = mapOf(
@@ -62,41 +59,27 @@ private val KEYWORDS: Map<String, String> = mapOf(
     "Briefing au réveil" to "alarme reveil matin",
     "Dépenses" to "argent budget ticket",
     "Voix" to "langue parole",
+    "Apparence" to "visage avatar haseo theme couleur langue interface",
+    "IA locale (hors ligne)" to "gemma qwen modele telecharger offline",
+    "Électricité (Tempo, EcoWatt)" to "edf tarif jour rouge",
 )
 
 internal data class SettingsFilter(val query: String = "", val group: SettingsGroup? = null) {
+    /** False on the menu of categories, where no card is shown. */
     val active: Boolean get() = query.isNotBlank() || group != null
 
-    /** Whether the card titled [french] (shown as [shown]) is listed. */
+    /** Whether the card titled [french] (shown as [shown]) matches the category and the search. */
     fun accepts(french: String, shown: String): Boolean {
-        if (group != null && GROUPS[french] != group) return false
+        if (group != null && CARD_GROUP[french] != group) return false
         val q = normalize(query)
         if (q.isEmpty()) return true
         val haystack = normalize("$french $shown ${KEYWORDS[french].orEmpty()}")
         return q.split(' ').all { haystack.contains(it) }
     }
-}
 
-internal val LocalSettingsFilter = staticCompositionLocalOf { SettingsFilter() }
+    /** Whether the card is on screen: never on the menu, otherwise when it matches. */
+    fun shows(french: String, shown: String): Boolean = active && accepts(french, shown)
 
-/** The search field and the theme chips at the top of the settings page. */
-@Composable
-internal fun SettingsFilterBar(filter: SettingsFilter, onChange: (SettingsFilter) -> Unit) {
-    OutlinedTextField(
-        value = filter.query,
-        onValueChange = { onChange(filter.copy(query = it.take(40))) },
-        placeholder = { Text(tr("Rechercher un réglage")) },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-        trailingIcon = {
-            if (filter.query.isNotEmpty()) IconButton(onClick = { onChange(filter.copy(query = "")) }) { Icon(Icons.Filled.Clear, tr("Effacer")) }
-        },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 6.dp)) {
-        FilterChip(selected = filter.group == null, onClick = { onChange(filter.copy(group = null)) }, label = { Text(tr("Tout")) })
-        SettingsGroup.entries.forEach { g ->
-            FilterChip(selected = filter.group == g, onClick = { onChange(filter.copy(group = if (filter.group == g) null else g)) }, label = { Text(tr(g.french)) })
-        }
-    }
+    /** The cards a search finds, by French title; [shownOf] gives the title in the interface language. */
+    fun matches(shownOf: (String) -> String): List<String> = CARD_GROUP.keys.filter { shows(it, shownOf(it)) }
 }

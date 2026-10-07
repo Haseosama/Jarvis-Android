@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.92 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.93 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -601,6 +601,26 @@ results, event streams, a fake MCP server (MockWebServer) over JSON, over an eve
 token, the whole OAuth login (discovery, registration, PKCE, code exchange) against a fake authorization server, storage and reload, the
 30-tool limit. **Not checked yet against a real service nor on a phone**, nor the browser coming back to the app after a login.
 
+### Settings menu by category (0.9.93)
+
+At the owner's request ("rendre le menu des paramètres ergonomique et mieux visuel"), the settings page no longer opens on one
+long list of some forty folded cards. It opens on a **menu**: a banner with the assistant's name and the app version, the search
+field, and ten categories, each a row with a coloured icon, a one-line summary of what is inside and the number of cards:
+*Jarvis* (name, look, history, memory backup), *Voix et écoute*, *IA et clés API*, *Téléphone*, *Organisation*, *Briefings et
+alertes*, *Santé et sécurité*, *Voiture et trajets*, *Fichiers et notes*, *Services connectés* (Google, home, PC, plugins,
+connectors).
+
+- Touching a category shows only its cards, under its name in the top bar; the back arrow or Android's back gesture returns to
+  the menu (and from the menu leaves the settings). A category of one or two cards opens them straight away.
+- Typing in the search field lists the matching cards from every category with how many were found; a single match opens.
+- Each card's icon takes its category's colour, on the menu and inside, so a card found by the search shows where it lives.
+- Nothing inside the cards changed and the code did not move: `ui/SettingsFilter.kt` maps each card's French title to its
+  category, `ui/SettingsHome.kt` draws the menu, and `SettingsCard` hides itself on the menu. A unit test reads the sources and
+  fails if a card has no category (or a category names a card that no longer exists), so a new card cannot get lost.
+
+Checked: the unit tests for the filter and the categories. **Not checked on a real phone yet** (the look of the menu, back
+navigation).
+
 ### Spotify search, and why it stops there
 
 `spotify_search` opens Spotify's own search for a title, an artist or a playlist (the `spotify:search:`
@@ -921,7 +941,8 @@ still opens the app and starts a session ("Parler à Jarvis").
   departures with their delay. Since 0.9.66 the departures also work without any key (Transitous, see "Next departures without a key").
 - **Settings search and themes**. A search field (titles in both languages, plus a few keywords: "clé", "batterie",
   "train"…) and theme chips (Voix et IA, Téléphone, Vie quotidienne, Voiture et sécurité, Services et données) narrow down the
-  forty cards; each card finds its theme from its French title (`ui/SettingsFilter.kt`), nothing was moved.
+  forty cards; each card finds its theme from its French title (`ui/SettingsFilter.kt`), nothing was moved. The chips gave way
+  to a menu of categories in 0.9.93 (see "Settings menu by category").
 - **Battery**. The routines' check (every 15 minutes) now runs only while there is a routine; the background checks read the
   calendar only when the morning notification can still be sent; the rain watch sleeps from 23 h to 6 h; the notification
   listener keeps the person reminders and the quiet time in memory instead of reading a file for every message. And the
