@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.88 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.89 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -543,7 +543,7 @@ to connect to. The code follows Home Assistant's documented REST API closely (`/
 `/api/services/{domain}/{service}`, Bearer token authentication), but a first real run at home is the
 only way to be sure a specific server's devices behave exactly as expected.
 
-### Controlling the PC (`jarvis_pc`, 0.9.88)
+### Controlling the PC (`jarvis_pc`, 0.9.89)
 
 `jarvis_pc` (`actions/PcControlTool.kt`, `pc/`) drives the user's computer through **Jarvis PC** (Mark-LIV,
 [Haseosama/Jarvis-Pc](https://github.com/Haseosama/Jarvis-Pc)), which already has the hands for it: apps, volume, brightness, windows,
@@ -2213,4 +2213,4 @@ from the old encrypted preferences), because it works on the app's real files.
 - "Rules to keep" (« toujours répondre en français ») are not a feature of their own; the automatic memory keeps some of them as preferences.
 - Camera-based sport tracking (push-up counter, posture) was left out: heavy on the battery.
 - Desktop-only features (mouse/keyboard automation, game updaters) have no equivalent on the phone itself; the PC is driven through
-  Jarvis PC instead (`jarvis_pc`, 0.9.88).
+  Jarvis PC instead (`jarvis_pc`, 0.9.89).
