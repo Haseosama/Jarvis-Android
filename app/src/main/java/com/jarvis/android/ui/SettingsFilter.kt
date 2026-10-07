@@ -11,7 +11,7 @@ import com.jarvis.android.text.normalize
 internal enum class SettingsGroup(val french: String, val frenchHint: String) {
     JARVIS("Jarvis", "Nom, apparence, mémoire"),
     VOICE("Voix et écoute", "Voix, mot d’activation, audio"),
-    AI("IA et clés API", "Clés Gemini, modèles, IA hors ligne"),
+    AI("IA et clés API", "Clés Gemini, Perplexity, IA locale"),
     PHONE("Téléphone", "Contrôle, contacts, messages"),
     ORGANISE("Organisation", "Agenda, rappels, listes, dépenses"),
     BRIEFINGS("Briefings et alertes", "Briefings, surveillances, électricité"),
@@ -25,7 +25,7 @@ internal enum class SettingsGroup(val french: String, val frenchHint: String) {
 internal val GROUP_CARDS: Map<SettingsGroup, List<String>> = mapOf(
     SettingsGroup.JARVIS to listOf("Identité", "Apparence", "Historique des sessions", "Sauvegarde de la mémoire"),
     SettingsGroup.VOICE to listOf("Voix", "Mot d’activation (« Hey Jarvis »)", "Apprendre mon mot d’activation", "Périphériques audio"),
-    SettingsGroup.AI to listOf("Clés API et modèles", "IA locale (hors ligne)"),
+    SettingsGroup.AI to listOf("Clés API et modèles", "Recherche Perplexity", "IA locale (hors ligne)"),
     SettingsGroup.PHONE to listOf("Contrôle du téléphone", "Contacts (appels et SMS)", "Notifications", "Envoi de messages", "Ne pas déranger",
         "Accès rapide", "Position (météo)", "Mise à jour"),
     SettingsGroup.ORGANISE to listOf("Agenda", "Rappels", "Listes", "Dépenses", "Rappels selon le lieu", "Notes de réunion"),
@@ -60,6 +60,7 @@ private val KEYWORDS: Map<String, String> = mapOf(
     "Dépenses" to "argent budget ticket",
     "Voix" to "langue parole",
     "Apparence" to "visage avatar haseo theme couleur langue interface",
+    "Recherche Perplexity" to "cle key api web internet sources recherche approfondie",
     "IA locale (hors ligne)" to "gemma qwen modele telecharger offline",
     "Électricité (Tempo, EcoWatt)" to "edf tarif jour rouge",
 )

@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.93 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.94 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -78,7 +78,7 @@ release APK comes out unsigned. `keystore/`, `*.keystore` and `*.jks` are git-ig
 
 ## Ported skills (`actions/`)
 
-`web_search`, `flight_search` (web results + Google Flights link), `weather_report`,
+`web_search`, `perplexity_search` (sourced web answer from Perplexity, with your own key), `flight_search` (web results + Google Flights link), `weather_report`,
 `open_app`, `browser_control`, `reminder` (create / list / cancel, persisted, re-armed after
 a reboot, read aloud when due), `timer` (create / list / cancel, read aloud at the end),
 `task_list` (a shopping list, a to-do list, or any other named list, persisted, works offline
@@ -620,6 +620,30 @@ connectors).
 
 Checked: the unit tests for the filter and the categories. **Not checked on a real phone yet** (the look of the menu, back
 navigation).
+
+### Perplexity web answers (0.9.94)
+
+At the owner's request, Jarvis can ask the **Perplexity Agent API** for a web-grounded, sourced answer (tool `perplexity_search`,
+`perplexity/`). The Agent API was kept over Perplexity's other APIs: the Search API only returns links (which `web_search` already
+does), the Router API has no web grounding, and the Decisions and Embeddings APIs do not answer questions.
+
+- **When**: the model prefers it to `web_search` for questions that need several sources put together (compare, explain a piece of
+  news, give an update on a subject, detailed research). Without a key it says so and `web_search` is used as before.
+- **Request**: `POST https://api.perplexity.ai/v1/agent` with `Authorization: Bearer <key>`, a `preset` (`fast`, `low` by default,
+  or `medium` when the user asks for deep research: parameter `profondeur`), `input` and `language_preference: "fr"`. `sites` limits
+  the search to some domains (`web_search` tool with `filters.search_domain_filter`, plus `fetch_url`). `suite='oui'` continues the
+  previous answer with `previous_response_id` (kept in memory while the app runs).
+- **Answer**: the raw JSON has no `output_text` (an SDK convenience), so the text is gathered from the `output_text` parts of the
+  `message` items; the `[web:N]` markers are removed and the sources come from the `search_results` items (the cited ones first,
+  five at most) and any `url_citation` annotations.
+- **Errors**: 401 says to check the key, 429 waits once when `Retry-After` is 10 s or less, otherwise says when to retry; the
+  request may take up to two minutes (searching and reading pages over several steps).
+- **Key**: Settings > *IA et clés API* > *Recherche Perplexity*, created at [console.perplexity.ai](https://console.perplexity.ai),
+  stored encrypted on the phone like the other keys, never logged or shown. The API is paid per use (the `low` preset is cheap,
+  `medium` costs more).
+
+Checked: the request and response handling by unit tests (`PerplexityAgentTest`). **Not checked against the real API** (no key in
+the build environment) nor on a phone.
 
 ### Spotify search, and why it stops there
 

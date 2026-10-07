@@ -87,6 +87,7 @@ import com.jarvis.android.actions.WakeBriefingTool
 import com.jarvis.android.actions.WatchTool
 import com.jarvis.android.actions.WeatherTool
 import com.jarvis.android.actions.WebSearchTool
+import com.jarvis.android.perplexity.PerplexityTool
 import com.jarvis.android.actions.YoutubeTool
 
 /**
@@ -106,6 +107,7 @@ object ToolRegistry {
     val ALL: List<Tool> = listOf(
         WebSearchTool,
         ReadWebpageTool,
+        PerplexityTool,
         FlightSearchTool,
         WeatherTool,
         OpenAppTool,
