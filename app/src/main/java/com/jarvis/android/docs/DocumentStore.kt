@@ -38,6 +38,7 @@ internal object DocumentStore {
         "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation"
         "csv" -> "text/csv"
         "md" -> "text/markdown"
+        "html" -> "text/html"
         else -> "text/plain"
     }
 

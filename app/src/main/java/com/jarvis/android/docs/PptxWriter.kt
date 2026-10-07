@@ -1,14 +1,13 @@
 package com.jarvis.android.docs
 
-import java.io.ByteArrayOutputStream
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
-
 /** One line of a slide: a bullet, a plain line, or a bold sub-title. */
 internal data class SlideLine(val text: String, val bullet: Boolean = false, val bold: Boolean = false)
 
-/** A slide of the deck; [subtitle] is only used by the title slide. */
-internal data class Slide(val title: String, val lines: List<SlideLine> = emptyList(), val isTitle: Boolean = false, val subtitle: String = "")
+/** A slide of the deck; [subtitle] is only used by the title slide; [image] (a picture's source) makes a picture slide, with [caption] under it. */
+internal data class Slide(
+    val title: String, val lines: List<SlideLine> = emptyList(), val isTitle: Boolean = false, val subtitle: String = "",
+    val image: String? = null, val caption: String = "",
+)
 
 private const val MAX_LINES_PER_SLIDE = 7
 private const val MAX_CHARS_PER_SLIDE = 700
@@ -16,7 +15,8 @@ private const val MAX_CHARS_PER_SLIDE = 700
 /**
  * Cuts a document into slides. A deck title makes a title slide (its subtitle is the paragraph that comes before the first heading);
  * each `#` or `##` heading starts a slide, `###` is a bold line, bullets stay bullets, a table becomes lines of cells, and a slide that
- * would be too full continues on the next one ("suite").
+ * would be too full continues on the next one ("suite"). A picture gets a slide of its own (titled by the heading it opens, or its
+ * caption), check lists and quotes become lines, a page break starts a new slide.
  */
 internal fun slidesFromBlocks(deckTitle: String, blocks: List<Block>): List<Slide> {
     val rest = blocks.filterNot { it is Block.Paragraph && it.text.trim().matches(Regex("""[-*_]{3,}""")) }.toMutableList()
@@ -40,15 +40,17 @@ internal fun slidesFromBlocks(deckTitle: String, blocks: List<Block>): List<Slid
     }
 
     var current: String? = null
+    // the heading already titled a slide (a picture's): what follows it goes on "(suite)" slides, and no empty slide is made for it
+    var shown = false
     var lines = mutableListOf<SlideLine>()
     fun flush() {
-        if (current == null && lines.isEmpty()) return
-        val heading = current ?: title.ifEmpty { "Présentation" }
+        if (lines.isEmpty() && (current == null || shown)) return
+        val heading = (current ?: title.ifEmpty { "Présentation" }).let { if (shown) "$it (suite)" else it }
         var chunk = mutableListOf<SlideLine>()
         var chars = 0
         var part = 0
         fun emit() {
-            slides += Slide(if (part == 0) heading else "$heading (suite)", chunk)
+            slides += Slide(if (part == 0 || shown) heading else "$heading (suite)", chunk)
             part++
             chunk = mutableListOf()
             chars = 0
@@ -60,6 +62,7 @@ internal fun slidesFromBlocks(deckTitle: String, blocks: List<Block>): List<Slid
         }
         if (chunk.isNotEmpty() || part == 0) emit()
         lines = mutableListOf()
+        if (current != null) shown = true
     }
     for (block in rest) {
         when (block) {
@@ -67,12 +70,24 @@ internal fun slidesFromBlocks(deckTitle: String, blocks: List<Block>): List<Slid
                 if (block.level <= 2) {
                     flush()
                     current = block.text
+                    shown = false
                 } else {
                     lines += SlideLine(block.text, bold = true)
                 }
             is Block.Paragraph -> lines += SlideLine(block.text)
             is Block.Bullets -> block.items.forEachIndexed { i, item -> lines += if (block.numbered) SlideLine("${i + 1}. $item") else SlideLine(item, bullet = true) }
             is Block.Table -> block.rows.forEachIndexed { r, row -> lines += SlideLine(row.joinToString("  ·  "), bold = r == 0) }
+            is Block.Checklist -> block.items.forEach { lines += SlideLine((if (it.done) "☑ " else "☐ ") + it.text) }
+            is Block.Quote -> lines += SlideLine("« ${block.text} »")
+            is Block.Code -> block.text.lines().filter { it.isNotBlank() }.forEach { lines += SlideLine(it) }
+            is Block.Image -> {
+                if (lines.isNotEmpty()) flush()
+                val heading = current?.takeIf { !shown }
+                if (heading != null) shown = true
+                slides += Slide(heading ?: block.caption, image = block.source, caption = if (heading != null) block.caption else "")
+            }
+            Block.PageBreak -> flush()
+            Block.Divider -> {}
         }
     }
     flush()
@@ -149,7 +164,31 @@ private fun slideText(text: String, size: Int?, bold: Boolean, white: Boolean): 
     return "<a:r>$props<a:t>${xmlEscape(text)}</a:t></a:r>"
 }
 
-private fun slideXml(slide: Slide): String {
+/** The picture of a picture slide (relationship rId2), centred in the content area, with its caption under it. */
+private fun pictureShapes(slide: Slide, image: DocImage?): String {
+    val captionHeight = if (slide.caption.isBlank()) 0 else 520_000
+    val areaTop = 1_600_200
+    val areaWidth = 10_972_800f
+    val areaHeight = 4_800_000f - captionHeight
+    val caption = if (slide.caption.isBlank()) "" else
+        "<p:sp><p:nvSpPr><p:cNvPr id=\"5\" name=\"Légende\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm>" +
+            "<a:off x=\"609600\" y=\"${areaTop + areaHeight.toInt() + 60_000}\"/><a:ext cx=\"10972800\" cy=\"460000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr>" +
+            "<p:txBody><a:bodyPr wrap=\"square\"><a:normAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr algn=\"ctr\"/>" +
+            "<a:r><a:rPr lang=\"fr-FR\" sz=\"1600\" i=\"1\"><a:solidFill><a:srgbClr val=\"595959\"/></a:solidFill></a:rPr><a:t>${xmlEscape(slide.caption)}</a:t></a:r></a:p></p:txBody></p:sp>"
+    if (image == null) {
+        return "<p:sp><p:nvSpPr><p:cNvPr id=\"4\" name=\"Image manquante\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm>" +
+            "<a:off x=\"609600\" y=\"$areaTop\"/><a:ext cx=\"10972800\" cy=\"800000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr>" +
+            "<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr algn=\"ctr\"/><a:r><a:rPr lang=\"fr-FR\" sz=\"1800\" i=\"1\"/><a:t>${xmlEscape("[Image introuvable : ${slide.image}]")}</a:t></a:r></a:p></p:txBody></p:sp>" + caption
+    }
+    val (w, h) = fitBox(image.width, image.height, areaWidth, areaHeight)
+    val x = 609_600 + ((areaWidth - w) / 2).toLong()
+    val y = areaTop + ((areaHeight - h) / 2).toLong()
+    return "<p:pic><p:nvPicPr><p:cNvPr id=\"4\" name=\"Image\"/><p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>" +
+        "<p:blipFill><a:blip r:embed=\"rId2\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>" +
+        "<p:spPr><a:xfrm><a:off x=\"$x\" y=\"$y\"/><a:ext cx=\"${w.toLong()}\" cy=\"${h.toLong()}\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic>" + caption
+}
+
+private fun slideXml(slide: Slide, image: DocImage? = null): String {
     val head = "<p:sld $NS><p:cSld>" + (if (slide.isTitle) "<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"$NAVY\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>" else "") +
         "<p:spTree>$GROUP"
     val tail = "</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>"
@@ -159,6 +198,10 @@ private fun slideXml(slide: Slide): String {
     if (slide.isTitle) {
         val subtitle = if (slide.subtitle.isBlank()) "" else shape(3, "Sous-titre", "<p:ph type=\"subTitle\" idx=\"1\"/>", "<a:p>${slideText(slide.subtitle, null, false, true)}</a:p>")
         return XML + head + shape(2, "Titre", "<p:ph type=\"ctrTitle\"/>", "<a:p>${slideText(slide.title, null, true, true)}</a:p>") + subtitle + tail
+    }
+    if (slide.image != null) {
+        val heading = if (slide.title.isBlank()) "" else shape(2, "Titre", "<p:ph type=\"title\"/>", "<a:p>${slideText(slide.title, null, false, false)}</a:p>")
+        return XML + head + heading + pictureShapes(slide, image) + tail
     }
     val total = slide.lines.sumOf { it.text.length }
     val size = when {
@@ -174,12 +217,18 @@ private fun slideXml(slide: Slide): String {
         shape(3, "Contenu", "<p:ph idx=\"1\"/>", paragraphs) + tail
 }
 
-/** A PowerPoint (.pptx) deck, 16:9, written by hand: a theme, a master, two layouts (title, title and content) and the slides. */
-internal fun buildPptx(title: String, blocks: List<Block>): ByteArray {
+/**
+ * A PowerPoint (.pptx) deck, 16:9, written by hand: a theme, a master, two layouts (title, title and content) and the slides, with the
+ * pictures of [images] (by source) embedded.
+ */
+internal fun buildPptx(title: String, blocks: List<Block>, images: Map<String, DocImage> = emptyMap()): ByteArray {
     val slides = slidesFromBlocks(title, blocks).ifEmpty { listOf(Slide(title.ifBlank { "Présentation" }, isTitle = true)) }
+    // each picture slide's own copy of its picture (media/imageN.jpeg, N = the slide's number)
+    val media = slides.withIndex().mapNotNull { (i, slide) -> slide.image?.let { images[it] }?.let { i to it } }.toMap()
     val entries = mutableListOf<Pair<String, String>>()
     entries += "[Content_Types].xml" to (XML + "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">" +
         "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>" +
+        "<Default Extension=\"jpeg\" ContentType=\"image/jpeg\"/>" +
         "<Override PartName=\"/ppt/presentation.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml\"/>" +
         "<Override PartName=\"/ppt/slideMasters/slideMaster1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml\"/>" +
         "<Override PartName=\"/ppt/slideLayouts/slideLayout1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml\"/>" +
@@ -207,16 +256,10 @@ internal fun buildPptx(title: String, blocks: List<Block>): ByteArray {
     entries += "ppt/slideLayouts/slideLayout2.xml" to LAYOUT_CONTENT
     for (n in 1..2) entries += "ppt/slideLayouts/_rels/slideLayout$n.xml.rels" to rels(Triple("rId1", "slideMaster", "../slideMasters/slideMaster1.xml"))
     for ((i, slide) in slides.withIndex()) {
-        entries += "ppt/slides/slide${i + 1}.xml" to slideXml(slide)
-        entries += "ppt/slides/_rels/slide${i + 1}.xml.rels" to rels(Triple("rId1", "slideLayout", if (slide.isTitle) "../slideLayouts/slideLayout1.xml" else "../slideLayouts/slideLayout2.xml"))
+        entries += "ppt/slides/slide${i + 1}.xml" to slideXml(slide, media[i])
+        val layout = Triple("rId1", "slideLayout", if (slide.isTitle) "../slideLayouts/slideLayout1.xml" else "../slideLayouts/slideLayout2.xml")
+        entries += "ppt/slides/_rels/slide${i + 1}.xml.rels" to
+            if (media[i] != null) rels(layout, Triple("rId2", "image", "../media/image${i + 1}.jpeg")) else rels(layout)
     }
-    val out = ByteArrayOutputStream()
-    ZipOutputStream(out).use { zip ->
-        for ((name, content) in entries) {
-            zip.putNextEntry(ZipEntry(name))
-            zip.write(content.toByteArray(Charsets.UTF_8))
-            zip.closeEntry()
-        }
-    }
-    return out.toByteArray()
+    return zip(entries, media.map { (i, picture) -> "ppt/media/image${i + 1}.jpeg" to picture.jpeg })
 }

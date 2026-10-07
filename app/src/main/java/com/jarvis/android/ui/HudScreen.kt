@@ -33,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ViewInAr
@@ -95,6 +96,7 @@ internal fun HudScreen(
     onCancelConfirm: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenMemory: () -> Unit,
+    onOpenDocuments: () -> Unit = {},
     onOpenChat: () -> Unit = {},
     outputLevel: Float = 0f,
     videoSource: VideoSource = VideoSource.OFF,
@@ -153,6 +155,7 @@ internal fun HudScreen(
                         }
                     }
                     IconButton(onClick = onOpenChat) { Icon(Icons.Filled.Chat, contentDescription = tr("Chat texte"), tint = tint) }
+                    IconButton(onClick = onOpenDocuments) { Icon(Icons.Filled.Description, contentDescription = tr("Documents"), tint = tint) }
                     IconButton(onClick = onOpenMemory) { Icon(Icons.Filled.Info, contentDescription = tr("Mémoire"), tint = tint) }
                     IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Settings, contentDescription = tr("Paramètres"), tint = tint) }
                 },
