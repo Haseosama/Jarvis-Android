@@ -107,6 +107,15 @@ class JarvisContainer(val appContext: Context) {
 
     internal val briefing: com.jarvis.android.memory.BriefingCoordinator by lazy { com.jarvis.android.memory.BriefingCoordinator(this) }
 
+    /** Jarvis PC driven from the phone (pc/PcRemote.kt), its pairing kept encrypted. */
+    val pcRemote: com.jarvis.android.pc.PcRemote by lazy {
+        com.jarvis.android.pc.PcRemote(
+            load = { com.jarvis.android.pc.PcPairing.fromJson(configStore.getPcPairing()) },
+            save = { configStore.savePcPairing(it.toJson()) },
+            clear = { configStore.deletePcPairing() },
+        )
+    }
+
     internal val attachedFiles = com.jarvis.android.files.AttachedFileStore()
     internal val shareInbox = com.jarvis.android.share.ShareInbox()
     internal val avatar = com.jarvis.android.avatar.AvatarController(appContext)

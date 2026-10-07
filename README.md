@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.88 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.90 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -74,7 +74,7 @@ release APK comes out unsigned. `keystore/`, `*.keystore` and `*.jks` are git-ig
 | `core/action_loader.py` + `plugins/` (runtime file auto-discovery) | [`registry/ToolRegistry.kt`](app/src/main/java/com/jarvis/android/registry/ToolRegistry.kt) — a compile-time list instead. Android can't safely load and execute arbitrary code dropped onto the device at runtime, so "one file, no core edits" survives as a Kotlin object implementing `Tool`, registered once in `ToolRegistry.ALL`. |
 | `memory/memory_manager.py` | [`memory/MemoryManager.kt`](app/src/main/java/com/jarvis/android/memory/MemoryManager.kt) — same design: nothing is silently forgotten, only a budgeted "core" rides in every prompt, the rest is recalled on demand. |
 | `config/api_keys.json` + UI settings | [`memory/ConfigStore.kt`](app/src/main/java/com/jarvis/android/memory/ConfigStore.kt) — API key in `EncryptedSharedPreferences`, everything else in DataStore. |
-| `dashboard/` (remote control from your phone) | N/A — the assistant already *is* the phone. |
+| `dashboard/` (remote control from your phone) | Used from the other side: [`pc/PcRemote.kt`](app/src/main/java/com/jarvis/android/pc/PcRemote.kt) pairs with it to drive the PC (`jarvis_pc`, see "Controlling the PC"). |
 
 ## Ported skills (`actions/`)
 
@@ -119,22 +119,23 @@ a message into the running voice session.
 | `screen_processor` | `screen_look`, `vision_stream` (screen or camera shared with the live session), `take_photo` |
 | `proactive`, `background_monitor` | background checks (`proactive/`) and the `watch` tool (prices, a site up or down, battery temperature, free memory) |
 | `dev_agent` | `agent_task` (multi-step agent mode) and `code_helper`; not "create a project and run it on the machine" |
-| `computer_control`, `desktop` | no phone equivalent; the accessibility tools (`screen_read`, `screen_tap`, `screen_type`, `screen_scroll`, `screen_swipe`, `screen_navigate`) drive the phone the way those drive a PC |
-| `game_updater`, `dashboard` | none: not applicable to a phone |
+| `computer_control`, `desktop` | on the PC itself through `jarvis_pc` (Jarvis PC does it); on the phone, the accessibility tools (`screen_read`, `screen_tap`, `screen_type`, `screen_scroll`, `screen_swipe`, `screen_navigate`) drive the phone the way those drive a PC |
+| `game_updater` | none: not applicable to a phone (Jarvis PC can still do it, asked through `jarvis_pc`) |
+| `dashboard` | the phone is its client: `jarvis_pc` |
 
 Added here and not in the original: `alarm`, `calendar`, `call_contact`, `call_log`, `notifications`, `routine`, `timer`, `liberty_music`,
 `meeting_notes`, `create_document`, `gmail`, `drive`, `watch`, `end_session`, `undo`, `task_list`, `translate`, `interpreter`, `smart_home`,
 `spotify_search`, `air_quality`, `planes_overhead`, `prix_carburant`, `rain_soon`, `expenses`, `receipt`, `habits`, `find_phone`,
 `place_reminder`, `person_reminder`, `parking`, `driving_mode`, `birthdays`, `photos`, `health`, `sos`, `quiet_mode`,
-`subscriptions`, `recipe`, `parcel`, `budget`, `read_text`, `wake_briefing`, `transport`, plus the widgets, the avatar, the
+`subscriptions`, `recipe`, `parcel`, `budget`, `read_text`, `wake_briefing`, `transport`, `jarvis_pc`, plus the widgets, the avatar, the
 taught wake word, the offline mode and the in-app update.
 
 ## Not ported — no Android equivalent
 
 Mouse/keyboard automation, desktop/taskbar/window management (`computer_control`,
 `desktop.py`), Steam/Epic game updates (`game_updater`), full desktop screen capture
-(`screen_processor`), and the remote dashboard all depend on APIs a sandboxed phone
-app cannot reach. (These are now covered: file attachments, proactive checks, vision, the audio-device picker and the agent mode.)
+(`screen_processor`) depend on APIs a sandboxed phone app cannot reach on the phone itself; on the PC,
+`jarvis_pc` asks Jarvis PC to do them. (These are now covered: file attachments, proactive checks, vision, the audio-device picker and the agent mode.)
 
 ## Setup
 
@@ -541,6 +542,33 @@ building the right service call and body, formatting a status line) with literal
 to connect to. The code follows Home Assistant's documented REST API closely (`/api/states`,
 `/api/services/{domain}/{service}`, Bearer token authentication), but a first real run at home is the
 only way to be sure a specific server's devices behave exactly as expected.
+
+### Controlling the PC (`jarvis_pc`, 0.9.89)
+
+`jarvis_pc` (`actions/PcControlTool.kt`, `pc/`) drives the user's computer through Jarvis on the PC, which already has the hands for
+it (apps, volume, brightness, windows, keyboard and mouse, browser, files, screen reading, power):
+**[Jarvis 2.0](https://github.com/Haseosama/Jarvis-2.0)** from its 2.0.32 (its `electron/remoteServer.cjs`), or Mark-LIV
+([Haseosama/Jarvis-Pc](https://github.com/Haseosama/Jarvis-Pc), its `dashboard/server.py`). Both speak the same protocol on port 8000.
+
+- **Pairing**, in Settings > *Jarvis PC*: on the PC, Jarvis 2.0's *Poste de Contrôle PC* → *Appairer un téléphone* (Mark-LIV:
+  ⚙ → *Remote Control*) shows a QR code, the address and a 6-character code (single use, 10 minutes). Scan the QR code (Google's scanner
+  screen, so the app needs no camera permission), or type the address and code, or say both. The PC answers with a device token that
+  later gets a fresh session without a new code; Jarvis 2.0 keeps it across restarts, Mark-LIV forgets it when it restarts.
+- **Security**: the PC serves HTTPS with a certificate it made itself; the phone records that certificate's SHA-256 at pairing and from
+  then on talks only to a server presenting exactly that certificate (a different machine at the same address is refused, and said so).
+  The commands are also AES-256-CBC encrypted with the pairing code. The pairing is stored encrypted like the Gemini key. A PC on plain
+  HTTP is refused with the fix, since Android blocks clear-text traffic anyway.
+- **A command** is the instruction in plain words ("ouvre Chrome", "mets le volume à 30", "verrouille la session"), handled on the PC as
+  if typed there; the phone listens on the WebSocket and returns what Jarvis on the PC says back (an acknowledgement and the result,
+  until 6 s of silence, at most 35 s), which the phone Jarvis then says.
+- **Limits**: the PC must be on, Jarvis running with remote control switched on, and the phone on the same network. If the PC's IP address
+  changes, pair again. With Mark-LIV, its own confirmation buttons (shutdown, restart, Wi-Fi) still wait for a click on the PC.
+
+Checked: unit tests for the pure part (`pc/PcLink.kt`: QR link and address parsing, the auto-login page, the encryption against a vector
+made with `openssl`, the WebSocket messages), and `PcRemote` run on the JVM against both real servers, Jarvis 2.0's
+`remoteServer.cjs` and Mark-LIV's `dashboard/server.py` (each with a stand-in for the AI): pairing, a reused code refused, the status
+check, a stale token refreshed with the device token, a command and its two-part answer with the replayed history dropped, a changed
+certificate refused, an unreachable PC. **Not checked on a real phone and PC yet**, nor the QR scanner screen.
 
 ### Spotify search, and why it stops there
 
@@ -1861,7 +1889,7 @@ of a real answer only when there is none. With one installed, the phone runs a s
 `com.google.mediapipe:tasks-genai`) to answer in French, entirely on the device — nothing about the question or the answer is sent anywhere. It only talks: it cannot open an app, place a call, change a setting or
 search the web, and the system prompt given to the model (`offline/LocalPrompt.kt`) tells it so, so it says it cannot rather than pretending it did it.
 
-**Getting the model** (a list since 0.9.88, at the owner's request). Settings > "IA locale (hors ligne)" shows the models Jarvis can download by itself
+**Getting the model** (a list since 0.9.90, at the owner's request). Settings > "IA locale (hors ligne)" shows the models Jarvis can download by itself
 (`offline/LocalModelCatalog.kt`): official ones from Google's [LiteRT community](https://huggingface.co/litert-community) on Hugging Face, then, under
 "Non censurés" with a warning, community conversions that were abliterated or fine-tuned so they refuse no topic:
 
@@ -1876,7 +1904,7 @@ search the web, and the system prompt given to the model (`offline/LocalPrompt.k
 
 No uncensored model exists as a MediaPipe `.task` file worth offering (the one found keeps only about a third of its abliteration after
 quantisation), and community `.litertlm` conversions made for LiteRT-LM 0.17 (such as an uncensored Qwen 2.5 1.5B) are left out because
-this project's Kotlin 2.2 cannot use LiteRT-LM 0.17 (built with Kotlin 2.4), so it stays on 0.16.1. 0.9.88 also adds Google's newer on-device engine, [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM)
+this project's Kotlin 2.2 cannot use LiteRT-LM 0.17 (built with Kotlin 2.4), so it stays on 0.16.1. 0.9.90 also adds Google's newer on-device engine, [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM)
 (`com.google.ai.edge.litertlm:litertlm-android`), next to MediaPipe: `offline/LocalLlm.kt` gives a `.litertlm` file to LiteRT-LM (CPU backend,
 one `Conversation` per answer) and a `.task` file to MediaPipe as before. The store tells the two apart by their first bytes (`PK` for a `.task` zip,
 `LITERTLM` for the other) and keeps the model as `model.task` or `model.litertlm`; both can be imported too.
@@ -2210,5 +2238,5 @@ from the old encrypted preferences), because it works on the app's real files.
   security scan), the live video, and what Jarvis keeps after a session with a real answer.
 - "Rules to keep" (« toujours répondre en français ») are not a feature of their own; the automatic memory keeps some of them as preferences.
 - Camera-based sport tracking (push-up counter, posture) was left out: heavy on the battery.
-- Desktop-only features (mouse/keyboard automation, game updaters, the remote dashboard) have no Android
-  equivalent and are not planned.
+- Desktop-only features (mouse/keyboard automation, game updaters) have no equivalent on the phone itself; the PC is driven through
+  Jarvis PC instead (`jarvis_pc`, 0.9.89).

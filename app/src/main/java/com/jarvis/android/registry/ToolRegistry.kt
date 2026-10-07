@@ -10,6 +10,7 @@ import com.jarvis.android.tool.Tool
 import com.jarvis.android.actions.AgentTool
 import com.jarvis.android.actions.AirQualityTool
 import com.jarvis.android.actions.TidesTool
+import com.jarvis.android.actions.PcControlTool
 import com.jarvis.android.actions.AlarmTool
 import com.jarvis.android.actions.AnalyzeFileTool
 import com.jarvis.android.actions.BirthdaysTool
@@ -97,8 +98,8 @@ import com.jarvis.android.actions.YoutubeTool
  * reach: `computer_control`/`desktop.py` (mouse/keyboard automation, taskbar,
  * window management), `game_updater` (Steam/Epic), `flight_finder` (was tied
  * to the desktop's browser automation), `screen_processor` (full desktop
- * screen capture), and `dashboard/` (a *remote* control surface makes no
- * sense when the assistant already lives on your phone).
+ * screen capture). On the PC those are reached through Jarvis PC instead:
+ * `jarvis_pc` (PcControlTool) is a client of its `dashboard/`.
  */
 object ToolRegistry {
     val ALL: List<Tool> = listOf(
@@ -188,7 +189,7 @@ object ToolRegistry {
         RainSoonTool,
         BirthdaysTool,
         InterpreterTool,
-        CallLogTool, SosTool, PhotoSearchTool, ReceiptTool, PersonReminderTool, DrivingModeTool, HealthTool, QuietModeTool, SubscriptionsTool, RecipeTool, ParcelTool, BudgetTool, ReadTextTool, WakeBriefingTool, TransportTool, TidesTool,
+        CallLogTool, SosTool, PhotoSearchTool, ReceiptTool, PersonReminderTool, DrivingModeTool, HealthTool, QuietModeTool, SubscriptionsTool, RecipeTool, ParcelTool, BudgetTool, ReadTextTool, WakeBriefingTool, TransportTool, TidesTool, PcControlTool,
         com.jarvis.android.actions.HaseoArTool,
     )
 

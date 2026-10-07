@@ -38,8 +38,8 @@ android {
         applicationId = "com.jarvis.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 145
-        versionName = "0.9.88"
+        versionCode = 147
+        versionName = "0.9.90"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -153,6 +153,9 @@ dependencies {
     // On-device image labels ("mes photos de chien") and text reading (receipts); the models ship inside the app, nothing is sent
     implementation("com.google.mlkit:image-labeling:17.0.9")
     implementation("com.google.mlkit:text-recognition:16.0.1")
+
+    // The Jarvis PC QR code (Réglages > Jarvis PC): Google's scanner screen, no camera permission for the app
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 
     // Steps, sleep and heart rate from Health Connect (read only, with the user's permission)
     implementation("androidx.health.connect:connect-client:1.1.0")
