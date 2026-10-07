@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Train
+import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -178,6 +179,26 @@ internal fun EnergyCard() {
             tr("Créez un compte gratuit sur data.rte-france.com, abonnez une application à l’API « Ecowatt », puis copiez son « ID client encodé en base 64 » et collez-le ici."),
             "https://data.rte-france.com/catalog/-/api/consumption/Ecowatt/v5.0",
             { config.getRteKey() }, { config.saveRteKey(it) }, { config.deleteRteKey() },
+        )
+    }
+}
+
+/** Perplexity: the key for sourced web answers (the perplexity_search tool). */
+@Composable
+internal fun PerplexityCard() {
+    val context = LocalContext.current
+    val config = remember { (context.applicationContext as JarvisApp).container.configStore }
+    SettingsCard(tr("Recherche Perplexity"), Icons.Filled.TravelExplore, initiallyExpanded = false) {
+        Text(
+            tr("« Fais le point sur… », « compare… », « cherche en détail… » : avec une clé Perplexity, Jarvis peut demander à Perplexity une réponse qui croise plusieurs pages du Web, avec ses sources. Sans clé, la recherche web habituelle reste disponible. L’API est payante à l’usage ; la clé est chiffrée sur le téléphone."),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        ServiceKey(
+            tr("Clé Perplexity"),
+            tr("Créez une clé API dans la console Perplexity (onglet « API Keys »), ajoutez du crédit, puis collez-la ici. Si la clé a été montrée à quelqu’un, révoquez-la dans la console et créez-en une autre."),
+            "https://console.perplexity.ai",
+            { config.getPerplexityKey() }, { config.savePerplexityKey(it) }, { config.deletePerplexityKey() },
         )
     }
 }

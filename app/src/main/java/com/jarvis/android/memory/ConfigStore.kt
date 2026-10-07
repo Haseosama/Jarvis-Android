@@ -71,6 +71,9 @@ class ConfigStore(private val context: Context) {
     /** The RTE data portal key (EcoWatt), a credential too. */
     private val rteKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_rte_key.enc", keys = keystoreKey)
 
+    /** The Perplexity API key, for sourced web answers (perplexity/PerplexityTool.kt), a credential too. */
+    private val perplexityKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_perplexity_key.enc", keys = keystoreKey)
+
     /** The Jarvis PC pairing (address, pinned certificate, tokens), a credential too: see pc/PcLink.kt. */
     private val pcPairingStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_pc_pairing.enc", keys = keystoreKey)
 
@@ -199,6 +202,9 @@ class ConfigStore(private val context: Context) {
     fun getNavitiaKey(): String? = navitiaKeyStore.read()
     suspend fun saveNavitiaKey(value: String): Boolean = withContext(Dispatchers.IO) { navitiaKeyStore.write(value) }
     suspend fun deleteNavitiaKey(): Boolean = withContext(Dispatchers.IO) { navitiaKeyStore.delete() }
+    fun getPerplexityKey(): String? = perplexityKeyStore.read()
+    suspend fun savePerplexityKey(value: String): Boolean = withContext(Dispatchers.IO) { perplexityKeyStore.write(value) }
+    suspend fun deletePerplexityKey(): Boolean = withContext(Dispatchers.IO) { perplexityKeyStore.delete() }
     fun getRteKey(): String? = rteKeyStore.read()
     suspend fun saveRteKey(value: String): Boolean = withContext(Dispatchers.IO) { rteKeyStore.write(value) }
     suspend fun deleteRteKey(): Boolean = withContext(Dispatchers.IO) { rteKeyStore.delete() }

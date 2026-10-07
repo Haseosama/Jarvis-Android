@@ -508,6 +508,7 @@ fun SettingsScreen(
                 }
             }
             }
+            PerplexityCard()
             SettingsCard(tr("IA locale (hors ligne)"), Icons.Filled.Memory, initiallyExpanded = false) {
             val localAiEnabled by configStore.localAiEnabled.collectAsState(initial = true)
             Text(
