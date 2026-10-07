@@ -196,6 +196,23 @@
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <!-- where the browser comes back after a connector's login (connectors/McpOAuth.kt, OAUTH_REDIRECT_URI) -->
+        <activity
+            android:name=".connectors.McpOAuthActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.jarvis.android.mcp" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".meetings.MeetingRecorderService"
             android:foregroundServiceType="microphone"

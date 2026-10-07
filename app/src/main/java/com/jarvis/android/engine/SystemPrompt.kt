@@ -87,5 +87,12 @@ internal suspend fun collectSelfKnowledge(container: JarvisContainer, assistantN
         proactiveEnabled = store.proactiveEnabled.first(),
         messageAutoSend = store.messageAutoSend.first(),
         skipConfirmations = store.skipConfirmations.first(),
+        connectors = container.connectors.list().filter { it.enabled }.map { c ->
+            c.name + when {
+                c.needsLogin -> " (login needed)"
+                c.status.isNotEmpty() && c.tools.isEmpty() -> " (unreachable)"
+                else -> " (${c.tools.size} tools)"
+            }
+        },
     )
 }
