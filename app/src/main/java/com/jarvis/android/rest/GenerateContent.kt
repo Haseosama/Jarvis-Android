@@ -192,9 +192,9 @@ internal fun buildGenerateRequest(
                 putJsonArray("functionDeclarations") { tools.forEach { add(it) } }
             }
         }
-        // the tools stay declared (the history holds calls to them) but the model must answer in words
-        if (!allowCalls) putJsonObject("toolConfig") { putJsonObject("functionCallingConfig") { put("mode", "NONE") } }
     }
+    // the tools stay declared (the history holds calls to them) but the model must answer in words
+    if (!allowCalls) putJsonObject("toolConfig") { putJsonObject("functionCallingConfig") { put("mode", "NONE") } }
 }
 
 private val MODEL_PATTERN = Regex("(models/)?[A-Za-z0-9._-]+")
