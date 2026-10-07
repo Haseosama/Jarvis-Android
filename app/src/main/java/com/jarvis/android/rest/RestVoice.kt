@@ -22,6 +22,8 @@ internal class RestVoice(
     private val sendText: suspend (String) -> String?,
     private val lastReply: () -> String?,
     private val onMetrics: (String) -> Unit = {},
+    /** Reads [text] in another voice than Gemini's when one is chosen (false: none is, Gemini speaks); throws with a message on failure. */
+    private val otherVoice: suspend (text: String, emit: suspend (ByteArray) -> Unit) -> Boolean = { _, _ -> false },
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     private val _stage = MutableStateFlow(VoiceStage.IDLE)
@@ -64,6 +66,7 @@ internal class RestVoice(
             _stage.value = VoiceStage.SPEAKING
             try {
                 output.play { emit ->
+                    if (otherVoice(reply, emit)) return@play
                     val request = buildSpeechRequest(reply, voice())
                     val begun = now()
                     var bytes = 0
@@ -82,6 +85,10 @@ internal class RestVoice(
                 }
             } catch (e: RestChatException) {
                 return e.message
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return e.message ?: "Voix indisponible."
             }
             return null
         } catch (e: CancellationException) {

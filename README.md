@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.96 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.97 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -706,6 +706,28 @@ never a password or an unofficial API (those get accounts blocked).
 
 Checked: unit tests for the crop and size, the metadata check, the caption, the choice of the outing, and the Graph API answers and
 errors (`InstagramPublishTest`). **Not checked against the real API** (no account in the build environment) nor on a phone.
+
+### More voices, online and offline (0.9.97)
+
+At the owner's request ("plus de choix de voix en ligne ou hors ligne, peut-être voir du côté de Hermes agent"), Jarvis gets the
+kinds of voices Hermes Agent offers that fit a phone (`voices/`). Settings > *Voix*, under the Gemini voice:
+
+- **Another online voice**: Microsoft Edge's read-aloud voices (free, no key: the service the `edge-tts` package uses, Hermes Agent's
+  default), French (France, Belgium, Switzerland, Quebec) and multilingual ones, or the owner's own **ElevenLabs** voices with their
+  key (`eleven_flash_v2_5`, 24 kHz PCM). Gemini Live still leads the conversation: its spoken words come with a transcript, which
+  `SentenceBuffer` cuts into sentences, each read by the chosen voice and played through the same player (so the microphone mute,
+  the avatar's lips and interruptions keep working). Gemini's own sound is left out. If the other voice fails, Gemini's voice comes
+  back for the rest of the session. The text chat's spoken replies use it too. Answers start a little later than with Gemini's voice.
+  "Mets la voix Denise" works by voice (`change_voice`); asking for a Gemini voice goes back to Gemini's.
+- **Offline voice**: any voice of the speech engines installed on the phone (Google's, Samsung's…), those that work without the
+  network first. More voices come from installing an engine such as **SherpaTTS** (Piper voices, as in Hermes Agent) or RHVoice;
+  they then appear in the list. Automatic (the best offline voice) by default.
+- Every voice can be heard (▶) before it is chosen. The Edge protocol (`Sec-MS-GEC` token, SSML, MP3 decoded to PCM with
+  `MediaCodec`) follows `edge-tts`; it is not an official API, so Microsoft may change it, and Jarvis then falls back to Gemini.
+
+Checked: unit tests for the Edge token (same value as edge-tts's algorithm), messages and audio frames, the sentence cutting, the
+stored choices, ElevenLabs voices and errors, the order of phone voices and the mono 24 kHz conversion (`MoreVoicesTest`). **Not
+checked on a phone yet**, nor against the real Edge and ElevenLabs services (both unreachable from the build environment).
 
 ### Spotify search, and why it stops there
 

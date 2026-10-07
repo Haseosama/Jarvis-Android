@@ -14,6 +14,8 @@ import kotlinx.serialization.json.JsonObject
 import com.jarvis.android.tool.Tool
 import com.jarvis.android.tool.stringArg
 import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.voices.EDGE_VOICES
+import kotlinx.coroutines.flow.first
 
 /**
  * Changes the assistant's voice by voice: a voice named ("la voix Leda"), or one of a kind ("une voix féminine", "une voix masculine
@@ -23,12 +25,13 @@ import com.jarvis.android.tool.objectSchema
 object ChangeVoiceTool : Tool {
     override val name = "change_voice"
     override val description =
-        "Changer la voix de l’assistant (voix de Gemini) quand l’utilisateur le demande : une voix nommée (voice, par exemple « Leda »), " +
+        "Changer la voix de l’assistant quand l’utilisateur le demande : une voix nommée (voice : une voix Gemini comme « Leda », ou une " +
+            "voix Microsoft Edge comme « Denise », « Henri », « Vivienne », « Rémy », « Charline », « Sylvie »), " +
             "ou un genre (gender : « female » ou « male ») et/ou un caractère (style : « douce », « chaleureuse », « jeune », « grave »…). " +
             "Sans nom, c’est la voix suivante qui correspond, donc redemander en donne une autre. list = « true » pour énumérer les voix. " +
             "Pendant une session vocale, la session redémarre aussitôt avec la nouvelle voix : dites seulement, en une phrase courte, que vous changez de voix."
     override val parameters = objectSchema {
-        string("voice", "Nom d’une voix Gemini (Kore, Aoede, Leda, Zephyr, Puck, Charon…), si l’utilisateur en nomme une.")
+        string("voice", "Nom d’une voix Gemini (Kore, Aoede, Leda, Zephyr, Puck, Charon…) ou Edge (Denise, Henri, Eloise, Vivienne, Rémy…), si l’utilisateur en nomme une.")
         string("gender", "'female' ou 'male', si l’utilisateur demande une voix féminine ou masculine.")
         string("style", "Un mot du caractère voulu, dans la langue de l’utilisateur (douce, chaleureuse, jeune, claire, ferme, posée…).")
         string("list", "'true' pour obtenir la liste des voix, sans rien changer.")
@@ -37,17 +40,32 @@ object ChangeVoiceTool : Tool {
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String {
         if (args.stringArg("list").trim().lowercase() in setOf("true", "oui", "yes", "1")) {
             return "Voix disponibles : " + ConfigStore.VOICES.joinToString(" ; ") { it.label(false) } +
+                ". Voix Microsoft Edge (gratuites, lues phrase par phrase) : " + EDGE_VOICES.joinToString(" ; ") { it.label(false) } +
                 ". Elles s’écoutent aussi dans les réglages (Voix, bouton ▶)."
+        }
+        val asked = normalize(args.stringArg("voice"))
+        val edge = EDGE_VOICES.firstOrNull { asked.isNotEmpty() && (normalize(it.name) == asked || asked.contains(normalize(it.name))) }
+        if (edge != null) {
+            if (ctx.configStore.onlineVoice.first() == edge.id) return "C’est déjà la voix utilisée (${edge.label(false)}). Rien n’est changé."
+            ctx.configStore.setOnlineVoice(edge.id)
+            return restartWith(ctx, "Voix ${edge.label(false)} (Microsoft Edge) choisie")
         }
         val current = ctx.configStore.snapshotVoice()
         val chosen = pickVoice(ConfigStore.VOICES, current, args.stringArg("voice"), args.stringArg("gender"), args.stringArg("style"))
             ?: return "Aucune voix ne correspond à cette demande. " +
                 "Voix disponibles : " + ConfigStore.VOICES.joinToString(", ") { it.name } + ". Rien n’est changé."
-        if (chosen.name == current) return "C’est déjà la voix utilisée (${chosen.label(false)}). Rien n’est changé."
+        val otherVoice = ctx.configStore.onlineVoice.first().isNotEmpty()
+        if (chosen.name == current && !otherVoice) return "C’est déjà la voix utilisée (${chosen.label(false)}). Rien n’est changé."
         ctx.configStore.setVoice(chosen.name)
+        // a Gemini voice asked for: no other voice reads over it any more
+        if (otherVoice) ctx.configStore.setOnlineVoice("")
+        return restartWith(ctx, "Voix ${chosen.label(false)} choisie")
+    }
+
+    private fun restartWith(ctx: JarvisContainer, chosenText: String): String {
         val engine = ctx.engine
         val live = engine.state.value != JarvisState.ASLEEP && engine.state.value != JarvisState.ERROR
-        if (!live) return "Voix ${chosen.label(false)} choisie : elle sera utilisée dès la prochaine réponse parlée."
+        if (!live) return "$chosenText : elle sera utilisée dès la prochaine réponse parlée."
         // the voice is part of how a session is opened: close it after the short word, open it again, and let the new voice speak
         engine.requestEndSession {
             ctx.appScope.launch {
@@ -60,7 +78,7 @@ object ChangeVoiceTool : Tool {
                 }
             }
         }
-        return "Voix ${chosen.label(false)} choisie. La session redémarre avec elle dans un instant : dites seulement, en une phrase courte " +
+        return "$chosenText. La session redémarre avec elle dans un instant : dites seulement, en une phrase courte " +
             "et dans la langue de l’utilisateur, que vous changez de voix."
     }
 }

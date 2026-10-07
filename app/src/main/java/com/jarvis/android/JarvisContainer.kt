@@ -211,6 +211,11 @@ class JarvisContainer(val appContext: Context) {
     /** Text chat over generateContent; independent of the Live session. */
     val restChat: RestChat by lazy { RestChat(this) }
 
+    /** Online voices other than Gemini's (Microsoft Edge, ElevenLabs), see voices/MoreVoices.kt. */
+    internal val onlineSpeaker: com.jarvis.android.voices.OnlineSpeaker by lazy {
+        com.jarvis.android.voices.OnlineSpeaker(http) { configStore.getElevenLabsKey() }
+    }
+
     /**
      * Last of the class on purpose: these collectors start at once, on other threads, and touch the engine, the avatar and the others,
      * which have to be built first (a cold start with no stored settings used to crash on them).
