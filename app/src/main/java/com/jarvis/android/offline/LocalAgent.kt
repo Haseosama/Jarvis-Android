@@ -132,6 +132,7 @@ internal val LOCAL_TOOL_HINTS: Map<String, String> = mapOf(
     "file_manager" to "fichier fichiers dossier",
     "gmail" to "mail mails email courriel",
     "jarvis_pc" to "ordinateur pc",
+    "navigateur_pc" to "navigateur playwright site page formulaire",
     "weekly_summary" to "semaine resume",
     "wake_briefing" to "briefing journee",
     "electricity" to "electricite tempo ejp",

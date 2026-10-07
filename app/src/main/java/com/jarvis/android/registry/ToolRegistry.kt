@@ -101,7 +101,8 @@ import com.jarvis.android.actions.YoutubeTool
  * window management), `game_updater` (Steam/Epic), `flight_finder` (was tied
  * to the desktop's browser automation), `screen_processor` (full desktop
  * screen capture). On the PC those are reached through Jarvis PC instead:
- * `jarvis_pc` (PcControlTool) is a client of its `dashboard/`.
+ * `jarvis_pc` (PcControlTool) is a client of its `dashboard/`, and `navigateur_pc` (PcBrowserTool) drives
+ * its Playwright browser.
  */
 object ToolRegistry {
     val ALL: List<Tool> = listOf(
@@ -193,6 +194,7 @@ object ToolRegistry {
         BirthdaysTool,
         InterpreterTool,
         CallLogTool, SosTool, PhotoSearchTool, ReceiptTool, PersonReminderTool, DrivingModeTool, HealthTool, QuietModeTool, SubscriptionsTool, RecipeTool, ParcelTool, BudgetTool, ReadTextTool, WakeBriefingTool, TransportTool, TidesTool, PcControlTool,
+        com.jarvis.android.actions.PcBrowserTool,
         com.jarvis.android.actions.HaseoArTool,
         com.jarvis.android.connectors.ConnectorTool,
     )
