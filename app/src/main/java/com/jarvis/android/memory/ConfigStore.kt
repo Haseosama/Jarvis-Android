@@ -74,6 +74,10 @@ class ConfigStore(private val context: Context) {
     /** The Perplexity API key, for sourced web answers (perplexity/PerplexityTool.kt), a credential too. */
     private val perplexityKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_perplexity_key.enc", keys = keystoreKey)
 
+    /** Instagram: the token the user pasted, and the Page account Jarvis found with it (its Page token included), credentials too. */
+    private val instagramTokenStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_instagram_token.enc", keys = keystoreKey)
+    private val instagramAccountStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_instagram_account.enc", keys = keystoreKey)
+
     /** The Jarvis PC pairing (address, pinned certificate, tokens), a credential too: see pc/PcLink.kt. */
     private val pcPairingStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_pc_pairing.enc", keys = keystoreKey)
 
@@ -205,6 +209,15 @@ class ConfigStore(private val context: Context) {
     fun getPerplexityKey(): String? = perplexityKeyStore.read()
     suspend fun savePerplexityKey(value: String): Boolean = withContext(Dispatchers.IO) { perplexityKeyStore.write(value) }
     suspend fun deletePerplexityKey(): Boolean = withContext(Dispatchers.IO) { perplexityKeyStore.delete() }
+    fun getInstagramToken(): String? = instagramTokenStore.read()
+    suspend fun saveInstagramToken(value: String): Boolean = withContext(Dispatchers.IO) {
+        instagramAccountStore.delete() // a new token may lead to another account
+        instagramTokenStore.write(value)
+    }
+    suspend fun deleteInstagramToken(): Boolean = withContext(Dispatchers.IO) { instagramAccountStore.delete(); instagramTokenStore.delete() }
+    fun getInstagramAccount(): String? = instagramAccountStore.read()
+    fun saveInstagramAccount(value: String): Boolean = instagramAccountStore.write(value)
+    fun deleteInstagramAccount(): Boolean = instagramAccountStore.delete()
     fun getRteKey(): String? = rteKeyStore.read()
     suspend fun saveRteKey(value: String): Boolean = withContext(Dispatchers.IO) { rteKeyStore.write(value) }
     suspend fun deleteRteKey(): Boolean = withContext(Dispatchers.IO) { rteKeyStore.delete() }
@@ -255,6 +268,8 @@ class ConfigStore(private val context: Context) {
     private val KEY_AUDIO_IN = stringPreferencesKey("audio_input_device")
     private val KEY_AUDIO_OUT = stringPreferencesKey("audio_output_device")
     private val KEY_LAST_BRIEFING = stringPreferencesKey("last_briefing_date")
+    private val KEY_INSTAGRAM_ALBUM = stringPreferencesKey("instagram_album")
+    private val KEY_INSTAGRAM_POSTED = stringPreferencesKey("instagram_posted_ids")
 
     val assistantName: Flow<String> = context.dataStore.data.map { it[KEY_ASSISTANT_NAME] ?: "JARVIS" }
     val userName: Flow<String> = context.dataStore.data.map { it[KEY_USER_NAME] ?: "" }
@@ -276,6 +291,10 @@ class ConfigStore(private val context: Context) {
     val homeAssistantUrl: Flow<String> = context.dataStore.data.map { it[KEY_HOME_ASSISTANT_URL].orEmpty() }
     val wakeSensitivity: Flow<Int> = context.dataStore.data.map { it[KEY_WAKE_SENSITIVITY] ?: 1 }
     val proactiveEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PROACTIVE] ?: false }
+    /** The gallery album the urbex photos are in (Instagram publishing), "Urbex" by default. */
+    val instagramAlbum: Flow<String> = context.dataStore.data.map { it[KEY_INSTAGRAM_ALBUM]?.takeIf { v -> v.isNotBlank() } ?: "Urbex" }
+    /** The MediaStore ids of the photos already posted on Instagram, "12,15,40", so they are not posted twice. */
+    val instagramPosted: Flow<String> = context.dataStore.data.map { it[KEY_INSTAGRAM_POSTED].orEmpty() }
     val audioInputKey: Flow<String> = context.dataStore.data.map { it[KEY_AUDIO_IN].orEmpty() }
     val audioOutputKey: Flow<String> = context.dataStore.data.map { it[KEY_AUDIO_OUT].orEmpty() }
     val chatHistoryEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_CHAT_HISTORY] ?: true }
@@ -355,6 +374,8 @@ class ConfigStore(private val context: Context) {
     suspend fun setHomeAssistantUrl(v: String) = context.dataStore.edit { it[KEY_HOME_ASSISTANT_URL] = v.trim() }
     suspend fun setWakeSensitivity(v: Int) = context.dataStore.edit { it[KEY_WAKE_SENSITIVITY] = v.coerceIn(0, 2) }
     suspend fun setProactiveEnabled(v: Boolean) = context.dataStore.edit { it[KEY_PROACTIVE] = v }
+    suspend fun setInstagramAlbum(v: String) = context.dataStore.edit { it[KEY_INSTAGRAM_ALBUM] = v.trim() }
+    suspend fun setInstagramPosted(v: String) = context.dataStore.edit { it[KEY_INSTAGRAM_POSTED] = v }
     suspend fun setAudioInputKey(v: String) = context.dataStore.edit { it[KEY_AUDIO_IN] = v }
     suspend fun setAudioOutputKey(v: String) = context.dataStore.edit { it[KEY_AUDIO_OUT] = v }
     suspend fun setChatHistoryEnabled(v: Boolean) = context.dataStore.edit { it[KEY_CHAT_HISTORY] = v }

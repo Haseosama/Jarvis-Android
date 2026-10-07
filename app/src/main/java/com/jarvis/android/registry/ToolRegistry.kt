@@ -88,6 +88,7 @@ import com.jarvis.android.actions.WatchTool
 import com.jarvis.android.actions.WeatherTool
 import com.jarvis.android.actions.WebSearchTool
 import com.jarvis.android.perplexity.PerplexityTool
+import com.jarvis.android.instagram.InstagramTool
 import com.jarvis.android.actions.YoutubeTool
 
 /**
@@ -109,6 +110,7 @@ object ToolRegistry {
         WebSearchTool,
         ReadWebpageTool,
         PerplexityTool,
+        InstagramTool,
         FlightSearchTool,
         WeatherTool,
         OpenAppTool,

@@ -1252,6 +1252,7 @@ fun SettingsScreen(
             pluginMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
             }
             ConnectorsCard()
+            InstagramCard()
             SettingsCard(tr("Dossier de travail (fichiers)"), Icons.Filled.Folder, initiallyExpanded = false) {
             Text(
                 if (workFolder.isBlank()) tr("Aucun dossier choisi : Jarvis ne touche à aucun fichier.")
