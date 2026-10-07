@@ -2,7 +2,12 @@ package com.jarvis.android.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -10,15 +15,19 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Train
 import androidx.compose.material.icons.filled.TravelExplore
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,8 +42,16 @@ import androidx.compose.ui.unit.dp
 import com.jarvis.android.JarvisApp
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
+import com.jarvis.android.instagram.InstagramTool
+import com.jarvis.android.instagram.decodeAlbums
+import com.jarvis.android.instagram.encodeAccount
+import com.jarvis.android.instagram.encodeAlbums
+import com.jarvis.android.photos.galleryAlbums
+import com.jarvis.android.photos.hasPhotoPermission
 import com.jarvis.android.transport.TRANSITOUS_SOURCES
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Parcels: the La Poste key for automatic tracking, and the parcels being followed. */
 @Composable
@@ -201,4 +218,119 @@ internal fun PerplexityCard() {
             { config.getPerplexityKey() }, { config.savePerplexityKey(it) }, { config.deletePerplexityKey() },
         )
     }
+}
+
+/** Instagram: the token to post the urbex photos (the instagram_publier tool), the album they are in, and which account it reaches. */
+@Composable
+internal fun InstagramCard() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val container = remember { (context.applicationContext as JarvisApp).container }
+    val config = container.configStore
+    var hasToken by remember { mutableStateOf(!config.getInstagramToken().isNullOrBlank()) }
+    var field by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf<String?>(null) }
+    val albums by config.instagramAlbum.collectAsState(initial = "Urbex")
+    var picking by remember { mutableStateOf<List<Pair<String, Int>>?>(null) }
+    SettingsCard(tr("Instagram"), Icons.Filled.PhotoCamera, initiallyExpanded = false) {
+        Text(
+            tr("« Publie mes photos d’urbex sur Instagram » : Jarvis prend la dernière sortie dans les dossiers choisis (les photos pas encore publiées, 10 au plus en carrousel), écrit la légende d’après les photos et publie. La position GPS et toutes les métadonnées sont retirées des photos avant l’envoi."),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Text(
+            trf("Dossiers des photos d’urbex : {0}", decodeAlbums(albums).joinToString(", ")),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        OutlinedButton(onClick = {
+            scope.launch {
+                picking = if (hasPhotoPermission(context)) withContext(Dispatchers.IO) { runCatching { galleryAlbums(context) }.getOrDefault(emptyList()) }
+                else emptyList()
+            }
+        }, modifier = Modifier.padding(top = 4.dp)) { Text(tr("Choisir les dossiers")) }
+        picking?.let { found ->
+            AlbumPicker(found, decodeAlbums(albums), onDone = { chosen ->
+                picking = null
+                if (chosen != null) scope.launch { config.setInstagramAlbum(encodeAlbums(chosen)) }
+            })
+        }
+        if (hasToken) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                Text(tr("Jeton Instagram enregistré ✓"), modifier = Modifier.weight(1f))
+                TextButton(onClick = { scope.launch { config.deleteInstagramToken(); hasToken = false; status = null } }) { Text(tr("Supprimer")) }
+            }
+            OutlinedButton(onClick = {
+                status = tr("Vérification…")
+                scope.launch {
+                    status = withContext(Dispatchers.IO) {
+                        val graph = InstagramTool.Graph(container.http)
+                        when (val r = InstagramTool.resolveAccount(graph, config.getInstagramToken().orEmpty(), null)) {
+                            is InstagramTool.Resolved.Ok -> {
+                                config.saveInstagramAccount(encodeAccount(r.account))
+                                trf("Relié à @{0} par la Page « {1} ».", r.account.username, r.account.pageName)
+                            }
+                            is InstagramTool.Resolved.Failed -> r.message
+                        }
+                    }
+                }
+            }, modifier = Modifier.padding(top = 4.dp)) { Text(tr("Vérifier le compte")) }
+            status?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
+            return@SettingsCard
+        }
+        Text(
+            tr("À faire une fois : 1) dans l’application Instagram, passez le compte en compte professionnel (Créateur ou Entreprise) ; 2) liez-le à une Page Facebook (créez-en une si besoin, elle peut rester vide) ; 3) sur developers.facebook.com, créez une application (cas d’usage « Gérer les messages et le contenu sur Instagram ») ; 4) dans l’explorateur de l’API Graph, choisissez cette application et générez un jeton utilisateur avec les autorisations pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish et business_management, en choisissant votre Page ; 5) dans le débogueur de jeton, « Prolonger le jeton d’accès », puis collez le jeton prolongé ici. Jarvis en tire un jeton de Page qui n’expire pas ; tout reste chiffré sur le téléphone."),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 10.dp),
+        )
+        OutlinedButton(onClick = {
+            try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://developers.facebook.com/tools/explorer/")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            } catch (_: Exception) {
+            }
+        }, modifier = Modifier.padding(top = 4.dp)) { Text(tr("Ouvrir l’explorateur de l’API Graph")) }
+        OutlinedTextField(
+            value = field,
+            onValueChange = { field = it.trim().take(1_000) },
+            label = { Text(tr("Jeton Instagram")) },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        )
+        Button(onClick = { scope.launch { if (config.saveInstagramToken(field)) { hasToken = true; field = "" } } }, enabled = field.length >= 20, modifier = Modifier.padding(top = 4.dp)) {
+            Text(tr("Enregistrer le jeton"))
+        }
+    }
+}
+
+/** The gallery's folders with a box to tick for each; [onDone] gets the ticked ones, or null when cancelled. */
+@Composable
+private fun AlbumPicker(found: List<Pair<String, Int>>, current: List<String>, onDone: (List<String>?) -> Unit) {
+    var chosen by remember { mutableStateOf(current.toSet()) }
+    AlertDialog(
+        onDismissRequest = { onDone(null) },
+        title = { Text(tr("Dossiers des photos d’urbex")) },
+        text = {
+            if (found.isEmpty()) {
+                Text(tr("Aucun dossier de photos trouvé. Autorisez l’accès aux photos dans la carte Photos."))
+            } else {
+                Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
+                    found.forEach { (name, count) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { chosen = if (name in chosen) chosen - name else chosen + name },
+                        ) {
+                            Checkbox(checked = name in chosen, onCheckedChange = { chosen = if (it) chosen + name else chosen - name })
+                            Text(trf("{0} ({1})", name, count), modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onDone(chosen.toList()) }, enabled = found.isNotEmpty() && chosen.isNotEmpty()) { Text(tr("Valider")) }
+        },
+        dismissButton = { TextButton(onClick = { onDone(null) }) { Text(tr("Annuler")) } },
+    )
 }

@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.95 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.96 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -78,7 +78,7 @@ release APK comes out unsigned. `keystore/`, `*.keystore` and `*.jks` are git-ig
 
 ## Ported skills (`actions/`)
 
-`web_search`, `perplexity_search` (sourced web answer from Perplexity, with your own key), `flight_search` (web results + Google Flights link), `weather_report`,
+`web_search`, `perplexity_search` (sourced web answer from Perplexity, with your own key), `instagram_publier` (posts the urbex photos on Instagram, GPS removed), `flight_search` (web results + Google Flights link), `weather_report`,
 `open_app`, `browser_control`, `reminder` (create / list / cancel, persisted, re-armed after
 a reboot, read aloud when due), `timer` (create / list / cancel, read aloud at the end),
 `task_list` (a shopping list, a to-do list, or any other named list, persisted, works offline
@@ -673,6 +673,39 @@ Checked: unit tests for the request and the answer (`PcLinkTest`, `PcBrowserTool
 real Chromium on a local page (open, read, fill, choose in a list, click, follow a link, back, screenshot, tabs, close); and
 `PcRemote` run on the JVM against Jarvis 2.0's real `remoteServer.cjs` with that browser: pairing, open, fill, click, look, an
 element not found, close. **Not checked on a real phone and PC yet**, nor with Edge or Chrome on Windows.
+
+### Posting the urbex photos on Instagram (`instagram_publier`, 0.9.96)
+
+At the owner's request ("je voudrais que jarvis publie mes photos d'urbex sur instagram pour moi"), Jarvis posts photos from the
+phone's gallery on the owner's Instagram account (`instagram/`). It uses the official **Instagram Graph API content publishing**,
+never a password or an unofficial API (those get accounts blocked).
+
+- **Which photos**: without dates, the latest outing: the photos of the most recent day in the urbex folders (picked from the
+  gallery's folders in the Instagram card, several allowed, "Urbex" by default) that were not posted yet, ten at most, as one photo or a carousel in the order they were taken. Dates (`from`/`to`),
+  another album, a count (`nombre`) or `quoi='dernieres'` (repost the latest ones) change that. The posted photos' ids are kept so
+  the next "publie mes nouvelles photos d'urbex" takes the next outing.
+- **Spots stay secret**: each photo is decoded and re-encoded on the phone (turned upright, cropped to a ratio Instagram takes,
+  between 4:5 and 1.91:1, at most 1440 pixels wide, JPEG). The new file carries none of the original's metadata: no GPS position,
+  no camera, no date. Before upload, `jpegHasMetadata` reads the JPEG's segments and refuses any EXIF, XMP, IPTC or comment block.
+  The caption instruction forbids place names, and the tool's description tells the model never to put one in.
+- **Caption**: Gemini looks at up to three of the (already cleaned) photos and writes a short French caption with generic urbex
+  hashtags, or the owner dictates it (`legende`) or gives an idea (`idee`). The default urbex hashtags are added up to Instagram's 30,
+  and the caption is cut at 2,200 characters.
+- **How it is posted**: Instagram only accepts a public image URL, so each photo is first uploaded to the owner's Facebook Page as an
+  **unpublished** photo (never shown on the Page), Instagram fetches it from there (`POST /{ig-user-id}/media` with `image_url`,
+  children + `CAROUSEL` for several), Jarvis waits for `status_code` FINISHED, publishes (`media_publish`), reads the permalink, and
+  deletes the Page copies. Graph API v25.0.
+- **No confirmation** by default (the owner wants none, see 0.9.86): Jarvis posts and then says how many photos went out, the caption
+  and the link. With "skip confirmations" switched off in the settings, a banner shows the count and caption first.
+- **Setup (once, by the owner)**, Settings > *Services connectés* > *Instagram*: switch the Instagram account to a professional
+  account (Creator or Business), link it to a Facebook Page, create an app on developers.facebook.com, generate a user token in the
+  Graph API Explorer with `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`,
+  `instagram_content_publish` and `business_management`, extend it in the Access Token Debugger, paste it. Jarvis turns it into the
+  Page's token (which does not expire) and "Vérifier le compte" shows the account found. Tokens are encrypted on the phone
+  (`jarvis_instagram_token.enc`, `jarvis_instagram_account.enc`). Instagram allows 100 API posts a day.
+
+Checked: unit tests for the crop and size, the metadata check, the caption, the choice of the outing, and the Graph API answers and
+errors (`InstagramPublishTest`). **Not checked against the real API** (no account in the build environment) nor on a phone.
 
 ### Spotify search, and why it stops there
 
