@@ -69,6 +69,7 @@ class AgentPlanTest {
             org.junit.Assert.fail("erreur attendue")
         } catch (_: com.jarvis.android.rest.RestChatException) {
         }
-        assertEquals(7, transport.calls)
+        // the default rounds, then one last request with tools switched off, which still calls a tool here
+        assertEquals(com.jarvis.android.engine.MAX_TOOL_ROUNDS + 2, transport.calls)
     }
 }

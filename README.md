@@ -1989,13 +1989,28 @@ simulated run; an override pins it exactly; a side vertex's posed position chang
 emulator, forcing a large roll (0.35 rad) to confirm the tilt is geometrically clean — no tearing or distortion,
 the cap tilts with the head — then releasing the override to see the idle version.
 
+### Smarter reasoning (0.9.87)
+
+The system prompt (`assets/system_prompt.txt`) used to tell the model "call tools exactly once, no retries" and "assume and proceed,
+speed is the priority", which stopped it from chaining steps (look something up, then act on it) and from fixing a call that failed on a
+wrong name. A REASONING block replaces those rules: resolve "it", "there", "and tomorrow?" from the conversation and the memory, carry a
+follow-up's parameters over ("et à Lyon ?"), chain tools feeding each result into the next, retry once when a failure is fixable (another
+spelling, the id from a list), take the most likely meaning and ask one short question only when a required piece is truly missing, never
+invent a figure, a date or an opening hour (web_search instead), work calculations out step by step, and mention an obvious next step in one
+sentence. Stale lines were fixed: satellites exist since 0.9.40 (`planes_overhead` no longer says they are unavailable), and mail cleanup and
+plugins no longer claim the user confirms each action (they do not since 0.9.86). In the text chat and background tasks, hitting the
+round limit now ends in a summary rather than an error that throws the work away.
+
+Checked: unit tests (round limit with a fake transport, prompt content). Not yet checked on a real phone with a real model: whether the
+answers actually chain and recover better.
+
 ### Text chat (REST)
 
 The chat icon in the top bar opens a text conversation over plain `generateContent`
 (`rest/`), with no microphone and no Live WebSocket, so it works even when the key has no Live
 access. It uses the same system prompt and the same tools as the voice session (a tool call is
-run, its result is sent back, up to 6 rounds); actions that need confirmation show the usual
-banner. The model is set in **Paramètres → Modèle texte (chat)** (default
+run, its result is sent back, up to 10 rounds; past that the model is asked once more with tools switched off and sums up
+what it did, instead of the whole request failing, since 0.9.87); actions that need confirmation show the usual banner. The model is set in **Paramètres → Modèle texte (chat)** (default
 `models/gemini-3.6-flash`) and is also used by the key test. History is in memory only; the
 reset button starts over. A failed send restores the draft and shows a specific message
 (invalid key or model 400/401/403, unknown model 404, quota 429, server 5xx, no network, blocked

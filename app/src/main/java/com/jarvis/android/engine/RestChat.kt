@@ -26,6 +26,7 @@ import com.jarvis.android.rest.GenerateTransport
 import com.jarvis.android.rest.MAX_SAVED_TURN_CHARS
 import com.jarvis.android.rest.ModelLadder
 import com.jarvis.android.rest.OkHttpGenerateTransport
+import com.jarvis.android.rest.RestCall
 import com.jarvis.android.rest.RestChatException
 import com.jarvis.android.rest.RestReply
 import com.jarvis.android.rest.RestVoice
@@ -40,7 +41,11 @@ import com.jarvis.android.rest.parseGenerateResponse
 import com.jarvis.android.rest.trimTurns
 import com.jarvis.android.rest.userTurn
 
-internal const val MAX_TOOL_ROUNDS = 6
+internal const val MAX_TOOL_ROUNDS = 10
+
+/** What the calls left over at the round limit answer, so the model sums up instead of the whole request being lost. */
+internal const val ROUND_LIMIT_RESULT =
+    "Not run: too many actions in a row. Stop calling tools and answer the user now: what you did, what you found, and what is left."
 
 /**
  * A text conversation over plain `generateContent`, with function calling. Works without the
@@ -87,8 +92,8 @@ internal class RestChatSession(
                         return reply.text
                     }
                     is RestReply.Calls -> {
-                        if (++rounds > maxRounds) throw RestChatException(ERROR_TOO_MANY_TOOLS)
                         contents += modelTurn(reply.content)
+                        if (++rounds > maxRounds) return conclude(reply.calls)
                         val results = reply.calls.map { call -> call to runTool(call.name, call.args) }
                         contents += functionResponseTurn(results)
                     }
@@ -98,6 +103,19 @@ internal class RestChatSession(
             while (contents.size > start) contents.removeAt(contents.lastIndex)
             throw e
         }
+    }
+
+    /**
+     * The round limit is reached: [pending] are not run, and the model is asked once more with tools switched off, so the user hears what
+     * was done rather than an error that throws the work away. Only a model that still calls a tool then ends in [ERROR_TOO_MANY_TOOLS].
+     */
+    private suspend fun conclude(pending: List<RestCall>): String {
+        contents += functionResponseTurn(pending.map { it to ROUND_LIMIT_RESULT })
+        val request = buildGenerateRequest(systemInstruction(), contents, toolDeclarations(), allowCalls = false)
+        val reply = parseGenerateResponse(transport.generate(model(), request)) as? RestReply.Text
+            ?: throw RestChatException(ERROR_TOO_MANY_TOOLS)
+        contents += modelTurn(reply.content)
+        return reply.text
     }
 }
 
