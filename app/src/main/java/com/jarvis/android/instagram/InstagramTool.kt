@@ -43,13 +43,13 @@ object InstagramTool : Tool {
     override val description =
         "Publier des photos de la galerie sur le compte Instagram de l’utilisateur (« publie mes photos d’urbex sur Instagram », " +
             "« poste ma dernière photo d’urbex », « publie les photos d’hier avec la légende … »). Sans dates, prend la dernière sortie : " +
-            "les photos du jour le plus récent de l’album d’urbex qui n’ont pas encore été publiées, jusqu’à 10 en un carrousel. " +
+            "les photos du jour le plus récent des dossiers d’urbex choisis dans les réglages qui n’ont pas encore été publiées, jusqu’à 10 en un carrousel. " +
             "La légende est écrite d’après les photos (en français, avec des hashtags urbex) sauf si l’utilisateur la dicte (legende). " +
             "La position GPS et toutes les métadonnées sont retirées des photos avant l’envoi ; ne mettez jamais de nom de lieu ni de " +
             "ville dans legende ou idee, les spots d’urbex restent secrets. Publiez directement, sans demander confirmation, puis " +
             "dites combien de photos sont parties, la légende et le lien."
     override val parameters = objectSchema {
-        string("album", "Facultatif : album de la galerie (par défaut celui des réglages, « Urbex »).")
+        string("album", "Facultatif : un autre album de la galerie, seulement si l’utilisateur le nomme (par défaut les dossiers choisis dans les réglages).")
         string("from", "Facultatif : premier jour des photos, AAAA-MM-JJ.")
         string("to", "Facultatif : dernier jour inclus, AAAA-MM-JJ.")
         integer("nombre", "Facultatif : nombre de photos, 1 à 10 (par défaut toutes celles de la sortie, 10 au plus).")
@@ -70,7 +70,8 @@ object InstagramTool : Tool {
         if (!hasPhotoPermission(context)) return@withContext "Je n’ai pas accès aux photos : autorisez-le dans les réglages de Jarvis (carte Photos)."
         val zone = ZoneId.systemDefault()
         val albumAsked = args.stringArg("album").trim()
-        val album = albumAsked.ifEmpty { config.instagramAlbum.first() }
+        val albums = if (albumAsked.isNotEmpty()) listOf(albumAsked) else decodeAlbums(config.instagramAlbum.first())
+        val album = albumsLabel(albums)
         val noDates = args.stringArg("from").isBlank() && args.stringArg("to").isBlank()
         val max = args.intArg("nombre", IG_MAX_CAROUSEL).coerceIn(1, IG_MAX_CAROUSEL)
         val onlyNew = args.stringArg("quoi").trim().lowercase().let { !it.startsWith("dernier") && !it.startsWith("latest") }
@@ -78,21 +79,21 @@ object InstagramTool : Tool {
         else photoRange(args.stringArg("from"), args.stringArg("to"), LocalDate.now(zone), zone)
             ?: return@withContext "Dates illisibles : donnez-les sous la forme AAAA-MM-JJ."
         val found = try {
-            queryPhotos(context, start, end, album)
+            albums.flatMap { queryPhotos(context, start, end, it, exact = albumAsked.isEmpty()) }.distinctBy { it.id }.sortedByDescending { it.takenAt }
         } catch (_: SecurityException) {
             return@withContext "Android a refusé l’accès aux photos."
         }
         if (found.isEmpty()) {
-            return@withContext if (noDates) "Aucune photo dans l’album « $album ». Dites dans quel album sont les photos d’urbex, ou changez-le " +
+            return@withContext if (noDates) "Aucune photo dans $album. Dites dans quel album sont les photos d’urbex, ou choisissez les dossiers " +
                 "dans Paramètres > Services connectés > Instagram."
-            else "Aucune photo de l’album « $album » sur ces dates."
+            else "Aucune photo de $album sur ces dates."
         }
         val published = decodePublished(config.instagramPosted.first())
         val all = found.map { PickedPhoto(it.id, it.takenAt) }
         val picked = if (noDates) pickOuting(all, published, zone, max, onlyNew)
         else all.filter { !onlyNew || it.id !in published }.sortedByDescending { it.takenAt }.take(max).sortedBy { it.takenAt }
         if (picked.isEmpty()) {
-            return@withContext "Toutes les photos de l’album « $album »${if (noDates) "" else " sur ces dates"} sont déjà publiées. " +
+            return@withContext "Toutes les photos de $album${if (noDates) "" else " sur ces dates"} sont déjà publiées. " +
                 "Pour en reposter, demandez les dernières photos (quoi='dernieres')."
         }
         val byId = found.associateBy { it.id }

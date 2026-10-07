@@ -37,6 +37,19 @@ internal const val IG_MAX_RATIO = 1.91
 
 internal const val DEFAULT_URBEX_ALBUM = "Urbex"
 
+/** The albums chosen in the settings, stored as "Urbex|Camera|Lieux abandonnés" (a folder name may hold a comma, not a bar). */
+internal fun decodeAlbums(value: String): List<String> =
+    value.split('|').map { it.trim() }.filter { it.isNotEmpty() }.distinct().ifEmpty { listOf(DEFAULT_URBEX_ALBUM) }
+
+internal fun encodeAlbums(albums: Collection<String>): String = albums.map { it.trim().replace("|", "") }.filter { it.isNotEmpty() }.distinct().joinToString("|")
+
+/** "Urbex", "Urbex et Camera", "Urbex, Camera et Drone" */
+internal fun albumsLabel(albums: List<String>): String = when (albums.size) {
+    0 -> ""
+    1 -> "« ${albums[0]} »"
+    else -> albums.dropLast(1).joinToString(", ") { "« $it »" } + " et « ${albums.last()} »"
+}
+
 /** Added after the caption's own hashtags, up to Instagram's 30. Never a place: spots stay secret. */
 internal val URBEX_HASHTAGS = listOf(
     "#urbex", "#urbexfrance", "#urbexphotography", "#abandonedplaces", "#lostplaces", "#abandoned",

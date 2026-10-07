@@ -130,4 +130,12 @@ class InstagramPublishTest {
         assertTrue(graphErrorMessage(null, 502).contains("502"))
         assertNull(parseGraphError(obj("""{"id":"1"}""")))
     }
+
+    @Test
+    fun `several folders can be chosen, urbex by default`() {
+        assertEquals(listOf("Urbex"), decodeAlbums(""))
+        assertEquals(listOf("Urbex", "Camera", "Lieux, abandonnés"), decodeAlbums(encodeAlbums(listOf("Urbex", " Camera", "Lieux, abandonnés", "Urbex"))))
+        assertEquals("« Urbex »", albumsLabel(listOf("Urbex")))
+        assertEquals("« A », « B » et « C »", albumsLabel(listOf("A", "B", "C")))
+    }
 }

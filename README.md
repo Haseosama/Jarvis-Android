@@ -680,8 +680,8 @@ At the owner's request ("je voudrais que jarvis publie mes photos d'urbex sur in
 phone's gallery on the owner's Instagram account (`instagram/`). It uses the official **Instagram Graph API content publishing**,
 never a password or an unofficial API (those get accounts blocked).
 
-- **Which photos**: without dates, the latest outing: the photos of the most recent day in the urbex album (setting, "Urbex" by
-  default) that were not posted yet, ten at most, as one photo or a carousel in the order they were taken. Dates (`from`/`to`),
+- **Which photos**: without dates, the latest outing: the photos of the most recent day in the urbex folders (picked from the
+  gallery's folders in the Instagram card, several allowed, "Urbex" by default) that were not posted yet, ten at most, as one photo or a carousel in the order they were taken. Dates (`from`/`to`),
   another album, a count (`nombre`) or `quoi='dernieres'` (repost the latest ones) change that. The posted photos' ids are kept so
   the next "publie mes nouvelles photos d'urbex" takes the next outing.
 - **Spots stay secret**: each photo is decoded and re-encoded on the phone (turned upright, cropped to a ratio Instagram takes,

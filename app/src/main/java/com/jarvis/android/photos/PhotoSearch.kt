@@ -76,8 +76,25 @@ internal fun describePhotos(photos: List<Photo>, zone: ZoneId, place: String = "
     return "$count$where $span$album."
 }
 
-/** The photos taken in [start, end), newest first, from the albums whose name contains [album] when it is given. */
-internal fun queryPhotos(context: Context, start: Long, end: Long, album: String, limit: Int = 2_000): List<Photo> {
+/** The gallery's albums (folders) holding photos, with how many each has, the fullest first. */
+internal fun galleryAlbums(context: Context): List<Pair<String, Int>> {
+    val counts = HashMap<String, Int>()
+    context.contentResolver.query(
+        MediaStore.Images.Media.EXTERNAL_CONTENT_URI, arrayOf(MediaStore.Images.Media.BUCKET_DISPLAY_NAME), null, null, null,
+    )?.use { c ->
+        while (c.moveToNext()) {
+            val name = c.getString(0).orEmpty()
+            if (name.isNotBlank()) counts[name] = (counts[name] ?: 0) + 1
+        }
+    }
+    return counts.entries.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key.lowercase() }).map { it.key to it.value }
+}
+
+/**
+ * The photos taken in [start, end), newest first, from the albums whose name contains [album] when it is given (or is exactly
+ * [album] when [exact]).
+ */
+internal fun queryPhotos(context: Context, start: Long, end: Long, album: String, limit: Int = 2_000, exact: Boolean = false): List<Photo> {
     val out = ArrayList<Photo>()
     val projection = arrayOf(
         MediaStore.Images.Media._ID, MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED, MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
@@ -91,7 +108,7 @@ internal fun queryPhotos(context: Context, start: Long, end: Long, album: String
     )?.use { c ->
         while (c.moveToNext() && out.size < limit) {
             val name = c.getString(3).orEmpty()
-            if (wanted.isNotEmpty() && !name.lowercase().contains(wanted)) continue
+            if (wanted.isNotEmpty() && !(if (exact) name.lowercase() == wanted else name.lowercase().contains(wanted))) continue
             val taken = c.getLong(1).takeIf { it > 0 } ?: (c.getLong(2) * 1000)
             out += Photo(c.getLong(0), taken, name)
         }

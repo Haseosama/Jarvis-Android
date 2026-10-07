@@ -2,7 +2,12 @@ package com.jarvis.android.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,7 +18,9 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Train
 import androidx.compose.material.icons.filled.TravelExplore
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -36,7 +43,11 @@ import com.jarvis.android.JarvisApp
 import com.jarvis.android.i18n.tr
 import com.jarvis.android.i18n.trf
 import com.jarvis.android.instagram.InstagramTool
+import com.jarvis.android.instagram.decodeAlbums
 import com.jarvis.android.instagram.encodeAccount
+import com.jarvis.android.instagram.encodeAlbums
+import com.jarvis.android.photos.galleryAlbums
+import com.jarvis.android.photos.hasPhotoPermission
 import com.jarvis.android.transport.TRANSITOUS_SOURCES
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -219,23 +230,30 @@ internal fun InstagramCard() {
     var hasToken by remember { mutableStateOf(!config.getInstagramToken().isNullOrBlank()) }
     var field by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<String?>(null) }
-    val album by config.instagramAlbum.collectAsState(initial = "Urbex")
-    var albumField by remember(album) { mutableStateOf(album) }
+    val albums by config.instagramAlbum.collectAsState(initial = "Urbex")
+    var picking by remember { mutableStateOf<List<Pair<String, Int>>?>(null) }
     SettingsCard(tr("Instagram"), Icons.Filled.PhotoCamera, initiallyExpanded = false) {
         Text(
-            tr("« Publie mes photos d’urbex sur Instagram » : Jarvis prend la dernière sortie de l’album choisi (les photos pas encore publiées, 10 au plus en carrousel), écrit la légende d’après les photos et publie. La position GPS et toutes les métadonnées sont retirées des photos avant l’envoi."),
+            tr("« Publie mes photos d’urbex sur Instagram » : Jarvis prend la dernière sortie dans les dossiers choisis (les photos pas encore publiées, 10 au plus en carrousel), écrit la légende d’après les photos et publie. La position GPS et toutes les métadonnées sont retirées des photos avant l’envoi."),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 6.dp),
         )
-        OutlinedTextField(
-            value = albumField,
-            onValueChange = { albumField = it.take(60) },
-            label = { Text(tr("Album des photos d’urbex")) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        Text(
+            trf("Dossiers des photos d’urbex : {0}", decodeAlbums(albums).joinToString(", ")),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 8.dp),
         )
-        if (albumField.trim() != album) {
-            TextButton(onClick = { scope.launch { config.setInstagramAlbum(albumField) } }) { Text(tr("Enregistrer l’album")) }
+        OutlinedButton(onClick = {
+            scope.launch {
+                picking = if (hasPhotoPermission(context)) withContext(Dispatchers.IO) { runCatching { galleryAlbums(context) }.getOrDefault(emptyList()) }
+                else emptyList()
+            }
+        }, modifier = Modifier.padding(top = 4.dp)) { Text(tr("Choisir les dossiers")) }
+        picking?.let { found ->
+            AlbumPicker(found, decodeAlbums(albums), onDone = { chosen ->
+                picking = null
+                if (chosen != null) scope.launch { config.setInstagramAlbum(encodeAlbums(chosen)) }
+            })
         }
         if (hasToken) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
@@ -284,4 +302,35 @@ internal fun InstagramCard() {
             Text(tr("Enregistrer le jeton"))
         }
     }
+}
+
+/** The gallery's folders with a box to tick for each; [onDone] gets the ticked ones, or null when cancelled. */
+@Composable
+private fun AlbumPicker(found: List<Pair<String, Int>>, current: List<String>, onDone: (List<String>?) -> Unit) {
+    var chosen by remember { mutableStateOf(current.toSet()) }
+    AlertDialog(
+        onDismissRequest = { onDone(null) },
+        title = { Text(tr("Dossiers des photos d’urbex")) },
+        text = {
+            if (found.isEmpty()) {
+                Text(tr("Aucun dossier de photos trouvé. Autorisez l’accès aux photos dans la carte Photos."))
+            } else {
+                Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
+                    found.forEach { (name, count) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { chosen = if (name in chosen) chosen - name else chosen + name },
+                        ) {
+                            Checkbox(checked = name in chosen, onCheckedChange = { chosen = if (it) chosen + name else chosen - name })
+                            Text(trf("{0} ({1})", name, count), modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onDone(chosen.toList()) }, enabled = found.isNotEmpty() && chosen.isNotEmpty()) { Text(tr("Valider")) }
+        },
+        dismissButton = { TextButton(onClick = { onDone(null) }) { Text(tr("Annuler")) } },
+    )
 }
