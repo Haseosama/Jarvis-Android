@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.90 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.91 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -1886,8 +1886,28 @@ It needs the French offline language pack (Google speech services: offline speec
 
 Settings > "IA locale (hors ligne)". Anything that is not one of the fixed commands above used to always get "Je n'ai pas compris" — now, if the user has installed a local model, that sentence is what is said instead
 of a real answer only when there is none. With one installed, the phone runs a small Gemma model itself (Google's [MediaPipe LLM Inference API](https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference/android),
-`com.google.mediapipe:tasks-genai`) to answer in French, entirely on the device — nothing about the question or the answer is sent anywhere. It only talks: it cannot open an app, place a call, change a setting or
-search the web, and the system prompt given to the model (`offline/LocalPrompt.kt`) tells it so, so it says it cannot rather than pretending it did it.
+`com.google.mediapipe:tasks-genai`) to answer in French, entirely on the device — nothing about the question or the answer is sent anywhere.
+
+**The same Jarvis offline** (0.9.91, at the owner's request: "il faut que ce soit à l'identique et qu'il puisse reprendre les infos ou conversation en cours").
+Until then the local model only talked. Now (`offline/LocalAgent.kt`, `engine/LocalBrain.kt`):
+
+- **Same tools.** The local model is offered the tools of the registry (`ToolRegistry.declarations()`, the online ones and the plugins) and they run
+  the same way (`ToolRegistry.run`). A small model's context is short (1280 tokens for the Qwen `.task` files), so each question shows it only the
+  tools that fit: picked by words (French keywords per tool in `LOCAL_TOOL_HINTS`, the tool's name and description) plus the last tools used, for
+  follow-ups — 5 for a `.task` model, 12 for a `.litertlm` one. It asks for one by writing `APPEL {"outil": …, "args": {…}}` (Qwen's `<tool_call>` and
+  bare JSON are understood too), gets the result back in its prompt, and may chain up to 4 tools before answering. Tools that need Gemini itself
+  (`agent_task`, `vision_stream`, `interpreter`, `change_voice`) and `end_session` are not offered. No native function calling: neither MediaPipe nor
+  LiteRT-LM 0.16.1 offers one that works for every model in the list. The fixed commands above still come first (instant and reliable).
+- **Same knowledge.** The prompt carries the date, the names, the memory (`MemoryManager.formatForPrompt`) and the last sessions' exchanges when they
+  are kept, cut to fit (the conversation and the question come first).
+- **Same conversation.** The voice session's messages, those said online before the network went included. A voice session that loses the network
+  mid-conversation (automatic mode) no longer waits on reconnections: it says "Connexion perdue, je continue hors ligne." and goes on with the local
+  model. The text chat works offline too: with no network or no key (automatic mode), or when a send fails for lack of network, the message is
+  answered by the local model with the chat's own history, shown with its "Action :" lines, saved, and added to Gemini's history so the conversation
+  goes on when the network is back.
+
+Checked by unit tests (tool picking, prompt budget, call parsing, the tool loop with a fake model); **not** checked on a phone with a real model:
+how well a 0.5B–2B model follows the `APPEL` format is the open question (Gemma 4 E2B and Qwen 2.5 1.5B should do best).
 
 **Getting the model** (a list since 0.9.90, at the owner's request). Settings > "IA locale (hors ligne)" shows the models Jarvis can download by itself
 (`offline/LocalModelCatalog.kt`): official ones from Google's [LiteRT community](https://huggingface.co/litert-community) on Hugging Face, then, under

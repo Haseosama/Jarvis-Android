@@ -15,12 +15,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import java.util.concurrent.TimeUnit
 import com.jarvis.android.rest.AudioPlayer
 import com.jarvis.android.rest.AudioRecorder
 import com.jarvis.android.rest.ChatHistoryStore
 import com.jarvis.android.rest.ERROR_EMPTY_DRAFT
+import com.jarvis.android.rest.ERROR_NETWORK
+import com.jarvis.android.rest.ERROR_NO_KEY
 import com.jarvis.android.rest.ERROR_TOO_MANY_TOOLS
 import com.jarvis.android.rest.GenerateTransport
 import com.jarvis.android.rest.MAX_SAVED_TURN_CHARS
@@ -75,6 +82,14 @@ internal class RestChatSession(
 
     fun reset() {
         contents.clear()
+    }
+
+    /** An exchange answered elsewhere (the local model, without the network), so the model knows it once the network is back. */
+    fun appendExchange(question: String, answer: String) {
+        contents += userTurn(question)
+        contents += modelTurn(buildJsonObject {
+            putJsonArray("parts") { addJsonObject { put("text", answer) } }
+        })
     }
 
     suspend fun send(text: String): String {
@@ -218,7 +233,25 @@ class RestChat internal constructor(
         _sending.value = true
         _messages.update { appendConversation(it, ConversationRole.USER, draft, complete = true) }
         try {
-            val reply = session.send(draft)
+            val mode = container.configStore.offlineMode.first()
+            val offline = mode != OFFLINE_NEVER &&
+                (mode == OFFLINE_ALWAYS || container.configStore.getApiKey().isNullOrBlank() || !phoneOnline(container.appContext))
+            if (offline) {
+                if (container.localBrain.available()) return@withLock sendLocal(draft, before)
+                if (mode == OFFLINE_ALWAYS) {
+                    _messages.value = before
+                    return@withLock tr("Mode hors ligne : aucun modèle local n’est installé ou l’IA locale est coupée (Paramètres > IA locale).")
+                }
+            }
+            val reply = try {
+                session.send(draft)
+            } catch (e: RestChatException) {
+                // the network went while sending: the same conversation goes on with the local model
+                if (mode == OFFLINE_AUTO && (e.message == ERROR_NETWORK || e.message == ERROR_NO_KEY) && container.localBrain.available()) {
+                    return@withLock sendLocal(draft, before)
+                }
+                throw e
+            }
             _messages.update { appendConversation(it, ConversationRole.ASSISTANT, reply, complete = true) }
             persist()
             null
@@ -234,6 +267,30 @@ class RestChat internal constructor(
         } finally {
             _sending.value = false
         }
+    }
+
+    /**
+     * [draft] answered by the local model, with the same tools and this chat's messages ([before], what came before it), shown and
+     * kept like any answer and added to the model's history too. Null on success, otherwise a message to show to the user.
+     */
+    private suspend fun sendLocal(draft: String, before: List<ConversationMessage>): String? {
+        val result = container.localBrain.answer(
+            question = draft,
+            history = before,
+            recentTools = com.jarvis.android.offline.recentToolNames(before),
+            onStep = { name -> _messages.update { appendConversation(it, ConversationRole.SYSTEM, trf("Action : {0}", name), complete = true) } },
+            unloadWhenIdle = true,
+        )
+        val text = result.text?.trim()?.takeIf { it.isNotBlank() }
+        if (text == null) {
+            // tools that ran stay shown: they did run
+            _messages.update { msgs -> if (result.steps.isEmpty()) before else msgs }
+            return result.reason ?: tr("L’IA locale n’a pas pu répondre. Réessayez.")
+        }
+        _messages.update { appendConversation(it, ConversationRole.ASSISTANT, text, complete = true) }
+        session.appendExchange(draft, text)
+        persist()
+        return null
     }
 
     /** Adds an answer that did not come from a message the user just sent (a finished background task). */
