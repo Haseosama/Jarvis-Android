@@ -53,10 +53,27 @@ class LocalModelStoreTest {
         assertEquals((LOCAL_MODEL_MIN_BYTES + 9000) / 1_000_000L, store.sizeMb())
     }
 
-    @Test fun `looksLikeTaskBundle checks the size range and the zip header`() {
-        assertTrue(looksLikeTaskBundle(LOCAL_MODEL_MIN_BYTES, byteArrayOf('P'.code.toByte(), 'K'.code.toByte())))
-        assertFalse(looksLikeTaskBundle(LOCAL_MODEL_MIN_BYTES - 1, byteArrayOf('P'.code.toByte(), 'K'.code.toByte())))
-        assertFalse(looksLikeTaskBundle(LOCAL_MODEL_MAX_BYTES + 1, byteArrayOf('P'.code.toByte(), 'K'.code.toByte())))
-        assertFalse(looksLikeTaskBundle(LOCAL_MODEL_MIN_BYTES, byteArrayOf('G'.code.toByte(), 'F'.code.toByte())))
+    @Test fun `looksLikeModelFile checks the size range and the task or litertlm header`() {
+        val pk = byteArrayOf('P'.code.toByte(), 'K'.code.toByte())
+        val lm = "LITERTLM".toByteArray(Charsets.US_ASCII)
+        assertTrue(looksLikeModelFile(LOCAL_MODEL_MIN_BYTES, pk))
+        assertTrue(looksLikeModelFile(LOCAL_MODEL_MIN_BYTES, lm))
+        assertFalse(looksLikeModelFile(LOCAL_MODEL_MIN_BYTES - 1, pk))
+        assertFalse(looksLikeModelFile(LOCAL_MODEL_MAX_BYTES + 1, lm))
+        assertFalse(looksLikeModelFile(LOCAL_MODEL_MIN_BYTES, byteArrayOf('G'.code.toByte(), 'F'.code.toByte())))
+        assertFalse(looksLikeModelFile(LOCAL_MODEL_MIN_BYTES, "LITERT".toByteArray(Charsets.US_ASCII)))
+        assertEquals(LOCAL_MODEL_FILE, modelFileName(pk))
+        assertEquals(LOCAL_MODEL_LM_FILE, modelFileName(lm))
+    }
+
+    @Test fun `a litertlm file imports under its own name, and replaces a task file`() {
+        val dir = tmp.newFolder()
+        val store = LocalModelStore(dir)
+        assertNull(store.import(fakeTaskFile(LOCAL_MODEL_MIN_BYTES.toInt() + 10)))
+        assertEquals(File(dir, LOCAL_MODEL_FILE), store.file)
+        assertNull(store.import(fakeTaskFile(LOCAL_MODEL_MIN_BYTES.toInt() + 10, header = "LITERTLM".toByteArray(Charsets.US_ASCII))))
+        assertEquals(File(dir, LOCAL_MODEL_LM_FILE), store.file)
+        assertFalse(File(dir, LOCAL_MODEL_FILE).exists())
+        assertTrue(store.installed())
     }
 }

@@ -538,7 +538,14 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.padding(top = 12.dp),
                 )
-                com.jarvis.android.offline.LOCAL_MODEL_CATALOG.forEach { choice ->
+                com.jarvis.android.offline.LOCAL_MODEL_CATALOG.forEachIndexed { index, choice ->
+                    if (choice.uncensored && com.jarvis.android.offline.LOCAL_MODEL_CATALOG.getOrNull(index - 1)?.uncensored != true) {
+                        Text(tr("Non censurés"), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+                        Text(
+                            tr("Modifiés par la communauté pour ne refuser aucun sujet : ils peuvent répondre des choses fausses ou choquantes, sans garde-fou."),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth().clickable { localChoiceId = choice.id }.padding(vertical = 4.dp),

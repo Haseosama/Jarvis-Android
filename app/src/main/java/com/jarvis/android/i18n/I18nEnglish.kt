@@ -349,6 +349,8 @@ internal val ENGLISH: Map<String, String> = mapOf(
     "Il continue même si vous quittez Jarvis ; le modèle s’installe tout seul à la fin." to "It carries on even if you leave Jarvis; the model installs itself at the end.",
     "Annuler le téléchargement" to "Cancel the download",
     "Changer de modèle" to "Change model",
+    "Non censurés" to "Uncensored",
+    "Modifiés par la communauté pour ne refuser aucun sujet : ils peuvent répondre des choses fausses ou choquantes, sans garde-fou." to "Modified by the community to refuse no topic: they can answer false or shocking things, with no safeguard.",
     "Choisir un modèle à télécharger" to "Choose a model to download",
     "Google réserve Gemma aux comptes Hugging Face qui ont accepté sa licence. Une seule fois : ouvrez la page du modèle, connectez-vous et acceptez la licence, puis créez un jeton « Read » (Settings > Access Tokens) et collez-le ici. Il ne sert qu’à lancer ce téléchargement et n’est pas enregistré." to "Google reserves Gemma for Hugging Face accounts that accepted its licence. Just once: open the model's page, sign in and accept the licence, then create a \"Read\" token (Settings > Access Tokens) and paste it here. It is only used to start this download and is not saved.",
     "Ouvrir la page du modèle" to "Open the model's page",

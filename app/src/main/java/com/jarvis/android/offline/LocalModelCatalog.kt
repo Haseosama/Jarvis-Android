@@ -1,9 +1,10 @@
 package com.jarvis.android.offline
 
 /*
- * The local models Jarvis can download by itself, so the user picks one in a list instead of fetching a .task file in the browser and
- * importing it (importing stays possible for anything else). All are MediaPipe .task bundles from Google's LiteRT community on Hugging Face,
- * which the LLM Inference API of LocalLlm.kt loads as they are. Sizes (and the SHA-256 where Hugging Face shows it publicly) are those of
+ * The local models Jarvis can download by itself, so the user picks one in a list instead of fetching a file in the browser and
+ * importing it (importing stays possible for anything else). Each is either a MediaPipe .task bundle or a LiteRT-LM .litertlm file, the two
+ * formats LocalLlm.kt loads; the official ones come from Google's LiteRT community on Hugging Face, the uncensored ones are community
+ * conversions (abliterated or fine-tuned so they do not refuse). Sizes (and the SHA-256 where Hugging Face shows it publicly) are those of
  * the published files, checked after the download so a cut or swapped file is never installed.
  *
  * Gemma's files are gated: Hugging Face only serves them to an account that accepted Google's licence on the model's page, so those
@@ -19,6 +20,7 @@ internal data class LocalModelChoice(
     val bytes: Long,
     val sha256: String?,
     val needsHfToken: Boolean,
+    val uncensored: Boolean = false,
 ) {
     val downloadUrl: String get() = "https://huggingface.co/$repo/resolve/main/$file?download=true"
     val pageUrl: String get() = "https://huggingface.co/$repo"
@@ -30,9 +32,19 @@ internal data class LocalModelChoice(
 
 internal val LOCAL_MODEL_CATALOG = listOf(
     LocalModelChoice(
+        id = "gemma4-e2b",
+        label = "Gemma 4 E2B (Google)",
+        description = "Le plus capable de la liste, sans compte. Lourd : pour un téléphone récent (8 Go de mémoire conseillés).",
+        repo = "litert-community/gemma-4-E2B-it-litert-lm",
+        file = "gemma-4-E2B-it.litertlm",
+        bytes = 2_588_147_712L,
+        sha256 = "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
+        needsHfToken = false,
+    ),
+    LocalModelChoice(
         id = "gemma3-1b",
         label = "Gemma 3 1B (Google)",
-        description = "Le meilleur en français pour sa taille, le conseillé. Compte Hugging Face nécessaire (licence Gemma).",
+        description = "Bon en français pour sa taille, et léger. Compte Hugging Face nécessaire (licence Gemma).",
         repo = "litert-community/Gemma3-1B-IT",
         file = "gemma3-1b-it-int4.task",
         bytes = 554_661_243L,
@@ -69,14 +81,39 @@ internal val LOCAL_MODEL_CATALOG = listOf(
         sha256 = null,
         needsHfToken = true,
     ),
+    LocalModelChoice(
+        id = "qwen2.5-1.5b-uncensored",
+        label = "Qwen 2.5 1,5B non censuré",
+        description = "Répond sans refuser les sujets sensibles. Conversion communautaire (base thirdeyeai), sans compte ; peu testée.",
+        repo = "Shaurya2020/Qwen2.5-1.5B-Instruct-uncensored-litert",
+        file = "Qwen2.5-1.5B-Instruct-uncensored_dynamic_wi8_afp32_ekv1280.litertlm",
+        bytes = 1_802_859_440L,
+        sha256 = "9000d4e547e06e3e97393979c3452cc2ea0793132c51a08457f94b261357022e",
+        needsHfToken = false,
+        uncensored = true,
+    ),
+    LocalModelChoice(
+        id = "gemma4-e2b-abliterated",
+        label = "Gemma 4 E2B non censuré (abliterated)",
+        description = "Gemma 4 dont le refus a été retiré, plus malin que le Qwen. Conversion de DuoNeural, sans compte ; peu testée. Téléphone récent.",
+        repo = "DuoNeural/Gemma-4-Abliterated-LiteRT",
+        file = "Gemma-4-E2B-Abliterated.litertlm",
+        bytes = 2_556_215_296L,
+        sha256 = "e8c197596ccf8ec20553eb467675291a30212f3a27a52f75e37f9c9b1b1c6db5",
+        needsHfToken = false,
+        uncensored = true,
+    ),
 )
 
 internal fun localModelChoice(id: String?): LocalModelChoice? = LOCAL_MODEL_CATALOG.firstOrNull { it.id == id }
 
-/** Why a finished download is refused, or null when it is the expected file: exact size, zip header, and the hash when known. */
+/** The name the model is kept under once installed, which tells LocalLlm.kt which engine loads it. */
+internal val LocalModelChoice.installedName: String get() = if (file.endsWith(".litertlm")) LOCAL_MODEL_LM_FILE else LOCAL_MODEL_FILE
+
+/** Why a finished download is refused, or null when it is the expected file: exact size, the format's header, and the hash when known. */
 internal fun checkDownloadedModel(choice: LocalModelChoice, size: Long, firstBytes: ByteArray, sha256: () -> String?): String? {
     if (size != choice.bytes) return "Fichier reçu incomplet ou inattendu (${size / 1_000_000L} Mo au lieu de ${choice.bytes / 1_000_000L})."
-    if (!looksLikeTaskBundle(size, firstBytes)) return "Le fichier reçu n’est pas un modèle .task."
+    if (!looksLikeModelFile(size, firstBytes) || modelFileName(firstBytes) != choice.installedName) return "Le fichier reçu n’est pas le modèle attendu."
     val expected = choice.sha256 ?: return null
     val actual = sha256() ?: return "Fichier reçu illisible."
     return if (actual.equals(expected, ignoreCase = true)) null else "Le fichier reçu est corrompu (empreinte différente)."
