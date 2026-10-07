@@ -152,12 +152,12 @@ internal fun GoogleCard(configStore: ConfigStore) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val connected by configStore.googleConnected.collectAsState(initial = false)
-    val gmailAutoSend by configStore.gmailAutoSend.collectAsState(initial = false)
+    val gmailAutoSend by configStore.gmailAutoSend.collectAsState(initial = true)
     var checking by remember { mutableStateOf(false) }
     var checkResult by remember { mutableStateOf<String?>(null) }
     SettingsCard(tr("Google (Gmail, Drive)"), Icons.Filled.Mail, initiallyExpanded = false) {
         Text(
-            if (connected) tr("Compte Google connecté : Jarvis peut lire vos mails et vos fichiers Drive, et préparer des brouillons Gmail. Par défaut il n’envoie rien tout seul (réglage ci-dessous pour changer ça).")
+            if (connected) tr("Compte Google connecté : Jarvis peut lire vos mails et vos fichiers Drive, préparer des brouillons Gmail et envoyer les mails que vous lui demandez (réglage ci-dessous pour garder un brouillon à la place).")
             else tr("Non connecté. Une fois connecté, Jarvis peut lire vos mails, préparer des brouillons Gmail et lire ou ajouter des fichiers dans Drive."),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 4.dp),
@@ -171,7 +171,7 @@ internal fun GoogleCard(configStore: ConfigStore) {
             Switch(checked = gmailAutoSend, onCheckedChange = { scope.launch { configStore.setGmailAutoSend(it) } })
         }
         Text(
-            tr("Toujours désactivé par défaut. Une fois activé, un mail que vous demandez clairement d’envoyer part pour de vrai au lieu de rester un brouillon. Si le compte a été connecté avant l’ajout de ce réglage, reconnectez-le une fois (« Reconnecter Google » ci-dessous) pour que Google vous demande cette permission supplémentaire."),
+            tr("Activé par défaut : un mail que vous demandez clairement d’envoyer part pour de vrai au lieu de rester un brouillon. Désactivé, Jarvis ne fait que le brouillon. Si le compte a été connecté avant l’ajout de ce réglage, reconnectez-le une fois (« Reconnecter Google » ci-dessous) pour que Google vous demande cette permission supplémentaire."),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 4.dp),
         )
@@ -319,13 +319,13 @@ internal fun UpdateCard() {
 }
 
 
-/** Sending messages on the user's word: off by default, with what it changes said plainly, and what was sent in their name. */
+/** Sending messages on the user's word: on by default, with what it changes said plainly, and what was sent in their name. */
 @Composable
 internal fun MessageSendCard(configStore: ConfigStore) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val container = remember { (context.applicationContext as JarvisApp).container }
-    val on by configStore.messageAutoSend.collectAsState(initial = false)
+    val on by configStore.messageAutoSend.collectAsState(initial = true)
     var tick by remember { mutableIntStateOf(0) }
     var smsGranted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) }
     val askSms = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { smsGranted = it }
@@ -350,7 +350,7 @@ internal fun MessageSendCard(configStore: ConfigStore) {
             })
         }
         Text(
-            tr("Désactivé, Jarvis ne fait que préparer un brouillon. Activé, quand vous dites clairement d’envoyer, il envoie vraiment le message : par SMS ou par WhatsApp à un contact de votre téléphone (il ouvre la conversation et appuie sur Envoyer, ce qui demande le contrôle du téléphone), ou par Messenger à la personne nommée comme dans Messenger (il la cherche dans l’écran « Envoyer à » et appuie sur Envoyer à côté de son nom, jamais sur celui d’un autre). 5 messages au plus toutes les 10 minutes, chaque envoi est annoncé par une notification et noté ci-dessous. Un texte lu dans un mail, une page ou une notification ne doit jamais déclencher un envoi, mais un envoi parti ne se rattrape pas : n’activez que si vous l’acceptez."),
+            tr("Désactivé, Jarvis ne fait que préparer un brouillon. Activé, quand vous dites clairement d’envoyer, il envoie vraiment le message : par SMS ou par WhatsApp à un contact de votre téléphone (il ouvre la conversation et appuie sur Envoyer, ce qui demande le contrôle du téléphone), ou par Messenger à la personne nommée comme dans Messenger (il la cherche dans l’écran « Envoyer à » et appuie sur Envoyer à côté de son nom, jamais sur celui d’un autre). 5 messages au plus toutes les 10 minutes, chaque envoi est annoncé par une notification et noté ci-dessous. Un texte lu dans un mail, une page ou une notification ne doit jamais déclencher un envoi, mais un envoi parti ne se rattrape pas : désactivez si vous ne l’acceptez pas."),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 6.dp),
         )

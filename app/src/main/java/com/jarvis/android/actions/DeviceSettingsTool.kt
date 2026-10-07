@@ -27,7 +27,7 @@ import com.jarvis.android.tool.objectSchema
 object DeviceSettingsTool : Tool {
     override val name = "device_settings"
     override val description =
-        "Control phone settings: set_volume (0-100, asks the user to confirm), set_brightness (0-100, needs the 'modify system settings' permission), " +
+        "Control phone settings: set_volume (0-100), set_brightness (0-100, needs the 'modify system settings' permission), " +
             "flashlight (value 1 on / 0 off), media (command: play_pause, play, pause, next, previous, stop), lock_screen, take_screenshot, " +
             "or open a settings page (open_settings with page: wifi, bluetooth, airplane, display, sound, battery, location, apps, storage, nfc, date, language, accessibility, security, network). " +
             "open_wifi and open_brightness also work."

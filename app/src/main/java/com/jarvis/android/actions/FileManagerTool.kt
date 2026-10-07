@@ -24,14 +24,14 @@ internal const val ERROR_NO_WORK_FOLDER =
 /**
  * File management (Android port of Mark-LIII's `file_controller`), limited to the one folder the
  * user granted. Deleting moves to a trash folder inside it; every change can be undone with `undo`.
- * Deleting, overwriting and organizing ask for the user's confirmation first.
+ * Deleting, overwriting and organizing ask for the user's confirmation only when they turned confirmations back on.
  */
 object FileManagerTool : Tool {
     override val name = "file_manager"
     override val description =
         "Gérer les fichiers du dossier de travail choisi par l’utilisateur (rien en dehors). Actions : list, info, read, find (par nom), " +
             "search_content (dans le texte des fichiers, pas seulement leur nom — pour « trouve le fichier qui parle de… »), largest, usage, " +
-            "create_file, create_folder, write, rename, move, copy, delete (corbeille, confirmation demandée), organize (range par type, confirmation demandée). " +
+            "create_file, create_folder, write, rename, move, copy, delete (corbeille), organize (range par type). " +
             "Les chemins sont relatifs au dossier de travail (« Documents/notes.txt », vide pour la racine). Tout changement peut être annulé avec undo."
     override val parameters = objectSchema(required = listOf("action")) {
         string("action", "list, info, read, find, search_content, largest, usage, create_file, create_folder, write, rename, move, copy, delete ou organize.")
