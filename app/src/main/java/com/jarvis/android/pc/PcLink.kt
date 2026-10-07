@@ -21,7 +21,9 @@ import javax.crypto.spec.SecretKeySpec
  *    that page hands back an auth token, the key, and a device token that gets a fresh auth token later
  *    (POST /api/device-login) without a new key (Jarvis 2.0 keeps it across restarts, Mark-LIV forgets it when it restarts);
  *  - a command is POST /api/command {"enc": base64(IV ‖ AES-256-CBC(text))}, the AES key being SHA-256(key ‖ "JARVIS-DASHBOARD-v1");
- *  - its answers come back on the /ws?token= WebSocket as {"type":"log","speaker":"jarvis","text":…}.
+ *  - its answers come back on the /ws?token= WebSocket as {"type":"log","speaker":"jarvis","text":…};
+ *  - Jarvis 2.0 (2.0.33+) also drives a browser with Playwright: POST /api/browser {"enc": …} with the action as JSON, the answer
+ *    {"ok", "text", "jpegBase64"?} coming straight back.
  * The PC serves HTTPS with a certificate it made itself, so the phone pins that certificate's SHA-256 at pairing time and
  * then trusts nothing else. No Android imports here, so it can be unit-tested on the JVM.
  */
@@ -103,6 +105,22 @@ fun encryptCommand(sessionKey: String, text: String, iv: ByteArray): String {
 
 fun commandBody(sessionKey: String, text: String, iv: ByteArray): String =
     buildJsonObject { put("enc", encryptCommand(sessionKey, text, iv)) }.toString()
+
+/** An action for the PC's Playwright browser, encrypted like a command. */
+fun browserBody(sessionKey: String, action: JsonObject, iv: ByteArray): String = commandBody(sessionKey, action.toString(), iv)
+
+/** What the PC's browser answered: a text for the model (the page read, or why it failed), and the JPEG for a `look`. */
+class PcBrowserReply(val ok: Boolean, val text: String, val jpeg: ByteArray? = null)
+
+fun parseBrowserReply(text: String): PcBrowserReply? = try {
+    val o = Json.parseToJsonElement(text).jsonObject
+    val said = (o["text"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+    val jpeg = (o["jpegBase64"] as? JsonPrimitive)?.contentOrNull?.let { runCatching { Base64.getDecoder().decode(it) }.getOrNull() }
+    PcBrowserReply((o["ok"] as? JsonPrimitive)?.contentOrNull == "true", said, jpeg?.takeIf { it.isNotEmpty() })
+        .takeIf { said.isNotEmpty() || it.jpeg != null }
+} catch (_: Exception) {
+    null
+}
 
 fun sha256Hex(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 

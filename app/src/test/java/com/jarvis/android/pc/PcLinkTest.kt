@@ -1,8 +1,21 @@
 package com.jarvis.android.pc
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.security.MessageDigest
+import java.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 class PcLinkTest {
     @Test
@@ -80,5 +93,33 @@ class PcLinkTest {
         assertNull(PcPairing.fromJson(null))
         assertEquals("AB12CD", normalizeKey("ab12cd"))
         assertNull(normalizeKey("ab12c"))
+    }
+
+    @Test
+    fun `a browser action is sent encrypted as json, readable with the pairing code`() {
+        val iv = ByteArray(16) { it.toByte() }
+        val action = buildJsonObject { put("action", "fill"); put("target", "3"); put("value", "chaussettes"); put("submit", true) }
+        val enc = Json.parseToJsonElement(browserBody("AB12CD", action, iv)).jsonObject["enc"]!!.jsonPrimitive.content
+        val raw = Base64.getDecoder().decode(enc)
+        val key = MessageDigest.getInstance("SHA-256").digest("AB12CDJARVIS-DASHBOARD-v1".toByteArray())
+        val clear = Cipher.getInstance("AES/CBC/PKCS5Padding").run {
+            init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), IvParameterSpec(raw.copyOfRange(0, 16)))
+            String(doFinal(raw.copyOfRange(16, raw.size)))
+        }
+        assertEquals(action, Json.parseToJsonElement(clear))
+    }
+
+    @Test
+    fun `the browser answer gives its text and its screenshot`() {
+        val page = parseBrowserReply("""{"ok":true,"title":"Boutique","text":"Page : Boutique\n[1] bouton « Payer »"}""")!!
+        assertTrue(page.ok)
+        assertEquals("Page : Boutique\n[1] bouton « Payer »", page.text)
+        assertNull(page.jpeg)
+        val look = parseBrowserReply("""{"ok":true,"text":"Capture.","jpegBase64":"/9j/2w=="}""")!!
+        assertArrayEquals(byteArrayOf(0xff.toByte(), 0xd8.toByte(), 0xff.toByte(), 0xdb.toByte()), look.jpeg)
+        val failed = parseBrowserReply("""{"ok":false,"text":"Rien trouvé sur la page pour « Payer »."}""")!!
+        assertFalse(failed.ok)
+        assertNull(parseBrowserReply("""{"ok":true}"""))
+        assertNull(parseBrowserReply("pas du json"))
     }
 }

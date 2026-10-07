@@ -7,6 +7,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
@@ -149,6 +150,37 @@ class PcRemote(
         }
     }
 
+    /**
+     * One action for the Playwright browser Jarvis 2.0 runs on the PC (electron/browserControl.cjs): open, read, click, fill…
+     * The page comes back read, or a screenshot for `look`. A navigation may take a while, hence the longer wait.
+     */
+    suspend fun browser(action: JsonObject): PcBrowserReply = withContext(Dispatchers.IO) {
+        val p0 = load() ?: return@withContext PcBrowserReply(false, NOT_PAIRED)
+        try {
+            val p = authorized(p0) ?: return@withContext PcBrowserReply(false, NEEDS_PAIRING)
+            val iv = ByteArray(16).also(random::nextBytes)
+            client(pin = p.certSha256, readSeconds = 60).newCall(
+                Request.Builder().url(p.baseUrl + "/api/browser")
+                    .header("Authorization", "Bearer ${p.token}")
+                    .post(browserBody(p.sessionKey, action, iv).toRequestBody(JSON))
+                    .build(),
+            ).execute().use { r ->
+                when (r.code) {
+                    401 -> PcBrowserReply(false, NEEDS_PAIRING)
+                    404, 501 -> PcBrowserReply(false, "Jarvis 2.0 sur le PC ne sait pas encore piloter de navigateur : mettez-le à jour (version 2.0.33 ou plus).")
+                    in 200..299 -> parseBrowserReply(r.body?.string().orEmpty()) ?: PcBrowserReply(false, "Réponse illisible du navigateur du PC.")
+                    else -> PcBrowserReply(false, "Le PC a refusé l'action sur le navigateur (code ${r.code}).")
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: java.net.SocketTimeoutException) {
+            PcBrowserReply(false, "Le navigateur du PC n'a pas répondu à temps (page trop lente ?). Relisez la page pour voir où il en est.")
+        } catch (e: IOException) {
+            PcBrowserReply(false, failure(e, p0))
+        }
+    }
+
     /** The pairing with a working auth token, refreshed with the device token when Jarvis PC forgot the old one; null when it forgot the device too. */
     private fun authorized(p: PcPairing): PcPairing? {
         val http = client(pin = p.certSha256)
@@ -175,7 +207,7 @@ class PcRemote(
      * name is not checked: the certificate names the IP it had when made, and the pin is the stronger check). Without one
      * (pairing), whatever is presented is handed to [trust] to be pinned.
      */
-    private fun client(pin: String? = null, trust: (Array<X509Certificate>) -> Unit = {}): OkHttpClient {
+    private fun client(pin: String? = null, readSeconds: Long = 20, trust: (Array<X509Certificate>) -> Unit = {}): OkHttpClient {
         val tm = object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) = throw CertificateException()
             override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {
@@ -190,7 +222,7 @@ class PcRemote(
             .sslSocketFactory(ssl.socketFactory, tm)
             .hostnameVerifier { _, _ -> true }
             .connectTimeout(6, TimeUnit.SECONDS)
-            .readTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(readSeconds, TimeUnit.SECONDS)
             .build()
     }
 

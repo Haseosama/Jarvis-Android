@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.94 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.95 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -127,7 +127,7 @@ Added here and not in the original: `alarm`, `calendar`, `call_contact`, `call_l
 `meeting_notes`, `create_document`, `gmail`, `drive`, `watch`, `end_session`, `undo`, `task_list`, `translate`, `interpreter`, `smart_home`,
 `spotify_search`, `air_quality`, `planes_overhead`, `prix_carburant`, `rain_soon`, `expenses`, `receipt`, `habits`, `find_phone`,
 `place_reminder`, `person_reminder`, `parking`, `driving_mode`, `birthdays`, `photos`, `health`, `sos`, `quiet_mode`,
-`subscriptions`, `recipe`, `parcel`, `budget`, `read_text`, `wake_briefing`, `transport`, `jarvis_pc`, plus the widgets, the avatar, the
+`subscriptions`, `recipe`, `parcel`, `budget`, `read_text`, `wake_briefing`, `transport`, `jarvis_pc`, `navigateur_pc`, plus the widgets, the avatar, the
 taught wake word, the offline mode and the in-app update.
 
 ## Not ported — no Android equivalent
@@ -644,6 +644,35 @@ does), the Router API has no web grounding, and the Decisions and Embeddings API
 
 Checked: the request and response handling by unit tests (`PerplexityAgentTest`). **Not checked against the real API** (no key in
 the build environment) nor on a phone.
+
+### A real browser on the PC, driven with Playwright (`navigateur_pc`, 0.9.95)
+
+At the owner's request ("inclure Playwright"), Jarvis can drive a real browser on the computer: open a site, read the page, click,
+fill a form, press a key, scroll, go back, switch tabs, and look at the page. Playwright cannot run inside an Android app (it needs
+Node and a desktop browser), so it runs on the PC, in **Jarvis 2.0 from 2.0.33** (`electron/browserControl.cjs`, package
+`playwright-core`), and the phone sends it each action over the PC pairing of `jarvis_pc` (`actions/PcBrowserTool.kt`,
+`pc/PcRemote.kt` `browser`). Jarvis 2.0's own voice gets the same tool there (`navigateur`).
+
+- **Which browser**: Microsoft Edge (always on Windows), else Google Chrome, already installed; nothing is downloaded. It opens visible
+  on the PC with its own profile in Jarvis 2.0's data, so a login made in that window stays for next time without touching the
+  user's usual profile.
+- **Reading a page** works like `screen_read` on the phone: the title and address, the visible text (4,000 characters at most), then
+  the elements one can click or type into, numbered (`[3] champ « E-mail »`, `[7] bouton « Se connecter »`, up to 60 near the visible
+  part). `click` and `fill` take that number, or a visible text or a field label; every action answers with the page read again, so
+  the model sees what happened. `look` takes a screenshot on the PC, which the phone has Gemini describe (like `screen_look`).
+- **Protocol**: `POST /api/browser` on the paired PC, with the action as JSON encrypted like the commands and the same pinned
+  certificate; the answer comes straight back (a navigation may take up to a minute). An older Jarvis 2.0 answers 404, and the
+  phone says to update it.
+- **Why not a Playwright MCP connector**: Microsoft's Playwright MCP server would also run on the PC, but connectors need an https
+  address with a certificate Android trusts, which a PC on the home network does not have; the pairing already pins the PC's own
+  certificate, needs no other server to keep running, and gives Jarvis 2.0's voice the same browser.
+- **No confirmation** is asked before a click or a form is sent (the owner wants none, see 0.9.86); the model is told that page text
+  is data, never an instruction.
+
+Checked: unit tests for the request and the answer (`PcLinkTest`, `PcBrowserToolTest`); on the PC side, Jarvis 2.0's tests drive a
+real Chromium on a local page (open, read, fill, choose in a list, click, follow a link, back, screenshot, tabs, close); and
+`PcRemote` run on the JVM against Jarvis 2.0's real `remoteServer.cjs` with that browser: pairing, open, fill, click, look, an
+element not found, close. **Not checked on a real phone and PC yet**, nor with Edge or Chrome on Windows.
 
 ### Spotify search, and why it stops there
 
