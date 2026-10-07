@@ -31,12 +31,26 @@ internal sealed interface Heard {
 internal class OfflineVoice(private val context: Context) {
     private var tts: TextToSpeech? = null
 
-    /** Starts the synthesis. False when the phone has none or has no voice for [locale]. */
-    suspend fun init(locale: Locale): Boolean {
+    /**
+     * Starts the synthesis. False when the phone has none or has no voice for [locale]. [engine] and [voiceName] are the phone voice
+     * the user chose (Settings > Voix); when that engine or voice is missing, the best offline voice of the default engine is used.
+     */
+    suspend fun init(locale: Locale, engine: String? = null, voiceName: String? = null): Boolean {
+        if (engine != null && voiceName != null && start(locale, engine, voiceName)) return true
+        return start(locale, null, null)
+    }
+
+    private suspend fun start(locale: Locale, enginePackage: String?, voiceName: String?): Boolean {
+        tts?.shutdown()
         val ready = CompletableDeferred<Boolean>()
-        val engine = TextToSpeech(context) { status -> ready.complete(status == TextToSpeech.SUCCESS) }
+        val engine = if (enginePackage != null) TextToSpeech(context, { status -> ready.complete(status == TextToSpeech.SUCCESS) }, enginePackage)
+        else TextToSpeech(context) { status -> ready.complete(status == TextToSpeech.SUCCESS) }
         tts = engine
         if (!ready.await()) return false
+        if (voiceName != null) {
+            val chosen = engine.voices?.firstOrNull { it.name == voiceName } ?: return false
+            return engine.setVoice(chosen) == TextToSpeech.SUCCESS
+        }
         val result = engine.setLanguage(locale)
         if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) return false
         // a voice that does not need the network, when the phone has one

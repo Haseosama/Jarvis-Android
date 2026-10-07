@@ -59,7 +59,7 @@ private val KEYWORDS: Map<String, String> = mapOf(
     "Ne pas déranger" to "reunion silence dnd",
     "Briefing au réveil" to "alarme reveil matin",
     "Dépenses" to "argent budget ticket",
-    "Voix" to "langue parole",
+    "Voix" to "langue parole edge elevenlabs piper hors ligne microsoft",
     "Apparence" to "visage avatar haseo theme couleur langue interface",
     "Recherche Perplexity" to "cle key api web internet sources recherche approfondie",
     "IA locale (hors ligne)" to "gemma qwen modele telecharger offline",

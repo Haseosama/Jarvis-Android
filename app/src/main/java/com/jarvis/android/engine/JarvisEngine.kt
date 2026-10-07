@@ -151,6 +151,9 @@ class JarvisEngine(
     private val stopVersion = AtomicLong()
     private val audio = AudioEngine(container.appContext)
     private var client: GeminiLiveClient? = null
+
+    /** Set while another online voice than Gemini's reads the answers of the live session (see voices/ and [ReadAloud]). */
+    @Volatile private var readAloud: ReadAloud? = null
     private var sessionJob: Job? = null
     private var lastActivityAt = 0L
     /** The time the running session started: the name under which its exchanges are kept. */
@@ -298,6 +301,8 @@ class JarvisEngine(
     private suspend fun finishEndSession() {
         if (!endOfSession.pending) return
         endOfSession.reset()
+        // another voice may still be reading the goodbye
+        readAloud?.let { r -> withTimeoutOrNull(END_SESSION_TIMEOUT_MS) { while (r.busy) delay(100) } }
         // Let the last words of the goodbye reach the speaker before the audio is cut.
         delay(END_SESSION_GRACE_MS)
         log(tr("Session terminée à votre demande."))
@@ -609,7 +614,8 @@ class JarvisEngine(
         val voice = com.jarvis.android.offline.OfflineVoice(container.appContext)
         try {
             _state.value = JarvisState.CONNECTING
-            if (!voice.init(locale)) {
+            val chosen = com.jarvis.android.voices.phoneChoice(container.configStore.offlineVoice.first())
+            if (!voice.init(locale, chosen?.first, chosen?.second)) {
                 log(tr("Synthèse vocale hors ligne indisponible : la voix française du téléphone n’est pas installée."))
                 _state.value = JarvisState.ERROR
                 return
@@ -733,8 +739,12 @@ class JarvisEngine(
         val connection = GeminiLiveClient(apiKey)
         client = connection
         lastActivityAt = android.os.SystemClock.elapsedRealtime()
+        val otherVoice = container.configStore.onlineVoice.first()
         try {
             coroutineScope {
+                if (com.jarvis.android.voices.voiceKind(otherVoice) != com.jarvis.android.voices.VoiceKind.GEMINI) {
+                    readAloud = ReadAloud(otherVoice, languageCode).also { it.start(this) }
+                }
                 val ready = CompletableDeferred<Unit>()
                 val handshake = launch {
                     try {
@@ -836,6 +846,8 @@ class JarvisEngine(
                 connection.close()
                 container.avatar.interrupt()
                 if (client === connection) client = null
+                readAloud?.close()
+                readAloud = null
                 audio.stopPlayback()
                 audio.abandonAudioFocus()
                 _conversation.update { finishConversationTurn(it) }
@@ -849,6 +861,8 @@ class JarvisEngine(
         container.videoPanel.keepFloor()
         when (event) {
             is LiveEvent.AudioChunk -> {
+                // another voice reads the transcript: Gemini's own sound is left out
+                if (readAloud?.failed == false) return
                 _state.value = JarvisState.SPEAKING
                 _outputLevel.value = pcm16Level(event.pcm16)
                 withContext(Dispatchers.IO) {
@@ -857,6 +871,7 @@ class JarvisEngine(
                 }
             }
             is LiveEvent.OutputTranscript -> {
+                readAloud?.add(event.text)
                 container.avatar.onTranscript(event.text)
                 _conversation.update { appendConversation(it, ConversationRole.ASSISTANT, event.text) }
             }
@@ -868,11 +883,13 @@ class JarvisEngine(
             is LiveEvent.Interrupted -> {
                 log(tr("Interruption détectée : la phrase en cours est coupée."))
                 container.avatar.interrupt()
+                readAloud?.interrupt()
                 audio.flushPlayback()
                 _conversation.update { finishConversationTurn(it) }
                 _state.value = JarvisState.LISTENING
             }
             is LiveEvent.TurnComplete -> {
+                readAloud?.endOfTurn()
                 if (endOfSession.turnCompleted()) {
                     _conversation.update { finishConversationTurn(it) }
                     finishEndSession()
@@ -895,6 +912,84 @@ class JarvisEngine(
                 }
             }
             else -> Unit
+        }
+    }
+
+    /**
+     * Another online voice than Gemini's (Microsoft Edge, ElevenLabs) reads what Gemini says: the transcript Gemini sends with its
+     * audio is cut into sentences, each read and played as soon as it is complete. If the voice fails, Gemini's own audio comes back
+     * for the rest of the session.
+     */
+    private inner class ReadAloud(private val choice: String, private val language: String?) {
+        private val sentences = com.jarvis.android.voices.SentenceBuffer()
+        private val queue = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+        @Volatile private var current: Job? = null
+        @Volatile private var loop: Job? = null
+        @Volatile var failed = false
+            private set
+        @Volatile private var reading = false
+
+        /** Whether something is still being read or waits to be. */
+        val busy: Boolean get() = reading || !queue.isEmpty || audio.isPlaybackActive()
+
+        fun start(session: CoroutineScope) {
+            loop = session.launch(Dispatchers.IO) {
+                for (sentence in queue) {
+                    if (failed) continue
+                    reading = true
+                    val job = launch {
+                        try {
+                            container.onlineSpeaker.speak(choice, sentence, language) { pcm ->
+                                _state.value = JarvisState.SPEAKING
+                                _outputLevel.value = pcm16Level(pcm)
+                                container.avatar.onSpeech(pcm)
+                                audio.playChunk(pcm)
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            fail(e.message ?: e.javaClass.simpleName)
+                        }
+                    }
+                    current = job
+                    try {
+                        job.join()
+                    } finally {
+                        current = null
+                        reading = false
+                        _outputLevel.value = 0f
+                    }
+                }
+            }
+        }
+
+        fun add(piece: String) {
+            if (failed) return
+            sentences.add(piece).forEach { queue.trySend(it) }
+        }
+
+        fun endOfTurn() {
+            if (failed) return
+            sentences.flush()?.let { queue.trySend(it) }
+        }
+
+        fun interrupt() {
+            sentences.clear()
+            while (queue.tryReceive().isSuccess) Unit
+            current?.cancel()
+        }
+
+        fun fail(message: String) {
+            if (failed) return
+            failed = true
+            interrupt()
+            log(trf("{0} La voix Gemini reprend pour la suite de la session.", message))
+        }
+
+        fun close() {
+            interrupt()
+            queue.close()
+            loop?.cancel()
         }
     }
 

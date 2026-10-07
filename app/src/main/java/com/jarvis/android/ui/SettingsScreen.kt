@@ -406,6 +406,7 @@ fun SettingsScreen(
             }
             sampleError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) }
             Text(tr("Touchez ▶ pour écouter une voix avant de la choisir."), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+            MoreVoicesSection()
             val languages = listOf("" to tr("Automatique (peut changer sur demande)"), "fr-FR" to "Français", "en-US" to "English", "fil-PH" to "Filipino")
             ExposedDropdownMenuBox(
                 expanded = langMenuOpen,

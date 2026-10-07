@@ -180,6 +180,17 @@ class RestChat internal constructor(
             sendText = { send(it) },
             lastReply = { _messages.value.lastOrNull { it.role == ConversationRole.ASSISTANT }?.text },
             onMetrics = { android.util.Log.i("JarvisRestVoice", it) },
+            otherVoice = { text, emit ->
+                val choice = container.configStore.onlineVoice.first()
+                if (com.jarvis.android.voices.voiceKind(choice) == com.jarvis.android.voices.VoiceKind.GEMINI) false
+                else {
+                    val language = container.configStore.speechLanguage.first().ifBlank { null }
+                    com.jarvis.android.voices.SentenceBuffer(400).let { cut ->
+                        (cut.add(text) + listOfNotNull(cut.flush())).forEach { container.onlineSpeaker.speak(choice, it, language, emit) }
+                    }
+                    true
+                }
+            },
         )
     }
 
