@@ -57,6 +57,9 @@ internal class LocalModelStore(private val dir: File, val downloadDir: File? = n
 
     fun installed(): Boolean = file.isFile && file.length() >= LOCAL_MODEL_MIN_BYTES
 
+    /** The installed model's size in whole MB, or null when there is none. */
+    fun sizeMb(): Long? = file.takeIf { it.isFile }?.length()?.let { it / 1_000_000L }
+
     /** The catalogue name of the installed model, or null for an imported file (or none). */
     fun label(): String? =
         if (!installed()) null else try { File(dir, LOCAL_MODEL_LABEL_FILE).readText().trim().takeIf { it.isNotEmpty() } } catch (_: java.io.IOException) { null }
