@@ -199,6 +199,27 @@ fun SettingsScreen(
     var localSizeMb by remember { mutableStateOf(localModelStore.sizeMb()) }
     var localMessage by remember { mutableStateOf<String?>(null) }
     var localImporting by remember { mutableStateOf(false) }
+    var localLabel by remember { mutableStateOf(localModelStore.label()) }
+    val localDownloads = remember { (context0.applicationContext as com.jarvis.android.JarvisApp).container.localModelDownloads }
+    var localDownload by remember { mutableStateOf<com.jarvis.android.offline.LocalDownloadState>(com.jarvis.android.offline.LocalDownloadState.Idle) }
+    var localChoiceId by remember { mutableStateOf(com.jarvis.android.offline.LOCAL_MODEL_CATALOG.first().id) }
+    var hfTokenField by remember { mutableStateOf("") }
+    // Follows a model download (Android's download manager does the work, with the app closed too) and installs it once it is done.
+    LaunchedEffect(Unit) {
+        while (true) {
+            val st = localDownloads.state()
+            localDownload = st
+            when (st) {
+                is com.jarvis.android.offline.LocalDownloadState.Installed -> localMessage = null
+                is com.jarvis.android.offline.LocalDownloadState.Failed -> localMessage = st.message
+                else -> {}
+            }
+            localInstalled = localModelStore.installed()
+            localSizeMb = localModelStore.sizeMb()
+            localLabel = localModelStore.label()
+            kotlinx.coroutines.delay(if (st is com.jarvis.android.offline.LocalDownloadState.Running) 1000L else 3000L)
+        }
+    }
     val pickLocalModel = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
             localImporting = true
@@ -218,6 +239,7 @@ fun SettingsScreen(
             }
             localInstalled = localModelStore.installed()
             localSizeMb = localModelStore.sizeMb()
+            localLabel = localModelStore.label()
             localImporting = false
         }
     }
@@ -470,17 +492,12 @@ fun SettingsScreen(
             SettingsCard(tr("IA locale (hors ligne)"), Icons.Filled.Memory, initiallyExpanded = false) {
             val localAiEnabled by configStore.localAiEnabled.collectAsState(initial = true)
             Text(
-                tr("Sans réseau, Jarvis ne connaît que les commandes fixes ci-dessus. Pour qu’il puisse aussi répondre à une vraie question hors ligne, il peut utiliser un petit modèle (Gemma) installé sur le téléphone : tout tourne sur l’appareil, rien n’est envoyé où que ce soit."),
+                tr("Sans réseau, Jarvis ne connaît que les commandes fixes ci-dessus. Pour qu’il puisse aussi répondre à une vraie question hors ligne, il peut utiliser un petit modèle installé sur le téléphone : tout tourne sur l’appareil, rien n’est envoyé où que ce soit. Nettement moins capable que Gemini."),
                 style = MaterialTheme.typography.bodySmall,
-            )
-            Text(
-                tr("Les poids de Gemma sont soumis à une licence Google sur Hugging Face : Jarvis ne peut pas les télécharger lui-même. Sur huggingface.co/litert-community/Gemma3-1B-IT, acceptez la licence puis téléchargez « gemma3-1b-it-int4.task » (≈ 530 Mo) dans le navigateur du téléphone, puis importez-le ici. Nettement moins capable que Gemini ; je n’ai pas pu tester de vraies réponses, faute d’accès à ce fichier protégé pendant le développement."),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp),
             )
             if (localInstalled) {
                 Text(
-                    trf("Modèle installé (≈ {0} Mo).", localSizeMb ?: 0L),
+                    localLabel?.let { trf("Modèle installé : {0} (≈ {1} Mo).", it, localSizeMb ?: 0L) } ?: trf("Modèle installé (≈ {0} Mo).", localSizeMb ?: 0L),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 8.dp),
                 )
@@ -489,15 +506,90 @@ fun SettingsScreen(
                     Switch(checked = localAiEnabled, onCheckedChange = { scope.launch { configStore.setLocalAiEnabled(it) } })
                 }
                 OutlinedButton(
-                    onClick = { localModelStore.remove(); localInstalled = false; localSizeMb = null; localMessage = null },
+                    onClick = { localModelStore.remove(); localInstalled = false; localSizeMb = null; localLabel = null; localMessage = null },
                     modifier = Modifier.padding(top = 8.dp),
                 ) { Text(tr("Supprimer le modèle")) }
+            }
+            val running = localDownload as? com.jarvis.android.offline.LocalDownloadState.Running
+            if (running != null) {
+                Text(
+                    when {
+                        running.waitingForNetwork -> trf("Téléchargement de {0} en attente du réseau…", running.label)
+                        running.percent != null -> trf("Téléchargement de {0} : {1} %", running.label, running.percent)
+                        else -> trf("Téléchargement de {0}…", running.label)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                val pct = running.percent
+                if (pct != null) {
+                    LinearProgressIndicator(progress = { pct / 100f }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+                } else {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+                }
+                Text(tr("Il continue même si vous quittez Jarvis ; le modèle s’installe tout seul à la fin."), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                OutlinedButton(
+                    onClick = { localDownloads.cancel(); localDownload = com.jarvis.android.offline.LocalDownloadState.Idle },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text(tr("Annuler le téléchargement")) }
             } else {
+                Text(
+                    if (localInstalled) tr("Changer de modèle") else tr("Choisir un modèle à télécharger"),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                com.jarvis.android.offline.LOCAL_MODEL_CATALOG.forEach { choice ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clickable { localChoiceId = choice.id }.padding(vertical = 4.dp),
+                    ) {
+                        RadioButton(selected = localChoiceId == choice.id, onClick = { localChoiceId = choice.id })
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(choice.label + " · " + choice.sizeLabel, style = MaterialTheme.typography.bodyMedium)
+                            Text(choice.description, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+                val chosen = com.jarvis.android.offline.localModelChoice(localChoiceId) ?: com.jarvis.android.offline.LOCAL_MODEL_CATALOG.first()
+                if (chosen.needsHfToken) {
+                    Text(
+                        tr("Google réserve Gemma aux comptes Hugging Face qui ont accepté sa licence. Une seule fois : ouvrez la page du modèle, connectez-vous et acceptez la licence, puis créez un jeton « Read » (Settings > Access Tokens) et collez-le ici. Il ne sert qu’à lancer ce téléchargement et n’est pas enregistré."),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                context0.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(chosen.pageUrl)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                            } catch (_: Exception) { }
+                        },
+                        modifier = Modifier.padding(top = 4.dp),
+                    ) { Text(tr("Ouvrir la page du modèle")) }
+                    OutlinedTextField(
+                        value = hfTokenField,
+                        onValueChange = { hfTokenField = it },
+                        label = { Text(tr("Jeton Hugging Face")) },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    )
+                }
+                Button(
+                    enabled = !localImporting,
+                    onClick = {
+                        scope.launch {
+                            localMessage = localDownloads.start(chosen, hfTokenField.takeIf { chosen.needsHfToken })
+                            localDownload = localDownloads.state()
+                            if (localMessage == null) hfTokenField = ""
+                        }
+                    },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text(trf("Télécharger ({0})", chosen.sizeLabel)) }
                 OutlinedButton(
                     enabled = !localImporting,
                     onClick = { pickLocalModel.launch(arrayOf("*/*")) },
                     modifier = Modifier.padding(top = 8.dp),
-                ) { Text(if (localImporting) tr("Import en cours…") else tr("Importer le modèle (.task)")) }
+                ) { Text(if (localImporting) tr("Import en cours…") else tr("Ou importer un fichier .task")) }
             }
             localMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) }
             }

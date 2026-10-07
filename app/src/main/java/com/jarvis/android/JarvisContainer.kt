@@ -127,8 +127,11 @@ class JarvisContainer(val appContext: Context) {
 
     internal val wakeModel = com.jarvis.android.wake.WakeModelManager(appContext, http)
 
-    /** The offline mode's local model (imported by the user; see LocalModelStore.kt). */
+    /** The offline mode's local model (downloaded from the list or imported by the user; see LocalModelStore.kt). */
     internal val localModelStore = com.jarvis.android.offline.LocalModelStore(appContext)
+
+    /** Downloads of the models in the offline model list (see LocalModelDownloads.kt). */
+    internal val localModelDownloads by lazy { com.jarvis.android.offline.LocalModelDownloads(appContext, http, localModelStore) }
 
     /** Shopping and to-do lists, shared by the online and the offline mode (see tasks/TaskListStore.kt). */
     internal val taskListStore = com.jarvis.android.tasks.TaskListStore(java.io.File(appContext.filesDir, "task_lists.json"))

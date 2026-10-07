@@ -241,6 +241,15 @@
             android:name=".video.VideoControlReceiver"
             android:exported="false" />
 
+        <!-- Installs a model from the offline model list once Android's download manager has fetched it. -->
+        <receiver
+            android:name=".offline.LocalModelDownloadReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name=".wakeup.RadioAlarmReceiver"
             android:exported="false" />
