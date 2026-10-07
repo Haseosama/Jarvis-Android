@@ -102,8 +102,8 @@ internal class LocalModelStore(private val dir: File, val downloadDir: File? = n
         }
     }
 
+    /** Erases the installed model (a download under way is left alone). */
     fun remove() {
-        dir.deleteRecursively()
-        downloadDir?.listFiles()?.forEach { it.delete() }
+        clearModels()
     }
 }
