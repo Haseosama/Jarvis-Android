@@ -1254,6 +1254,7 @@ fun SettingsScreen(
             }
             ConnectorsCard()
             InstagramCard()
+            ImagesCard()
             SettingsCard(tr("Dossier de travail (fichiers)"), Icons.Filled.Folder, initiallyExpanded = false) {
             Text(
                 if (workFolder.isBlank()) tr("Aucun dossier choisi : Jarvis ne touche à aucun fichier.")

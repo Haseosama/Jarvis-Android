@@ -255,6 +255,7 @@ class ConfigStore(private val context: Context) {
     private val KEY_LOCAL_AI = booleanPreferencesKey("local_ai_enabled")
     private val KEY_SKIP_CONFIRMATIONS = booleanPreferencesKey("skip_confirmations_v2")
     private val KEY_RAIN_ALERTS = booleanPreferencesKey("rain_alerts")
+    private val KEY_IMAGES_ADULT = booleanPreferencesKey("images_adult")
     private val KEY_WAKE_PAUSE_SAVER = booleanPreferencesKey("wake_pause_saver")
     private val KEY_AVATAR_MODEL = intPreferencesKey("avatar_face_model")
     /** Set once a face is chosen in a build that has Haseo (see [avatarModelIndex]). */
@@ -353,6 +354,9 @@ class ConfigStore(private val context: Context) {
     val calendarAutoCreate: Flow<Boolean> = context.dataStore.data.map { it[KEY_CALENDAR_AUTO_CREATE] ?: true }
     /** Off by default: a notification when rain is about to start where the phone is (see weather/RainSoon.kt). */
     val rainAlerts: Flow<Boolean> = context.dataStore.data.map { it[KEY_RAIN_ALERTS] ?: false }
+
+    /** Images IA (image_pc): adult content allowed in the pictures made on the PC. Off until the user turns it on. */
+    val imagesAdult: Flow<Boolean> = context.dataStore.data.map { it[KEY_IMAGES_ADULT] ?: false }
     /** On by default: the wake word stops listening while Android's battery saver is on (the microphone is the costliest part). */
     val wakePauseInSaver: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_PAUSE_SAVER] ?: true }
     /**
@@ -420,6 +424,7 @@ class ConfigStore(private val context: Context) {
     suspend fun setGmailAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_GMAIL_AUTO_SEND] = v }
     suspend fun setCalendarAutoCreate(v: Boolean) = context.dataStore.edit { it[KEY_CALENDAR_AUTO_CREATE] = v }
     suspend fun setRainAlerts(v: Boolean) = context.dataStore.edit { it[KEY_RAIN_ALERTS] = v }
+    suspend fun setImagesAdult(v: Boolean) = context.dataStore.edit { it[KEY_IMAGES_ADULT] = v }
     suspend fun setWakePauseInSaver(v: Boolean) = context.dataStore.edit { it[KEY_WAKE_PAUSE_SAVER] = v }
     suspend fun setSkipConfirmations(v: Boolean) = context.dataStore.edit { it[KEY_SKIP_CONFIRMATIONS] = v }
     suspend fun setAvatarSkin(v: Int) = context.dataStore.edit { it[KEY_AVATAR_SKIN] = v }

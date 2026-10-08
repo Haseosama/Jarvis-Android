@@ -122,4 +122,16 @@ class PcLinkTest {
         assertNull(parseBrowserReply("""{"ok":true}"""))
         assertNull(parseBrowserReply("pas du json"))
     }
+
+    @Test
+    fun `the PC's picture comes back decoded, or why it failed`() {
+        val made = parseImageReply("""{"ok":true,"text":"Image créée avec ComfyUI.","png":"iVBORw0KGgo=","seed":42}""")!!
+        assertTrue(made.ok)
+        assertArrayEquals(byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a), made.png)
+        val refused = parseImageReply("""{"ok":false,"text":"Refusé : je ne crée aucune image d’enfant ni de mineur."}""")!!
+        assertFalse(refused.ok)
+        assertNull(refused.png)
+        assertNull(parseImageReply("""{"ok":true}"""))
+        assertNull(parseImageReply("<html>"))
+    }
 }

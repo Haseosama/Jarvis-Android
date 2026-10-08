@@ -199,6 +199,7 @@ object ToolRegistry {
         InterpreterTool,
         CallLogTool, SosTool, PhotoSearchTool, ReceiptTool, PersonReminderTool, DrivingModeTool, HealthTool, QuietModeTool, SubscriptionsTool, RecipeTool, ParcelTool, BudgetTool, ReadTextTool, WakeBriefingTool, TransportTool, TidesTool, PcControlTool,
         com.jarvis.android.actions.PcBrowserTool,
+        com.jarvis.android.images.ImagePcTool,
         com.jarvis.android.actions.HaseoArTool,
         com.jarvis.android.connectors.ConnectorTool,
     )

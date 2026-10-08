@@ -181,6 +181,37 @@ class PcRemote(
         }
     }
 
+    /**
+     * A picture made by the generator on the PC (Jarvis 2.0 2.0.34+, electron/imageGen.cjs), or an `install` / `status` request
+     * about it. Making one takes up to a few minutes (ComfyUI may start first), hence the long wait.
+     */
+    suspend fun image(request: JsonObject): PcImageReply = withContext(Dispatchers.IO) {
+        val p0 = load() ?: return@withContext PcImageReply(false, NOT_PAIRED)
+        try {
+            val p = authorized(p0) ?: return@withContext PcImageReply(false, NEEDS_PAIRING)
+            val iv = ByteArray(16).also(random::nextBytes)
+            client(pin = p.certSha256, readSeconds = 240).newCall(
+                Request.Builder().url(p.baseUrl + "/api/image")
+                    .header("Authorization", "Bearer ${p.token}")
+                    .post(browserBody(p.sessionKey, request, iv).toRequestBody(JSON))
+                    .build(),
+            ).execute().use { r ->
+                when (r.code) {
+                    401 -> PcImageReply(false, NEEDS_PAIRING)
+                    404, 501 -> PcImageReply(false, "Jarvis 2.0 sur le PC ne sait pas encore créer d'images : mettez-le à jour (version 2.0.34 ou plus).")
+                    in 200..299 -> parseImageReply(r.body?.string().orEmpty()) ?: PcImageReply(false, "Réponse illisible du générateur d'images du PC.")
+                    else -> PcImageReply(false, "Le PC a refusé la demande d'image (code ${r.code}).")
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: java.net.SocketTimeoutException) {
+            PcImageReply(false, "Le PC n'a pas fini l'image à temps. Réessayez (le premier démarrage du générateur est plus long).")
+        } catch (e: IOException) {
+            PcImageReply(false, failure(e, p0))
+        }
+    }
+
     /** The pairing with a working auth token, refreshed with the device token when Jarvis PC forgot the old one; null when it forgot the device too. */
     private fun authorized(p: PcPairing): PcPairing? {
         val http = client(pin = p.certSha256)
