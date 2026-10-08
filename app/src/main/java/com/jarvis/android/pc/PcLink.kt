@@ -22,6 +22,8 @@ import javax.crypto.spec.SecretKeySpec
  *    (POST /api/device-login) without a new key (Jarvis 2.0 keeps it across restarts, Mark-LIV forgets it when it restarts);
  *  - a command is POST /api/command {"enc": base64(IV ‖ AES-256-CBC(text))}, the AES key being SHA-256(key ‖ "JARVIS-DASHBOARD-v1");
  *  - its answers come back on the /ws?token= WebSocket as {"type":"log","speaker":"jarvis","text":…};
+ *  - Jarvis 2.0 (2.0.34+) makes pictures with Fooocus, ComfyUI or Forge on the PC: POST /api/image {"enc": …}, the request as JSON,
+ *    the answer {"ok", "text", "png": base64};
  *  - Jarvis 2.0 (2.0.33+) also drives a browser with Playwright: POST /api/browser {"enc": …} with the action as JSON, the answer
  *    {"ok", "text", "jpegBase64"?} coming straight back.
  * The PC serves HTTPS with a certificate it made itself, so the phone pins that certificate's SHA-256 at pairing time and
@@ -118,6 +120,19 @@ fun parseBrowserReply(text: String): PcBrowserReply? = try {
     val jpeg = (o["jpegBase64"] as? JsonPrimitive)?.contentOrNull?.let { runCatching { Base64.getDecoder().decode(it) }.getOrNull() }
     PcBrowserReply((o["ok"] as? JsonPrimitive)?.contentOrNull == "true", said, jpeg?.takeIf { it.isNotEmpty() })
         .takeIf { said.isNotEmpty() || it.jpeg != null }
+} catch (_: Exception) {
+    null
+}
+
+/** What the PC's image generator answered (Jarvis 2.0, electron/imageGen.cjs): a sentence, and the PNG when one was made. */
+class PcImageReply(val ok: Boolean, val text: String, val png: ByteArray? = null)
+
+fun parseImageReply(text: String): PcImageReply? = try {
+    val o = Json.parseToJsonElement(text).jsonObject
+    val said = (o["text"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+    val png = (o["png"] as? JsonPrimitive)?.contentOrNull?.let { runCatching { Base64.getDecoder().decode(it) }.getOrNull() }
+    PcImageReply((o["ok"] as? JsonPrimitive)?.contentOrNull == "true", said, png?.takeIf { it.isNotEmpty() })
+        .takeIf { said.isNotEmpty() || it.png != null }
 } catch (_: Exception) {
     null
 }

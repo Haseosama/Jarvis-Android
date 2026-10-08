@@ -18,7 +18,7 @@ internal enum class SettingsGroup(val french: String, val frenchHint: String) {
     HEALTH("Santé et sécurité", "Santé, médicaments, urgence"),
     CAR("Voiture et trajets", "Voiture garée, conduite, transports"),
     FILES("Fichiers et notes", "Dossier de travail, photos, Obsidian"),
-    SERVICES("Services connectés", "Google, maison, PC, Instagram, connecteurs"),
+    SERVICES("Services connectés", "Google, maison, PC, images, Instagram, connecteurs"),
 }
 
 /** The cards of each category, by French title, in the order the menu lists them. */
@@ -34,7 +34,7 @@ internal val GROUP_CARDS: Map<SettingsGroup, List<String>> = mapOf(
     SettingsGroup.HEALTH to listOf("Santé", "Médicaments et habitudes", "Urgence / SOS"),
     SettingsGroup.CAR to listOf("Voiture garée", "Mode conduite", "Transports"),
     SettingsGroup.FILES to listOf("Dossier de travail (fichiers)", "Photos", "Notes Obsidian"),
-    SettingsGroup.SERVICES to listOf("Google (Gmail, Drive)", "Colis", "Maison connectée", "Jarvis PC", "Plugins", "Connecteurs", "Instagram"),
+    SettingsGroup.SERVICES to listOf("Google (Gmail, Drive)", "Colis", "Maison connectée", "Jarvis PC", "Images IA", "Plugins", "Connecteurs", "Instagram"),
 )
 
 /** The category of each card, by its French title. */
@@ -53,6 +53,7 @@ private val KEYWORDS: Map<String, String> = mapOf(
     "Connecteurs" to "mcp serveur notion github zapier n8n outils jeton oauth connexion",
     "Instagram" to "urbex photos publier poster reseaux sociaux facebook page jeton meta",
     "Jarvis PC" to "ordinateur pc controle distance qr appairer",
+    "Images IA" to "image dessin generer creer fooocus comfyui forge stable diffusion adulte",
     "Médicaments et habitudes" to "medicament pilule",
     "Urgence / SOS" to "secours alerte",
     "Santé" to "pas sommeil coeur health connect",

@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.98 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.9.99 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -2442,3 +2442,28 @@ from the old encrypted preferences), because it works on the app's real files.
 - Camera-based sport tracking (push-up counter, posture) was left out: heavy on the battery.
 - Desktop-only features (mouse/keyboard automation, game updaters) have no equivalent on the phone itself; the PC is driven through
   Jarvis PC instead (`jarvis_pc`, 0.9.89).
+
+### AI pictures made on the PC (0.9.99)
+
+At the owner's request (an "Open Eromify clone" seen on blink.new, then "intégrer fooocus et comfy ui"), Jarvis makes pictures
+from a description with a Stable Diffusion generator on the paired PC. Gemini does not make adult pictures and Stable Diffusion
+does not run on a phone, so the request goes over the PC pairing to Jarvis 2.0 (2.0.34+, `POST /api/image`, encrypted like the
+commands), which hands it to **Fooocus** (Fooocus-API), **ComfyUI** or **Forge / AUTOMATIC1111** (`--api`), found on their usual
+ports. With none installed, Jarvis 2.0 installs ComfyUI portable and the Juggernaut XL v9 model itself (about 9 GB), from its
+"Contrôle depuis le téléphone" panel or from the phone ("installe le générateur d'images"), and starts it hidden when a picture
+is asked.
+
+- **Tool `image_pc`**: `description` (best in English), `format` portrait / paysage / carre, `eviter`, `graine`; `action`
+  installer / etat. The picture opens in the phone's viewer.
+- **Settings > Services connectés > Images IA**: type a description and make it there (with a preview), check or start the
+  installation on the PC, and the **adult content** switch (off by default).
+- **Limits, always**: only text goes in (no photo, so no picture made from a real person); the tool tells the model never to
+  picture a real identifiable person; anything about a child or a minor (words in French and English, ages under 18) is refused
+  on the phone and again on the PC, and the PC's negative prompt always pushes away childlike bodies. With the switch off, explicit
+  requests are refused and the negative prompt pushes away nudity.
+- **Where pictures go**: ordinary ones to the gallery (`Pictures/Jarvis`); adult ones to the app's private `images/` folder, out
+  of the gallery, opened through the file provider.
+
+Checked: unit tests for the request, the refusals, the action names and the PC's answer (`ImagePcToolTest`, `PcLinkTest`), and on
+the PC side Jarvis 2.0's tests with fake Forge, ComfyUI and Fooocus servers and a fake installation. **Not checked with a real
+generator nor on a phone.**
