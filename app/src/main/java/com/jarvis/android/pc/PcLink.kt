@@ -28,6 +28,10 @@ import javax.crypto.spec.SecretKeySpec
  *    {"ok", "text", "jpegBase64"?} coming straight back.
  * The PC serves HTTPS with a certificate it made itself, so the phone pins that certificate's SHA-256 at pairing time and
  * then trusts nothing else. No Android imports here, so it can be unit-tested on the JVM.
+ *
+ * Away from home, the phone reaches the PC through Tailscale (a free, encrypted private network between the owner's devices,
+ * nothing opened on the router): Jarvis 2.0 (2.0.35+) then only answers on its Tailscale address (100.64.0.0/10), so the QR
+ * code carries that address and the local Wi-Fi is closed.
  */
 
 const val PC_DEFAULT_PORT = 8000
@@ -55,6 +59,17 @@ data class PcPairing(
             null
         }
     }
+}
+
+/** Whether [baseUrl]'s host is a Tailscale address (100.64.0.0/10, or fd7a:115c:a1e0::/48, or a *.ts.net name). */
+fun isTailnetUrl(baseUrl: String): Boolean {
+    val host = baseUrl.substringAfter("://").substringBefore('/').let { a ->
+        if (a.startsWith("[")) a.substringAfter('[').substringBefore(']') else a.substringBeforeLast(':').takeIf { a.contains(':') } ?: a
+    }.lowercase(Locale.ROOT)
+    if (host.endsWith(".ts.net")) return true
+    if (host.startsWith("fd7a:115c:a1e0:")) return true
+    val parts = host.split('.').map { it.toIntOrNull() ?: return false }
+    return parts.size == 4 && parts[0] == 100 && parts[1] in 64..127 && parts.all { it in 0..255 }
 }
 
 /** Where to ask for pairing: the PC's base URL and the one-time key. */

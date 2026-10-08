@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.9.99 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.10.0 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -2467,3 +2467,23 @@ is asked.
 Checked: unit tests for the request, the refusals, the action names and the PC's answer (`ImagePcToolTest`, `PcLinkTest`), and on
 the PC side Jarvis 2.0's tests with fake Forge, ComfyUI and Fooocus servers and a fake installation. **Not checked with a real
 generator nor on a phone.**
+
+### Reaching the PC from anywhere, not from the local Wi-Fi (0.10.0)
+
+At the owner's request ("accessible à distance mais pas en local"), the phone reaches Jarvis 2.0 from anywhere (mobile data, another
+Wi-Fi) through **[Tailscale](https://tailscale.com)**, a free WireGuard private network between the owner's own devices: nothing is
+opened on the router, no paid server, and the traffic is encrypted end to end (on top of the pinned HTTPS certificate and the
+AES-encrypted commands of the pairing).
+
+- **On the PC** (Jarvis 2.0 2.0.35+): the remote-control server is in **"accès à distance"** mode by default. It only accepts
+  connections that arrive on the PC's Tailscale address (100.64.0.0/10; the address the connection arrived on is checked, not the
+  caller's), plus the PC itself; the local Wi-Fi is closed. The QR code carries the Tailscale address. Without Tailscale connected on
+  the PC, no pairing code is given and the panel says why. A *Passer en Wi-Fi local* button brings back the old behaviour.
+- **On the phone**: Settings > *Jarvis PC* explains the one-time setup (install Tailscale on both, same account, then pair again) and
+  has an *Ouvrir ou installer Tailscale* button (opens the app, or its Play Store page). When a Tailscale-addressed PC does not
+  answer, Jarvis says to switch Tailscale on (`isTailnetUrl` in `pc/PcLink.kt`).
+- Android allows one VPN at a time: Tailscale has to stay on while using `jarvis_pc`, `navigateur_pc` and `image_pc`.
+
+Checked: unit tests for the Tailscale address check (`PcLinkTest`) and, on the PC side, Jarvis 2.0's tests (a connection arriving on
+another network card is cut, Tailscale-only pairing address, no code without Tailscale). **Not checked with real Tailscale on a phone
+and a PC.**

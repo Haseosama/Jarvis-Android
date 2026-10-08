@@ -52,7 +52,7 @@ private val KEYWORDS: Map<String, String> = mapOf(
     "Maison connectée" to "home assistant domotique lumiere",
     "Connecteurs" to "mcp serveur notion github zapier n8n outils jeton oauth connexion",
     "Instagram" to "urbex photos publier poster reseaux sociaux facebook page jeton meta",
-    "Jarvis PC" to "ordinateur pc controle distance qr appairer",
+    "Jarvis PC" to "ordinateur pc controle distance qr appairer tailscale 4g",
     "Images IA" to "image dessin generer creer fooocus comfyui forge stable diffusion adulte",
     "Médicaments et habitudes" to "medicament pilule",
     "Urgence / SOS" to "secours alerte",

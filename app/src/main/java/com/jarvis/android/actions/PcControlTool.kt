@@ -14,7 +14,7 @@ import kotlinx.serialization.json.JsonObject
 object PcControlTool : Tool {
     override val name = "jarvis_pc"
     override val description =
-        "Contrôle l'ordinateur de l'utilisateur via Jarvis sur le PC (Jarvis 2.0, sur le même réseau Wi-Fi). action « command » " +
+        "Contrôle l'ordinateur de l'utilisateur via Jarvis sur le PC (Jarvis 2.0, joignable de partout par Tailscale, ou sur le même Wi-Fi). action « command » " +
             "(défaut) : transmet « instruction » en langage naturel à Jarvis sur le PC, qui l'exécute sur le PC et répond (ouvrir une appli ou " +
             "un site, volume, luminosité, fenêtres, taper du texte, fichiers, lancer une vidéo, décrire l'écran, verrouiller, mettre en " +
             "veille, éteindre…) ; formulez l'ordre complet, comme si l'utilisateur le disait au PC. action « status » : le PC répond-il. " +
