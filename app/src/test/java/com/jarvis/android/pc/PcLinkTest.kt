@@ -19,6 +19,19 @@ import javax.crypto.spec.SecretKeySpec
 
 class PcLinkTest {
     @Test
+    fun `a tailscale address is recognised, a home one is not`() {
+        assertTrue(isTailnetUrl("https://100.101.102.103:8000"))
+        assertTrue(isTailnetUrl("https://100.64.0.1:8000"))
+        assertTrue(isTailnetUrl("https://pc-haseo.tail1234.ts.net:8000"))
+        assertTrue(isTailnetUrl("https://[fd7a:115c:a1e0::1234]:8000"))
+        assertEquals(PairingTarget("https://100.101.102.103:8000", "AB12CD"), pairingTarget("https://100.101.102.103:8000/auto-login?key=AB12CD"))
+        assertFalse(isTailnetUrl("https://192.168.1.20:8000"))
+        assertFalse(isTailnetUrl("https://100.128.0.1:8000"))
+        assertFalse(isTailnetUrl("https://100.63.255.255:8000"))
+        assertFalse(isTailnetUrl("https://pc.local:8000"))
+    }
+
+    @Test
     fun `the qr link gives the address and the key`() {
         val t = pairingTarget("https://192.168.1.20:8000/auto-login?key=XPMJJR")!!
         assertEquals("https://192.168.1.20:8000", t.baseUrl)

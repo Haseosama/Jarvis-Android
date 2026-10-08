@@ -61,7 +61,8 @@ class PcRemote(
         } catch (e: CancellationException) {
             throw e
         } catch (_: IOException) {
-            "PC injoignable à ${target.baseUrl.substringAfter("://")} : vérifiez que Jarvis 2.0 est lancé avec le contrôle à distance activé et que le téléphone est sur le même réseau Wi-Fi."
+            "PC injoignable à ${target.baseUrl.substringAfter("://")} : vérifiez que Jarvis 2.0 est lancé avec le contrôle à distance activé, " +
+                if (isTailnetUrl(target.baseUrl)) TAILSCALE_HINT else "et que le téléphone est sur le même réseau Wi-Fi (ou, pour y accéder de partout, passez Jarvis 2.0 en « accès à distance » avec Tailscale)."
         }
     }
 
@@ -229,8 +230,10 @@ class PcRemote(
     private fun failure(e: IOException, p: PcPairing): String =
         if (e is SSLHandshakeException || e.cause is CertificateException) {
             "Le PC à ${p.baseUrl.substringAfter("://")} ne présente plus le certificat appairé : connexion refusée par sécurité. Si Jarvis a été réinstallé sur le PC, appairez-le de nouveau."
+        } else if (isTailnetUrl(p.baseUrl)) {
+            "PC injoignable (${p.baseUrl.substringAfter("://")}) : il est éteint, Jarvis 2.0 est fermé ou son contrôle à distance est désactivé, ou " + TAILSCALE_HINT
         } else {
-            "PC injoignable (${p.baseUrl.substringAfter("://")}) : il est éteint, Jarvis 2.0 est fermé ou son contrôle à distance est désactivé, ou le téléphone n'est pas sur le même réseau. Si son adresse IP a changé, appairez-le de nouveau."
+            "PC injoignable (${p.baseUrl.substringAfter("://")}) : il est éteint, Jarvis 2.0 est fermé ou son contrôle à distance est désactivé, ou le téléphone n'est pas sur le même réseau. Si son adresse IP a changé, ou si Jarvis 2.0 est passé en « accès à distance » (Tailscale), appairez-le de nouveau."
         }
 
     /**
@@ -260,6 +263,8 @@ class PcRemote(
     private companion object {
         val JSON = "application/json".toMediaType()
         const val QUIET_MS = 6_000L
+        const val TAILSCALE_HINT =
+            "Tailscale n'est pas connecté : ouvrez l'appli Tailscale sur le téléphone et activez-la (même compte que sur le PC), et vérifiez qu'elle l'est aussi sur le PC."
         const val NOT_PAIRED =
             "Aucun PC appairé. Sur le PC, dans Jarvis 2.0 : Poste de Contrôle PC → « Appairer un téléphone », puis dans Jarvis Android : Réglages > Jarvis PC, scannez le QR code (ou dites l'adresse et le code affichés)."
         const val NEEDS_PAIRING =

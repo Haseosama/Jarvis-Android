@@ -2169,9 +2169,28 @@ fun SettingsScreen(
             }
             SettingsCard(tr("Jarvis PC"), Icons.Filled.Computer, initiallyExpanded = false) {
             Text(
-                tr("Contrôler votre ordinateur par la voix depuis le téléphone, via Jarvis 2.0 sur le PC (même réseau Wi-Fi). Sur le PC, ouvrez Poste de Contrôle PC → « Appairer un téléphone » : scannez le QR code affiché, ou tapez l’adresse et le code à 6 caractères. Ensuite, dites par exemple « sur le PC, ouvre Chrome » ou « mets le PC en veille »."),
+                tr("Contrôler votre ordinateur par la voix depuis le téléphone, via Jarvis 2.0 sur le PC. Sur le PC, ouvrez Poste de Contrôle PC → « Appairer un téléphone » : scannez le QR code affiché, ou tapez l’adresse et le code à 6 caractères. Ensuite, dites par exemple « sur le PC, ouvre Chrome » ou « mets le PC en veille »."),
                 style = MaterialTheme.typography.bodySmall,
             )
+            Text(
+                tr("De partout (4G, autre Wi-Fi) : Jarvis 2.0 passe par Tailscale, un réseau privé chiffré et gratuit entre vos appareils, et ferme l’accès par le Wi-Fi local. Une seule fois : installez Tailscale sur le PC et sur ce téléphone, connectez-vous avec le même compte sur les deux, puis appairez. Gardez Tailscale activé sur le téléphone."),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            OutlinedButton(
+                onClick = {
+                    val launch = context0.packageManager.getLaunchIntentForPackage(TAILSCALE_PACKAGE)
+                    try {
+                        context0.startActivity(
+                            (launch ?: android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=$TAILSCALE_PACKAGE")))
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    } catch (_: Exception) {
+                        pcStatus = tr("Play Store introuvable : installez Tailscale depuis tailscale.com/download.")
+                    }
+                },
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text(tr("Ouvrir ou installer Tailscale")) }
             fun pairWith(address: String, code: String) {
                 pcBusy = true
                 pcStatus = null
@@ -2254,7 +2273,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 8.dp),
             )
             Text(
-                tr("Le téléphone retient le certificat du PC à l’appairage et refuse ensuite tout autre appareil. Il reste appairé après un redémarrage du PC ; si son adresse IP change, appairez-le de nouveau. Fonctionne aussi avec Mark-LIV (⚙ → Remote Control), qui oublie le téléphone à chaque redémarrage."),
+                tr("Le téléphone retient le certificat du PC à l’appairage et refuse ensuite tout autre appareil. Il reste appairé après un redémarrage du PC ; si son adresse change (ou si vous passez du Wi-Fi local à Tailscale), appairez-le de nouveau. Fonctionne aussi avec Mark-LIV (⚙ → Remote Control), qui oublie le téléphone à chaque redémarrage."),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
             )
@@ -2475,3 +2494,5 @@ internal fun modelListing(result: LiveModelsResult): ModelListing = when (result
         else -> ModelListing(result.names, null)
     }
 }
+
+private const val TAILSCALE_PACKAGE = "com.tailscale.ipn"
