@@ -117,7 +117,7 @@ internal fun ParcelsCard() {
 
 /** One service key: saved (with Supprimer) or a field to paste it, and where to get it. */
 @Composable
-private fun ServiceKey(label: String, how: String, link: String, get: () -> String?, save: suspend (String) -> Boolean, delete: suspend () -> Boolean) {
+internal fun ServiceKey(label: String, how: String, link: String, get: () -> String?, save: suspend (String) -> Boolean, delete: suspend () -> Boolean) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var has by remember { mutableStateOf(!get().isNullOrBlank()) }

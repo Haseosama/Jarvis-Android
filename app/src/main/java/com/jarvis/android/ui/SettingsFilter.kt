@@ -25,7 +25,7 @@ internal enum class SettingsGroup(val french: String, val frenchHint: String) {
 internal val GROUP_CARDS: Map<SettingsGroup, List<String>> = mapOf(
     SettingsGroup.JARVIS to listOf("Identité", "Apparence", "Historique des sessions", "Sauvegarde de la mémoire"),
     SettingsGroup.VOICE to listOf("Voix", "Mot d’activation (« Hey Jarvis »)", "Apprendre mon mot d’activation", "Périphériques audio"),
-    SettingsGroup.AI to listOf("Clés API et modèles", "Recherche Perplexity", "IA locale (hors ligne)"),
+    SettingsGroup.AI to listOf("Clés API et modèles", "Recherche Perplexity", "Autre modèle (Ollama, Groq…)", "IA locale (hors ligne)"),
     SettingsGroup.PHONE to listOf("Contrôle du téléphone", "Contacts (appels et SMS)", "Notifications", "Envoi de messages", "Ne pas déranger",
         "Accès rapide", "Position (météo)", "Mise à jour"),
     SettingsGroup.ORGANISE to listOf("Agenda", "Rappels", "Listes", "Dépenses", "Rappels selon le lieu", "Notes de réunion"),
@@ -64,6 +64,7 @@ private val KEYWORDS: Map<String, String> = mapOf(
     "Apparence" to "visage avatar haseo theme couleur langue interface",
     "Recherche Perplexity" to "cle key api web internet sources recherche approfondie",
     "IA locale (hors ligne)" to "gemma qwen modele telecharger offline",
+    "Autre modèle (Ollama, Groq…)" to "ollama lm studio llama openai groq openrouter mistral deepseek xai together quota secours moteur cerveau pc tailscale termux",
     "Électricité (Tempo, EcoWatt)" to "edf tarif jour rouge",
 )
 

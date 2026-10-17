@@ -92,7 +92,8 @@ internal class LocalLlm(private val context: Context) {
                     }
                 }
             }
-            if (text == null) LocalReply(null, "Je n’ai pas pu réfléchir à temps.") else LocalReply(text, null)
+            // a Qwen 3 or DeepSeek R1 conversion thinks inside <think>…</think> first: that is never shown nor said
+            if (text == null) LocalReply(null, "Je n’ai pas pu réfléchir à temps.") else LocalReply(com.jarvis.android.text.stripThink(text), null)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

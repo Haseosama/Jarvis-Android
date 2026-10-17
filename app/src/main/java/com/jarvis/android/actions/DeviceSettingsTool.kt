@@ -14,6 +14,9 @@ import com.jarvis.android.tool.Tool
 import com.jarvis.android.tool.intArg
 import com.jarvis.android.tool.stringArg
 import com.jarvis.android.tool.objectSchema
+import com.jarvis.android.tool.done
+import com.jarvis.android.tool.failed
+import com.jarvis.android.tool.unverified
 
 /**
  * Device controls — Android port of `actions/computer_settings.py`. Volume is a
@@ -78,7 +81,9 @@ object DeviceSettingsTool : Tool {
             am.setStreamVolume(AudioManager.STREAM_MUSIC, previous, 0)
             "Volume restored."
         })
-        return "Volume set to $percent%."
+        // read back: Do Not Disturb, a fixed-volume device or a headset limit can leave it elsewhere
+        val now = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+        return volumeOutcome(percent, target, now, max)
     }
 
     private suspend fun setBrightness(percent: Int, ctx: JarvisContainer): String {
@@ -104,7 +109,9 @@ object DeviceSettingsTool : Tool {
             Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, previousMode)
             "Luminosité rétablie."
         })
-        return "Luminosité réglée à $percent %."
+        val readBack = Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS, -1)
+        return if (readBack == brightnessToSystemValue(percent)) done("Luminosité réglée à $percent %.")
+        else unverified("Luminosité demandée à $percent %, mais le téléphone indique une autre valeur : il la règle peut-être lui-même.")
     }
 
     private suspend fun flashlight(on: Boolean, valid: Boolean, ctx: JarvisContainer): String {
@@ -119,9 +126,9 @@ object DeviceSettingsTool : Tool {
                 manager.setTorchMode(id, !on)
                 if (on) "Lampe éteinte." else "Lampe rallumée."
             })
-            if (on) "Lampe torche allumée." else "Lampe torche éteinte."
+            done(if (on) "Lampe torche allumée." else "Lampe torche éteinte.")
         } catch (e: Exception) {
-            "Impossible de commander la lampe : ${e.message}. Elle est peut-être utilisée par la caméra."
+            failed("Impossible de commander la lampe : ${e.message}. Elle est peut-être utilisée par la caméra.")
         }
     }
 
@@ -131,15 +138,15 @@ object DeviceSettingsTool : Tool {
         val am = ctx.appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         am.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, key))
         am.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, key))
-        return "Commande média envoyée : $command. Je ne peux pas vérifier qu’une application l’a prise en compte."
+        return unverified("Commande média envoyée : $command. Je ne peux pas vérifier qu’une application l’a prise en compte.")
     }
 
     private fun globalAction(action: String): String {
         val service = com.jarvis.android.device.JarvisAccessibilityService.instance
             ?: return "Cette action demande le contrôle du téléphone (service d’accessibilité), qui n’est pas activé."
         return when (val r = service.global(action)) {
-            com.jarvis.android.device.ActionResult.Done -> if (action == "lock_screen") "Écran verrouillé." else "Capture d’écran demandée. Je ne peux pas vérifier qu’elle a été enregistrée."
-            is com.jarvis.android.device.ActionResult.Failed -> r.reason
+            com.jarvis.android.device.ActionResult.Done -> if (action == "lock_screen") done("Écran verrouillé.") else unverified("Capture d’écran demandée. Je ne peux pas vérifier qu’elle a été enregistrée.")
+            is com.jarvis.android.device.ActionResult.Failed -> failed(r.reason)
         }
     }
 
@@ -155,3 +162,10 @@ object DeviceSettingsTool : Tool {
 }
 
 private const val CONFIRM_TIMEOUT_MS = 60_000L
+
+/** The volume asked ([percent], [target] steps of [max]) against the one read back ([now]). */
+internal fun volumeOutcome(percent: Int, target: Int, now: Int, max: Int): String = when {
+    now == target -> done("Volume set to $percent%.")
+    max > 0 -> unverified("Asked for $percent% but the phone reads ${now * 100 / max}% (Do Not Disturb or a volume limit may hold it).")
+    else -> unverified("Asked for $percent%; the phone did not report the new volume.")
+}

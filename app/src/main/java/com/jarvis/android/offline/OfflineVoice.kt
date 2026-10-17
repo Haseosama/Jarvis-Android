@@ -83,10 +83,10 @@ internal class OfflineVoice(private val context: Context) {
         }
     }
 
-    /** Listens to one sentence. */
-    suspend fun listen(languageTag: String): Heard = suspendCancellableCoroutine { cont ->
+    /** Listens to one sentence; [preferOffline] false lets the recognition use the network (better, when there is one). */
+    suspend fun listen(languageTag: String, preferOffline: Boolean = true): Heard = suspendCancellableCoroutine { cont ->
         val recognizer = when {
-            Build.VERSION.SDK_INT >= 33 && SpeechRecognizer.isOnDeviceRecognitionAvailable(context) -> SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+            preferOffline && Build.VERSION.SDK_INT >= 33 && SpeechRecognizer.isOnDeviceRecognitionAvailable(context) -> SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
             SpeechRecognizer.isRecognitionAvailable(context) -> SpeechRecognizer.createSpeechRecognizer(context)
             else -> {
                 cont.resume(Heard.Failed("Ce téléphone n’a pas de reconnaissance vocale."))
@@ -114,7 +114,7 @@ internal class OfflineVoice(private val context: Context) {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
-            .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, preferOffline)
             .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1_200L)
             .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)

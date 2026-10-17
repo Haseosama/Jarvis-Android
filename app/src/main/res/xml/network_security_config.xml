@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Plain http is allowed because a model served on the user's own machines (Ollama or LM Studio on the PC through Tailscale,
+  Ollama in Termux on the phone) has no certificate, and their addresses (100.x.y.z, 192.168.x.y) cannot be listed here.
+  The code only ever uses http for such a private address: rest/OtherModelTransport.kt refuses http to any public host,
+  and every other address in the app is written https.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

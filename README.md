@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.10.0 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.10.1 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -2487,3 +2487,55 @@ AES-encrypted commands of the pairing).
 Checked: unit tests for the Tailscale address check (`PcLinkTest`) and, on the PC side, Jarvis 2.0's tests (a connection arriving on
 another network card is cut, Tailscale-only pairing address, no code without Tailscale). **Not checked with real Tailscale on a phone
 and a PC.**
+
+### Another model than Gemini, honest tool results, text menu, audio tests (0.10.1, after Mark LVI)
+
+At the owner's request ("regarde les nouveautés de Mark-LVI et mets tout"), what [Mark LVI](https://github.com/FatihMakes/Mark-LVI)
+(CC BY-NC 4.0, like Mark LIV and LV) added and Jarvis did not have:
+
+- **Another model** (Settings > IA et clés API > *Autre modèle (Ollama, Groq…)*; `rest/OpenAiCompat.kt`, `rest/OtherModelTransport.kt`).
+  Anything that serves `/v1/chat/completions`: Ollama or LM Studio on the PC (reached through Tailscale; Ollama needs
+  `OLLAMA_HOST=0.0.0.0` to listen beyond the PC itself), Ollama on the phone in Termux, or Groq, OpenRouter, Mistral, DeepSeek, OpenAI,
+  xAI, Together with a key (encrypted on the phone). One-tap presets (the PC presets take the paired Jarvis PC's address), *Enregistrer
+  et tester* (answers in a sentence: "Répond en 0,36 s", "Rien ne répond à cette adresse", "Aucun modèle « qwen3:9b »…") and *Lister les
+  modèles*. The app keeps building Gemini requests: they are translated to the OpenAI format and back (tools, tool results matched by id,
+  pictures), so the chat, the tools and every internal request (memory, documents, agent, translation, code help, screen and file
+  reading) work unchanged. What only Gemini does stays with Gemini: Google Search grounding, PDFs and audio, the Gemini voices.
+  - *When*: never; **as a stand-in** (default) — Gemini first, the other model when Gemini is out of quota on every key and model, not
+    answering, refuses every key, or no key is saved; or **instead of Gemini**, with Gemini taking over when the other does not answer
+    (`rest/ProviderRouting.kt`). If both fail, Gemini's error is shown with the other's reason.
+  - *The voice too* (a switch): when Gemini Live has no quota left on any Live model (or always, set "instead"), the voice session
+    goes on with the phone's speech recognition, the other model (same prompt, memory and tools) and the phone voice chosen in Voix
+    (`runOtherModelSession` in `engine/JarvisEngine.kt`). Slower than Live and it cannot be interrupted, as Mark LVI says of its own.
+  - A model on the user's own machines (loopback, home network, Tailscale 100.64.0.0/10, `*.ts.net`, `*.local`) gets a **tool budget**:
+    at most 14 tools and 12,000 characters of declarations, chosen for the question, with one-sentence descriptions; a hosted one gets
+    everything. A model that refuses tools is asked again without them. Plain http is only accepted for such addresses (hence the
+    network security config allowing cleartext; `refusePlainHttp` refuses http to any public host).
+  - The **reasoning of thinking models** (`<think>…</think>` of qwen3, deepseek-r1) is never shown nor said (`text/Think.kt`, also on
+    the phone's own local model), filtered on a stream so a tag split across chunks is still caught.
+- **The same call twice in one answer is not run twice** (`RestChatSession`): the model gets the first result back with a note (Mark
+  LVI saw "open WhatsApp" open it four times). The phone's local AI already stopped on a repeated call.
+- **"Done" means checked** (`tool/Outcome.kt`): a result may start with `[done]` (it happened and was read back), `[unverified]` (sent,
+  not confirmed: the system prompt forbids saying it is done) or `[failed]`; the word is never said. `open_app` waits up to 2.5 s for the
+  app on screen (with the phone control on; otherwise `[unverified]`, since Android may refuse to bring an app up from the background),
+  and a name under four letters must match exactly ("wp" no longer opens WPS Office). `device_settings` reads the volume and brightness
+  back, the media keys and the screenshot are `[unverified]`.
+- **"Jarvis" in the menu of selected text**, in any app (`share/ProcessTextActivity.kt`, Android's PROCESS_TEXT): *Traduire, Résumer,
+  Expliquer, Corriger* in a small panel; *Copier*, and *Remplacer* for a translation or a correction in a field the user can edit.
+  Nothing is sent before an action is tapped, and the text goes to the model between markers, as data. This is the Android form of
+  Mark LVI's clipboard panel: Android no longer lets an app read the clipboard in the background.
+- **Microphone and speaker tests** (Settings > Périphériques audio > *Tester le micro*, *Tester le son*; `core/AudioTest.kt`): a live
+  meter for 5 s and what it heard ("Rien entendu : le micro est peut-être coupé…", "Très faible…", "Le micro vous entend bien (crête
+  −18 dB)"), on the chosen microphone; a two-note chime on the chosen output, and a warning when the media volume is at zero.
+- `translate` and `code_helper` now go through the app's one transport (key rotation, model ladder, other model) instead of a fixed
+  Gemini model with the key in the URL.
+
+Not taken: closing an app by name and raising its window (Android does not let an app close or raise another), the Steam/Epic game
+updates (PC), Whisper and Piper inside the app (the phone's recognition and voices, and SherpaTTS for Piper voices, already cover it), and
+the dashboard security changes, which belong to Jarvis 2.0 on the PC.
+
+Checked: unit tests for the translation both ways, addresses, private hosts, the tool budget, the think filter (200 random chunkings),
+the routing (`RoutingTransportTest`), a fake OpenAI server (`OtherModelTransportTest`: auth header, the retry without tools, the budget,
+unreachable server, http refused), the repeated call, outcomes, app-name matching, the text actions and the audio test's levels.
+**Not checked on a phone**: a real Ollama/Groq conversation, the voice with the other model, the text menu in other apps, the audio
+tests, and `open_app`'s on-screen check.

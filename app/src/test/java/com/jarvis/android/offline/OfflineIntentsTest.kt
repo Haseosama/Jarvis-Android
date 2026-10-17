@@ -112,6 +112,10 @@ class OfflineIntentsTest {
         val a = tool("ouvre Zorglub")
         assertEquals("J’ouvre zorglub.", spokenResult(a, "Opening Zorglub."))
         assertEquals("Je ne trouve pas d’application « zorglub ».", spokenResult(a, "No app matching 'zorglub' is installed."))
+        // the outcome word is never said, and a failure is told as one
+        assertEquals("Je ne trouve pas d’application « zorglub ».", spokenResult(a, "[failed] No app matching 'zorglub' is installed."))
+        assertEquals("J’ouvre zorglub.", spokenResult(a, "[unverified] Asked Android to open Zorglub; without the phone control I cannot see whether it came up."))
+        assertTrue(spokenResult(a, "[failed] Could not open Zorglub: boom").startsWith("Je n’ai pas pu le faire. Could not open"))
         assertTrue(spokenResult(tool("appelle Marie"), "L'accès aux contacts n'est pas autorisé.").startsWith("Je n’ai pas pu le faire."))
     }
 }

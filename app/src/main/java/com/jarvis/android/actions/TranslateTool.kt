@@ -4,9 +4,6 @@ import com.jarvis.android.JarvisContainer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import com.jarvis.android.tool.Tool
 import com.jarvis.android.tool.stringArg
 import com.jarvis.android.tool.objectSchema
@@ -44,7 +41,6 @@ object TranslateTool : Tool {
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String = withContext(Dispatchers.IO) {
-        val apiKey = ctx.configStore.getApiKey() ?: return@withContext "Aucune clé Gemini configurée."
         val text = args.stringArg("text").trim()
         if (text.isEmpty()) return@withContext "Indiquez le texte à traduire."
         if (text.length > 8_000) return@withContext "Texte trop long (8 000 caractères maximum)."
@@ -54,20 +50,17 @@ object TranslateTool : Tool {
         val payload = buildJsonObject {
             putJsonArray("contents") {
                 addJsonObject {
+                    put("role", "user")
                     putJsonArray("parts") { addJsonObject { put("text", buildTranslatePrompt(text, target, args.stringArg("source_language"))) } }
                 }
             }
         }
-        val request = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$apiKey")
-            .post(payload.toString().toRequestBody("application/json".toMediaType()))
-            .build()
+        // the app's one transport: the key rotation, the ladder of models, and the other model when Gemini cannot answer
         try {
-            ctx.http.newCall(request).execute().use { resp ->
-                val text2 = resp.body?.string() ?: return@withContext "Pas de réponse du modèle."
-                if (!resp.isSuccessful) return@withContext "Traduction impossible : HTTP ${resp.code}."
-                parseTranslateResponse(text2) ?: "Aucune traduction renvoyée."
-            }
+            val reply = ctx.restChat.transport.generate(ctx.configStore.snapshotRestModel(), payload)
+            parseTranslateResponse(reply.toString()) ?: "Aucune traduction renvoyée."
+        } catch (e: com.jarvis.android.rest.RestChatException) {
+            "Traduction impossible : ${e.message}"
         } catch (e: Exception) {
             "Traduction impossible : ${e.message}"
         }

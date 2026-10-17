@@ -28,6 +28,7 @@ class RestChatTest {
 
     private class FakeTransport(private val replies: MutableList<() -> JsonObject>) : GenerateTransport {
         val requests = mutableListOf<JsonObject>()
+        fun replies(vararg more: JsonObject) { more.forEach { r -> replies += { r } } }
         override suspend fun generate(model: String, request: JsonObject): JsonObject {
             requests += request
             return replies.removeAt(0)()
@@ -93,7 +94,8 @@ class RestChatTest {
 
     @Test
     fun `at the round limit the model sums up with tools switched off`() = runBlocking {
-        val replies: MutableList<() -> JsonObject> = MutableList(MAX_TOOL_ROUNDS + 1) { { callResponse("loop") } }
+        // different arguments each time: the same call again is answered from its first result (see below)
+        val replies: MutableList<() -> JsonObject> = MutableList(MAX_TOOL_ROUNDS + 1) { i -> { callResponse("loop", """{"n":$i}""") } }
         replies += { textResponse("Fait en partie") }
         val transport = FakeTransport(replies)
         var runs = 0
@@ -114,6 +116,27 @@ class RestChatTest {
         val s = session(FakeTransport(replies))
         assertEquals(ERROR_TOO_MANY_TOOLS, failure { runBlocking { s.send("go") } })
         assertTrue(s.snapshot().isEmpty())
+    }
+
+    @Test
+    fun `the same call asked again in one answer is not run twice`() = runBlocking {
+        val transport = FakeTransport(mutableListOf(
+            { callResponse("open_app", """{"app_name":"WhatsApp"}""") },
+            { callResponse("open_app", """{"app_name":"WhatsApp"}""") },
+            { textResponse("WhatsApp est ouvert") },
+        ))
+        var runs = 0
+        val s = session(transport) { _, _ -> runs++; "[done] WhatsApp is open on the screen." }
+        assertEquals("WhatsApp est ouvert", s.send("ouvre WhatsApp"))
+        assertEquals(1, runs)
+        val second = transport.requests[2]["contents"]!!.jsonArray.last().jsonObject["parts"]!!.jsonArray[0].jsonObject["functionResponse"]!!.jsonObject
+        val result = second["response"]!!.jsonObject["result"]!!.jsonPrimitive.content
+        assertTrue(result.startsWith(com.jarvis.android.engine.REPEATED_CALL_NOTE))
+        assertTrue(result.endsWith("WhatsApp is open on the screen."))
+        // the next message is a new answer: the tool may run again
+        transport.replies(callResponse("open_app", """{"app_name":"WhatsApp"}"""), textResponse("Rouvert"))
+        assertEquals("Rouvert", s.send("rouvre-le"))
+        assertEquals(2, runs)
     }
 
     @Test
