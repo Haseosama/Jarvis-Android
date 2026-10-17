@@ -485,6 +485,13 @@ class JarvisEngine(
         try {
             val apiKey = container.configStore.getApiKey()
             val offlineMode = container.configStore.offlineMode.first()
+            val other = container.configStore.otherModelConfig()
+            val otherVoice = other.configured && other.voice && other.use != com.jarvis.android.rest.OTHER_MODEL_OFF
+            if (offlineMode != OFFLINE_ALWAYS && otherVoice && (other.use == com.jarvis.android.rest.OTHER_MODEL_ALWAYS || apiKey.isNullOrBlank()) && isOnline()) {
+                log(tr("Voix avec l’autre modèle (reconnaissance et voix du téléphone)."))
+                runOtherModelSession()
+                return
+            }
             if (offlineMode != OFFLINE_NEVER && (offlineMode == OFFLINE_ALWAYS || apiKey.isNullOrBlank() || !isOnline())) {
                 log(tr(if (offlineMode == OFFLINE_ALWAYS) "Mode hors ligne (réglé sur toujours)." else "Pas de connexion : mode hors ligne."))
                 runOfflineSession()
@@ -533,6 +540,12 @@ class JarvisEngine(
                         handleToSend = null
                         _state.value = JarvisState.CONNECTING
                         continue
+                    }
+                    // no Live model left for this key: the other model holds the conversation, if the user allowed it for the voice
+                    if (otherVoice && why == com.jarvis.android.rest.ModelLadder.Failure.QUOTA) {
+                        log(tr("Plus de quota pour la voix Gemini : la conversation continue avec l’autre modèle."))
+                        runOtherModelSession(resumed = drop.wasReady)
+                        return
                     }
                 }
                 if (tuneDetection && !drop.wasReady && drop.detail.contains("(1007)")) {
@@ -655,6 +668,88 @@ class JarvisEngine(
                 voice.shutdown()
                 container.localBrain.unload()
                 localRecentTools.clear()
+                _outputLevel.value = 0f
+            }
+        }
+    }
+
+    /**
+     * The voice with the other model (Settings > IA et clés API > Autre modèle, after Mark LVI's own STT + LLM + TTS pipeline): the
+     * phone's speech recognition (online allowed) and its voice, around a text conversation with the same prompt, memory and tools as
+     * Gemini's. Slower than Gemini Live (recognition, model and voice one after the other) and no interrupting, but it keeps talking
+     * when the Gemini quota is gone. [resumed]: the Live session was cut, and what was said there is handed over.
+     */
+    private suspend fun runOtherModelSession(resumed: Boolean = false) {
+        val language = container.configStore.speechLanguage.first().ifBlank { "fr-FR" }
+        val locale = java.util.Locale.forLanguageTag(language)
+        val voice = com.jarvis.android.offline.OfflineVoice(container.appContext)
+        val chat = RestChatSession(
+            transport = container.restChat.transport,
+            model = { container.configStore.snapshotRestModel() },
+            systemInstruction = { buildSystemInstruction(container) },
+            toolDeclarations = { ToolRegistry.declarations().filter { ((it["name"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: "") !in LOCAL_EXCLUDED_TOOLS } },
+            runTool = { name, args ->
+                log(trf("Action : {0}", name))
+                ToolRegistry.run(name, args, container)
+            },
+        )
+        // what was said before (the Live session that ran out), so the conversation goes on
+        _conversation.value.zipWithNext().forEach { (a, b) ->
+            if (a.role == ConversationRole.USER && b.role == ConversationRole.ASSISTANT && a.text.isNotBlank() && b.text.isNotBlank()) chat.appendExchange(a.text, b.text)
+        }
+        try {
+            _state.value = JarvisState.CONNECTING
+            val chosen = com.jarvis.android.voices.phoneChoice(container.configStore.offlineVoice.first())
+            if (!voice.init(locale, chosen?.first, chosen?.second)) {
+                log(tr("Synthèse vocale indisponible : aucune voix du téléphone pour cette langue."))
+                _state.value = JarvisState.ERROR
+                return
+            }
+            offlineSay(voice, if (resumed) tr("Je continue avec l’autre modèle.") else tr("Je vous écoute."))
+            var silences = 0
+            var failures = 0
+            while (currentCoroutineContext().isActive) {
+                _state.value = JarvisState.LISTENING
+                when (val heard = voice.listen(locale.toLanguageTag(), preferOffline = false)) {
+                    is com.jarvis.android.offline.Heard.Failed -> {
+                        log(tr(heard.reason))
+                        offlineSay(voice, heard.reason)
+                        _state.value = JarvisState.ERROR
+                        return
+                    }
+                    com.jarvis.android.offline.Heard.Silence -> {
+                        if (++silences >= OFFLINE_MAX_SILENCES) {
+                            offlineSay(voice, tr("Je me mets en veille."))
+                            return
+                        }
+                    }
+                    is com.jarvis.android.offline.Heard.Text -> {
+                        silences = 0
+                        _conversation.update { appendConversation(it, ConversationRole.USER, heard.text, complete = true) }
+                        (com.jarvis.android.offline.interpret(heard.text) as? com.jarvis.android.offline.OfflineAction.Say)?.takeIf { it.end }?.let {
+                            offlineSay(voice, it.text)
+                            return
+                        }
+                        _state.value = JarvisState.THINKING
+                        val reply = try {
+                            chat.send(heard.text).also { failures = 0 }
+                        } catch (e: com.jarvis.android.rest.RestChatException) {
+                            log(trf("Autre modèle : {0}", e.message.orEmpty()))
+                            if (++failures >= 2) {
+                                offlineSay(voice, e.message ?: tr("L’autre modèle ne répond pas."))
+                                _state.value = JarvisState.ERROR
+                                return
+                            }
+                            e.message ?: tr("L’autre modèle ne répond pas.")
+                        }
+                        _conversation.update { appendConversation(it, ConversationRole.ASSISTANT, reply, complete = true) }
+                        offlineSay(voice, com.jarvis.android.docs.stripMarkdown(reply))
+                    }
+                }
+            }
+        } finally {
+            withContext(NonCancellable) {
+                voice.shutdown()
                 _outputLevel.value = 0f
             }
         }

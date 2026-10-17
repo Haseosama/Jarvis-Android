@@ -210,7 +210,8 @@ internal const val LOCAL_AGENT_TOOL_RULES =
 
 internal const val LOCAL_AGENT_CALL_RULES =
     "Pour utiliser un outil, réponds SEULEMENT par une ligne : APPEL {\"outil\": \"nom\", \"args\": {\"parametre\": \"valeur\"}}\n" +
-        "Tu recevras son RÉSULTAT, puis tu pourras appeler un autre outil ou répondre. Si aucun outil n'est utile, réponds directement."
+        "Tu recevras son RÉSULTAT, puis tu pourras appeler un autre outil ou répondre. Si aucun outil n'est utile, réponds directement. " +
+        "Un RÉSULTAT qui commence par [unverified] n'est pas confirmé : dis que tu ne peux pas vérifier ; par [failed] : dis que ça n'a pas marché."
 
 /**
  * The prompt for one round: the rules, what Jarvis knows ([context]: date, names, memory, kept to what fits), the tools, the conversation
@@ -367,7 +368,7 @@ internal suspend fun runLocalAgent(
 }
 
 /** A tool's own words, said when the model could not phrase them: short, on one line. */
-internal fun fallbackFromResult(result: String): String = oneLine(result, 300)
+internal fun fallbackFromResult(result: String): String = oneLine(com.jarvis.android.tool.withoutOutcome(result), 300)
 
 /** The last tools used in [messages], newest first, read from the "Action : name" lines the chat shows. */
 internal fun recentToolNames(messages: List<ConversationMessage>): List<String> =

@@ -318,8 +318,11 @@ internal fun batterySentence(result: String): String {
 private val FAILURE = Regex("failed|not available|not found|no app matching|introuvable|impossible|aucun|erreur|error|refus|denied|permission|pas autoris|n'est pas|n’est pas|expir|inchang", RegexOption.IGNORE_CASE)
 
 /** What to say after a tool ran: the planned sentence, or an honest failure with what the tool said. */
-internal fun spokenResult(action: OfflineAction.ToolCall, result: String): String {
+internal fun spokenResult(action: OfflineAction.ToolCall, outcome: String): String {
+    val result = com.jarvis.android.tool.withoutOutcome(outcome)
     Regex("No app matching '(.+)' is installed").find(result)?.let { return "Je ne trouve pas d’application « ${it.groupValues[1]} »." }
-    if (FAILURE.containsMatchIn(result)) return "Je n’ai pas pu le faire. " + result.take(200)
+    if (com.jarvis.android.tool.outcomeOf(outcome) == com.jarvis.android.tool.Outcome.FAILED || FAILURE.containsMatchIn(result)) {
+        return "Je n’ai pas pu le faire. " + result.take(200)
+    }
     return action.format?.invoke(result) ?: action.say
 }

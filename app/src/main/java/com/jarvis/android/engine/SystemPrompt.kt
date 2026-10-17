@@ -33,7 +33,8 @@ internal suspend fun buildSystemInstruction(container: JarvisContainer, textMode
     val modeCtx = if (textMode) TEXT_MODE_DIRECTIVE else if (com.jarvis.android.driving.DrivingMode.active) DRIVING_DIRECTIVE else ""
     val selfCtx = buildSelfKnowledge(collectSelfKnowledge(container, assistantName))
     val briefingCtx = if (textMode) "" else container.briefing.prepare()
-    return listOf(buildLanguageDirective(if (com.jarvis.android.i18n.Lang.isEnglish) "English" else "French (France)"), modeCtx, timeCtx, identityCtx, selfCtx, memoryBlock, recentExchanges, briefingCtx, base)
+    val outcomeCtx = "[TOOL OUTCOMES]\n" + com.jarvis.android.tool.OUTCOME_RULE + "\n"
+    return listOf(buildLanguageDirective(if (com.jarvis.android.i18n.Lang.isEnglish) "English" else "French (France)"), modeCtx, timeCtx, identityCtx, selfCtx, outcomeCtx, memoryBlock, recentExchanges, briefingCtx, base)
         .filter { it.isNotBlank() }
         .joinToString("\n")
 }

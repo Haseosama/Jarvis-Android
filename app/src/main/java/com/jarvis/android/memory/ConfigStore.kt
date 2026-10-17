@@ -74,6 +74,9 @@ class ConfigStore(private val context: Context) {
     /** The Perplexity API key, for sourced web answers (perplexity/PerplexityTool.kt), a credential too. */
     private val perplexityKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_perplexity_key.enc", keys = keystoreKey)
 
+    /** The key of the other model (an OpenAI-compatible API: Groq, OpenRouter…), a credential too; none for Ollama at home. */
+    private val otherModelKeyStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_other_model_key.enc", keys = keystoreKey)
+
     /** Instagram: the token the user pasted, and the Page account Jarvis found with it (its Page token included), credentials too. */
     private val instagramTokenStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_instagram_token.enc", keys = keystoreKey)
     private val instagramAccountStore = SecureStore(dir = context.noBackupFilesDir, name = "jarvis_instagram_account.enc", keys = keystoreKey)
@@ -224,6 +227,9 @@ class ConfigStore(private val context: Context) {
     fun getElevenLabsKey(): String? = elevenLabsKeyStore.read()
     suspend fun saveElevenLabsKey(value: String): Boolean = withContext(Dispatchers.IO) { elevenLabsKeyStore.write(value) }
     suspend fun deleteElevenLabsKey(): Boolean = withContext(Dispatchers.IO) { elevenLabsKeyStore.delete() }
+    fun getOtherModelKey(): String? = otherModelKeyStore.read()
+    suspend fun saveOtherModelKey(value: String): Boolean = withContext(Dispatchers.IO) { otherModelKeyStore.write(value) }
+    suspend fun deleteOtherModelKey(): Boolean = withContext(Dispatchers.IO) { otherModelKeyStore.delete() }
     fun getRteKey(): String? = rteKeyStore.read()
     suspend fun saveRteKey(value: String): Boolean = withContext(Dispatchers.IO) { rteKeyStore.write(value) }
     suspend fun deleteRteKey(): Boolean = withContext(Dispatchers.IO) { rteKeyStore.delete() }
@@ -256,6 +262,10 @@ class ConfigStore(private val context: Context) {
     private val KEY_SKIP_CONFIRMATIONS = booleanPreferencesKey("skip_confirmations_v2")
     private val KEY_RAIN_ALERTS = booleanPreferencesKey("rain_alerts")
     private val KEY_IMAGES_ADULT = booleanPreferencesKey("images_adult")
+    private val KEY_OTHER_MODEL_URL = stringPreferencesKey("other_model_url")
+    private val KEY_OTHER_MODEL_NAME = stringPreferencesKey("other_model_name")
+    private val KEY_OTHER_MODEL_USE = intPreferencesKey("other_model_use")
+    private val KEY_OTHER_MODEL_VOICE = booleanPreferencesKey("other_model_voice")
     private val KEY_WAKE_PAUSE_SAVER = booleanPreferencesKey("wake_pause_saver")
     private val KEY_AVATAR_MODEL = intPreferencesKey("avatar_face_model")
     /** Set once a face is chosen in a build that has Haseo (see [avatarModelIndex]). */
@@ -357,6 +367,24 @@ class ConfigStore(private val context: Context) {
 
     /** Images IA (image_pc): adult content allowed in the pictures made on the PC. Off until the user turns it on. */
     val imagesAdult: Flow<Boolean> = context.dataStore.data.map { it[KEY_IMAGES_ADULT] ?: false }
+
+    /** The other model (see rest/OpenAiCompat.kt): its address (…/v1), its name, when to use it (rest.OTHER_MODEL_*, in case of need by
+     * default) and whether the voice may use it too (the phone's recognition and voice around it). */
+    val otherModelUrl: Flow<String> = context.dataStore.data.map { it[KEY_OTHER_MODEL_URL].orEmpty() }
+    val otherModelName: Flow<String> = context.dataStore.data.map { it[KEY_OTHER_MODEL_NAME].orEmpty() }
+    val otherModelUse: Flow<Int> = context.dataStore.data.map { it[KEY_OTHER_MODEL_USE] ?: com.jarvis.android.rest.OTHER_MODEL_FALLBACK }
+    val otherModelVoice: Flow<Boolean> = context.dataStore.data.map { it[KEY_OTHER_MODEL_VOICE] ?: false }
+
+    internal suspend fun otherModelConfig(): com.jarvis.android.rest.OtherModelConfig {
+        val prefs = context.dataStore.data.first()
+        return com.jarvis.android.rest.OtherModelConfig(
+            baseUrl = prefs[KEY_OTHER_MODEL_URL].orEmpty(),
+            model = prefs[KEY_OTHER_MODEL_NAME].orEmpty(),
+            key = withContext(Dispatchers.IO) { otherModelKeyStore.read() },
+            use = prefs[KEY_OTHER_MODEL_USE] ?: com.jarvis.android.rest.OTHER_MODEL_FALLBACK,
+            voice = prefs[KEY_OTHER_MODEL_VOICE] ?: false,
+        )
+    }
     /** On by default: the wake word stops listening while Android's battery saver is on (the microphone is the costliest part). */
     val wakePauseInSaver: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_PAUSE_SAVER] ?: true }
     /**
@@ -425,6 +453,10 @@ class ConfigStore(private val context: Context) {
     suspend fun setCalendarAutoCreate(v: Boolean) = context.dataStore.edit { it[KEY_CALENDAR_AUTO_CREATE] = v }
     suspend fun setRainAlerts(v: Boolean) = context.dataStore.edit { it[KEY_RAIN_ALERTS] = v }
     suspend fun setImagesAdult(v: Boolean) = context.dataStore.edit { it[KEY_IMAGES_ADULT] = v }
+    suspend fun setOtherModelUrl(v: String) = context.dataStore.edit { it[KEY_OTHER_MODEL_URL] = v.trim() }
+    suspend fun setOtherModelName(v: String) = context.dataStore.edit { it[KEY_OTHER_MODEL_NAME] = v.trim() }
+    suspend fun setOtherModelUse(v: Int) = context.dataStore.edit { it[KEY_OTHER_MODEL_USE] = v }
+    suspend fun setOtherModelVoice(v: Boolean) = context.dataStore.edit { it[KEY_OTHER_MODEL_VOICE] = v }
     suspend fun setWakePauseInSaver(v: Boolean) = context.dataStore.edit { it[KEY_WAKE_PAUSE_SAVER] = v }
     suspend fun setSkipConfirmations(v: Boolean) = context.dataStore.edit { it[KEY_SKIP_CONFIRMATIONS] = v }
     suspend fun setAvatarSkin(v: Int) = context.dataStore.edit { it[KEY_AVATAR_SKIN] = v }

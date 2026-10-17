@@ -33,6 +33,8 @@ import com.jarvis.android.rest.GenerateTransport
 import com.jarvis.android.rest.MAX_SAVED_TURN_CHARS
 import com.jarvis.android.rest.ModelLadder
 import com.jarvis.android.rest.OkHttpGenerateTransport
+import com.jarvis.android.rest.OtherModelTransport
+import com.jarvis.android.rest.RoutingTransport
 import com.jarvis.android.rest.RestCall
 import com.jarvis.android.rest.RestChatException
 import com.jarvis.android.rest.RestReply
@@ -53,6 +55,17 @@ internal const val MAX_TOOL_ROUNDS = 10
 /** What the calls left over at the round limit answer, so the model sums up instead of the whole request being lost. */
 internal const val ROUND_LIMIT_RESULT =
     "Not run: too many actions in a row. Stop calling tools and answer the user now: what you did, what you found, and what is left."
+
+/** Put before the first result when the model asks for the very same call again. */
+internal const val REPEATED_CALL_NOTE =
+    "Not run again: this exact call was already made in this answer. Its result was: "
+
+/** The tool declarations in the order they fit [question] (see offline/LocalAgent.kt), for a model that is given only a few. */
+internal fun orderToolsFor(question: String, declarations: List<JsonObject>): List<JsonObject> {
+    val specs = declarations.mapNotNull { d -> com.jarvis.android.offline.localToolSpec(d)?.let { it to d } }
+    val picked = com.jarvis.android.offline.pickLocalTools(question, emptyList(), specs.map { it.first }, emptyList(), max = declarations.size)
+    return picked.mapNotNull { p -> specs.firstOrNull { it.first.name == p.name }?.second }
+}
 
 /**
  * A text conversation over plain `generateContent`, with function calling. Works without the
@@ -97,6 +110,7 @@ internal class RestChatSession(
         if (draft.isEmpty()) throw RestChatException(ERROR_EMPTY_DRAFT)
         val start = contents.size
         contents += userTurn(draft)
+        val ran = HashMap<String, String>()
         try {
             var rounds = 0
             while (true) {
@@ -109,7 +123,12 @@ internal class RestChatSession(
                     is RestReply.Calls -> {
                         contents += modelTurn(reply.content)
                         if (++rounds > maxRounds) return conclude(reply.calls)
-                        val results = reply.calls.map { call -> call to runTool(call.name, call.args) }
+                        val results = reply.calls.map { call ->
+                            // the same call again in this answer: the model did not read the result it got, and running the tool
+                            // twice can do harm (Mark LVI: "open whatsapp" opened it four times), so the first result is given back
+                            val key = call.name + call.args.toString()
+                            call to (ran[key]?.let { REPEATED_CALL_NOTE + it } ?: runTool(call.name, call.args).also { ran[key] = it })
+                        }
                         contents += functionResponseTurn(results)
                     }
                 }
@@ -145,12 +164,27 @@ class RestChat internal constructor(
     // ladder moves on to the next one) instead of being waited for without end
     private val httpClient = container.http.newBuilder().readTimeout(90, TimeUnit.SECONDS).callTimeout(180, TimeUnit.SECONDS).build()
 
-    internal val transport: GenerateTransport = transport ?: OkHttpGenerateTransport(
+    /** The other model (Ollama on the PC, Groq…: see rest/OpenAiCompat.kt), for the settings' test and the voice. */
+    internal val otherModel = OtherModelTransport(
         client = httpClient,
-        apiKey = { container.configStore.getApiKey() },
-        nextKey = { container.configStore.keyRejected(it) },
-        ladder = ModelLadder.shared,
+        config = { container.configStore.otherModelConfig() },
+        pickTools = { question, declarations -> orderToolsFor(question, declarations) },
         log = { android.util.Log.i("JarvisModels", it) },
+    )
+
+    /** Gemini (its keys and its ladder of models), with the other model standing in or answering instead, per the settings. */
+    internal val transport: GenerateTransport = transport ?: RoutingTransport(
+        gemini = OkHttpGenerateTransport(
+            client = httpClient,
+            apiKey = { container.configStore.getApiKey() },
+            nextKey = { container.configStore.keyRejected(it) },
+            ladder = ModelLadder.shared,
+            log = { android.util.Log.i("JarvisModels", it) },
+        ),
+        other = otherModel,
+        settings = { container.configStore.otherModelConfig() },
+        hasGeminiKey = { !container.configStore.getApiKey().isNullOrBlank() },
+        log = { android.util.Log.i("JarvisModels", it); container.log(it) },
     )
 
     private val session = RestChatSession(
@@ -245,8 +279,9 @@ class RestChat internal constructor(
         _messages.update { appendConversation(it, ConversationRole.USER, draft, complete = true) }
         try {
             val mode = container.configStore.offlineMode.first()
+            val noKey = container.configStore.getApiKey().isNullOrBlank() && !container.configStore.otherModelConfig().let { it.configured && it.use != com.jarvis.android.rest.OTHER_MODEL_OFF }
             val offline = mode != OFFLINE_NEVER &&
-                (mode == OFFLINE_ALWAYS || container.configStore.getApiKey().isNullOrBlank() || !phoneOnline(container.appContext))
+                (mode == OFFLINE_ALWAYS || noKey || !phoneOnline(container.appContext))
             if (offline) {
                 if (container.localBrain.available()) return@withLock sendLocal(draft, before)
                 if (mode == OFFLINE_ALWAYS) {

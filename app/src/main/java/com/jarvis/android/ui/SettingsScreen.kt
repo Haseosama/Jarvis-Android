@@ -508,8 +508,10 @@ fun SettingsScreen(
                     }
                 }
             }
+            AudioTestSection(inputKey, outputKey)
             }
             PerplexityCard()
+            OtherModelCard()
             SettingsCard(tr("IA locale (hors ligne)"), Icons.Filled.Memory, initiallyExpanded = false) {
             val localAiEnabled by configStore.localAiEnabled.collectAsState(initial = true)
             Text(
@@ -2496,3 +2498,45 @@ internal fun modelListing(result: LiveModelsResult): ModelListing = when (result
 }
 
 private const val TAILSCALE_PACKAGE = "com.tailscale.ipn"
+
+
+/**
+ * TEST buttons for the chosen microphone and speaker (core/AudioTest.kt): a live meter while the user speaks, then what it heard;
+ * a chime on the speaker. The microphone cannot be tested during a voice session, which holds it.
+ */
+@Composable
+private fun AudioTestSection(inputKey: String, outputKey: String) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var level by remember { mutableStateOf(0f) }
+    var listening by remember { mutableStateOf(false) }
+    var micResult by remember { mutableStateOf<String?>(null) }
+    var speakerResult by remember { mutableStateOf<String?>(null) }
+    Text(tr("Tester"), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+        OutlinedButton(enabled = !listening, onClick = {
+            val container = (context.applicationContext as com.jarvis.android.JarvisApp).container
+            when {
+                !container.micGranted() -> micResult = tr("Le micro n’est pas autorisé.")
+                container.engine.state.value != com.jarvis.android.core.JarvisState.ASLEEP -> micResult = tr("Fermez d’abord la session vocale : elle garde le micro.")
+                else -> {
+                    listening = true
+                    micResult = null
+                    scope.launch {
+                        micResult = com.jarvis.android.core.testMicrophone(context, inputKey) { level = it }
+                        listening = false
+                    }
+                }
+            }
+        }) { Text(if (listening) tr("Parlez…") else tr("Tester le micro")) }
+        OutlinedButton(onClick = {
+            speakerResult = null
+            scope.launch { speakerResult = com.jarvis.android.core.testSpeaker(context, outputKey) ?: tr("Vous avez dû entendre deux notes. Sinon, vérifiez la sortie choisie et le volume.") }
+        }) { Text(tr("Tester le son")) }
+    }
+    if (listening) {
+        androidx.compose.material3.LinearProgressIndicator(progress = { level }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+    }
+    micResult?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
+    speakerResult?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
+}

@@ -4,9 +4,6 @@ import com.jarvis.android.JarvisContainer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import com.jarvis.android.tool.Tool
 import com.jarvis.android.tool.stringArg
 import com.jarvis.android.tool.objectSchema
@@ -24,32 +21,22 @@ object CodeHelperTool : Tool {
     }
 
     override suspend fun run(args: JsonObject, ctx: JarvisContainer): String = withContext(Dispatchers.IO) {
-        val apiKey = ctx.configStore.getApiKey() ?: return@withContext "No Gemini API key configured."
         val request = args.stringArg("request")
         if (request.isBlank()) return@withContext "What would you like help with?"
 
         val payload = buildJsonObject {
             putJsonArray("contents") {
                 addJsonObject {
+                    put("role", "user")
                     putJsonArray("parts") { addJsonObject { put("text", request) } }
                 }
             }
         }
-        val body = payload.toString().toRequestBody("application/json".toMediaType())
-        val httpRequest = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$apiKey")
-            .post(body)
-            .build()
-
+        // the app's one transport: the key rotation, the ladder of models, and the other model when Gemini cannot answer
         try {
-            ctx.http.newCall(httpRequest).execute().use { resp ->
-                val text = resp.body?.string() ?: return@withContext "No response from the model."
-                if (!resp.isSuccessful) return@withContext "Code helper failed: HTTP ${resp.code}."
-                val root = Json.parseToJsonElement(text).jsonObject
-                val out = root["candidates"]?.jsonArray?.getOrNull(0)?.jsonObject
-                    ?.get("content")?.jsonObject?.get("parts")?.jsonArray?.getOrNull(0)?.jsonObject
-                    ?.get("text")?.jsonPrimitive?.contentOrNull
-                out ?: "No answer returned."
+            when (val reply = com.jarvis.android.rest.parseGenerateResponse(ctx.restChat.transport.generate(ctx.configStore.snapshotRestModel(), payload))) {
+                is com.jarvis.android.rest.RestReply.Text -> reply.text
+                is com.jarvis.android.rest.RestReply.Calls -> "No answer returned."
             }
         } catch (e: Exception) {
             "Code helper failed: ${e.message}"
