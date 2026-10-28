@@ -38,8 +38,8 @@ android {
         applicationId = "com.jarvis.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 158
-        versionName = "0.10.1"
+        versionCode = 159
+        versionName = "0.10.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -156,6 +156,9 @@ dependencies {
 
     // The Jarvis PC QR code (Réglages > Jarvis PC): Google's scanner screen, no camera permission for the app
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+
+    // Jarvis's own screens in Android Auto (templates, the car's microphone) and knowing when the phone is projecting on a car
+    implementation("androidx.car.app:app:1.4.0")
 
     // Steps, sleep and heart rate from Health Connect (read only, with the user's permission)
     implementation("androidx.health.connect:connect-client:1.1.0")

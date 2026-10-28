@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.10.1 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.10.2 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -2539,3 +2539,28 @@ the routing (`RoutingTransportTest`), a fake OpenAI server (`OtherModelTransport
 unreachable server, http refused), the repeated call, outcomes, app-name matching, the text actions and the audio test's levels.
 **Not checked on a phone**: a real Ollama/Groq conversation, the voice with the other model, the text menu in other apps, the audio
 tests, and `open_app`'s on-screen check.
+
+### Android Auto like the phone (0.10.2)
+
+At the owner's request ("améliorer Android Auto pour avoir la même chose que la version téléphone"). Until now Jarvis was only a media app
+in the car (radio, podcasts, news). Google does not let a third-party app be a voice assistant in Android Auto, nor draw its own screen;
+what it allows is media, messaging conversations and a few template screens (lists, a map with places, a message). Jarvis now uses all three:
+
+- **A conversation with Jarvis in the car's notifications** (`car/CarChat.kt`). When Android Auto projects (`CarConnection`, watched from
+  `JarvisApp`), Jarvis posts « Je suis là… » as a messaging conversation. The user answers with the car's dictation (*Répondre*, or « Ok
+  Google, réponds »); the answer goes to the **phone's text chat** (`RestChat`: every tool, the memory, the same history, the local model
+  when offline), and the reply comes back in the conversation, spoken by the phone's speech engine through the car. In Android Auto the text
+  chat is told it is read aloud (`CAR_TEXT_DIRECTIVE`: short sentences, no Markdown, lists or links), and what is said is cleaned the same
+  way and cut at 700 characters (`carSpoken`; the rest stays in the phone's chat). The conversation leaves the notifications with the car.
+- **Jarvis's own screens** (`car/JarvisCarAppService.kt`, `car/CarScreens.kt`, Car App Library 1.4, category POI): *Parler à Jarvis* (the
+  **car's microphone**, `CarAudioRecord`, recorded until a pause, written down by Gemini and asked of the same chat; *Encore* to go on;
+  needs a car host of level 5 or more), *Ma journée*, *Mes messages* (questions asked of the chat), *Autour de moi* (toilets, chargers,
+  pharmacies, ATMs, bakeries on the car's map, from `autour_de_moi`), *Carburant le moins cher* (the fuel chosen last first, the stations on
+  the map, from `prix_carburant`), *Le journal*. A place opens the car's navigation app.
+- **What Google forbids in a car**, so not offered there: video, the face and the avatar (custom drawing is only for navigation apps),
+  photos, keyboards while moving, long texts and lists past six rows, taking the steering wheel's voice button (it always goes to Google's
+  assistant: say « Ok Google, réponds » or tap the conversation), and AR. Everything else Jarvis does is reached by talking to it.
+
+Like the media app, a sideloaded APK is only shown by Android Auto with *Sources inconnues* on in its developer settings. *Checked:*
+`CarChatTest` (spoken text, the kept lines, the directive, the end of speech, the first page, the navigation link). *Not checked:* in a
+real car or Google's Desktop Head Unit.

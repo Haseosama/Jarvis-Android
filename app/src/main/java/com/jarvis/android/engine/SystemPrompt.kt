@@ -30,7 +30,7 @@ internal suspend fun buildSystemInstruction(container: JarvisContainer, textMode
     else "ADDRESS: Address the user with the ordinary respectful form for a superior in the language you are currently speaking."
     val identityCtx = "[IDENTITY]\nYour name is $assistantName. Always refer to yourself as $assistantName.\n$addr\n"
 
-    val modeCtx = if (textMode) TEXT_MODE_DIRECTIVE else if (com.jarvis.android.driving.DrivingMode.active) DRIVING_DIRECTIVE else ""
+    val modeCtx = modeDirective(textMode, inCar = textMode && com.jarvis.android.core.CarAudio.projection(container.appContext), driving = com.jarvis.android.driving.DrivingMode.active)
     val selfCtx = buildSelfKnowledge(collectSelfKnowledge(container, assistantName))
     val briefingCtx = if (textMode) "" else container.briefing.prepare()
     val outcomeCtx = "[TOOL OUTCOMES]\n" + com.jarvis.android.tool.OUTCOME_RULE + "\n"
@@ -43,6 +43,21 @@ internal const val DRIVING_DIRECTIVE =
     "[DRIVING]\n" +
         "The user is driving: answer in one or two short spoken sentences, no lists, no reading of long texts unless asked, " +
         "and never ask them to look at or touch the screen. Navigation, calls, messages and music come first.\n"
+
+/** The note on how the answer reaches the user: on the phone's screen, said by the car (Android Auto), or spoken while driving. */
+internal fun modeDirective(textMode: Boolean, inCar: Boolean, driving: Boolean): String = when {
+    textMode && inCar -> CAR_TEXT_DIRECTIVE
+    textMode -> TEXT_MODE_DIRECTIVE
+    driving -> DRIVING_DIRECTIVE
+    else -> ""
+}
+
+internal const val CAR_TEXT_DIRECTIVE =
+    "[CAR]\n" +
+        "The user is driving and talks to you through Android Auto: what they say is dictated, and your reply is read aloud by the car " +
+        "and shown on its screen. Answer in one to three short spoken sentences, plain words only: no Markdown, no lists, no tables, no links, " +
+        "no emojis. Never ask them to look at or touch the phone. Use tools exactly as you would on the phone (reminders, messages, calls, " +
+        "navigation, weather, the PC…), and say plainly what you did.\n"
 
 internal const val TEXT_MODE_DIRECTIVE =
     "[MODE]\n" +
