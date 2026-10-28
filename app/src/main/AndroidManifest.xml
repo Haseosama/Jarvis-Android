@@ -329,6 +329,25 @@
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
 
+        <!-- Jarvis's own screens in Android Auto: talking with the car's microphone, the day, around me, fuel (car/CarScreens.kt) -->
+        <service
+            android:name=".car.JarvisCarAppService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.POI" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="androidx.car.app.minCarApiLevel"
+            android:value="1" />
+
+        <!-- The Jarvis conversation in the car's notifications: the answer dictated in the car (car/CarChat.kt) -->
+        <receiver
+            android:name=".car.CarChatReceiver"
+            android:exported="false" />
+
         <service
             android:name=".wakeup.RadioAlarmService"
             android:foregroundServiceType="mediaPlayback"

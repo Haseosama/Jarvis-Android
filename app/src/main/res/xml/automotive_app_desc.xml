@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Jarvis in Android Auto: a media app (its radio, podcasts and news, see car/JarvisMediaService.kt) -->
+<!-- Jarvis in Android Auto: a media app (its radio, podcasts and news, see car/JarvisMediaService.kt), its own screens
+     (car/JarvisCarAppService.kt) and a conversation in the car's notifications (car/CarChat.kt) -->
 <automotiveApp>
     <uses name="media" />
+    <uses name="template" />
+    <uses name="notification" />
 </automotiveApp>
