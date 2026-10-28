@@ -1,0 +1,41 @@
+<div class="container">
+    <list class="list" if="{{mode == 'menu'}}">
+        <list-item class="head">
+            <text class="title">Jarvis</text>
+        </list-item>
+        <list-item class="head">
+            <text class="status">{{status}}</text>
+        </list-item>
+        <list-item class="item" onclick="askDay">
+            <text class="label">Ma journée</text>
+        </list-item>
+        <list-item class="item" onclick="askWeather">
+            <text class="label">Météo</text>
+        </list-item>
+        <list-item class="item" onclick="askReminder">
+            <text class="label">Prochain rappel</text>
+        </list-item>
+        <list-item class="item" onclick="askMessages">
+            <text class="label">Mes messages</text>
+        </list-item>
+        <list-item class="item" onclick="askCar">
+            <text class="label">Ma voiture</text>
+        </list-item>
+        <list-item class="item" onclick="askFuel">
+            <text class="label">Carburant</text>
+        </list-item>
+        <list-item class="head"></list-item>
+    </list>
+    <list class="list" if="{{mode == 'answer'}}">
+        <list-item class="head">
+            <text class="title">{{asked}}</text>
+        </list-item>
+        <list-item class="line" for="{{lines}}">
+            <text class="answer">{{$item}}</text>
+        </list-item>
+        <list-item class="item" onclick="back">
+            <text class="label">Retour</text>
+        </list-item>
+        <list-item class="head"></list-item>
+    </list>
+</div>

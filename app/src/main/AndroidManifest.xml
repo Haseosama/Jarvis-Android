@@ -55,6 +55,8 @@
     <!-- Health Connect (the app that holds steps and sleep) on Android 13 and older. -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- Huawei Health, through which Wear Engine reaches the Huawei watch (wearable/HuaweiWatch.kt) -->
+        <package android:name="com.huawei.health" />
     </queries>
 
     <application
@@ -342,6 +344,11 @@
         <meta-data
             android:name="androidx.car.app.minCarApiLevel"
             android:value="1" />
+
+        <!-- The App ID Huawei gave Jarvis in AppGallery Connect, which Wear Engine checks (huawei.appId=… in local.properties) -->
+        <meta-data
+            android:name="com.huawei.hms.client.appid"
+            android:value="appid=${huaweiAppId}" />
 
         <!-- The Jarvis conversation in the car's notifications: the answer dictated in the car (car/CarChat.kt) -->
         <receiver

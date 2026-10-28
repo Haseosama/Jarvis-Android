@@ -1317,6 +1317,7 @@ fun SettingsScreen(
             SosCard()
             PhotosCard()
             DrivingCard()
+            HuaweiWatchCard()
             HealthCard()
             QuietCard()
             ParcelsCard()

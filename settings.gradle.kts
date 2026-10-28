@@ -10,6 +10,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Huawei's Wear Engine (the Huawei watch), only that
+        maven("https://developer.huawei.com/repo/") {
+            content { includeGroupByRegex("com\\.huawei\\..*") }
+        }
     }
 }
 

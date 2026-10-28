@@ -1,0 +1,44 @@
+{
+  "app": {
+    "bundleName": "com.jarvis.watch",
+    "vendor": "jarvis",
+    "version": {
+      "code": 1000000,
+      "name": "1.0.0"
+    }
+  },
+  "deviceConfig": {},
+  "module": {
+    "package": "com.jarvis.watch",
+    "name": ".MyApplication",
+    "deviceType": [
+      "liteWearable"
+    ],
+    "distro": {
+      "deliveryWithInstall": true,
+      "moduleName": "entry",
+      "moduleType": "entry"
+    },
+    "abilities": [
+      {
+        "name": "default",
+        "icon": "$media:icon",
+        "label": "Jarvis",
+        "type": "page",
+        "visible": true
+      }
+    ],
+    "js": [
+      {
+        "pages": [
+          "pages/index/index"
+        ],
+        "name": "default",
+        "window": {
+          "designWidth": 466,
+          "autoDesignWidth": false
+        }
+      }
+    ]
+  }
+}

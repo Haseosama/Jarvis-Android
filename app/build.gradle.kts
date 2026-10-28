@@ -38,10 +38,12 @@ android {
         applicationId = "com.jarvis.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 159
-        versionName = "0.10.2"
+        versionCode = 160
+        versionName = "0.10.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // The Huawei watch (wearable/HuaweiWatch.kt): the App ID of Jarvis in AppGallery Connect, empty until Haseo has one
+        manifestPlaceholders["huaweiAppId"] = keystoreProp("huawei.appId") ?: ""
     }
 
     if (releaseSigningReady) {
@@ -159,6 +161,8 @@ dependencies {
 
     // Jarvis's own screens in Android Auto (templates, the car's microphone) and knowing when the phone is projecting on a car
     implementation("androidx.car.app:app:1.4.0")
+    // Huawei watches (Watch GT 4…): Wear Engine, through Huawei Health (wearable/HuaweiWatch.kt)
+    implementation("com.huawei.hms:wearengine:5.0.2.306")
 
     // Steps, sleep and heart rate from Health Connect (read only, with the user's permission)
     implementation("androidx.health.connect:connect-client:1.1.0")
