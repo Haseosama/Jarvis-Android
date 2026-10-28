@@ -1,0 +1,68 @@
+.container {
+    width: 466px;
+    height: 466px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #000000;
+}
+
+.list {
+    width: 466px;
+    height: 466px;
+}
+
+.head {
+    width: 466px;
+    height: 90px;
+    justify-content: center;
+    align-items: center;
+}
+
+.item {
+    width: 466px;
+    height: 96px;
+    justify-content: center;
+    align-items: center;
+}
+
+.line {
+    width: 466px;
+    height: 44px;
+    justify-content: center;
+    align-items: center;
+}
+
+.title {
+    width: 360px;
+    height: 60px;
+    font-size: 38px;
+    color: #4fc3f7;
+    text-align: center;
+}
+
+.status {
+    width: 380px;
+    height: 60px;
+    font-size: 30px;
+    color: #9e9e9e;
+    text-align: center;
+}
+
+.label {
+    width: 360px;
+    height: 80px;
+    font-size: 30px;
+    color: #ffffff;
+    text-align: center;
+    background-color: #1a237e;
+    border-radius: 40px;
+}
+
+.answer {
+    width: 400px;
+    height: 44px;
+    font-size: 30px;
+    color: #ffffff;
+    text-align: center;
+}

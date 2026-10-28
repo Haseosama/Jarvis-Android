@@ -289,6 +289,9 @@ class ConfigStore(private val context: Context) {
     private val KEY_OFFLINE_VOICE = stringPreferencesKey("offline_voice")
     private val KEY_INSTAGRAM_ALBUM = stringPreferencesKey("instagram_album")
     private val KEY_INSTAGRAM_POSTED = stringPreferencesKey("instagram_posted_ids")
+    private val KEY_HUAWEI_WATCH = booleanPreferencesKey("huawei_watch_enabled")
+    private val KEY_HUAWEI_WATCH_PACKAGE = stringPreferencesKey("huawei_watch_package")
+    private val KEY_HUAWEI_WATCH_FINGERPRINT = stringPreferencesKey("huawei_watch_fingerprint")
 
     val assistantName: Flow<String> = context.dataStore.data.map { it[KEY_ASSISTANT_NAME] ?: "JARVIS" }
     val userName: Flow<String> = context.dataStore.data.map { it[KEY_USER_NAME] ?: "" }
@@ -345,6 +348,10 @@ class ConfigStore(private val context: Context) {
     val avatarHaseoLooks: Flow<List<Pair<String, String>>> = context.dataStore.data.map { decodeLooks(it[KEY_AVATAR_HASEO_LOOKS].orEmpty()) }
     /** Car mode (Android Auto): 0 = automatic, 1 = always, 2 = never. */
     val carAudioMode: Flow<Int> = context.dataStore.data.map { it[KEY_CAR_AUDIO] ?: 0 }
+    /** The Huawei watch app (wearable/HuaweiWatch.kt): on or off, its bundle name and its signing fingerprint. */
+    val huaweiWatchEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_HUAWEI_WATCH] ?: false }
+    val huaweiWatchPackage: Flow<String> = context.dataStore.data.map { it[KEY_HUAWEI_WATCH_PACKAGE]?.takeIf { v -> v.isNotBlank() } ?: DEFAULT_HUAWEI_WATCH_PACKAGE }
+    val huaweiWatchFingerprint: Flow<String> = context.dataStore.data.map { it[KEY_HUAWEI_WATCH_FINGERPRINT] ?: "" }
     /** Offline mode: 0 = automatic (when there is no network or Gemini cannot be reached), 1 = always, 2 = never. */
     val offlineMode: Flow<Int> = context.dataStore.data.map { it[KEY_OFFLINE_MODE] ?: 0 }
     /** Keeps what was said in the voice sessions (shown on the main screen, and recalled to the model at the next session). On by default. */
@@ -448,6 +455,9 @@ class ConfigStore(private val context: Context) {
     suspend fun setLocalAiEnabled(v: Boolean) = context.dataStore.edit { it[KEY_LOCAL_AI] = v }
     suspend fun setOfflineMode(v: Int) = context.dataStore.edit { it[KEY_OFFLINE_MODE] = v }
     suspend fun setCarAudioMode(v: Int) = context.dataStore.edit { it[KEY_CAR_AUDIO] = v }
+    suspend fun setHuaweiWatchEnabled(v: Boolean) = context.dataStore.edit { it[KEY_HUAWEI_WATCH] = v }
+    suspend fun setHuaweiWatchPackage(v: String) = context.dataStore.edit { it[KEY_HUAWEI_WATCH_PACKAGE] = v.trim() }
+    suspend fun setHuaweiWatchFingerprint(v: String) = context.dataStore.edit { it[KEY_HUAWEI_WATCH_FINGERPRINT] = v.trim() }
     suspend fun setMessageAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_MESSAGE_AUTO_SEND] = v }
     suspend fun setGmailAutoSend(v: Boolean) = context.dataStore.edit { it[KEY_GMAIL_AUTO_SEND] = v }
     suspend fun setCalendarAutoCreate(v: Boolean) = context.dataStore.edit { it[KEY_CALENDAR_AUTO_CREATE] = v }
@@ -497,6 +507,8 @@ class ConfigStore(private val context: Context) {
 
         /** Model for the text chat, over plain generateContent (not the Live WebSocket). */
         const val DEFAULT_REST_MODEL = "models/gemini-3.6-flash"
+        /** The bundle name of the watch app in watch/ (its config.json). */
+        const val DEFAULT_HUAWEI_WATCH_PACKAGE = "com.jarvis.watch"
         /**
          * Gemini's prebuilt voices (the same for the Live API and the speech endpoint), women's voices first, each with the character
          * Google gives it. There were only five here, two of them women's; these are all thirty.

@@ -9,7 +9,7 @@ and [`core/LiveProtocol.kt`](app/src/main/java/com/jarvis/android/core/LiveProto
 
 ## Status
 
-Version 0.10.2 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
+Version 0.10.3 (see `app/build.gradle.kts`; the version goes up with every change, and releases are published on
 [GitHub Releases](https://github.com/Haseosama/Jarvis-Android/releases), see "Updating from GitHub"). The voice loop works end to end on a
 real phone: microphone → Gemini Live (`models/gemini-3.8-live`) → spoken reply with live transcripts. The unit-test suite (about 800 tests,
 `./gradlew :app:testDebugUnitTest`) passes. Each feature below says what was checked and what was not; in short, a lot was checked on an
@@ -2564,3 +2564,27 @@ what it allows is media, messaging conversations and a few template screens (lis
 Like the media app, a sideloaded APK is only shown by Android Auto with *Sources inconnues* on in its developer settings. *Checked:*
 `CarChatTest` (spoken text, the kept lines, the directive, the end of speech, the first page, the navigation link). *Not checked:* in a
 real car or Google's Desktop Head Unit.
+
+### Jarvis on a Huawei watch (0.10.3)
+
+At the owner's request ("j'ai une huawei watch gt4 tu pense que l'on peu mettre jarvis dessus ?"). The Watch GT 4 runs HarmonyOS "lite":
+it installs no APK, and a third-party app there has no microphone. So the watch gets its own small app (`watch/`, JavaScript for DevEco
+Studio's *Lite Wearable* template) with six buttons (*Ma journée*, *Météo*, *Prochain rappel*, *Mes messages*, *Ma voiture*, *Carburant*),
+and it talks to the phone through Huawei's **Wear Engine** (through the Huawei Health app):
+
+- **Phone side** (`wearable/HuaweiWatch.kt`, `com.huawei.hms:wearengine` from Huawei's Maven repository, limited to `com.huawei.*`). When
+  *Paramètres > Téléphone > Montre Huawei > Relier la montre* is on, Jarvis finds the watch connected to Huawei Health (again every five
+  minutes until it is there) and listens to the watch app. A button is asked of the **phone's text chat** (`RestChat` through
+  `CarChat.ask`: every tool, the memory, the same history), told the answer goes on a watch, and the answer is sent back cleaned like in the
+  car (`carSpoken`, 600 characters at most) in pieces under Wear Engine's 1 KB (`wearable/WatchProtocol.kt`). The card also shows the
+  phone's package and signing SHA-256 to copy into the watch app, and takes the watch app's package and fingerprint.
+- **Watch side** (`watch/entry/src/main/js/default`): the buttons, the answer wrapped into lines for the round 466 px screen, a 90 s
+  timeout, "Téléphone relié" once the phone answers `HELLO`. Huawei's `wearengine.js` is not in the repository (Huawei's licence): it comes
+  from the Wear Engine watch SDK.
+- **What only the owner can do**: a Huawei developer account, Jarvis registered in AppGallery Connect (its App ID goes in
+  `local.properties` as `huawei.appId`, read into the manifest), the Wear Engine service requested and granted by Huawei, the watch app
+  signed and installed from DevEco Studio. Step by step in [`watch/README.md`](watch/README.md).
+
+*Checked:* `WatchProtocolTest` (the watch's messages, the answer in parts under the byte limit, UTF-8 cuts, the watch app's buttons are the
+phone's presets, the fingerprint format). *Not checked:* anything against Huawei's services or a real watch (it needs the grant first); the
+watch app was not built, as DevEco Studio is not installed.

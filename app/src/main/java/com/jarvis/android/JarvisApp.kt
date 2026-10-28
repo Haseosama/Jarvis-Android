@@ -18,5 +18,7 @@ class JarvisApp : Application() {
             }
         } catch (_: Exception) {
         }
+        // the Huawei watch app, when it is turned on in the settings (Téléphone > Montre Huawei)
+        com.jarvis.android.wearable.HuaweiWatch.start(this)
     }
 }
